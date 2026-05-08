@@ -4,8 +4,8 @@
  * Ex:  node scripts/reset-password.mjs lucas.melo1991@gmail.com MinhaNovaSenh@123
  */
 
-const SUPABASE_URL        = "https://mdbqhmkblzyllkyxjhrd.supabase.co";
-const SERVICE_ROLE_KEY    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kYnFobWtibHp5bGxreXhqaHJkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIxMTAzNCwiZXhwIjoyMDkxNzg3MDM0fQ.wHriU_3LILrXkNnPcJriF2Ry58SjSdnM7jYLcUHIf08";
+const SUPABASE_URL        = process.env.SUPABASE_URL        || "https://mdbqhmkblzyllkyxjhrd.supabase.co";
+const SERVICE_ROLE_KEY    = process.env.SUPABASE_SERVICE_KEY || "";
 
 const email    = process.argv[2];
 const password = process.argv[3];
