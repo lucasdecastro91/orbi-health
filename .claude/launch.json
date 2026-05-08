@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "landing-page",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "landing-page", "-p", "5501"],
+      "port": 5501
+    },
+    {
+      "name": "logos-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "public/logos", "--port", "5500", "--no-clipboard"],
+      "port": 5500
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite"],
+      "port": 8080,
+      "autoPort": true
+    }
+  ]
+}

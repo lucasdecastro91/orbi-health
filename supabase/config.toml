@@ -1,0 +1,7 @@
+project_id = "mdbqhmkblzyllkyxjhrd"
+
+[functions.create-student]
+verify_jwt = false
+
+[functions.importar-taco]
+verify_jwt = false

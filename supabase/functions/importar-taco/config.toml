@@ -1,0 +1,2 @@
+[functions.importar-taco]
+verify_jwt = false

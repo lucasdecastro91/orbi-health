@@ -1,0 +1,407 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design system — premium dark fitness app.
+  All colors in HSL. Emerald green accent (#16a34a range).
+
+  Architecture:
+  • :root        = dark values by default (app-wide default theme)
+  • .dark        = same dark values — keeps Tailwind's dark: prefix working
+  • .light       = light theme values, toggled by TenantContext
+  • Light-mode overrides (in @layer utilities) flip hardcoded dark Tailwind
+    utility classes when .light is present on <html>.
+*/
+
+@layer base {
+  :root {
+    /* ── DARK DEFAULTS ────────────────────────────────────────── */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 97%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 97%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 97%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 97%;
+
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --gold: 142 76% 36%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 14%;
+    --ring: 142 76% 40%;
+
+    --radius: 0.75rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 9%), hsl(0 0% 6%));
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 4px 12px -1px hsl(0 0% 0% / 0.5);
+    --shadow-lg: 0 10px 30px -3px hsl(0 0% 0% / 0.6);
+    --shadow-green: 0 0 32px hsl(142 76% 36% / 0.25);
+
+    /* ── Dynamic primary color vars (also set by TenantContext) ── */
+    --cp-gradient: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
+    --cp-rgb:      22, 163, 74;
+    --cp-400:      hsl(142 69% 52%);
+    --cp-500:      hsl(142 69% 45%);
+    --cp-600:      hsl(142 76% 36%);
+    --cp-text:     #ffffff;
+  }
+
+  .dark {
+    /* ── DARK CLASS (mirrors :root) — required for dark: utilities ── */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 97%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 97%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 97%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 97%;
+
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --gold: 142 76% 36%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 14%;
+    --ring: 142 76% 40%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 9%), hsl(0 0% 6%));
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 4px 12px -1px hsl(0 0% 0% / 0.5);
+    --shadow-lg: 0 10px 30px -3px hsl(0 0% 0% / 0.6);
+    --shadow-green: 0 0 32px hsl(142 76% 36% / 0.25);
+
+    /* ── Dynamic primary color vars (mirrors :root defaults) ── */
+    --cp-gradient: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
+    --cp-rgb:      22, 163, 74;
+    --cp-400:      hsl(142 69% 52%);
+    --cp-500:      hsl(142 69% 45%);
+    --cp-600:      hsl(142 76% 36%);
+    --cp-text:     #ffffff;
+  }
+
+  .light {
+    /* ── LIGHT THEME ─────────────────────────────────────────── */
+    --background: 0 0% 97%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 11% 71%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 210 11% 93%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --gold: 142 76% 36%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 11% 86%;
+    --input: 210 11% 86%;
+    --ring: 142 76% 45%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 11% 98%));
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1);
+    --shadow-green: 0 0 24px hsl(142 76% 36% / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Scrollbar premium */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 25%);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(142 76% 36% / 0.6);
+  }
+  .light ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 75%);
+  }
+
+  .texto-multilinha {
+    white-space: pre-line;
+  }
+}
+
+@layer utilities {
+  .transition-premium {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Pop-in animation (student pages: meal/exercise check icons) ── */
+  @keyframes pop-in {
+    0%   { transform: scale(0.65); opacity: 0.5; }
+    65%  { transform: scale(1.18);              }
+    100% { transform: scale(1);    opacity: 1;  }
+  }
+  .animate-pop-in {
+    animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .glass-card {
+    background: hsl(0 0% 0% / 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+  }
+
+  .green-glow {
+    box-shadow: 0 0 32px hsl(142 76% 36% / 0.2);
+  }
+
+  .text-gradient-green {
+    background: linear-gradient(135deg, hsl(142 69% 48%), hsl(142 76% 36%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TYPOGRAPHY SCALE (student pages — TreinoHoje)
+     Composable text utilities with semantic color tokens.
+     These do NOT affect coach pages (none of them use these classes).
+  ═══════════════════════════════════════════════════════════════ */
+
+  .typo-page-title {
+    @apply text-2xl font-semibold tracking-tight text-foreground;
+    line-height: 1.25;
+  }
+
+  .typo-section-title {
+    @apply text-lg font-medium text-foreground;
+    line-height: 1.35;
+  }
+
+  .typo-card-title {
+    @apply text-base font-medium text-foreground;
+    line-height: 1.4;
+  }
+
+  .typo-body {
+    @apply text-sm text-muted-foreground;
+    line-height: 1.55;
+  }
+
+  .typo-meta {
+    @apply text-xs text-muted-foreground;
+    line-height: 1.4;
+    opacity: 0.75;
+  }
+
+  .typo-label {
+    font-size: 0.625rem;   /* 10px */
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    @apply text-muted-foreground;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     LIGHT MODE OVERRIDES
+     These rules flip hardcoded dark Tailwind utilities to their
+     light-mode equivalents when .light is present on <html>.
+
+     Two-class specificity (.light .text-white = 0,2,0) beats
+     Tailwind's single-class utilities (0,1,0) — no !important needed.
+     Works for portal-rendered dialogs/dropdowns since they are
+     children of <body>, which is inside <html class="light">.
+  ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Backgrounds ── */
+  .light .bg-zinc-950,
+  .light .bg-zinc-900 {
+    background-color: hsl(var(--background));
+  }
+  /* Black overlays → very translucent in light mode */
+  .light .bg-black\/60  { background-color: rgb(0 0 0 / 0.08); }
+  .light .bg-black\/80  { background-color: rgb(248 248 248 / 0.92); }
+  .light .bg-black\/90  { background-color: rgb(248 248 248 / 0.96); }
+  .light .bg-black\/95  { background-color: rgb(255 255 255 / 0.98); }
+  /* White-tinted surfaces → black-tinted at same opacity */
+  .light .bg-white\/3   { background-color: rgb(0 0 0 / 0.03); }
+  .light .bg-white\/4   { background-color: rgb(0 0 0 / 0.04); }
+  .light .bg-white\/5   { background-color: rgb(0 0 0 / 0.05); }
+  .light .bg-white\/6   { background-color: rgb(0 0 0 / 0.06); }
+  .light .bg-white\/8   { background-color: rgb(0 0 0 / 0.08); }
+  .light .bg-white\/10  { background-color: rgb(0 0 0 / 0.07); }
+
+  /* ── Gradient backgrounds → flat background in light mode ──
+     Tailwind gradients usam CSS custom properties (--tw-gradient-from,
+     --tw-gradient-stops, --tw-gradient-to). Ao redefinir essas vars
+     com a cor de background, o gradiente escuro vira fundo claro sem
+     precisar tocar no JSX.
+  ── */
+  .light .from-black {
+    --tw-gradient-from: hsl(var(--background));
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, transparent);
+  }
+  .light .via-zinc-900 {
+    --tw-gradient-stops: var(--tw-gradient-from), hsl(var(--background)), var(--tw-gradient-to);
+  }
+  .light .to-black,
+  .light .to-neutral-900,
+  .light .to-zinc-900 {
+    --tw-gradient-to: hsl(var(--background));
+  }
+
+  /* ── Text ── */
+  .light .text-white      { color: rgb(24 24 27); }
+  .light .text-white\/80  { color: rgb(24 24 27 / 0.8); }
+  .light .text-white\/70  { color: rgb(24 24 27 / 0.7); }
+  .light .text-white\/60  { color: rgb(24 24 27 / 0.6); }
+  .light .text-white\/50  { color: rgb(24 24 27 / 0.5); }
+  .light .text-white\/40  { color: rgb(24 24 27 / 0.42); }
+  .light .text-white\/35  { color: rgb(24 24 27 / 0.37); }
+  .light .text-white\/30  { color: rgb(24 24 27 / 0.32); }
+  .light .text-white\/25  { color: rgb(24 24 27 / 0.28); }
+  .light .text-white\/20  { color: rgb(24 24 27 / 0.22); }
+
+  /* ── Borders ── */
+  .light .border-white\/5  { border-color: rgb(0 0 0 / 0.08); }
+  .light .border-white\/6  { border-color: rgb(0 0 0 / 0.10); }
+  .light .border-white\/8  { border-color: rgb(0 0 0 / 0.13); }
+  .light .border-white\/10 { border-color: rgb(0 0 0 / 0.15); }
+  .light .border-white\/20 { border-color: rgb(0 0 0 / 0.22); }
+
+  /* ── Hover backgrounds ── */
+  .light .hover\:bg-white\/5:hover   { background-color: rgb(0 0 0 / 0.05); }
+  .light .hover\:bg-white\/6:hover   { background-color: rgb(0 0 0 / 0.06); }
+  .light .hover\:bg-white\/8:hover   { background-color: rgb(0 0 0 / 0.08); }
+  .light .hover\:bg-white\/20:hover  { background-color: rgb(0 0 0 / 0.08); }
+
+  /* ── Hover text ── */
+  .light .hover\:text-white:hover     { color: rgb(24 24 27); }
+  .light .hover\:text-white\/80:hover { color: rgb(24 24 27 / 0.8); }
+  .light .hover\:text-white\/70:hover { color: rgb(24 24 27 / 0.7); }
+
+  /* ── Hover borders ── */
+  .light .hover\:border-white\/20:hover { border-color: rgb(0 0 0 / 0.22); }
+
+  /* ── Group-hover ── */
+  .light .group:hover .group-hover\:border-white\/20 { border-color: rgb(0 0 0 / 0.22); }
+  .light .group:hover .group-hover\:bg-green-600     { background-color: hsl(142 76% 36%); }
+
+  /* ── Placeholders ── */
+  .light .placeholder\:text-white\/30::placeholder { color: rgb(24 24 27 / 0.38); }
+  .light .placeholder\:text-white\/25::placeholder { color: rgb(24 24 27 / 0.32); }
+
+  /* ── Input / focus rings stay green — no override needed ── */
+
+  /* ── Macro / accent colors — versões mais escuras para fundo claro ──
+     As variantes 400 (ex: orange-400 = #fb923c) são claras demais em fundo
+     branco. Substituímos pelas variantes 600 que têm contraste WCAG AA.
+  ── */
+  .light .text-orange-400  { color: hsl(25  90% 40%); }   /* orange-600 ~#c2500e */
+  .light .text-red-400     { color: hsl(0   72% 42%); }   /* red-600 ~#c81e1e    */
+  .light .text-blue-400    { color: hsl(217 91% 42%); }   /* blue-600 ~#1d4ed8   */
+  .light .text-green-500   { color: hsl(var(--primary)); }
+  .light .text-yellow-400  { color: hsl(45  93% 35%); }   /* yellow-700 ~#a16207 */
+  .light .text-green-400   { color: var(--cp-400); }
+
+  /* Bordas da table no light mode */
+  .light .border-white\/5  { border-color: rgb(0 0 0 / 0.07); }
+  .light .border-white\/8  { border-color: rgb(0 0 0 / 0.10); }
+
+  /* ── Backdrop for dialogs/sheets in light mode ── */
+  .light [data-radix-popper-content-wrapper] {
+    filter: drop-shadow(0 4px 20px rgb(0 0 0 / 0.12));
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TAILWIND GREEN CLASS OVERRIDES → primary color CSS vars
+     These map Tailwind green utilities to the tenant's chosen
+     primary color so the entire UI adapts when the org color changes.
+     !important is required to beat Tailwind's generated specificity
+     when both classes land on the same element.
+  ═══════════════════════════════════════════════════════════════ */
+  .text-green-400   { color: var(--cp-400)        !important; }
+  .text-green-500   { color: hsl(var(--primary))  !important; }
+  .text-green-600   { color: hsl(var(--primary))  !important; }
+  .bg-green-500     { background-color: hsl(var(--primary)) !important; }
+  .bg-green-600     { background-color: hsl(var(--primary)) !important; }
+  .border-green-500 { border-color: hsl(var(--primary)) !important; }
+  .border-green-600 { border-color: hsl(var(--primary)) !important; }
+  .ring-green-500   { --tw-ring-color: hsl(var(--primary)) !important; }
+  .fill-green-500   { fill: hsl(var(--primary))  !important; }
+  .stroke-green-500 { stroke: hsl(var(--primary)) !important; }
+
+  /* group-hover green → primary */
+  .group:hover .group-hover\:bg-green-600 {
+    background-color: hsl(var(--primary)) !important;
+  }
+  .group:hover .group-hover\:text-green-400 {
+    color: var(--cp-400) !important;
+  }
+}

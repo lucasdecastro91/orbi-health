@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORBI HEALTH — Seu app de saúde e fitness com a sua cara</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+:root {
+  --color-primary: #16a34a;
+  --color-primary-dark: #15803d;
+  --color-primary-light: #dcfce7;
+  --color-motion: #ea580c;
+  --color-balance: #16a34a;
+  --color-pro: #7c3aed;
+  --color-clinic: #0d9488;
+  --color-bg: #ffffff;
+  --color-text: #111827;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
+  --color-surface: #f9fafb;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --ease: 0.22s ease;
+  --max-width: 1200px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: none; transition: color var(--ease); }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+ul { list-style: none; }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+}
+.container { width: 100%; max-width: var(--max-width); margin: 0 auto; padding: 0 1rem; }
+@media (min-width: 768px) { .container { padding: 0 2rem; } }
+@media (min-width: 1024px) { .container { padding: 0 3rem; } }
+
+/* BOTÕES */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .625rem 1.25rem; border-radius: var(--radius-md); font-family: var(--font);
+  font-size: .9375rem; font-weight: 600; line-height: 1.4; min-height: 44px;
+  white-space: nowrap; cursor: pointer; transition: all var(--ease); text-decoration: none;
+}
+.btn--primary { background: var(--color-primary); color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,.28); }
+.btn--primary:hover { background: var(--color-primary-dark); box-shadow: 0 4px 18px rgba(22,163,74,.38); transform: translateY(-1px); }
+.btn--ghost { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.btn--ghost:hover { background: var(--color-surface); color: var(--color-text); }
+.btn--white { background: #fff; color: var(--color-primary); font-weight: 700; box-shadow: 0 4px 20px rgba(0,0,0,.14); }
+.btn--white:hover { background: #f0fdf4; box-shadow: 0 6px 28px rgba(0,0,0,.2); transform: translateY(-2px); }
+.btn--sm { padding: .5rem 1rem; font-size: .875rem; }
+.btn--lg { padding: .875rem 1.75rem; font-size: 1rem; }
+
+/* BADGE */
+.badge {
+  display: inline-flex; align-items: center; gap: .5rem; padding: .375rem .875rem;
+  background: var(--color-primary-light); color: var(--color-primary-dark);
+  border: 1px solid rgba(22,163,74,.2); border-radius: 100px; font-size: .8125rem; font-weight: 600;
+}
+
+/* SECTION SHARED */
+.section-tag { display: block; font-size: .8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--color-primary); margin-bottom: .75rem; }
+.section-title { font-size: clamp(1.625rem, 4vw, 2.375rem); font-weight: 800; color: var(--color-text); margin-bottom: 1rem; }
+.section-subtitle { font-size: clamp(1rem, 2vw, 1.125rem); color: var(--color-text-secondary); max-width: 560px; }
+.section-header { margin-bottom: 3rem; }
+@media (min-width: 768px) { .section-header { margin-bottom: 4rem; } }
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #0ea5e9 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* HEADER */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(255,255,255,.95); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--color-border); transition: box-shadow var(--ease);
+}
+.header.scrolled { box-shadow: var(--shadow-sm); }
+.header__inner { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; height: 68px; }
+.logo { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+.logo__icon { color: var(--color-primary); flex-shrink: 0; }
+.logo__text { font-size: 1.0625rem; font-weight: 600; color: var(--color-text); letter-spacing: -.01em; }
+.logo__text strong { font-weight: 800; color: var(--color-primary); }
+.nav { display: none; align-items: center; gap: .25rem; }
+@media (min-width: 768px) { .nav { display: flex; } }
+.nav__link { padding: .5rem .875rem; font-size: .9375rem; font-weight: 500; color: var(--color-text-secondary); border-radius: var(--radius-sm); transition: all var(--ease); }
+.nav__link:hover { background: var(--color-surface); color: var(--color-text); }
+.header__cta { display: none; }
+@media (min-width: 768px) { .header__cta { display: inline-flex; } }
+.nav__toggle { display: flex; flex-direction: column; gap: 5px; padding: .5rem; border-radius: var(--radius-sm); min-width: 44px; min-height: 44px; align-items: center; justify-content: center; transition: background var(--ease); }
+.nav__toggle:hover { background: var(--color-surface); }
+.nav__toggle span { display: block; width: 22px; height: 2px; background: var(--color-text); border-radius: 2px; transition: all .25s ease; }
+.nav__toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav__toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.nav__toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+@media (min-width: 768px) { .nav__toggle { display: none; } }
+.mobile-menu { display: flex; flex-direction: column; gap: .25rem; padding: 0 1rem; background: #fff; max-height: 0; overflow: hidden; border-top: 0px solid var(--color-border); transition: max-height .3s ease, padding .3s ease, border-top-width .3s ease; }
+.mobile-menu.open { max-height: 400px; padding: 1rem; border-top-width: 1px; }
+.mobile-menu__link { padding: .75rem 1rem; font-weight: 500; color: var(--color-text-secondary); border-radius: var(--radius-sm); min-height: 44px; display: flex; align-items: center; transition: all var(--ease); }
+.mobile-menu__link:hover { background: var(--color-surface); color: var(--color-text); }
+.mobile-menu .btn { width: 100%; margin-top: .5rem; }
+@media (min-width: 768px) { .mobile-menu { display: none !important; } }
+
+/* HERO */
+.hero {
+  padding-top: 68px; min-height: 100vh; display: flex; align-items: center;
+  background: linear-gradient(160deg, #f0fdf4 0%, #ffffff 45%, #f8fafc 100%);
+  position: relative; overflow: hidden;
+}
+.hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(22,163,74,.07) 0%, transparent 70%); pointer-events: none; }
+.hero::after { content: ''; position: absolute; bottom: -100px; left: -100px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(14,165,233,.05) 0%, transparent 70%); pointer-events: none; }
+.hero__inner { display: grid; grid-template-columns: 1fr; gap: 3rem; padding-top: 3rem; padding-bottom: 3rem; align-items: center; }
+@media (min-width: 1024px) { .hero__inner { grid-template-columns: 1fr 1fr; gap: 4rem; } }
+.hero__content { display: flex; flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+.hero__title { font-size: clamp(2.25rem, 6vw, 3.75rem); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
+.hero__subtitle { font-size: clamp(1.0625rem, 2.5vw, 1.1875rem); color: var(--color-text-secondary); line-height: 1.7; max-width: 500px; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.hero__stats { display: flex; align-items: center; gap: 1.5rem; padding: 1.25rem 1.5rem; background: rgba(255,255,255,.85); border: 1px solid var(--color-border); border-radius: var(--radius-lg); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--shadow-sm); }
+.stat { text-align: center; }
+.stat__value { display: block; line-height: 1; margin-bottom: .25rem; }
+.stat__number, .stat__suffix { font-size: 1.75rem; font-weight: 800; color: var(--color-primary); line-height: 1; }
+.stat__suffix { font-size: 1.25rem; }
+.stat__label { display: block; font-size: .75rem; color: var(--color-text-secondary); font-weight: 500; }
+.stat__divider { width: 1px; height: 36px; background: var(--color-border); flex-shrink: 0; }
+.hero__visual { display: flex; align-items: center; justify-content: center; }
+.app-mockup { position: relative; width: 264px; }
+@media (min-width: 768px) { .app-mockup { width: 300px; } }
+.app-mockup__phone { background: #1a1a2e; border-radius: 44px; padding: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.22), 0 10px 30px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.08); position: relative; z-index: 1; }
+.app-mockup__notch { width: 80px; height: 24px; background: #1a1a2e; border-radius: 0 0 16px 16px; margin: 0 auto 8px; position: relative; z-index: 2; }
+.app-mockup__notch::before { content: ''; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 40px; height: 8px; background: rgba(255,255,255,.12); border-radius: 100px; }
+.app-mockup__screen { background: #0f172a; border-radius: 32px; padding: 1.25rem; min-height: 420px; display: flex; flex-direction: column; gap: .875rem; overflow: hidden; }
+.app-mockup__glow { position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%); width: 180px; height: 60px; background: radial-gradient(ellipse, rgba(22,163,74,.5) 0%, transparent 70%); filter: blur(18px); pointer-events: none; }
+.app-mockup__orb { position: absolute; border-radius: 50%; pointer-events: none; animation: orb-float 4s ease-in-out infinite alternate; }
+.app-mockup__orb--1 { width: 80px; height: 80px; top: -20px; right: -20px; background: radial-gradient(circle, rgba(22,163,74,.2), transparent); animation-delay: 0s; }
+.app-mockup__orb--2 { width: 60px; height: 60px; bottom: 20px; left: -20px; background: radial-gradient(circle, rgba(124,58,237,.15), transparent); animation-delay: -2s; }
+@keyframes orb-float { from { transform: translate(0,0); } to { transform: translate(6px,-10px); } }
+.mock-header { display: flex; align-items: center; gap: .625rem; }
+.mock-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #16a34a, #0ea5e9); flex-shrink: 0; }
+.mock-text { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.mock-badge { font-size: .625rem; font-weight: 700; color: #7c3aed; background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3); border-radius: 6px; padding: 2px 6px; }
+.mock-line { height: 7px; border-radius: 4px; background: rgba(255,255,255,.12); }
+.mock-line--name { background: rgba(255,255,255,.65); width: 55%; }
+.mock-line--sub { width: 38%; background: rgba(255,255,255,.22); }
+.mock-line--white { background: rgba(255,255,255,.65); width: 68%; }
+.mock-line--white-sm { background: rgba(255,255,255,.38); width: 42%; }
+.mock-line--stat { background: rgba(255,255,255,.18); width: 55%; margin-top: 4px; }
+.mock-line--meal { background: rgba(255,255,255,.22); flex: 1; }
+.mock-line--meal-sm { width: 60%; }
+.mock-card { border-radius: 14px; padding: .875rem 1rem; display: flex; flex-direction: column; gap: 6px; }
+.mock-card--green { background: linear-gradient(135deg, #16a34a, #15803d); }
+.mock-card--diet { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+.mock-card__label { font-size: .6875rem; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .06em; }
+.mock-card__chip { display: inline-flex; align-self: flex-start; margin-top: 2px; padding: 3px 8px; background: rgba(255,255,255,.18); border-radius: 100px; font-size: .625rem; font-weight: 600; color: rgba(255,255,255,.8); }
+.mock-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.mock-stat-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: .625rem; }
+.mock-stat-num { font-size: 1.125rem; font-weight: 800; color: rgba(255,255,255,.8); line-height: 1; margin-bottom: 4px; }
+.mock-stat-num--orange { color: #fb923c; }
+.mock-meal { display: flex; align-items: center; gap: .5rem; }
+.mock-meal__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mock-meal__dot--green { background: #4ade80; }
+.mock-meal__dot--yellow { background: #fbbf24; }
+
+/* PRODUTOS */
+.products { padding: 5rem 0; background: var(--color-surface); }
+@media (min-width: 768px) { .products { padding: 7rem 0; } }
+.products__grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+@media (min-width: 640px) { .products__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .products__grid { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; } }
+.product-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: 1.75rem; position: relative; overflow: hidden; transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease; }
+.product-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.product-card--motion::before { background: var(--color-motion); }
+.product-card--balance::before { background: var(--color-balance); }
+.product-card--pro::before { background: var(--color-pro); }
+.product-card--clinic::before { background: var(--color-clinic); }
+.product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: transparent; }
+.product-card__header { display: flex; align-items: center; gap: .75rem; margin-bottom: .875rem; }
+.product-card__emoji { font-size: 1.75rem; line-height: 1; }
+.product-card__tag { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+.product-card--motion .product-card__tag { color: var(--color-motion); }
+.product-card--balance .product-card__tag { color: var(--color-balance); }
+.product-card--pro .product-card__tag { color: var(--color-pro); }
+.product-card--clinic .product-card__tag { color: var(--color-clinic); }
+.product-card__title { font-size: 1.1875rem; font-weight: 700; margin-bottom: .625rem; }
+.product-card__desc { font-size: .9375rem; color: var(--color-text-secondary); line-height: 1.65; margin-bottom: 1.25rem; }
+.product-card__features { display: flex; flex-direction: column; gap: .5rem; }
+.product-card__features li { font-size: .875rem; color: var(--color-text-secondary); padding-left: 1.25rem; position: relative; }
+.product-card__features li::before { content: '✓'; position: absolute; left: 0; font-weight: 700; font-size: .8125rem; }
+.product-card--motion .product-card__features li::before { color: var(--color-motion); }
+.product-card--balance .product-card__features li::before { color: var(--color-balance); }
+.product-card--pro .product-card__features li::before { color: var(--color-pro); }
+.product-card--clinic .product-card__features li::before { color: var(--color-clinic); }
+
+/* COMO FUNCIONA */
+.how-it-works { padding: 5rem 0; background: #fff; }
+@media (min-width: 768px) { .how-it-works { padding: 7rem 0; } }
+.steps { display: flex; flex-direction: column; max-width: 680px; }
+.step { display: grid; grid-template-columns: 72px 1fr; gap: 1.5rem; align-items: flex-start; padding: 1.75rem 0; }
+.step__number { width: 72px; height: 72px; background: var(--color-primary-light); border: 2px solid rgba(22,163,74,.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.0625rem; font-weight: 800; color: var(--color-primary); flex-shrink: 0; }
+.step__title { font-size: 1.25rem; font-weight: 700; margin-bottom: .625rem; }
+.step__desc { font-size: 1rem; color: var(--color-text-secondary); line-height: 1.7; }
+.step__connector { width: 72px; display: flex; justify-content: center; }
+.step__connector::before { content: ''; width: 2px; height: 28px; background: linear-gradient(to bottom, rgba(22,163,74,.3), rgba(22,163,74,.08)); }
+
+/* DIFERENCIAIS */
+.differentials { padding: 5rem 0; background: var(--color-surface); }
+@media (min-width: 768px) { .differentials { padding: 7rem 0; } }
+.differentials__grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 640px) { .differentials__grid { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; } }
+@media (min-width: 1024px) { .differentials__grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; } }
+.diff-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.75rem; transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease; }
+.diff-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: rgba(22,163,74,.18); }
+.diff-card__icon { font-size: 1.75rem; display: block; margin-bottom: 1rem; line-height: 1; }
+.diff-card__title { font-size: 1.0625rem; font-weight: 700; margin-bottom: .5rem; }
+.diff-card__desc { font-size: .9375rem; color: var(--color-text-secondary); line-height: 1.65; }
+
+/* CTA FINAL */
+.cta-final { padding: 5rem 0; background: linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%); position: relative; overflow: hidden; }
+.cta-final::before { content: ''; position: absolute; top: -120px; right: -120px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(255,255,255,.06) 0%, transparent 65%); pointer-events: none; }
+.cta-final::after { content: ''; position: absolute; bottom: -80px; left: -80px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(255,255,255,.04) 0%, transparent 65%); pointer-events: none; }
+@media (min-width: 768px) { .cta-final { padding: 7rem 0; } }
+.cta-final__content { text-align: center; max-width: 600px; margin: 0 auto; position: relative; z-index: 1; }
+.cta-final__title { font-size: clamp(1.875rem, 5vw, 2.75rem); font-weight: 800; color: #fff; margin-bottom: 1.25rem; line-height: 1.15; }
+.cta-final__subtitle { font-size: clamp(1rem, 2vw, 1.125rem); color: rgba(255,255,255,.78); line-height: 1.7; margin-bottom: 2.5rem; }
+.cta-final__note { margin-top: 1rem; font-size: .875rem; color: rgba(255,255,255,.45); }
+
+/* FOOTER */
+.footer { background: #0f172a; padding-top: 3.5rem; }
+.footer__inner { display: grid; grid-template-columns: 1fr; gap: 2.5rem; padding-bottom: 3rem; }
+@media (min-width: 768px) { .footer__inner { grid-template-columns: 1.5fr 2fr; gap: 3rem; } }
+.footer__logo-text { color: rgba(255,255,255,.85); }
+.footer__logo-text strong { color: var(--color-primary); }
+.footer__tagline { margin-top: .75rem; font-size: .9375rem; color: rgba(255,255,255,.35); }
+.footer__links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+@media (min-width: 480px) { .footer__links { grid-template-columns: repeat(3, 1fr); } }
+.footer__col-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.35); margin-bottom: 1rem; }
+.footer__link { display: block; font-size: .9375rem; color: rgba(255,255,255,.55); margin-bottom: .5rem; transition: color var(--ease); }
+.footer__link:hover { color: rgba(255,255,255,.88); }
+.footer__bottom { border-top: 1px solid rgba(255,255,255,.06); padding: 1.25rem 0; }
+.footer__copy { font-size: .875rem; color: rgba(255,255,255,.28); text-align: center; }
+
+/* SCROLL REVEAL */
+[data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+[data-reveal].revealed { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+  <header class="header" role="banner">
+    <div class="container header__inner">
+      <a href="/" class="logo" aria-label="ORBI HEALTH">
+        <svg class="logo__icon" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="#16a34a" opacity="0.15"/>
+          <polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="none" stroke="#16a34a" stroke-width="2"/>
+          <circle cx="14" cy="14" r="4" fill="#16a34a"/>
+        </svg>
+        <span class="logo__text">ORBI <strong>HEALTH</strong></span>
+      </a>
+      <nav class="nav" aria-label="Navegação principal">
+        <a href="#solucoes" class="nav__link">Soluções</a>
+        <a href="#como-funciona" class="nav__link">Como funciona</a>
+        <a href="#diferenciais" class="nav__link">Diferenciais</a>
+      </nav>
+      <a href="https://wa.me/5582999999999?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH"
+         class="btn btn--primary btn--sm header__cta" data-cta="lead" target="_blank" rel="noopener noreferrer">
+        Entrar na lista de espera
+      </a>
+      <button class="nav__toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobile-menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+      <a href="#solucoes" class="mobile-menu__link">Soluções</a>
+      <a href="#como-funciona" class="mobile-menu__link">Como funciona</a>
+      <a href="#diferenciais" class="mobile-menu__link">Diferenciais</a>
+      <a href="https://wa.me/5582999999999?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH"
+         class="btn btn--primary" data-cta="lead" target="_blank" rel="noopener noreferrer">
+        Entrar na lista de espera
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="container hero__inner">
+        <div class="hero__content" data-reveal>
+          <span class="badge">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="5" fill="#16a34a" opacity="0.3"/>
+              <circle cx="6" cy="6" r="3" fill="#16a34a"/>
+            </svg>
+            Em breve — seja o primeiro a saber
+          </span>
+          <h1 class="hero__title">
+            Seu app.<br>Seus clientes.<br>
+            <span class="gradient-text">Sua marca.</span>
+          </h1>
+          <p class="hero__subtitle">
+            Plataforma white-label para personal trainers, nutricionistas e coaches
+            que querem sair do WhatsApp e planilhas — e oferecer uma experiência
+            premium com o seu nome.
+          </p>
+          <div class="hero__actions">
+            <a href="https://wa.me/5582999999999?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH"
+               class="btn btn--primary btn--lg" data-cta="lead" target="_blank" rel="noopener noreferrer">
+              Quero meu app agora
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <a href="#solucoes" class="btn btn--ghost btn--lg">Ver soluções</a>
+          </div>
+          <div class="hero__stats">
+            <div class="stat">
+              <span class="stat__value"><span class="stat__number" data-counter="200">0</span><span class="stat__suffix">+</span></span>
+              <span class="stat__label">profissionais na fila</span>
+            </div>
+            <div class="stat__divider"></div>
+            <div class="stat">
+              <span class="stat__value"><span class="stat__number" data-counter="4">0</span></span>
+              <span class="stat__label">linhas de produto</span>
+            </div>
+            <div class="stat__divider"></div>
+            <div class="stat">
+              <span class="stat__value"><span class="stat__number" data-counter="10">0</span><span class="stat__suffix">min</span></span>
+              <span class="stat__label">para configurar</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero__visual" data-reveal aria-hidden="true">
+          <div class="app-mockup">
+            <div class="app-mockup__phone">
+              <div class="app-mockup__notch"></div>
+              <div class="app-mockup__screen">
+                <div class="mock-header">
+                  <div class="mock-avatar"></div>
+                  <div class="mock-text">
+                    <div class="mock-line mock-line--name"></div>
+                    <div class="mock-line mock-line--sub"></div>
+                  </div>
+                  <div class="mock-badge">PRO</div>
+                </div>
+                <div class="mock-card mock-card--green">
+                  <div class="mock-card__label">Treino de hoje</div>
+                  <div class="mock-line mock-line--white"></div>
+                  <div class="mock-line mock-line--white-sm"></div>
+                  <div class="mock-card__chip">Peito + Tríceps</div>
+                </div>
+                <div class="mock-grid-2">
+                  <div class="mock-stat-card">
+                    <div class="mock-stat-num">12</div>
+                    <div class="mock-line mock-line--stat"></div>
+                  </div>
+                  <div class="mock-stat-card">
+                    <div class="mock-stat-num mock-stat-num--orange">87%</div>
+                    <div class="mock-line mock-line--stat"></div>
+                  </div>
+                </div>
+                <div class="mock-card mock-card--diet">
+                  <div class="mock-card__label" style="font-size:.625rem">Dieta de hoje</div>
+                  <div class="mock-meal">
+                    <div class="mock-meal__dot mock-meal__dot--green"></div>
+                    <div class="mock-line mock-line--meal"></div>
+                  </div>
+                  <div class="mock-meal">
+                    <div class="mock-meal__dot mock-meal__dot--yellow"></div>
+                    <div class="mock-line mock-line--meal mock-line--meal-sm"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="app-mockup__glow"></div>
+            <div class="app-mockup__orb app-mockup__orb--1"></div>
+            <div class="app-mockup__orb app-mockup__orb--2"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section class="products" id="solucoes">
+      <div class="container">
+        <div class="section-header" data-reveal>
+          <span class="section-tag">Soluções</span>
+          <h2 class="section-title">Uma plataforma, quatro especialidades</h2>
+          <p class="section-subtitle">Escolha a linha que melhor atende seu perfil profissional. Cada uma vem com as ferramentas certas para o seu tipo de atendimento.</p>
+        </div>
+        <div class="products__grid">
+          <article class="product-card product-card--motion" data-reveal>
+            <div class="product-card__header">
+              <span class="product-card__emoji">🏃</span>
+              <span class="product-card__tag">ORBI Motion</span>
+            </div>
+            <h3 class="product-card__title">Personal Trainers</h3>
+            <p class="product-card__desc">Montagem de treinos, fichas de avaliação, acompanhamento de evolução e comunicação com alunos — tudo no seu app com a sua marca.</p>
+            <ul class="product-card__features">
+              <li>Biblioteca de exercícios com vídeos</li>
+              <li>Avaliações físicas e fotos de progresso</li>
+              <li>Planos de treino personalizados</li>
+              <li>Agenda e frequência de alunos</li>
+            </ul>
+          </article>
+          <article class="product-card product-card--balance" data-reveal>
+            <div class="product-card__header">
+              <span class="product-card__emoji">🥗</span>
+              <span class="product-card__tag">ORBI Balance</span>
+            </div>
+            <h3 class="product-card__title">Nutricionistas</h3>
+            <p class="product-card__desc">Planos alimentares, tabela de substituições e acompanhamento nutricional personalizado para cada paciente, direto pelo seu app.</p>
+            <ul class="product-card__features">
+              <li>Planos alimentares por refeição</li>
+              <li>Tabela de substituições alimentares</li>
+              <li>Registro de refeições do paciente</li>
+              <li>Evolução de peso e medidas</li>
+            </ul>
+          </article>
+          <article class="product-card product-card--pro" data-reveal>
+            <div class="product-card__header">
+              <span class="product-card__emoji">⚡</span>
+              <span class="product-card__tag">ORBI Pro</span>
+            </div>
+            <h3 class="product-card__title">Coaches de Saúde</h3>
+            <p class="product-card__desc">Treino e dieta integrados em uma única plataforma. Para coaches que oferecem acompanhamento completo aos seus clientes.</p>
+            <ul class="product-card__features">
+              <li>Tudo do Motion + tudo do Balance</li>
+              <li>Dashboard unificado de evolução</li>
+              <li>Comunicação centralizada</li>
+              <li>Relatórios de progresso completos</li>
+            </ul>
+          </article>
+          <article class="product-card product-card--clinic" data-reveal>
+            <div class="product-card__header">
+              <span class="product-card__emoji">🏥</span>
+              <span class="product-card__tag">ORBI Clinic</span>
+            </div>
+            <h3 class="product-card__title">Clínicas de Saúde</h3>
+            <p class="product-card__desc">Gestão completa para clínicas de estética e saúde com múltiplos profissionais, agendamentos e acompanhamento de pacientes.</p>
+            <ul class="product-card__features">
+              <li>Multi-profissional e multi-sala</li>
+              <li>Agendamento online integrado</li>
+              <li>Prontuários digitais</li>
+              <li>Relatórios financeiros e operacionais</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMO FUNCIONA -->
+    <section class="how-it-works" id="como-funciona">
+      <div class="container">
+        <div class="section-header" data-reveal>
+          <span class="section-tag">Como funciona</span>
+          <h2 class="section-title">Do cadastro ao primeiro aluno em 3 passos</h2>
+          <p class="section-subtitle">Sem precisar de desenvolvedor. Sem configurações técnicas complexas.</p>
+        </div>
+        <div class="steps">
+          <div class="step" data-reveal>
+            <div class="step__number">01</div>
+            <div class="step__content">
+              <h3 class="step__title">Escolha sua linha</h3>
+              <p class="step__desc">Selecione entre ORBI Motion, Balance, Pro ou Clinic conforme sua especialidade. Cada linha vem com as ferramentas certas para o seu tipo de atendimento, sem funcionalidades desnecessárias.</p>
+            </div>
+          </div>
+          <div class="step__connector"></div>
+          <div class="step" data-reveal>
+            <div class="step__number">02</div>
+            <div class="step__content">
+              <h3 class="step__title">Configure sua marca</h3>
+              <p class="step__desc">Adicione sua logo, escolha suas cores e defina o nome da sua plataforma. Em menos de 10 minutos seu app já tem a sua identidade visual — sem escrever uma linha de código.</p>
+            </div>
+          </div>
+          <div class="step__connector"></div>
+          <div class="step" data-reveal>
+            <div class="step__number">03</div>
+            <div class="step__content">
+              <h3 class="step__title">Comece a atender</h3>
+              <p class="step__desc">Cadastre seus alunos ou pacientes e compartilhe o link do app. Eles acessam via browser ou instalam como PWA — sem precisar publicar na App Store ou Google Play.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIFERENCIAIS -->
+    <section class="differentials" id="diferenciais">
+      <div class="container">
+        <div class="section-header" data-reveal>
+          <span class="section-tag">Por que a ORBI</span>
+          <h2 class="section-title">Tudo que você precisa, sem o que não precisa</h2>
+          <p class="section-subtitle">Pensado para o profissional brasileiro que quer crescer com tecnologia.</p>
+        </div>
+        <div class="differentials__grid">
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">🎨</span>
+            <h3 class="diff-card__title">100% com a sua marca</h3>
+            <p class="diff-card__desc">Logo, cores e nome da sua plataforma. Seus clientes nem sabem que é a ORBI por trás.</p>
+          </div>
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">⚡</span>
+            <h3 class="diff-card__title">Sem desenvolvedor</h3>
+            <p class="diff-card__desc">Configuração por painel visual. Nenhuma linha de código necessária para montar seu app.</p>
+          </div>
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">💰</span>
+            <h3 class="diff-card__title">Mensalidade acessível</h3>
+            <p class="diff-card__desc">Pague em reais, sem câmbio. Planos desenhados para a realidade do profissional brasileiro.</p>
+          </div>
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">📱</span>
+            <h3 class="diff-card__title">iOS e Android</h3>
+            <p class="diff-card__desc">Funciona como PWA instalável — sem precisar publicar na App Store ou Google Play.</p>
+          </div>
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">🇧🇷</span>
+            <h3 class="diff-card__title">Suporte em português</h3>
+            <p class="diff-card__desc">Time brasileiro, atendimento em PT-BR, no seu fuso horário, sem barreira de idioma.</p>
+          </div>
+          <div class="diff-card" data-reveal>
+            <span class="diff-card__icon">📊</span>
+            <h3 class="diff-card__title">Dados organizados</h3>
+            <p class="diff-card__desc">Histórico de cada aluno, evoluções, check-ins e pagamentos em um único lugar.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <section class="cta-final">
+      <div class="container">
+        <div class="cta-final__content" data-reveal>
+          <h2 class="cta-final__title">Pronto para profissionalizar<br>seu atendimento?</h2>
+          <p class="cta-final__subtitle">Entre na lista de espera agora e seja notificado no lançamento. As primeiras vagas têm condições especiais de early access.</p>
+          <a href="https://wa.me/5582999999999?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH"
+             class="btn btn--white btn--lg" data-cta="lead" target="_blank" rel="noopener noreferrer">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 2C5.6 2 2 5.6 2 10c0 1.5.4 2.9 1.1 4.1L2 18l4-1.1C7.1 17.6 8.5 18 10 18c4.4 0 8-3.6 8-8s-3.6-8-8-8zm3.9 10.9c-.2.5-.9.9-1.5 1-.4.1-.9.1-1.3-.1-.4-.1-.9-.3-1.5-.6-2.6-1.3-4.3-4-4.5-4.2-.1-.2-1-1.3-1-2.5 0-1.2.6-1.8.8-2 .2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.7 1.8c.1.2.1.4 0 .6l-.3.4-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1.9.8 1.7 1.1 2 1.2.3.1.5.1.7-.1l.4-.5c.2-.2.4-.3.7-.2l1.7.8c.2.1.4.2.5.4.1.1.1.5-.1 1z" fill="currentColor"/>
+            </svg>
+            Entrar na lista pelo WhatsApp
+          </a>
+          <p class="cta-final__note">Sem compromisso. Resposta em até 24h.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <a href="/" class="logo">
+          <svg class="logo__icon" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="#16a34a" opacity="0.2"/>
+            <polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="none" stroke="#16a34a" stroke-width="2"/>
+            <circle cx="14" cy="14" r="4" fill="#16a34a"/>
+          </svg>
+          <span class="logo__text footer__logo-text">ORBI <strong>HEALTH</strong></span>
+        </a>
+        <p class="footer__tagline">Seu app. Seus clientes. Sua marca.</p>
+      </div>
+      <div class="footer__links">
+        <div class="footer__col">
+          <h4 class="footer__col-title">Soluções</h4>
+          <a href="#solucoes" class="footer__link">ORBI Motion</a>
+          <a href="#solucoes" class="footer__link">ORBI Balance</a>
+          <a href="#solucoes" class="footer__link">ORBI Pro</a>
+          <a href="#solucoes" class="footer__link">ORBI Clinic</a>
+        </div>
+        <div class="footer__col">
+          <h4 class="footer__col-title">Legal</h4>
+          <a href="/privacidade" class="footer__link">Política de Privacidade</a>
+          <a href="/termos" class="footer__link">Termos de Uso</a>
+        </div>
+        <div class="footer__col">
+          <h4 class="footer__col-title">Contato</h4>
+          <a href="mailto:contato@orbihealth.com.br" class="footer__link">contato@orbihealth.com.br</a>
+          <a href="https://wa.me/5582999999999" class="footer__link" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <div class="container">
+        <p class="footer__copy">© 2025 ORBI HEALTH. Todos os direitos reservados.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+(function(){
+  // Header scroll
+  var header = document.querySelector('.header');
+  window.addEventListener('scroll', function(){ header.classList.toggle('scrolled', window.scrollY > 20); }, { passive: true });
+
+  // Mobile menu
+  var toggle = document.querySelector('.nav__toggle');
+  var menu = document.querySelector('.mobile-menu');
+  if(toggle && menu){
+    toggle.addEventListener('click', function(){
+      var open = menu.classList.contains('open');
+      menu.classList.toggle('open', !open);
+      toggle.setAttribute('aria-expanded', String(!open));
+      menu.setAttribute('aria-hidden', String(open));
+    });
+    menu.querySelectorAll('a').forEach(function(el){ el.addEventListener('click', function(){ menu.classList.remove('open'); toggle.setAttribute('aria-expanded','false'); menu.setAttribute('aria-hidden','true'); }); });
+  }
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(function(link){
+    link.addEventListener('click', function(e){
+      var t = document.querySelector(link.getAttribute('href'));
+      if(!t) return;
+      e.preventDefault();
+      window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+    });
+  });
+
+  // Scroll reveal
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduced){ document.querySelectorAll('[data-reveal]').forEach(function(el){ el.classList.add('revealed'); }); }
+  else {
+    var ro = new IntersectionObserver(function(entries){ entries.forEach(function(e){ if(!e.isIntersecting) return; e.target.classList.add('revealed'); ro.unobserve(e.target); }); }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('[data-reveal]').forEach(function(el){ ro.observe(el); });
+  }
+
+  // Counters
+  if(reduced){ document.querySelectorAll('[data-counter]').forEach(function(el){ el.textContent = el.getAttribute('data-counter'); }); }
+  else {
+    var co = new IntersectionObserver(function(entries){ entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var el = e.target, target = parseInt(el.getAttribute('data-counter'), 10), dur = 1800, start = performance.now();
+      (function tick(now){ var t = Math.min((now-start)/dur,1), eased = 1-Math.pow(1-t,3); el.textContent = Math.round(eased*target); if(t<1) requestAnimationFrame(tick); })(start);
+      co.unobserve(el);
+    }); }, { threshold: 0.6 });
+    document.querySelectorAll('[data-counter]').forEach(function(el){ co.observe(el); });
+  }
+})();
+  </script>
+</body>
+</html>

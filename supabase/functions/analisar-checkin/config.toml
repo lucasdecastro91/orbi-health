@@ -1,0 +1,2 @@
+[functions.analisar-checkin]
+verify_jwt = false

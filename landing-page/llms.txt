@@ -1,0 +1,62 @@
+# ORBI HEALTH
+> Plataforma SaaS white-label para personal trainers, nutricionistas, coaches e clínicas criarem seu próprio aplicativo com a sua marca — sem precisar de desenvolvedor e sem mensalidade absurda.
+
+## O que fazemos
+ORBI HEALTH é uma plataforma que permite profissionais de saúde e fitness no Brasil criarem um aplicativo personalizado com a sua identidade visual. O app é completamente white-label: os clientes do profissional usam sem saber que é powered by ORBI HEALTH.
+
+A plataforma oferece quatro linhas de produto, cada uma otimizada para um tipo de profissional: personal trainers (ORBI Motion), nutricionistas (ORBI Balance), coaches de saúde completos (ORBI Pro) e clínicas de saúde e estética (ORBI Clinic).
+
+## Para quem é
+- Personal trainers que querem sair das planilhas e do WhatsApp
+- Nutricionistas que precisam de uma plataforma para planos alimentares digitais
+- Coaches de saúde que oferecem treino + dieta integrados
+- Clínicas de estética e saúde com múltiplos profissionais
+
+Perfil típico: profissional autônomo ou pequena empresa, 25–45 anos, já atende clientes presencial ou online, quer escalar e profissionalizar o atendimento com tecnologia.
+
+## Como funciona
+1. Escolha sua linha: ORBI Motion (personal), ORBI Balance (nutricionista), ORBI Pro (coach), ORBI Clinic (clínica)
+2. Configure sua marca: logo, cores e nome da plataforma em menos de 10 minutos
+3. Comece a atender: cadastre seus clientes e compartilhe o link do app
+
+## Produtos disponíveis
+
+**ORBI Motion** — Para personal trainers
+- Biblioteca de exercícios com vídeos
+- Avaliações físicas e fotos de progresso
+- Planos de treino personalizados
+- Agenda e controle de frequência
+
+**ORBI Balance** — Para nutricionistas
+- Planos alimentares por refeição
+- Tabela de substituições alimentares
+- Registro de refeições pelo paciente
+- Evolução de peso e medidas
+
+**ORBI Pro** — Para coaches de saúde completos
+- Tudo do Motion + tudo do Balance integrados
+- Dashboard unificado de evolução do aluno
+- Comunicação centralizada
+- Relatórios de progresso completos
+
+**ORBI Clinic** — Para clínicas de saúde e estética
+- Gestão multi-profissional e multi-sala
+- Agendamento online integrado
+- Prontuários digitais
+- Relatórios financeiros e operacionais
+
+## Diferenciais
+- App white-label 100% com a marca do profissional
+- Configuração por painel visual, sem precisar de desenvolvedor
+- Mensalidade acessível em reais (sem câmbio internacional)
+- Funciona como PWA instalável em iOS e Android (sem publicar na App Store)
+- Suporte em português, no fuso horário brasileiro
+- Setup completo em menos de 10 minutos
+
+## Status
+Produto em pré-lançamento. Lista de espera aberta com condições especiais de early access para os primeiros profissionais.
+
+## Contato
+Site: https://orbihealth.com.br
+WhatsApp: https://wa.me/5582999999999
+E-mail: contato@orbihealth.com.br

@@ -1,0 +1,29 @@
+{
+  "name": "ORBI Pro",
+  "short_name": "ORBI Pro",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "ORBI Pro é a plataforma white-label para personal trainers e coaches venderem seus serviços online com dieta, treino e acompanhamento completo.",
+  "icons": [
+    {
+      "src": "/logos/orbi-logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

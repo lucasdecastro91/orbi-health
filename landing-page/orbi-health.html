@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORBI HEALTH — Plataforma para Profissionais de Saúde</title>
+<meta name="description" content="Plataforma white-label para personal trainers, nutricionistas, coaches e clínicas. Seu app, sua marca, sua identidade.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ── Variables ── */
+:root {
+  --g:#16a34a; --gd:#15803d; --gl:#f0fdf4;
+  --mo:#ea580c; --ba:#16a34a; --pr:#7c3aed; --cl:#0d9488;
+  --bg:#fff; --su:#fafafa; --s2:#f4f4f5; --br:#e4e4e7;
+  --tx:#09090b; --t2:#3f3f46; --t3:#71717a; --t4:#a1a1aa;
+  --dk:#051a0d;
+  --r:12px; --rl:20px; --rf:9999px;
+  --ts:150ms ease; --tm:200ms ease; --tl:300ms ease;
+  --xs:0 1px 2px rgba(0,0,0,.05);
+  --sm:0 1px 4px rgba(0,0,0,.07);
+  --md:0 4px 16px rgba(0,0,0,.08);
+  --lg:0 12px 40px rgba(0,0,0,.10);
+  --max:1200px;
+  --font:'Inter',-apple-system,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none;transition:color var(--tm)}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+ul{list-style:none}
+:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+
+/* ── Layout ── */
+.w{width:100%;max-width:var(--max);margin:0 auto;padding:0 1.25rem}
+@media(min-width:768px){.w{padding:0 2rem}}
+@media(min-width:1024px){.w{padding:0 3rem}}
+.sec{padding:80px 0}
+@media(min-width:768px){.sec{padding:120px 0}}
+.sec-bg{background:var(--su)}
+.sec-hd{margin-bottom:3rem}
+@media(min-width:768px){.sec-hd{margin-bottom:4.5rem}}
+
+/* ── Type ── */
+.tag-lbl{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g)}
+.h1{font-size:clamp(2.75rem,7vw,5.25rem);font-weight:900;line-height:1.0;letter-spacing:-.03em;text-wrap:balance}
+.h2{font-size:clamp(1.875rem,4vw,3rem);font-weight:800;line-height:1.05;letter-spacing:-.025em;text-wrap:balance}
+.h3{font-size:1.1875rem;font-weight:700;line-height:1.3;letter-spacing:-.01em}
+.lead{font-size:clamp(1rem,2vw,1.125rem);color:var(--t3);line-height:1.8}
+.txt{font-size:.9375rem;color:var(--t3);line-height:1.7}
+.c-mo{color:var(--mo)} .c-ba{color:var(--ba)} .c-pr{color:var(--pr)} .c-cl{color:var(--cl)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6875rem 1.375rem;border-radius:var(--r);font-size:.9375rem;font-weight:600;transition:all var(--tm);min-height:44px;white-space:nowrap;cursor:pointer;line-height:1}
+.btn-p{background:var(--g);color:#fff}
+.btn-p:hover{background:var(--gd);transform:translateY(-1px);box-shadow:0 4px 20px rgba(22,163,74,.32)}
+.btn-o{border:1px solid var(--br);color:var(--t2)}
+.btn-o:hover{background:var(--su);color:var(--tx)}
+.btn-dk{background:var(--tx);color:#fff}
+.btn-dk:hover{background:#1a1a1a;transform:translateY(-1px)}
+.btn-w{background:#fff;color:var(--g);font-weight:700}
+.btn-w:hover{background:var(--gl);transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.btn-lg{padding:.9375rem 1.875rem;font-size:1rem}
+.btn-sm{padding:.5rem 1rem;font-size:.875rem}
+
+/* ── Pill badge ── */
+.pill{display:inline-flex;align-items:center;gap:.375rem;padding:.3125rem .875rem;border-radius:var(--rf);font-size:.8125rem;font-weight:600;border:1px solid}
+.pill-g{background:var(--gl);color:var(--gd);border-color:rgba(22,163,74,.2)}
+.pill-mo{background:#fff7ed;color:#c2410c;border-color:rgba(234,88,12,.2)}
+.pill-pr{background:#f5f3ff;color:#6d28d9;border-color:rgba(124,58,237,.2)}
+.pill-cl{background:#f0fdfa;color:#0f766e;border-color:rgba(13,148,136,.2)}
+
+/* ── Page system ── */
+.page{display:none}
+.page.active{display:block;animation:pIn .22s ease}
+@keyframes pIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Reveal ── */
+[data-r]{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+[data-r].on{opacity:1;transform:none}
+[data-r][data-d="1"]{transition-delay:.1s}
+[data-r][data-d="2"]{transition-delay:.2s}
+[data-r][data-d="3"]{transition-delay:.3s}
+[data-r][data-d="4"]{transition-delay:.4s}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}[data-r]{opacity:1!important;transform:none!important}}
+
+/* ══════════════════════════════════════════
+   HEADER
+══════════════════════════════════════════ */
+.hdr{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--br);transition:box-shadow var(--tm)}
+.hdr.sh{box-shadow:0 1px 12px rgba(0,0,0,.07)}
+.hdr-in{height:64px;display:flex;align-items:center;gap:1rem}
+.logo{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.logo-tx{font-size:1rem;font-weight:500;color:var(--tx);letter-spacing:-.01em}
+.logo-tx b{font-weight:900;color:var(--g)}
+.nav{display:none;align-items:center;gap:.125rem;margin-left:1.5rem}
+@media(min-width:900px){.nav{display:flex}}
+.nl{padding:.5rem .875rem;font-size:.9375rem;font-weight:500;color:var(--t3);border-radius:8px;transition:all var(--tm);cursor:pointer;background:none;border:none;font-family:inherit}
+.nl:hover,.nl.on{color:var(--tx);background:var(--su)}
+.nl.on{font-weight:600}
+
+/* Dropdown */
+.drop{position:relative}
+.drop-btn{display:flex;align-items:center;gap:.3rem;padding:.5rem .875rem;font-size:.9375rem;font-weight:500;color:var(--t3);border-radius:8px;transition:all var(--tm);cursor:pointer;background:none;border:none;font-family:inherit}
+.drop-btn:hover,.drop-btn.on{color:var(--tx);background:var(--su)}
+.drop-btn svg{transition:transform var(--tm)}
+.drop-btn.open svg{transform:rotate(180deg)}
+.drop-menu{position:absolute;top:calc(100% + 8px);left:0;background:#fff;border:1px solid var(--br);border-radius:var(--rl);box-shadow:0 8px 32px rgba(0,0,0,.10),0 2px 8px rgba(0,0,0,.06);padding:.5rem;min-width:220px;opacity:0;transform:translateY(-6px);pointer-events:none;transition:all var(--tm)}
+.drop-menu.open{opacity:1;transform:translateY(0);pointer-events:auto}
+.di{display:flex;align-items:center;gap:.875rem;padding:.625rem .875rem;border-radius:8px;transition:background var(--tm);cursor:pointer;border:none;background:none;font-family:inherit;width:100%;text-align:left}
+.di:hover{background:var(--su)}
+.d-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.d-nm{font-size:.875rem;font-weight:700;color:var(--tx);display:block}
+.d-sb{font-size:.75rem;color:var(--t3);display:block}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.hdr-cta{display:none}
+@media(min-width:640px){.hdr-cta{display:inline-flex}}
+.hdr-login{display:none}
+@media(min-width:640px){.hdr-login{display:inline-flex}}
+.mnav-login{justify-content:space-between;margin-top:.25rem}
+.burger{display:flex;flex-direction:column;gap:5px;padding:.5rem;border-radius:8px;min-width:44px;min-height:44px;align-items:center;justify-content:center;transition:background var(--tm)}
+.burger:hover{background:var(--su)}
+.burger span{display:block;width:20px;height:1.5px;background:var(--tx);border-radius:2px;transition:all .25s}
+.burger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.burger.open span:nth-child(2){opacity:0}
+.burger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+@media(min-width:900px){.burger{display:none}}
+.mnav{position:fixed;top:64px;left:0;right:0;z-index:99;background:#fff;border-bottom:1px solid var(--br);max-height:0;overflow:hidden;transition:max-height .3s ease}
+.mnav.open{max-height:520px}
+.mnav-in{padding:1rem 1.25rem 1.5rem;display:flex;flex-direction:column;gap:.25rem}
+.mnav-in a,.mnav-in button.mnl{display:flex;align-items:center;width:100%;padding:.75rem 1rem;border-radius:8px;font-size:.9375rem;font-weight:500;color:var(--t2);transition:all var(--tm);min-height:44px;cursor:pointer;background:none;border:none;font-family:inherit;text-align:left}
+.mnav-in a:hover,.mnav-in button.mnl:hover{background:var(--su);color:var(--tx)}
+.mnav-sep{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t4);padding:.875rem 1rem .25rem}
+.mnav-in .btn{width:100%;justify-content:center;margin-top:.75rem}
+
+/* ══════════════════════════════════════════
+   HOME
+══════════════════════════════════════════ */
+#home{padding-top:64px}
+
+/* Hero dots background */
+.hero-dots{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.hero-dot{position:absolute;border-radius:50%;background:#16a34a;opacity:0;animation:floatDot linear infinite}
+@keyframes floatDot{0%{opacity:0;transform:translateY(0) scale(1)}10%{opacity:.18}50%{opacity:.12}90%{opacity:.08}100%{opacity:0;transform:translateY(-120px) scale(.6)}}
+
+/* Phone screen transitions */
+.ph-screens{position:relative;min-height:450px;overflow:hidden}
+.ph-screen-slide{position:absolute;inset:0;display:flex;flex-direction:column;gap:.875rem;transition:opacity .8s ease,transform .8s ease}
+.ph-screen-slide.active{opacity:1;transform:translateY(0);z-index:2}
+.ph-screen-slide.hidden{opacity:0;transform:translateY(12px);z-index:1}
+
+/* Login screen elements */
+.sc-logo-wrap{display:flex;flex-direction:column;align-items:center;margin:1.5rem 0 1.75rem}
+.sc-logo-circle{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#16a34a,#0d7a32);display:flex;align-items:center;justify-content:center;margin-bottom:.625rem;box-shadow:0 4px 16px rgba(22,163,74,.35)}
+.sc-logo-lbl{font-size:.625rem;font-weight:700;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase}
+.sc-logo-sub{font-size:.5rem;color:rgba(255,255,255,.28);margin-top:1px}
+.sc-inp{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;height:28px;margin-bottom:.4rem}
+.sc-inp-lbl{font-size:.5rem;color:rgba(255,255,255,.4);margin-bottom:2px}
+.sc-btn-g{background:linear-gradient(135deg,#16a34a,#0d7a32);border-radius:8px;height:28px;display:flex;align-items:center;justify-content:center;margin-top:.5rem}
+.sc-btn-lbl{font-size:.5625rem;font-weight:700;color:#fff}
+.sc-divider{display:flex;align-items:center;gap:.5rem;margin:.5rem 0}
+.sc-div-line{flex:1;height:1px;background:rgba(255,255,255,.08)}
+.sc-div-tx{font-size:.4375rem;color:rgba(255,255,255,.28)}
+.sc-social{display:grid;grid-template-columns:1fr 1fr;gap:.375rem}
+.sc-soc-btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:7px;height:24px;display:flex;align-items:center;justify-content:center}
+.sc-soc-tx{font-size:.4375rem;color:rgba(255,255,255,.5);font-weight:600}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;align-items:center;padding:3rem 0;background:radial-gradient(ellipse 80% 60% at 65% 50%, rgba(22,163,74,.04) 0%, transparent 60%);position:relative}
+.hero-in{display:grid;grid-template-columns:1fr;gap:3rem;align-items:center}
+@media(min-width:1024px){.hero-in{grid-template-columns:1fr 440px;gap:5rem}}
+.hero-ct{display:flex;flex-direction:column;gap:1.5rem}
+.hero-tit em{font-style:normal;color:var(--g)}
+.hero-sub{max-width:520px}
+.hero-acts{display:flex;flex-wrap:wrap;gap:.75rem}
+.hero-stats{display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem 1.5rem;padding:1.125rem 1.5rem;background:var(--su);border:1px solid var(--br);border-radius:var(--rl);align-self:flex-start}
+.hs-num{font-size:1.75rem;font-weight:900;color:var(--tx);line-height:1}
+.hs-num span{color:var(--g)}
+.hs-lbl{font-size:.6875rem;color:var(--t3);font-weight:500;margin-top:3px;white-space:nowrap}
+.hs-div{width:1px;height:32px;background:var(--br);flex-shrink:0}
+
+/* Phone */
+.hero-vis{display:flex;justify-content:center;align-items:center}
+.phone{width:260px;position:relative}
+@media(min-width:768px){.phone{width:290px}}
+.ph-body{background:#0b0b0d;border-radius:50px;padding:12px;box-shadow:0 40px 100px rgba(0,0,0,.28),0 10px 30px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.07)}
+.ph-isle{width:104px;height:28px;background:#0b0b0d;border-radius:0 0 22px 22px;margin:0 auto 10px;position:relative}
+.ph-isle::after{content:'';position:absolute;width:46px;height:10px;background:rgba(255,255,255,.07);border-radius:100px;top:8px;left:50%;transform:translateX(-50%)}
+.ph-sc{background:#0d0f16;border-radius:40px;padding:1.25rem 1rem;min-height:450px;display:flex;flex-direction:column;gap:.875rem;overflow:hidden}
+.sc-top{display:flex;align-items:center;gap:.625rem}
+.sc-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0ea5e9);flex-shrink:0}
+.sc-nm{font-size:.625rem;font-weight:700;color:rgba(255,255,255,.7);display:block;margin-bottom:1px}
+.sc-sb{font-size:.5625rem;color:rgba(255,255,255,.32);display:block}
+.sc-bd{margin-left:auto;font-size:.5rem;font-weight:700;color:#a78bfa;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.3);border-radius:5px;padding:2px 6px}
+.sc-card{border-radius:14px;padding:1rem}
+.sc-gr{background:linear-gradient(135deg,#16a34a,#157f3b)}
+.sc-dk{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.sc-lb{font-size:.5rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.45);margin-bottom:.375rem;display:block}
+.sc-ln{height:7px;border-radius:4px;background:rgba(255,255,255,.14);margin-bottom:.3rem}
+.sc-lw{background:rgba(255,255,255,.65);width:60%}
+.sc-ls{background:rgba(255,255,255,.32);width:38%}
+.sc-ch{display:inline-block;background:rgba(255,255,255,.16);border-radius:100px;font-size:.5rem;font-weight:600;color:rgba(255,255,255,.75);padding:2px 8px;margin-top:2px}
+.sc-g2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.sc-mi{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.625rem}
+.sc-mn{font-size:1.0625rem;font-weight:800;color:rgba(255,255,255,.72);line-height:1;margin-bottom:4px}
+.sc-mo{color:#fb923c}
+.sc-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem}
+.sc-dt{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sc-dg{background:#4ade80} .sc-dy{background:#fbbf24}
+.sc-bar{height:4px;background:rgba(255,255,255,.12);border-radius:100px;overflow:hidden;margin-top:6px}
+.sc-bar-fill{height:100%;background:linear-gradient(90deg,#4ade80,#16a34a);width:72%;border-radius:100px}
+
+/* ── Products grid ── */
+.pg{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:640px){.pg{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.pg{grid-template-columns:repeat(4,1fr);gap:1.5rem}}
+.pc{background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:1.75rem;position:relative;overflow:hidden;transition:transform var(--tl),box-shadow var(--tl),border-color var(--tl);cursor:pointer}
+.pc:hover{transform:translateY(-4px);box-shadow:var(--lg)}
+.pc-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+.sm{background:var(--mo)} .sb{background:var(--ba)} .sp{background:var(--pr)} .sc2{background:var(--cl)}
+.pc-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:1.125rem;flex-shrink:0}
+.im{background:#fff7ed;color:var(--mo)} .ib{background:var(--gl);color:var(--ba)} .ip{background:#f5f3ff;color:var(--pr)} .ic{background:#f0fdfa;color:var(--cl)}
+.pc-tag{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem;display:block}
+.pc-ti{font-size:1.125rem;font-weight:700;margin-bottom:.625rem}
+.pc-ds{font-size:.875rem;color:var(--t3);line-height:1.65;margin-bottom:1.125rem}
+.pc-fl{display:flex;flex-direction:column;gap:.375rem;margin-bottom:1.5rem}
+.pc-fi{display:flex;align-items:flex-start;gap:.5rem;font-size:.8125rem;color:var(--t2);line-height:1.5}
+.pc-fi svg{flex-shrink:0;margin-top:1px}
+.pc-lk{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:.375rem;transition:gap var(--tm)}
+.pc:hover .pc-lk{gap:.625rem}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;max-width:640px}
+.step{display:flex;gap:1.5rem}
+.step-l{display:flex;flex-direction:column;align-items:center}
+.step-n{width:48px;height:48px;border-radius:50%;flex-shrink:0;background:#fff;border:1.5px solid var(--br);display:flex;align-items:center;justify-content:center;font-size:.875rem;font-weight:800;color:var(--g);box-shadow:var(--xs)}
+.step-ln{flex:1;width:1px;background:var(--br);margin:8px 0;min-height:28px}
+.step-b{padding-bottom:2.25rem}
+.step:last-child .step-b{padding-bottom:0}
+.step-ti{font-size:1.125rem;font-weight:700;margin-bottom:.5rem;margin-top:.875rem}
+.step-tx{font-size:.9375rem;color:var(--t3);line-height:1.75}
+
+/* ── Diffs ── */
+.dg{display:grid;grid-template-columns:1fr;gap:1rem}
+@media(min-width:640px){.dg{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.dg{grid-template-columns:repeat(3,1fr);gap:1.25rem}}
+.dc{background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:1.625rem;transition:all var(--tm)}
+.dc:hover{border-color:rgba(22,163,74,.22);box-shadow:0 4px 20px rgba(0,0,0,.07)}
+.dc-ico{width:40px;height:40px;border-radius:10px;background:var(--gl);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;color:var(--g)}
+.dc-ti{font-size:1rem;font-weight:700;margin-bottom:.375rem}
+.dc-tx{font-size:.875rem;color:var(--t3);line-height:1.65}
+
+/* ── CTA final ── */
+.ctaf{background:var(--dk);padding:80px 0}
+@media(min-width:768px){.ctaf{padding:120px 0}}
+.ctaf-in{text-align:center;max-width:560px;margin:0 auto}
+.ctaf-ti{font-size:clamp(2rem,4vw,2.875rem);font-weight:800;color:#fff;letter-spacing:-.025em;line-height:1.1;margin-bottom:1rem;text-wrap:balance}
+.ctaf-sb{color:rgba(255,255,255,.55);margin-bottom:2rem}
+.ctaf-no{font-size:.8125rem;color:rgba(255,255,255,.3);margin-top:1rem}
+
+/* ══════════════════════════════════════════
+   PRODUCT PAGES (shared)
+══════════════════════════════════════════ */
+.pp{padding-top:64px}
+.pp-hero{padding:5rem 0 3.5rem}
+.pp-hero-in{display:grid;gap:3rem;align-items:center}
+@media(min-width:1024px){.pp-hero-in{grid-template-columns:1fr 1fr;gap:5rem}}
+.pp-lbl{font-size:.8125rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.875rem;display:block}
+.pp-ti{font-size:clamp(2.125rem,5vw,3.75rem);font-weight:900;line-height:1.0;letter-spacing:-.03em;text-wrap:balance;margin-bottom:1.25rem}
+.pp-sb{font-size:clamp(1rem,2vw,1.125rem);color:var(--t3);line-height:1.8;margin-bottom:2rem;max-width:460px}
+.pp-vis{border-radius:var(--rl);overflow:hidden;background:var(--su);border:1px solid var(--br);aspect-ratio:4/3;position:relative}
+.pp-ui{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+
+/* Feature cards */
+.fg{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:640px){.fg{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.fg{grid-template-columns:repeat(3,1fr)}}
+.fc{background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:1.5rem;transition:box-shadow var(--tm)}
+.fc:hover{box-shadow:var(--md)}
+.fc-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
+.fc-ti{font-size:1rem;font-weight:700;margin-bottom:.375rem}
+.fc-tx{font-size:.875rem;color:var(--t3);line-height:1.65}
+
+/* For-section */
+.for-sec{background:var(--su)}
+.for-in{display:grid;gap:3rem;align-items:center}
+@media(min-width:1024px){.for-in{grid-template-columns:1fr 1fr}}
+.for-pts{display:flex;flex-direction:column;gap:1.5rem}
+.for-pt{display:flex;gap:1rem;align-items:flex-start}
+.for-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;margin-top:2px}
+.for-pt-ti{font-size:1rem;font-weight:700;margin-bottom:.375rem}
+.for-pt-tx{font-size:.875rem;color:var(--t3);line-height:1.65}
+.for-quote{background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:2rem}
+.for-q-tx{font-size:1.0625rem;line-height:1.75;color:var(--t2);margin-bottom:1.25rem;font-style:italic}
+.for-q-nm{font-size:.875rem;font-weight:700}
+.for-q-ro{font-size:.8125rem;color:var(--t3)}
+
+/* ══════════════════════════════════════════
+   PRICING PAGE
+══════════════════════════════════════════ */
+.prp{padding-top:64px}
+.prp-hero{padding:5rem 0 3rem;text-align:center;max-width:560px;margin:0 auto}
+.prp-grid{display:grid;grid-template-columns:1fr;gap:1.25rem;margin-top:3.5rem}
+@media(min-width:640px){.prp-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.prp-grid{grid-template-columns:repeat(4,1fr)}}
+.prc{background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:1.75rem;position:relative;overflow:hidden}
+.prc-stripe{position:absolute;top:0;left:0;right:0;height:3px}
+.prc-tag{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem;display:block}
+.prc-nm{font-size:1.25rem;font-weight:800;margin-bottom:.25rem}
+.prc-ro{font-size:.9375rem;color:var(--t3);margin-bottom:1.25rem}
+.prc-pr{margin:1.25rem 0;padding:1.25rem 0;border-top:1px solid var(--br);border-bottom:1px solid var(--br)}
+.prc-am{font-size:1.875rem;font-weight:900;color:var(--t4)}
+.prc-so{display:inline-block;font-size:.8125rem;font-weight:600;background:var(--s2);color:var(--t3);border-radius:var(--r);padding:.3125rem .75rem;margin-top:.375rem}
+.prc-fl{display:flex;flex-direction:column;gap:.5rem;margin:1.25rem 0}
+.prc-fi{display:flex;align-items:flex-start;gap:.5rem;font-size:.875rem;color:var(--t2)}
+.prc-fi svg{flex-shrink:0;margin-top:1px}
+.prc-ct{margin-top:1.5rem}
+.prc-note{text-align:center;margin-top:2.5rem;font-size:.875rem;color:var(--t3);max-width:480px;margin-left:auto;margin-right:auto;line-height:1.7}
+
+/* ══════════════════════════════════════════
+   CONTACT PAGE
+══════════════════════════════════════════ */
+.cop{padding-top:64px}
+.cop-hero{padding:5rem 0 2.5rem}
+.cop-in{max-width:600px}
+.cop-ways{display:flex;flex-direction:column;gap:1rem;margin-top:2.5rem}
+.cw{display:flex;align-items:center;gap:1.25rem;padding:1.5rem;background:var(--su);border:1px solid var(--br);border-radius:var(--rl);transition:all var(--tm);text-decoration:none;color:inherit}
+.cw:hover{border-color:rgba(22,163,74,.25);background:var(--gl);transform:translateX(4px)}
+.cw-ico{width:48px;height:48px;border-radius:12px;background:#fff;border:1px solid var(--br);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cw-ti{font-size:1rem;font-weight:700;margin-bottom:.25rem}
+.cw-va{font-size:.9375rem;color:var(--t3)}
+.cw-ar{margin-left:auto;color:var(--t4)}
+.cop-info{margin-top:3.5rem;padding-top:3rem;border-top:1px solid var(--br)}
+.cop-info-grid{display:grid;grid-template-columns:1fr;gap:2rem;margin-top:1.5rem}
+@media(min-width:640px){.cop-info-grid{grid-template-columns:1fr 1fr}}
+
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.ftr{background:#09090b;padding:4rem 0 0}
+.ftr-in{display:grid;gap:3rem;padding-bottom:3rem}
+@media(min-width:768px){.ftr-in{grid-template-columns:1.5fr 2fr}}
+.ftr-lnm{color:rgba(255,255,255,.8)}
+.ftr-lnm b{color:var(--g)}
+.ftr-tag{margin-top:.75rem;font-size:.875rem;color:rgba(255,255,255,.28)}
+.ftr-lks{display:grid;grid-template-columns:repeat(2,1fr);gap:2rem}
+@media(min-width:480px){.ftr-lks{grid-template-columns:repeat(3,1fr)}}
+.ftr-ct{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.28);margin-bottom:1rem}
+.ftr-lk{display:block;font-size:.875rem;color:rgba(255,255,255,.45);margin-bottom:.5rem;transition:color var(--tm)}
+.ftr-lk:hover{color:rgba(255,255,255,.85)}
+.ftr-bt{border-top:1px solid rgba(255,255,255,.06);padding:1.25rem 0}
+.ftr-cp{font-size:.8125rem;color:rgba(255,255,255,.22);text-align:center}
+
+/* ══════════════════════════════════════════
+   HOW IT WORKS — 2-col sticky layout
+══════════════════════════════════════════ */
+.hfw-grid{display:grid;grid-template-columns:1fr;gap:3rem}
+@media(min-width:1024px){.hfw-grid{grid-template-columns:1fr 420px;gap:5rem;align-items:start}}
+.hfw-steps{display:flex;flex-direction:column}
+.hfw-visual{display:none}
+@media(min-width:1024px){.hfw-visual{display:block;position:sticky;top:calc(64px + 2rem)}}
+.hfw-panel{position:relative;min-height:320px}
+.hfw-card{display:none;background:#fff;border:1px solid var(--br);border-radius:var(--rl);padding:1.75rem;box-shadow:var(--md);animation:hfwIn .35s ease}
+.hfw-card.active{display:block}
+@keyframes hfwIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hfw-card-hd{margin-bottom:1.25rem}
+.hfw-card-tag{display:block;font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--g);margin-bottom:.25rem}
+.hfw-card-sub{display:block;font-size:.8125rem;color:var(--t3)}
+/* product grid inside card */
+.hfw-prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:.625rem}
+.hfw-prod{border:1px solid var(--br);border-radius:10px;padding:.875rem .75rem;display:flex;flex-direction:column;gap:.3rem;transition:transform var(--ts)}
+.hfw-prod:hover{transform:translateY(-2px)}
+.hfw-prod-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-bottom:.125rem}
+.hfw-prod-nm{font-size:.9375rem;font-weight:700;line-height:1}
+.hfw-prod-sb{font-size:.75rem;color:var(--t3)}
+/* config panel inside card */
+.hfw-cfg{display:flex;flex-direction:column;gap:.875rem}
+.hfw-cfg-row{display:flex;flex-direction:column;gap:.375rem}
+.hfw-cfg-lbl{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t4)}
+.hfw-cfg-field{font-size:.875rem;font-weight:600;color:var(--tx);background:var(--su);border:1px solid var(--br);border-radius:8px;padding:.5rem .75rem}
+.hfw-cfg-upload{display:inline-flex;align-items:center;gap:.375rem;font-size:.8125rem;font-weight:600;color:var(--t2);background:var(--su);border:1px solid var(--br);border-radius:8px;padding:.5rem .875rem;cursor:pointer}
+.hfw-color-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;flex-shrink:0;transition:transform var(--ts)}
+.hfw-color-dot:hover{transform:scale(1.15)}
+.hfw-cfg-preview{background:var(--su);border:1px solid var(--br);border-radius:10px;padding:.875rem;margin-top:.25rem}
+.hfw-cfg-prev-lbl{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);display:block;margin-bottom:.5rem}
+.hfw-cfg-prev-bar{height:4px;border-radius:100px;width:100%;margin-bottom:.5rem}
+/* dashboard inside card */
+.hfw-dash{display:flex;flex-direction:column;gap:.875rem}
+.hfw-dash-top{display:flex;align-items:center;gap:.75rem;background:var(--su);border:1px solid var(--br);border-radius:10px;padding:.75rem}
+.hfw-dash-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#0ea5e9);flex-shrink:0}
+.hfw-dash-nm{font-size:.875rem;font-weight:700;color:var(--tx)}
+.hfw-dash-sb{font-size:.75rem;color:var(--t3)}
+.hfw-dash-bd{margin-left:auto;font-size:.625rem;font-weight:700;color:#7c3aed;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:5px;padding:2px 8px}
+.hfw-dash-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.hfw-stat{background:var(--su);border:1px solid var(--br);border-radius:10px;padding:.75rem;text-align:center}
+.hfw-stat-n{font-size:1.25rem;font-weight:800;color:var(--tx);line-height:1;margin-bottom:4px}
+.hfw-stat-l{font-size:.6875rem;color:var(--t3)}
+.hfw-dash-list{display:flex;flex-direction:column;gap:.375rem}
+.hfw-alu{display:flex;align-items:center;gap:.625rem;padding:.5rem .625rem;border-radius:8px;background:var(--su);border:1px solid var(--br)}
+.hfw-alu-av{width:24px;height:24px;border-radius:50%;flex-shrink:0}
+.hfw-alu-nm{font-size:.8125rem;font-weight:600;color:var(--tx);flex:1}
+.hfw-alu-st{font-size:.75rem;font-weight:600}
+/* mobile-only cards (hidden on desktop) */
+.hfw-card-mobile{display:block;background:var(--su);border:1px solid var(--br);border-radius:var(--r);padding:1.25rem;margin-top:1rem}
+@media(min-width:1024px){.hfw-card-mobile{display:none}}
+
+/* ══════════════════════════════════════════
+   PJ SECTION
+══════════════════════════════════════════ */
+.pj{background:#14532d;padding:80px 0}
+@media(min-width:768px){.pj{padding:100px 0}}
+.pj-hd{margin-bottom:2.5rem}
+.pj-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.25);border-radius:var(--rf);font-size:.75rem;font-weight:700;color:#4ade80;padding:.3125rem .875rem;margin-bottom:1rem}
+.pj-ti{font-size:clamp(1.75rem,3.5vw,2.625rem);font-weight:800;color:#fff;line-height:1.1;letter-spacing:-.025em;text-wrap:balance;margin-bottom:.875rem}
+.pj-sb{font-size:1rem;color:rgba(255,255,255,.62);line-height:1.75;max-width:620px}
+.pj-cards{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:640px){.pj-cards{grid-template-columns:1fr 1fr}}
+.pj-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:var(--rl);padding:1.75rem;transition:background var(--tm),border-color var(--tm)}
+.pj-card:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22)}
+.pj-card-ico{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:1rem}
+.pj-card-nm{font-size:1.125rem;font-weight:700;color:#fff;margin-bottom:.375rem}
+.pj-card-ds{font-size:.875rem;color:rgba(255,255,255,.55);line-height:1.65;margin-bottom:1.25rem}
+.pj-card-fl{display:flex;flex-direction:column;gap:.375rem;margin-bottom:1.5rem}
+.pj-card-fi{display:flex;align-items:flex-start;gap:.5rem;font-size:.8125rem;color:rgba(255,255,255,.72);line-height:1.5}
+.pj-card-fi svg{flex-shrink:0;margin-top:1px;color:#4ade80}
+.pj-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6875rem 1.375rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);font-size:.875rem;font-weight:600;color:#fff;transition:all var(--tm);cursor:pointer;text-decoration:none}
+.pj-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35);transform:translateY(-1px)}
+</style>
+<template id="__bundler_thumbnail" data-bg-color="#ffffff">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#ffffff"/>
+    <!-- Header bar -->
+    <rect x="0" y="0" width="1200" height="64" fill="#ffffff" stroke="#e4e4e7" stroke-width="1"/>
+    <polygon points="60,32 71,26 71,38" fill="#16a34a" opacity="0.15"/>
+    <polygon points="60,32 71,26 71,38" fill="none" stroke="#16a34a" stroke-width="1.5"/>
+    <circle cx="65" cy="32" r="3" fill="#16a34a"/>
+    <rect x="80" y="28" width="60" height="8" rx="4" fill="#e4e4e7"/>
+    <!-- Hero headline lines -->
+    <rect x="80" y="130" width="320" height="24" rx="4" fill="#09090b"/>
+    <rect x="80" y="164" width="280" height="24" rx="4" fill="#09090b"/>
+    <rect x="80" y="198" width="200" height="24" rx="4" fill="#16a34a"/>
+    <rect x="80" y="250" width="380" height="12" rx="3" fill="#e4e4e7"/>
+    <rect x="80" y="270" width="340" height="12" rx="3" fill="#e4e4e7"/>
+    <!-- CTA button -->
+    <rect x="80" y="310" width="160" height="44" rx="10" fill="#16a34a"/>
+    <!-- Phone mockup -->
+    <rect x="720" y="100" width="200" height="360" rx="28" fill="#0b0b0d"/>
+    <rect x="730" y="112" width="180" height="336" rx="22" fill="#0d0f16"/>
+    <rect x="780" y="112" width="80" height="18" rx="0 0 12 12" fill="#0b0b0d"/>
+    <!-- Screen cards -->
+    <rect x="742" y="148" width="156" height="60" rx="10" fill="#16a34a" opacity="0.8"/>
+    <rect x="742" y="218" width="74" height="40" rx="8" fill="#ffffff" opacity="0.06"/>
+    <rect x="824" y="218" width="74" height="40" rx="8" fill="#ffffff" opacity="0.06"/>
+    <rect x="742" y="268" width="156" height="50" rx="10" fill="#ffffff" opacity="0.05"/>
+    <!-- Product cards -->
+    <rect x="80" y="480" width="250" height="200" rx="16" fill="#ffffff" stroke="#e4e4e7" stroke-width="1"/>
+    <rect x="80" y="480" width="250" height="3" rx="2" fill="#ea580c"/>
+    <rect x="350" y="480" width="250" height="200" rx="16" fill="#ffffff" stroke="#e4e4e7" stroke-width="1"/>
+    <rect x="350" y="480" width="250" height="3" rx="2" fill="#16a34a"/>
+    <rect x="620" y="480" width="250" height="200" rx="16" fill="#ffffff" stroke="#e4e4e7" stroke-width="1"/>
+    <rect x="620" y="480" width="250" height="3" rx="2" fill="#7c3aed"/>
+    <rect x="890" y="480" width="250" height="200" rx="16" fill="#ffffff" stroke="#e4e4e7" stroke-width="1"/>
+    <rect x="890" y="480" width="250" height="3" rx="2" fill="#0d9488"/>
+  </svg>
+</template>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<header class="hdr" id="hdr">
+  <div class="w hdr-in">
+    <a href="#" onclick="go('home');return false;" class="logo" aria-label="ORBI HEALTH">
+      <svg width="108" height="32" viewBox="0 0 216 64" fill="none" aria-hidden="true">
+        <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="46.1" cy="17.9" r="4.5" fill="#16a34a"/>
+        <circle cx="32" cy="32" r="2" fill="#16a34a"/>
+        <text x="76" y="36" font-family="'Inter',-apple-system,sans-serif" font-size="30" font-weight="700" letter-spacing="0.5" fill="#1a1a1a">ORBI</text>
+        <text x="76.5" y="51" font-family="'Inter',-apple-system,sans-serif" font-size="11" font-weight="300" letter-spacing="3.8" fill="#1a1a1a">HEALTH</text>
+      </svg>
+    </a>
+
+    <nav class="nav" aria-label="Principal">
+      <div class="drop" id="nd">
+        <button class="drop-btn" id="nb" aria-expanded="false" aria-haspopup="true">
+          Soluções
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2 4 7 10 12 4"/></svg>
+        </button>
+        <div class="drop-menu" id="dm" role="menu">
+          <button class="di" onclick="go('motion');closeDrop()" role="menuitem">
+            <span class="d-dot" style="background:var(--mo)"></span>
+            <span><span class="d-nm">ORBI Motion</span><span class="d-sb">Personal Trainers</span></span>
+          </button>
+          <button class="di" onclick="go('balance');closeDrop()" role="menuitem">
+            <span class="d-dot" style="background:var(--ba)"></span>
+            <span><span class="d-nm">ORBI Balance</span><span class="d-sb">Nutricionistas</span></span>
+          </button>
+          <button class="di" onclick="go('pro');closeDrop()" role="menuitem">
+            <span class="d-dot" style="background:var(--pr)"></span>
+            <span><span class="d-nm">ORBI Pro</span><span class="d-sb">Coaches de Saúde</span></span>
+          </button>
+          <button class="di" onclick="go('clinic');closeDrop()" role="menuitem">
+            <span class="d-dot" style="background:var(--cl)"></span>
+            <span><span class="d-nm">ORBI Clinic</span><span class="d-sb">Clínicas de Saúde</span></span>
+          </button>
+        </div>
+      </div>
+      <button class="nl" onclick="go('precos')" data-page="precos">Preços</button>
+      <button class="nl" onclick="go('contato')" data-page="contato">Contato</button>
+    </nav>
+
+    <div class="hdr-r">
+      <a href="http://localhost:8080/entrar" class="btn btn-o btn-sm hdr-login" aria-label="Entrar na minha conta">Entrar</a>
+      <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="btn btn-p btn-sm hdr-cta">Falar com especialista</a>
+      <button class="burger" id="bg" aria-label="Menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="mnav" id="mn" aria-label="Mobile">
+  <div class="mnav-in">
+    <span class="mnav-sep">Soluções</span>
+    <button class="mnl" onclick="go('motion');mclose()">ORBI Motion — Personal Trainers</button>
+    <button class="mnl" onclick="go('balance');mclose()">ORBI Balance — Nutricionistas</button>
+    <button class="mnl" onclick="go('pro');mclose()">ORBI Pro — Coaches de Saúde</button>
+    <button class="mnl" onclick="go('clinic');mclose()">ORBI Clinic — Clínicas</button>
+    <span class="mnav-sep">Menu</span>
+    <button class="mnl" onclick="go('precos');mclose()">Preços</button>
+    <button class="mnl" onclick="go('contato');mclose()">Contato</button>
+    <span class="mnav-sep">Acesso</span>
+    <a href="http://localhost:8080/entrar" class="btn btn-o mnav-login">
+      Entrar na minha conta
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="btn btn-p">Falar com especialista</a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════
+     HOME
+══════════════════════════════════════════ -->
+<div id="home" class="page active">
+
+  <!-- Hero -->
+  <section class="hero" id="hero-section">
+    <!-- Animated dots background -->
+    <div class="hero-dots" id="hero-dots" aria-hidden="true"></div>
+
+    <div class="w hero-in" style="position:relative;z-index:1">
+      <div class="hero-ct" data-r>
+        <div class="hero-badge">
+          <span class="pill pill-g">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="#16a34a"/></svg>
+            Plataforma de gestão para profissionais de saúde e fitness
+          </span>
+        </div>
+        <h1 class="h1 hero-tit">Seu app.<br>Seus clientes.<br><em>Sua marca.</em></h1>
+        <p class="lead hero-sub">Para personal trainers, nutricionistas, coaches, academias e clínicas que querem oferecer uma experiência premium com a sua identidade.</p>
+        <div class="hero-acts">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="btn btn-p btn-lg">
+            Quero meu app agora
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </a>
+          <a href="#solucoes" class="btn btn-o btn-lg" onclick="event.preventDefault();document.getElementById('solucoes').scrollIntoView({behavior:'smooth'})">Ver soluções</a>
+        </div>
+        <div class="hero-stats" data-r data-d="2">
+          <div>
+            <div class="hs-num"><span id="c1">200</span>+</div>
+            <div class="hs-lbl">na lista de espera</div>
+          </div>
+          <div class="hs-div"></div>
+          <div>
+            <div class="hs-num"><span style="color:var(--g)">5</span></div>
+            <div class="hs-lbl">soluções disponíveis</div>
+          </div>
+          <div class="hs-div"></div>
+          <div>
+            <div class="hs-num">Setup <span id="c2">10</span>min</div>
+            <div class="hs-lbl">para configurar</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-vis" data-r data-d="1" aria-hidden="true">
+        <div class="phone">
+          <div class="ph-body">
+            <div class="ph-isle"></div>
+            <div class="ph-sc ph-screens" id="ph-screens">
+
+              <!-- SCREEN 1: Login (shown first) -->
+              <div class="ph-screen-slide active" id="screen-login">
+                <div class="sc-logo-wrap">
+                  <div class="sc-logo-circle">
+                    <svg width="22" height="22" viewBox="0 0 216 64" fill="none">
+                      <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+                      <circle cx="46.1" cy="17.9" r="4.5" fill="#fff"/>
+                    </svg>
+                  </div>
+                  <div class="sc-logo-lbl">ORBI PRO</div>
+                  <div class="sc-logo-sub">Acesse sua plataforma</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:.375rem;padding:0 .25rem">
+                  <div>
+                    <div class="sc-inp-lbl">E-mail</div>
+                    <div class="sc-inp"></div>
+                  </div>
+                  <div>
+                    <div class="sc-inp-lbl">Senha</div>
+                    <div class="sc-inp"></div>
+                  </div>
+                </div>
+                <div class="sc-btn-g">
+                  <span class="sc-btn-lbl">Entrar</span>
+                </div>
+                <div class="sc-divider">
+                  <div class="sc-div-line"></div>
+                  <span class="sc-div-tx">ou continue com</span>
+                  <div class="sc-div-line"></div>
+                </div>
+                <div class="sc-social">
+                  <div class="sc-soc-btn"><span class="sc-soc-tx">Google</span></div>
+                  <div class="sc-soc-btn"><span class="sc-soc-tx">Apple</span></div>
+                </div>
+                <div style="text-align:center;margin-top:.5rem">
+                  <span style="font-size:.4375rem;color:rgba(255,255,255,.25)">Esqueci minha senha</span>
+                </div>
+              </div>
+
+              <!-- SCREEN 2: Dashboard -->
+              <div class="ph-screen-slide hidden" id="screen-dash">
+                <div class="sc-top">
+                  <div class="sc-av"></div>
+                  <div>
+                    <span class="sc-nm">Olá, Carlos</span>
+                    <span class="sc-sb">Personal Trainer · ORBI Pro</span>
+                  </div>
+                  <div class="sc-bd">PRO</div>
+                </div>
+                <div class="sc-card sc-gr">
+                  <span class="sc-lb">Treino de hoje · Maria S.</span>
+                  <div class="sc-ln sc-lw"></div>
+                  <div class="sc-ln sc-ls"></div>
+                  <div class="sc-ch">Força — Membros Inf.</div>
+                </div>
+                <div class="sc-g2">
+                  <div class="sc-mi">
+                    <div class="sc-mn">12</div>
+                    <div class="sc-ln" style="width:55%;margin-top:4px"></div>
+                  </div>
+                  <div class="sc-mi">
+                    <div class="sc-mn sc-mo">87%</div>
+                    <div class="sc-ln" style="width:55%;margin-top:4px"></div>
+                  </div>
+                </div>
+                <div class="sc-card sc-dk">
+                  <span class="sc-lb">Dieta do dia</span>
+                  <div class="sc-row"><div class="sc-dt sc-dg"></div><div class="sc-ln" style="flex:1;margin-bottom:0"></div></div>
+                  <div class="sc-row"><div class="sc-dt sc-dy"></div><div class="sc-ln" style="width:60%;margin-bottom:0"></div></div>
+                  <div class="sc-bar"><div class="sc-bar-fill"></div></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;padding:0 2px">
+                  <div class="sc-ln" style="width:100%;height:6px"></div>
+                  <div class="sc-ln" style="width:75%;height:6px"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Products -->
+  <section class="sec sec-bg" id="solucoes">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl">Soluções</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Uma plataforma, quatro especialidades</h2>
+        <p class="lead" style="margin-top:1rem;max-width:540px">Escolha a linha que melhor atende seu perfil. Cada uma vem com as ferramentas certas para o seu tipo de atendimento.</p>
+      </div>
+      <div class="pg">
+        <article class="pc" data-r onclick="go('motion')">
+          <div class="pc-stripe sm"></div>
+          <div class="pc-ico im">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 10 4.5 10 6.5 3 9.5 17 12.5 7 14.5 13 16.5 10 18.5 10"/></svg>
+          </div>
+          <span class="pc-tag c-mo">ORBI Motion</span>
+          <h3 class="pc-ti">Personal Trainers</h3>
+          <p class="pc-ds">Do planejamento de treinos à evolução dos alunos — tudo organizado e com a sua identidade.</p>
+          <ul class="pc-fl">
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Biblioteca de exercícios com vídeos</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Avaliações físicas e fotos de progresso</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Planos de treino personalizados</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Agenda e frequência de alunos</li>
+          </ul>
+          <span class="pc-lk c-mo">Saiba mais <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg></span>
+        </article>
+        <article class="pc" data-r data-d="1" onclick="go('balance')">
+          <div class="pc-stripe sb"></div>
+          <div class="pc-ico ib">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3C7 3 4.5 5.5 4.5 8.5 4.5 13 10 17 10 17s5.5-4 5.5-8.5C15.5 5.5 13 3 10 3z"/><path d="M10 3c0 3-1.5 5-1.5 5"/></svg>
+          </div>
+          <span class="pc-tag c-ba">ORBI Balance</span>
+          <h3 class="pc-ti">Nutricionistas</h3>
+          <p class="pc-ds">Planos alimentares, substituições e evolução nutricional de cada paciente — no seu app.</p>
+          <ul class="pc-fl">
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Planos alimentares por refeição</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Tabela de substituições alimentares</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Registro de refeições do paciente</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Evolução de peso e medidas</li>
+          </ul>
+          <span class="pc-lk c-ba">Saiba mais <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg></span>
+        </article>
+        <article class="pc" data-r data-d="2" onclick="go('pro')">
+          <div class="pc-stripe sp"></div>
+          <div class="pc-ico ip">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 2.5L3.5 11.5h7l-2 6 10-11h-7l2-4z"/></svg>
+          </div>
+          <span class="pc-tag c-pr">ORBI Pro</span>
+          <h3 class="pc-ti">Coaches de Saúde</h3>
+          <p class="pc-ds">Treino e dieta integrados em uma única plataforma. Para quem oferece acompanhamento completo.</p>
+          <ul class="pc-fl">
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Motion + Balance integrados</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Dashboard unificado de evolução</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Comunicação centralizada</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Relatórios de progresso completos</li>
+          </ul>
+          <span class="pc-lk c-pr">Saiba mais <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg></span>
+        </article>
+        <article class="pc" data-r data-d="3" onclick="go('clinic')">
+          <div class="pc-stripe sc2"></div>
+          <div class="pc-ico ic">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="14" height="13" rx="1.5"/><path d="M7 18V11h6v7"/><path d="M3 9h14"/><path d="M10 5V3"/><path d="M8 5h4"/></svg>
+          </div>
+          <span class="pc-tag c-cl">ORBI Clinic</span>
+          <h3 class="pc-ti">Clínicas de Saúde</h3>
+          <p class="pc-ds">Gestão completa para clínicas com múltiplos profissionais, agendamentos e prontuários digitais.</p>
+          <ul class="pc-fl">
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Multi-profissional e multi-sala</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Agendamento online integrado</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Prontuários digitais</li>
+            <li class="pc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Relatórios financeiros e operacionais</li>
+          </ul>
+          <span class="pc-lk c-cl">Saiba mais <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg></span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- PJ / Enterprise section -->
+  <section class="pj">
+    <div class="w">
+      <div class="pj-hd" data-r>
+        <div class="pj-badge">
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="#4ade80"/></svg>
+          Para academias, estúdios e clínicas
+        </div>
+        <h2 class="pj-ti">Escale sua operação.<br>Com a ORBI do seu lado.</h2>
+        <p class="pj-sb">Para quem precisa de mais do que uma solução individual — uma plataforma para toda a equipe, com múltiplos profissionais, turmas e relatórios unificados.</p>
+      </div>
+      <div class="pj-cards">
+        <div class="pj-card" data-r>
+          <div class="pj-card-ico">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 17V7l8-4 8 4v10"/><path d="M10 17v-5"/><rect x="6" y="12" width="3" height="5" rx=".5"/><rect x="11" y="12" width="3" height="5" rx=".5"/></svg>
+          </div>
+          <div class="pj-card-nm">ORBI Space</div>
+          <p class="pj-card-ds">Para academias e estúdios. Gerencie múltiplos professores, turmas, alunos e resultados em um único painel com a sua identidade.</p>
+          <ul class="pj-card-fl">
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Múltiplos professores e turmas
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Controle de acesso e planos de assinatura
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Relatórios por professor e por aluno
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              App com a identidade visual do espaço
+            </li>
+          </ul>
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Space" target="_blank" rel="noopener" class="pj-btn">
+            Falar sobre o Space
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg>
+          </a>
+        </div>
+        <div class="pj-card" data-r data-d="1">
+          <div class="pj-card-ico">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="14" height="13" rx="1.5"/><path d="M7 18V11h6v7"/><path d="M3 9h14"/><path d="M10 5V3"/><path d="M8 5h4"/></svg>
+          </div>
+          <div class="pj-card-nm">ORBI Clinic</div>
+          <p class="pj-card-ds">Para clínicas multidisciplinares. Integre médicos, nutricionistas e personal trainers em um único ecossistema digital com prontuário unificado.</p>
+          <ul class="pj-card-fl">
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Multi-profissional e multi-especialidade
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Prontuários digitais integrados
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Agendamento online e financeiro
+            </li>
+            <li class="pj-card-fi">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>
+              Onboarding dedicado com suporte exclusivo
+            </li>
+          </ul>
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Clinic" target="_blank" rel="noopener" class="pj-btn">
+            Falar sobre a Clinic
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h10M7 3l4 4-4 4"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="sec" id="como-funciona">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl">Como funciona</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:460px">Do cadastro ao primeiro atendimento em 3 passos</h2>
+        <p class="lead" style="margin-top:1rem;max-width:520px">Sem desenvolvedor. Sem configurações técnicas. Configure você mesmo em minutos.</p>
+      </div>
+      <!-- Desktop: 2-col layout. Mobile: stacked -->
+      <div class="hfw-grid">
+        <!-- Left: steps -->
+        <div class="hfw-steps">
+          <div class="step hfw-step" data-step="1" data-r>
+            <div class="step-l"><div class="step-n">01</div><div class="step-ln"></div></div>
+            <div class="step-b">
+              <h3 class="step-ti">Escolha sua solução</h3>
+              <p class="step-tx">Selecione entre Motion, Balance ou Pro conforme sua especialidade. Cada linha foi desenvolvida com funcionalidades exclusivas para o seu tipo de atendimento — não é um sistema genérico adaptado.</p>
+              <!-- Mobile-only card -->
+              <div class="hfw-card-mobile" aria-hidden="true">
+                <div class="hfw-prod-grid">
+                  <div class="hfw-prod" style="border-color:rgba(234,88,12,.35);background:rgba(234,88,12,.06)">
+                    <span class="hfw-prod-dot" style="background:#ea580c"></span>
+                    <span class="hfw-prod-nm" style="color:#ea580c">Motion</span>
+                    <span class="hfw-prod-sb">Personal Trainers</span>
+                  </div>
+                  <div class="hfw-prod" style="border-color:rgba(22,163,74,.35);background:rgba(22,163,74,.06)">
+                    <span class="hfw-prod-dot" style="background:#16a34a"></span>
+                    <span class="hfw-prod-nm" style="color:#16a34a">Balance</span>
+                    <span class="hfw-prod-sb">Nutricionistas</span>
+                  </div>
+                  <div class="hfw-prod" style="border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.06)">
+                    <span class="hfw-prod-dot" style="background:#7c3aed"></span>
+                    <span class="hfw-prod-nm" style="color:#7c3aed">Pro</span>
+                    <span class="hfw-prod-sb">Coaches</span>
+                  </div>
+                  <div class="hfw-prod" style="border-color:rgba(13,148,136,.35);background:rgba(13,148,136,.06)">
+                    <span class="hfw-prod-dot" style="background:#0d9488"></span>
+                    <span class="hfw-prod-nm" style="color:#0d9488">Space</span>
+                    <span class="hfw-prod-sb">Academias</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="step hfw-step" data-step="2" data-r>
+            <div class="step-l"><div class="step-n">02</div><div class="step-ln"></div></div>
+            <div class="step-b">
+              <h3 class="step-ti">Configure com a sua identidade</h3>
+              <p class="step-tx">Adicione sua logo, escolha suas cores e defina o nome da plataforma. Em menos de 10 minutos seu app já tem a sua identidade visual — zero código, zero técnico.</p>
+              <!-- Mobile-only card -->
+              <div class="hfw-card-mobile" aria-hidden="true">
+                <div class="hfw-cfg">
+                  <div class="hfw-cfg-row">
+                    <span class="hfw-cfg-lbl">Nome da plataforma</span>
+                    <div class="hfw-cfg-field">Dr. Carlos Fitness</div>
+                  </div>
+                  <div class="hfw-cfg-row">
+                    <span class="hfw-cfg-lbl">Cor principal</span>
+                    <div style="display:flex;gap:6px">
+                      <div class="hfw-color-dot" style="background:#16a34a;outline:2px solid #16a34a;outline-offset:2px"></div>
+                      <div class="hfw-color-dot" style="background:#ea580c"></div>
+                      <div class="hfw-color-dot" style="background:#7c3aed"></div>
+                      <div class="hfw-color-dot" style="background:#0d9488"></div>
+                      <div class="hfw-color-dot" style="background:#2563eb"></div>
+                    </div>
+                  </div>
+                  <div class="hfw-cfg-row">
+                    <span class="hfw-cfg-lbl">Logo</span>
+                    <div class="hfw-cfg-upload">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v8M4 4l3-3 3 3"/><path d="M1 10v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1"/></svg>
+                      Enviar arquivo
+                    </div>
+                  </div>
+                  <div class="hfw-cfg-preview">
+                    <span class="hfw-cfg-prev-lbl">Preview</span>
+                    <div class="hfw-cfg-prev-bar" style="background:#16a34a"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="step hfw-step" data-step="3" data-r>
+            <div class="step-l"><div class="step-n">03</div></div>
+            <div class="step-b">
+              <h3 class="step-ti">Comece a atender no mais alto nível</h3>
+              <p class="step-tx">Cadastre seus alunos ou pacientes e compartilhe o acesso. Eles entram pelo app e você acompanha tudo em tempo real — treino, dieta, evolução e comunicação em um único lugar.</p>
+              <!-- Mobile-only card -->
+              <div class="hfw-card-mobile" aria-hidden="true">
+                <div class="hfw-dash">
+                  <div class="hfw-dash-top">
+                    <div class="hfw-dash-av"></div>
+                    <div>
+                      <div class="hfw-dash-nm">Olá, Carlos</div>
+                      <div class="hfw-dash-sb">Personal Trainer</div>
+                    </div>
+                    <div class="hfw-dash-bd">PRO</div>
+                  </div>
+                  <div class="hfw-dash-stats">
+                    <div class="hfw-stat"><div class="hfw-stat-n">12</div><div class="hfw-stat-l">Alunos</div></div>
+                    <div class="hfw-stat"><div class="hfw-stat-n" style="color:#fb923c">87%</div><div class="hfw-stat-l">Engajamento</div></div>
+                    <div class="hfw-stat"><div class="hfw-stat-n" style="color:#4ade80">5</div><div class="hfw-stat-l">Hoje</div></div>
+                  </div>
+                  <div class="hfw-dash-list">
+                    <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#ea580c,#fb923c)"></div><div class="hfw-alu-nm">Maria S.</div><div class="hfw-alu-st" style="color:#4ade80">✓ Treinou</div></div>
+                    <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)"></div><div class="hfw-alu-nm">João P.</div><div class="hfw-alu-st" style="color:#fbbf24">Pendente</div></div>
+                    <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#0d9488,#2dd4bf)"></div><div class="hfw-alu-nm">Ana L.</div><div class="hfw-alu-st" style="color:#4ade80">✓ Treinou</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: sticky visual panel (desktop only) -->
+        <div class="hfw-visual" aria-hidden="true">
+          <div class="hfw-panel">
+            <!-- Card 1: product grid -->
+            <div class="hfw-card active" id="hfw-card-1">
+              <div class="hfw-card-hd">
+                <span class="hfw-card-tag">Escolha sua solução</span>
+                <span class="hfw-card-sub">4 linhas especializadas</span>
+              </div>
+              <div class="hfw-prod-grid">
+                <div class="hfw-prod" style="border-color:rgba(234,88,12,.35);background:rgba(234,88,12,.06)">
+                  <span class="hfw-prod-dot" style="background:#ea580c"></span>
+                  <span class="hfw-prod-nm" style="color:#ea580c">Motion</span>
+                  <span class="hfw-prod-sb">Personal Trainers</span>
+                </div>
+                <div class="hfw-prod" style="border-color:rgba(22,163,74,.35);background:rgba(22,163,74,.06)">
+                  <span class="hfw-prod-dot" style="background:#16a34a"></span>
+                  <span class="hfw-prod-nm" style="color:#16a34a">Balance</span>
+                  <span class="hfw-prod-sb">Nutricionistas</span>
+                </div>
+                <div class="hfw-prod" style="border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.06)">
+                  <span class="hfw-prod-dot" style="background:#7c3aed"></span>
+                  <span class="hfw-prod-nm" style="color:#7c3aed">Pro</span>
+                  <span class="hfw-prod-sb">Coaches</span>
+                </div>
+                <div class="hfw-prod" style="border-color:rgba(13,148,136,.35);background:rgba(13,148,136,.06)">
+                  <span class="hfw-prod-dot" style="background:#0d9488"></span>
+                  <span class="hfw-prod-nm" style="color:#0d9488">Space</span>
+                  <span class="hfw-prod-sb">Academias</span>
+                </div>
+              </div>
+            </div>
+            <!-- Card 2: config panel -->
+            <div class="hfw-card" id="hfw-card-2">
+              <div class="hfw-card-hd">
+                <span class="hfw-card-tag">Sua identidade visual</span>
+                <span class="hfw-card-sub">Zero código</span>
+              </div>
+              <div class="hfw-cfg">
+                <div class="hfw-cfg-row">
+                  <span class="hfw-cfg-lbl">Nome da plataforma</span>
+                  <div class="hfw-cfg-field">Dr. Carlos Fitness</div>
+                </div>
+                <div class="hfw-cfg-row">
+                  <span class="hfw-cfg-lbl">Cor principal</span>
+                  <div style="display:flex;gap:8px">
+                    <div class="hfw-color-dot" style="background:#16a34a;outline:2px solid #16a34a;outline-offset:2px"></div>
+                    <div class="hfw-color-dot" style="background:#ea580c"></div>
+                    <div class="hfw-color-dot" style="background:#7c3aed"></div>
+                    <div class="hfw-color-dot" style="background:#0d9488"></div>
+                    <div class="hfw-color-dot" style="background:#2563eb"></div>
+                  </div>
+                </div>
+                <div class="hfw-cfg-row">
+                  <span class="hfw-cfg-lbl">Logo</span>
+                  <div class="hfw-cfg-upload">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v8M4 4l3-3 3 3"/><path d="M1 10v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1"/></svg>
+                    Enviar arquivo
+                  </div>
+                </div>
+                <div class="hfw-cfg-preview">
+                  <span class="hfw-cfg-prev-lbl">Preview do app</span>
+                  <div class="hfw-cfg-prev-bar" style="background:#16a34a"></div>
+                  <div style="display:flex;gap:8px;margin-top:8px">
+                    <div style="flex:1;height:28px;border-radius:6px;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.2)"></div>
+                    <div style="flex:2;height:28px;border-radius:6px;background:#f4f4f5"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Card 3: dashboard -->
+            <div class="hfw-card" id="hfw-card-3">
+              <div class="hfw-card-hd">
+                <span class="hfw-card-tag">Painel em tempo real</span>
+                <span class="hfw-card-sub">Tudo em um lugar</span>
+              </div>
+              <div class="hfw-dash">
+                <div class="hfw-dash-top">
+                  <div class="hfw-dash-av"></div>
+                  <div>
+                    <div class="hfw-dash-nm">Olá, Carlos</div>
+                    <div class="hfw-dash-sb">Personal Trainer · ORBI Pro</div>
+                  </div>
+                  <div class="hfw-dash-bd">PRO</div>
+                </div>
+                <div class="hfw-dash-stats">
+                  <div class="hfw-stat"><div class="hfw-stat-n">12</div><div class="hfw-stat-l">Alunos</div></div>
+                  <div class="hfw-stat"><div class="hfw-stat-n" style="color:#fb923c">87%</div><div class="hfw-stat-l">Engajamento</div></div>
+                  <div class="hfw-stat"><div class="hfw-stat-n" style="color:#4ade80">5</div><div class="hfw-stat-l">Hoje</div></div>
+                </div>
+                <div class="hfw-dash-list">
+                  <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#ea580c,#fb923c)"></div><div class="hfw-alu-nm">Maria S.</div><div class="hfw-alu-st" style="color:#4ade80">✓ Treinou</div></div>
+                  <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)"></div><div class="hfw-alu-nm">João P.</div><div class="hfw-alu-st" style="color:#fbbf24">Pendente</div></div>
+                  <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#0d9488,#2dd4bf)"></div><div class="hfw-alu-nm">Ana L.</div><div class="hfw-alu-st" style="color:#4ade80">✓ Treinou</div></div>
+                  <div class="hfw-alu"><div class="hfw-alu-av" style="background:linear-gradient(135deg,#2563eb,#60a5fa)"></div><div class="hfw-alu-nm">Pedro R.</div><div class="hfw-alu-st" style="color:#4ade80">✓ Treinou</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Differentials -->
+  <section class="sec sec-bg" id="diferenciais">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl">Por que a ORBI</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Tudo que você precisa, sem o que não precisa</h2>
+        <p class="lead" style="margin-top:1rem;max-width:500px">Pensado para o profissional brasileiro que quer crescer com tecnologia.</p>
+      </div>
+      <div class="dg">
+        <div class="dc" data-r>
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2"/></svg></div>
+          <h3 class="dc-ti">100% com a sua marca</h3>
+          <p class="dc-tx">Logo, cores e nome da sua plataforma. Seus clientes nem sabem que a ORBI está por trás.</p>
+        </div>
+        <div class="dc" data-r data-d="1">
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 2.5L3.5 11.5h7l-2 6 10-11h-7l2-4z"/></svg></div>
+          <h3 class="dc-ti">Sem desenvolvedor</h3>
+          <p class="dc-tx">Configuração por painel visual. Nenhuma linha de código para montar e lançar o seu app.</p>
+        </div>
+        <div class="dc" data-r data-d="2">
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="14" height="12" rx="1.5"/><path d="M7 5V4a2 2 0 0 1 4 0v1"/><circle cx="10" cy="11" r="1.5"/></svg></div>
+          <h3 class="dc-ti">Mensalidade acessível</h3>
+          <p class="dc-tx">Pague em reais, sem câmbio. Planos desenhados para a realidade do profissional brasileiro.</p>
+        </div>
+        <div class="dc" data-r data-d="3">
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="10" height="16" rx="2"/><line x1="9" y1="6" x2="11" y2="6"/></svg></div>
+          <h3 class="dc-ti">iOS e Android</h3>
+          <p class="dc-tx">Disponível para iOS e Android. Seus clientes instalam direto pelo link, sem App Store ou Google Play.</p>
+        </div>
+        <div class="dc" data-r data-d="4">
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2a6 6 0 1 0 0 12A6 6 0 0 0 10 2z"/><path d="M10 14v4M6 18h8"/></svg></div>
+          <h3 class="dc-ti">Suporte em português</h3>
+          <p class="dc-tx">Time brasileiro, atendimento em PT-BR, no seu fuso horário, sem barreira de idioma.</p>
+        </div>
+        <div class="dc" data-r data-d="5">
+          <div class="dc-ico"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="16" x2="4" y2="10"/><line x1="8" y1="16" x2="8" y2="6"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="16" y1="16" x2="16" y2="8"/></svg></div>
+          <h3 class="dc-ti">Dados organizados</h3>
+          <p class="dc-tx">Histórico de cada aluno, evoluções, check-ins e pagamentos em um único lugar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA final -->
+  <section class="ctaf">
+    <div class="w">
+      <div class="ctaf-in" data-r>
+        <h2 class="ctaf-ti">Pronto para profissionalizar seu atendimento?</h2>
+        <p class="lead ctaf-sb">Entre na lista de espera e seja notificado no lançamento. As primeiras vagas têm condições especiais.</p>
+        <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="btn btn-w btn-lg">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 2C5.6 2 2 5.6 2 10c0 1.5.4 2.9 1.1 4.1L2 18l4-1.1C7.1 17.6 8.5 18 10 18c4.4 0 8-3.6 8-8s-3.6-8-8-8zm3.9 10.9c-.2.5-.9.9-1.5 1-.4.1-.9.1-1.3-.1-.4-.1-.9-.3-1.5-.6-2.6-1.3-4.3-4-4.5-4.2-.2-.3-1-1.4-1-2.5 0-1.2.6-1.8.8-2 .2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.7 1.8c.1.2.1.4 0 .6l-.3.4-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1.9.8 1.7 1.1 2 1.2.3.1.5.1.7-.1l.4-.5c.2-.2.4-.3.7-.2l1.7.8c.2.1.4.2.5.4.1.2.1.6-.1 1z"/></svg>
+          Falar pelo WhatsApp
+        </a>
+        <p class="ctaf-no">Sem compromisso. Resposta em até 24 horas.</p>
+      </div>
+    </div>
+  </section>
+</div><!-- /home -->
+
+<!-- ══════════════════════════════════════════
+     ORBI MOTION
+══════════════════════════════════════════ -->
+<div id="motion" class="page pp">
+  <section class="pp-hero">
+    <div class="w pp-hero-in">
+      <div data-r>
+        <span class="pp-lbl" style="color:var(--mo)">ORBI Motion</span>
+        <h1 class="pp-ti">O app que transforma como você prescreve treinos</h1>
+        <p class="pp-sb">Do planejamento à execução — fichas de avaliação, biblioteca de exercícios e evolução de cada aluno em um único lugar com a sua marca.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Motion" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--mo);color:#fff">Quero o ORBI Motion</a>
+          <button class="btn btn-o btn-lg" onclick="go('home')">Ver todas as soluções</button>
+        </div>
+      </div>
+      <div class="pp-vis" data-r data-d="1" aria-hidden="true">
+        <div class="pp-ui">
+          <div style="width:100%;background:#0d0f16;border-radius:16px;padding:1.25rem;font-size:.75rem;color:#fff;display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35)">Aluna · Maria S.</span>
+              <span style="font-size:.5625rem;font-weight:700;background:rgba(234,88,12,.15);color:#fb923c;border:1px solid rgba(234,88,12,.2);border-radius:5px;padding:2px 6px">Motion</span>
+            </div>
+            <div style="font-size:1rem;font-weight:800;letter-spacing:-.02em">Força — Membros Inferiores</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;gap:.75rem;align-items:center">
+                <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,88,12,.15);flex-shrink:0"></div>
+                <div style="flex:1"><div style="font-size:.75rem;font-weight:600;margin-bottom:2px">Agachamento Livre</div><div style="font-size:.625rem;color:rgba(255,255,255,.4)">4 × 12 reps · 75 kg</div></div>
+                <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid #ea580c;display:flex;align-items:center;justify-content:center"><div style="width:7px;height:7px;border-radius:50%;background:#ea580c"></div></div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;gap:.75rem;align-items:center">
+                <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,88,12,.15);flex-shrink:0"></div>
+                <div style="flex:1"><div style="font-size:.75rem;font-weight:600;margin-bottom:2px">Leg Press 45°</div><div style="font-size:.625rem;color:rgba(255,255,255,.4)">4 × 15 reps · 120 kg</div></div>
+                <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2)"></div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;gap:.75rem;align-items:center">
+                <div style="width:32px;height:32px;border-radius:8px;background:rgba(234,88,12,.15);flex-shrink:0"></div>
+                <div style="flex:1"><div style="font-size:.75rem;font-weight:600;margin-bottom:2px">Cadeira Extensora</div><div style="font-size:.625rem;color:rgba(255,255,255,.4)">3 × 15 reps · 40 kg</div></div>
+                <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2)"></div>
+              </div>
+            </div>
+            <div style="background:rgba(234,88,12,.1);border:1px solid rgba(234,88,12,.2);border-radius:8px;padding:.625rem;display:flex;align-items:center;gap:.5rem">
+              <div style="font-size:.625rem;color:#fb923c;font-weight:600">1 de 3 exercícios concluídos · 33%</div>
+              <div style="flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:100px;overflow:hidden;margin-left:auto;width:60px"><div style="height:100%;width:33%;background:#ea580c;border-radius:100px"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-bg">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl" style="color:var(--mo)">Funcionalidades</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Tudo que um personal trainer precisa, em um app com a sua cara</h2>
+      </div>
+      <div class="fg">
+        <div class="fc" data-r>
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 10 4.5 10 6.5 3 9.5 17 12.5 7 14.5 13 16.5 10 18.5 10"/></svg></div>
+          <h3 class="fc-ti">Biblioteca de exercícios</h3>
+          <p class="fc-tx">Catálogo completo com vídeos demonstrativos, instruções e agrupamento por grupo muscular. Adicione os seus próprios.</p>
+        </div>
+        <div class="fc" data-r data-d="1">
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="9" x2="17" y2="9"/><line x1="9" y1="3" x2="9" y2="17"/></svg></div>
+          <h3 class="fc-ti">Montagem de treinos</h3>
+          <p class="fc-tx">Crie fichas de treino personalizadas com periodização, séries, cargas e intervalos. Duplique e adapte por aluno.</p>
+        </div>
+        <div class="fc" data-r data-d="2">
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="4"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
+          <h3 class="fc-ti">Avaliações físicas</h3>
+          <p class="fc-tx">Fichas de avaliação postural e física completas. Fotos de antes e depois com linha do tempo de progresso.</p>
+        </div>
+        <div class="fc" data-r data-d="3">
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="14" rx="1.5"/><path d="M13 2v4M7 2v4M3 10h14"/></svg></div>
+          <h3 class="fc-ti">Agenda e frequência</h3>
+          <p class="fc-tx">Controle de presença, agendamento de sessões e histórico de frequência de cada aluno, tudo na palma da mão.</p>
+        </div>
+        <div class="fc" data-r data-d="4">
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h2l2-6 4 12 3-8 2 2h1"/></svg></div>
+          <h3 class="fc-ti">Dashboard de evolução</h3>
+          <p class="fc-tx">Gráficos de peso, medidas e performance. O aluno acompanha o próprio progresso direto no app.</p>
+        </div>
+        <div class="fc" data-r data-d="5">
+          <div class="fc-ico" style="background:#fff7ed;color:var(--mo)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1l3 3v-3h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg></div>
+          <h3 class="fc-ti">Comunicação integrada</h3>
+          <p class="fc-tx">Chat e notificações push dentro do próprio app. Sem depender do WhatsApp para atualizações de treino.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec for-sec">
+    <div class="w">
+      <div class="for-in">
+        <div data-r>
+          <span class="tag-lbl" style="color:var(--mo)">Para quem é</span>
+          <h2 class="h2" style="margin-top:.5rem;margin-bottom:2rem;max-width:400px">O ORBI Motion foi feito para você</h2>
+          <div class="for-pts">
+            <div class="for-pt">
+              <div class="for-num" style="background:#fff7ed;color:var(--mo)">01</div>
+              <div><p class="for-pt-ti">Personal trainer autônomo</p><p class="for-pt-tx">Atende individualmente e quer substituir o WhatsApp por uma plataforma profissional com a sua cara.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#fff7ed;color:var(--mo)">02</div>
+              <div><p class="for-pt-ti">Profissional que quer escalar</p><p class="for-pt-tx">Quer atender mais alunos sem perder o controle e a qualidade do acompanhamento.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#fff7ed;color:var(--mo)">03</div>
+              <div><p class="for-pt-ti">Personal em busca de diferenciação</p><p class="for-pt-tx">Quer posicionar seu serviço como premium e cobrar o que realmente vale.</p></div>
+            </div>
+          </div>
+        </div>
+        <div data-r data-d="1">
+          <div class="for-quote">
+            <p class="for-q-tx">"Antes eu mandava treino em planilha de Excel pelo WhatsApp. Agora meus alunos têm um app com o meu nome. A percepção de valor mudou completamente."</p>
+            <div class="for-q-nm">Rafael M.</div>
+            <div class="for-q-ro">Personal Trainer · ORBI Motion</div>
+          </div>
+          <div style="margin-top:1.5rem">
+            <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Motion" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--mo);color:#fff;width:100%;justify-content:center">Quero o ORBI Motion</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /motion -->
+
+<!-- ══════════════════════════════════════════
+     ORBI BALANCE
+══════════════════════════════════════════ -->
+<div id="balance" class="page pp">
+  <section class="pp-hero">
+    <div class="w pp-hero-in">
+      <div data-r>
+        <span class="pp-lbl" style="color:var(--ba)">ORBI Balance</span>
+        <h1 class="pp-ti">Planos alimentares que os pacientes realmente seguem</h1>
+        <p class="pp-sb">Prescrição, acompanhamento e evolução nutricional — tudo digital, tudo com a sua marca.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Balance" target="_blank" rel="noopener" class="btn btn-p btn-lg">Quero o ORBI Balance</a>
+          <button class="btn btn-o btn-lg" onclick="go('home')">Ver todas as soluções</button>
+        </div>
+      </div>
+      <div class="pp-vis" data-r data-d="1" aria-hidden="true">
+        <div class="pp-ui">
+          <div style="width:100%;background:#0d0f16;border-radius:16px;padding:1.25rem;font-size:.75rem;color:#fff;display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35)">Paciente · Ana C.</span>
+              <span style="font-size:.5625rem;font-weight:700;background:rgba(22,163,74,.12);color:#4ade80;border:1px solid rgba(22,163,74,.2);border-radius:5px;padding:2px 6px">Balance</span>
+            </div>
+            <div style="font-size:1rem;font-weight:800;letter-spacing:-.02em">Plano Alimentar · Semana 3</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <div style="background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:.75rem">
+                <div style="font-size:.5625rem;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Café da manhã</div>
+                <div style="font-size:.75rem;margin-bottom:.25rem;font-weight:600">Aveia c/ banana e mel</div>
+                <div style="font-size:.625rem;color:rgba(255,255,255,.4)">320 kcal · Carbo: 58g · Prot: 8g</div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem">
+                <div style="font-size:.5625rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Almoço</div>
+                <div style="font-size:.75rem;margin-bottom:.25rem;font-weight:600">Frango grelhado, arroz e brócolis</div>
+                <div style="font-size:.625rem;color:rgba(255,255,255,.4)">520 kcal · Carbo: 55g · Prot: 42g</div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem">
+                <div style="font-size:.5625rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem">Jantar</div>
+                <div style="font-size:.75rem;margin-bottom:.25rem;font-weight:600">Omelete de legumes</div>
+                <div style="font-size:.625rem;color:rgba(255,255,255,.4)">280 kcal · Carbo: 8g · Prot: 24g</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:.75rem">
+              <div style="flex:1;background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#4ade80">1.620</div><div style="font-size:.5rem;color:rgba(255,255,255,.35);margin-top:2px">kcal alvo</div></div>
+              <div style="flex:1;background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#fbbf24">98</div><div style="font-size:.5rem;color:rgba(255,255,255,.35);margin-top:2px">g proteína</div></div>
+              <div style="flex:1;background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#60a5fa">42</div><div style="font-size:.5rem;color:rgba(255,255,255,.35);margin-top:2px">g gordura</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-bg">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl" style="color:var(--ba)">Funcionalidades</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Nutrição digitalizada do jeito certo</h2>
+      </div>
+      <div class="fg">
+        <div class="fc" data-r>
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3C7 3 4.5 5.5 4.5 8.5 4.5 13 10 17 10 17s5.5-4 5.5-8.5C15.5 5.5 13 3 10 3z"/><path d="M10 3c0 3-1.5 5-1.5 5"/></svg></div>
+          <h3 class="fc-ti">Planos alimentares</h3>
+          <p class="fc-tx">Monte refeições por horário com macros calculados automaticamente. Flexibilidade total na prescrição.</p>
+        </div>
+        <div class="fc" data-r data-d="1">
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M4 10h12M4 14h8"/><circle cx="16" cy="14" r="3"/><path d="M15 13l1 1 2-2"/></svg></div>
+          <h3 class="fc-ti">Tabela de substituições</h3>
+          <p class="fc-tx">Liberdade alimentar com controle nutricional. O paciente troca alimentos dentro dos limites do plano.</p>
+        </div>
+        <div class="fc" data-r data-d="2">
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M12 3v5h5M9 12h2M9 15h4"/></svg></div>
+          <h3 class="fc-ti">Anamnese digital</h3>
+          <p class="fc-tx">Fichas de avaliação nutricional completas com histórico clínico, alergias e preferências alimentares.</p>
+        </div>
+        <div class="fc" data-r data-d="3">
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="8" y1="16" x2="8" y2="6"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="16" y1="16" x2="16" y2="8"/></svg></div>
+          <h3 class="fc-ti">Evolução de peso e medidas</h3>
+          <p class="fc-tx">Gráficos de evolução corporal com linha do tempo. O paciente registra e você acompanha em tempo real.</p>
+        </div>
+        <div class="fc" data-r data-d="4">
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M3 10h14M3 14h8"/></svg></div>
+          <h3 class="fc-ti">Registro de refeições</h3>
+          <p class="fc-tx">O paciente registra o que comeu direto no app. Você tem visão completa da adesão ao plano.</p>
+        </div>
+        <div class="fc" data-r data-d="5">
+          <div class="fc-ico" style="background:var(--gl);color:var(--ba)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 3"/></svg></div>
+          <h3 class="fc-ti">Notificações e lembretes</h3>
+          <p class="fc-tx">Engajamento automatizado com lembretes de refeições, consultas e atualizações de plano.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec for-sec">
+    <div class="w">
+      <div class="for-in">
+        <div data-r>
+          <span class="tag-lbl" style="color:var(--ba)">Para quem é</span>
+          <h2 class="h2" style="margin-top:.5rem;margin-bottom:2rem;max-width:400px">O ORBI Balance foi feito para você</h2>
+          <div class="for-pts">
+            <div class="for-pt">
+              <div class="for-num" style="background:var(--gl);color:var(--ba)">01</div>
+              <div><p class="for-pt-ti">Nutricionista clínico e esportivo</p><p class="for-pt-tx">Quer digitalizar a prescrição e ter controle total sobre a adesão dos pacientes ao plano.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:var(--gl);color:var(--ba)">02</div>
+              <div><p class="for-pt-ti">Nutricionista com atendimento online</p><p class="for-pt-tx">Quer oferecer uma experiência premium ao paciente, com app próprio e acompanhamento remoto estruturado.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:var(--gl);color:var(--ba)">03</div>
+              <div><p class="for-pt-ti">Profissional que quer escalar</p><p class="for-pt-tx">Quer atender mais pacientes com menos tempo de gestão, sem perder a qualidade do acompanhamento.</p></div>
+            </div>
+          </div>
+        </div>
+        <div data-r data-d="1">
+          <div class="for-quote">
+            <p class="for-q-tx">"Meus pacientes registram as refeições no app e eu consigo acompanhar a adesão antes da consulta. A evolução ficou muito mais rápida."</p>
+            <div class="for-q-nm">Dra. Carolina R.</div>
+            <div class="for-q-ro">Nutricionista · ORBI Balance</div>
+          </div>
+          <div style="margin-top:1.5rem">
+            <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Balance" target="_blank" rel="noopener" class="btn btn-p btn-lg" style="width:100%;justify-content:center">Quero o ORBI Balance</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /balance -->
+
+<!-- ══════════════════════════════════════════
+     ORBI PRO
+══════════════════════════════════════════ -->
+<div id="pro" class="page pp">
+  <section class="pp-hero">
+    <div class="w pp-hero-in">
+      <div data-r>
+        <span class="pp-lbl" style="color:var(--pr)">ORBI Pro</span>
+        <h1 class="pp-ti">Treino e dieta integrados. Uma plataforma, uma marca.</h1>
+        <p class="pp-sb">A solução mais completa para coaches que oferecem acompanhamento 360° — sem alternar entre ferramentas ou apps diferentes.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Pro" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--pr);color:#fff">Quero o ORBI Pro</a>
+          <button class="btn btn-o btn-lg" onclick="go('home')">Ver todas as soluções</button>
+        </div>
+      </div>
+      <div class="pp-vis" data-r data-d="1" aria-hidden="true">
+        <div class="pp-ui">
+          <div style="width:100%;background:#0d0f16;border-radius:16px;padding:1.25rem;font-size:.75rem;color:#fff;display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35)">Dashboard · Lucas F.</span>
+              <span style="font-size:.5625rem;font-weight:700;background:rgba(124,58,237,.15);color:#a78bfa;border:1px solid rgba(124,58,237,.25);border-radius:5px;padding:2px 6px">PRO</span>
+            </div>
+            <div style="font-size:1rem;font-weight:800;letter-spacing:-.02em">Semana 8 — Progresso</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+              <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.2);border-radius:10px;padding:.75rem">
+                <div style="font-size:.5rem;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:.375rem">Treinos</div>
+                <div style="font-size:1.25rem;font-weight:900">6/8</div>
+                <div style="font-size:.5625rem;color:rgba(255,255,255,.4);margin-top:2px">concluídos</div>
+              </div>
+              <div style="background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:.75rem">
+                <div style="font-size:.5rem;color:#4ade80;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:.375rem">Dieta</div>
+                <div style="font-size:1.25rem;font-weight:900">92%</div>
+                <div style="font-size:.5625rem;color:rgba(255,255,255,.4);margin-top:2px">adesão</div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem">
+              <div style="font-size:.5rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:.5rem">Evolução de peso</div>
+              <div style="display:flex;align-items:flex-end;gap:4px;height:32px">
+                <div style="flex:1;background:rgba(124,58,237,.3);border-radius:3px 3px 0 0;height:60%"></div>
+                <div style="flex:1;background:rgba(124,58,237,.3);border-radius:3px 3px 0 0;height:70%"></div>
+                <div style="flex:1;background:rgba(124,58,237,.4);border-radius:3px 3px 0 0;height:65%"></div>
+                <div style="flex:1;background:rgba(124,58,237,.4);border-radius:3px 3px 0 0;height:75%"></div>
+                <div style="flex:1;background:rgba(124,58,237,.5);border-radius:3px 3px 0 0;height:70%"></div>
+                <div style="flex:1;background:rgba(124,58,237,.6);border-radius:3px 3px 0 0;height:80%"></div>
+                <div style="flex:1;background:#7c3aed;border-radius:3px 3px 0 0;height:90%"></div>
+                <div style="flex:1;background:#7c3aed;border-radius:3px 3px 0 0;height:85%"></div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;align-items:center;gap:.75rem">
+              <div style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0"></div>
+              <div style="flex:1"><div style="font-size:.75rem;font-weight:600">Próxima consulta</div><div style="font-size:.5625rem;color:rgba(255,255,255,.4)">Sexta-feira · 10h00</div></div>
+              <div style="font-size:.625rem;font-weight:600;color:#a78bfa">2 dias</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-bg">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl" style="color:var(--pr)">Funcionalidades</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Motion + Balance + muito mais</h2>
+      </div>
+      <div class="fg">
+        <div class="fc" data-r>
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5L3.5 11.5h7l-2 6 10-11h-7l2-4z"/></svg></div>
+          <h3 class="fc-ti">Tudo do Motion + Balance</h3>
+          <p class="fc-tx">Acesso completo a todas as funcionalidades de treino e nutrição em uma única plataforma integrada.</p>
+        </div>
+        <div class="fc" data-r data-d="1">
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 8h16"/><path d="M6 3v5M14 3v5"/></svg></div>
+          <h3 class="fc-ti">Dashboard unificado</h3>
+          <p class="fc-tx">Visão completa de treino, dieta, evolução e comunicação de cada cliente em uma só tela.</p>
+        </div>
+        <div class="fc" data-r data-d="2">
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1l3 3v-3h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg></div>
+          <h3 class="fc-ti">Comunicação centralizada</h3>
+          <p class="fc-tx">Um único canal de comunicação para treino, dieta e evolução. Sem dispersão em diferentes apps.</p>
+        </div>
+        <div class="fc" data-r data-d="3">
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="8" y1="16" x2="8" y2="6"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="16" y1="16" x2="16" y2="8"/></svg></div>
+          <h3 class="fc-ti">Relatórios de progresso</h3>
+          <p class="fc-tx">Evolução física, nutricional e de performance integrada. Relatórios completos por período.</p>
+        </div>
+        <div class="fc" data-r data-d="4">
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="4"/><path d="M3 18c0-3.9 3.1-7 7-7"/><path d="M14 15l2 2 4-4"/></svg></div>
+          <h3 class="fc-ti">Gestão de clientes</h3>
+          <p class="fc-tx">CRM simples para coaches: dados, histórico, documentos e pagamentos de cada cliente em um lugar.</p>
+        </div>
+        <div class="fc" data-r data-d="5">
+          <div class="fc-ico" style="background:#f5f3ff;color:var(--pr)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M9 9h2v5M9 14h4"/><circle cx="10" cy="6.5" r=".75" fill="currentColor" stroke="none"/></svg></div>
+          <h3 class="fc-ti">Planos 360°</h3>
+          <p class="fc-tx">Associe treinos e dietas em um único programa de acompanhamento. Visão integrada de todo o processo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec for-sec">
+    <div class="w">
+      <div class="for-in">
+        <div data-r>
+          <span class="tag-lbl" style="color:var(--pr)">Para quem é</span>
+          <h2 class="h2" style="margin-top:.5rem;margin-bottom:2rem;max-width:420px">O ORBI Pro foi feito para você</h2>
+          <div class="for-pts">
+            <div class="for-pt">
+              <div class="for-num" style="background:#f5f3ff;color:var(--pr)">01</div>
+              <div><p class="for-pt-ti">Coach de saúde e performance</p><p class="for-pt-tx">Oferece acompanhamento completo — treino + dieta + estilo de vida — e precisa de uma plataforma que unifique tudo.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#f5f3ff;color:var(--pr)">02</div>
+              <div><p class="for-pt-ti">Personal trainer que também nutre</p><p class="for-pt-tx">Tem qualificação em nutrição e quer oferecer os dois serviços integrados sem complicação.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#f5f3ff;color:var(--pr)">03</div>
+              <div><p class="for-pt-ti">Profissional premium</p><p class="for-pt-tx">Cobra mais por uma transformação completa e precisa de uma plataforma que justifique o investimento do cliente.</p></div>
+            </div>
+          </div>
+        </div>
+        <div data-r data-d="1">
+          <div class="for-quote">
+            <p class="for-q-tx">"Meus clientes entram no app e têm o treino, a dieta e o histórico de progresso juntos. Profissionalizou completamente o meu negócio."</p>
+            <div class="for-q-nm">Thiago A.</div>
+            <div class="for-q-ro">Coach de Saúde e Performance · ORBI Pro</div>
+          </div>
+          <div style="margin-top:1.5rem">
+            <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Pro" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--pr);color:#fff;width:100%;justify-content:center">Quero o ORBI Pro</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /pro -->
+
+<!-- ══════════════════════════════════════════
+     ORBI CLINIC
+══════════════════════════════════════════ -->
+<div id="clinic" class="page pp">
+  <section class="pp-hero">
+    <div class="w pp-hero-in">
+      <div data-r>
+        <span class="pp-lbl" style="color:var(--cl)">ORBI Clinic</span>
+        <h1 class="pp-ti">Gestão completa para clínicas com múltiplos profissionais</h1>
+        <p class="pp-sb">Agendamentos, prontuários digitais e acompanhamento de pacientes — tudo integrado, tudo com a identidade da sua clínica.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Clinic" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--cl);color:#fff">Quero o ORBI Clinic</a>
+          <button class="btn btn-o btn-lg" onclick="go('home')">Ver todas as soluções</button>
+        </div>
+      </div>
+      <div class="pp-vis" data-r data-d="1" aria-hidden="true">
+        <div class="pp-ui">
+          <div style="width:100%;background:#0d0f16;border-radius:16px;padding:1.25rem;font-size:.75rem;color:#fff;display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.35)">Agenda · Hoje</span>
+              <span style="font-size:.5625rem;font-weight:700;background:rgba(13,148,136,.15);color:#2dd4bf;border:1px solid rgba(13,148,136,.25);border-radius:5px;padding:2px 6px">Clinic</span>
+            </div>
+            <div style="font-size:1rem;font-weight:800;letter-spacing:-.02em">26 de Abril · 3 profissionais</div>
+            <div style="display:flex;flex-direction:column;gap:.5rem">
+              <div style="background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.2);border-radius:10px;padding:.75rem;display:flex;align-items:center;gap:.75rem">
+                <div style="flex:1"><div style="font-size:.6875rem;font-weight:700;margin-bottom:2px">Dra. Ana Lima</div><div style="font-size:.5625rem;color:rgba(255,255,255,.4)">Nutrição · Sala 1</div></div>
+                <div style="text-align:right"><div style="font-size:.6875rem;font-weight:700;color:#2dd4bf">09:00</div><div style="font-size:.5rem;color:rgba(255,255,255,.4)">3 consultas</div></div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;align-items:center;gap:.75rem">
+                <div style="flex:1"><div style="font-size:.6875rem;font-weight:700;margin-bottom:2px">Prof. Carlos T.</div><div style="font-size:.5625rem;color:rgba(255,255,255,.4)">Personal · Sala 2</div></div>
+                <div style="text-align:right"><div style="font-size:.6875rem;font-weight:700;color:rgba(255,255,255,.6)">08:00</div><div style="font-size:.5rem;color:rgba(255,255,255,.4)">5 alunos</div></div>
+              </div>
+              <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:.75rem;display:flex;align-items:center;gap:.75rem">
+                <div style="flex:1"><div style="font-size:.6875rem;font-weight:700;margin-bottom:2px">Dr. Pedro F.</div><div style="font-size:.5625rem;color:rgba(255,255,255,.4)">Estética · Sala 3</div></div>
+                <div style="text-align:right"><div style="font-size:.6875rem;font-weight:700;color:rgba(255,255,255,.6)">10:30</div><div style="font-size:.5rem;color:rgba(255,255,255,.4)">2 pacientes</div></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
+              <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#2dd4bf">24</div><div style="font-size:.45rem;color:rgba(255,255,255,.35);margin-top:2px">consultas mês</div></div>
+              <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#fbbf24">R$12k</div><div style="font-size:.45rem;color:rgba(255,255,255,.35);margin-top:2px">faturamento</div></div>
+              <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:.625rem;text-align:center"><div style="font-size:.875rem;font-weight:800;color:#4ade80">3</div><div style="font-size:.45rem;color:rgba(255,255,255,.35);margin-top:2px">profissionais</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec-bg">
+    <div class="w">
+      <div class="sec-hd" data-r>
+        <span class="tag-lbl" style="color:var(--cl)">Funcionalidades</span>
+        <h2 class="h2" style="margin-top:.5rem;max-width:480px">Tudo para operar sua clínica com eficiência</h2>
+      </div>
+      <div class="fg">
+        <div class="fc" data-r>
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="13" cy="7" r="3"/><path d="M1 17c0-3.3 2.7-6 6-6M13 11c3.3 0 6 2.7 6 6"/></svg></div>
+          <h3 class="fc-ti">Multi-profissional</h3>
+          <p class="fc-tx">Gerencie múltiplos profissionais com perfis independentes, agendas separadas e relatórios individuais.</p>
+        </div>
+        <div class="fc" data-r data-d="1">
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="14" rx="1.5"/><path d="M13 2v4M7 2v4M3 10h14"/><path d="M7 13h6M7 16h4"/></svg></div>
+          <h3 class="fc-ti">Agendamento online</h3>
+          <p class="fc-tx">Clientes agendam diretamente pelo app. Confirmação automática, lista de espera e reagendamentos.</p>
+        </div>
+        <div class="fc" data-r data-d="2">
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M12 3v5h5M7 12h6M7 15h4"/></svg></div>
+          <h3 class="fc-ti">Prontuários digitais</h3>
+          <p class="fc-tx">Histórico clínico completo de cada paciente — anamnese, evoluções, documentos e anotações.</p>
+        </div>
+        <div class="fc" data-r data-d="3">
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="16" height="12" rx="1.5"/><path d="M2 9h16M6 5V3M14 5V3"/></svg></div>
+          <h3 class="fc-ti">Controle de salas</h3>
+          <p class="fc-tx">Gestão de salas e equipamentos com agenda visual. Evite conflitos de horário e maximize a ocupação.</p>
+        </div>
+        <div class="fc" data-r data-d="4">
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="12" rx="1.5"/><path d="M7 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M10 10v4M8 12h4"/></svg></div>
+          <h3 class="fc-ti">Gestão financeira</h3>
+          <p class="fc-tx">Faturamento, repasse por profissional e relatórios financeiros. Visão clara da saúde financeira da clínica.</p>
+        </div>
+        <div class="fc" data-r data-d="5">
+          <div class="fc-ico" style="background:#f0fdfa;color:var(--cl)"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="16" x2="4" y2="10"/><line x1="8" y1="16" x2="8" y2="6"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="16" y1="16" x2="16" y2="8"/></svg></div>
+          <h3 class="fc-ti">Relatórios operacionais</h3>
+          <p class="fc-tx">Métricas de desempenho, taxa de ocupação, NPS e relatórios de produtividade por profissional.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec for-sec">
+    <div class="w">
+      <div class="for-in">
+        <div data-r>
+          <span class="tag-lbl" style="color:var(--cl)">Para quem é</span>
+          <h2 class="h2" style="margin-top:.5rem;margin-bottom:2rem;max-width:420px">O ORBI Clinic foi feito para você</h2>
+          <div class="for-pts">
+            <div class="for-pt">
+              <div class="for-num" style="background:#f0fdfa;color:var(--cl)">01</div>
+              <div><p class="for-pt-ti">Clínicas de saúde e estética</p><p class="for-pt-tx">Com múltiplos profissionais, salas e especialidades que precisam de uma plataforma centralizada.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#f0fdfa;color:var(--cl)">02</div>
+              <div><p class="for-pt-ti">Espaços de bem-estar</p><p class="for-pt-tx">Studios e espaços integrados com personal trainer, nutricionista e outros especialistas no mesmo teto.</p></div>
+            </div>
+            <div class="for-pt">
+              <div class="for-num" style="background:#f0fdfa;color:var(--cl)">03</div>
+              <div><p class="for-pt-ti">Gestores que querem escalar</p><p class="for-pt-tx">Proprietários que querem crescer com processos digitalizados, dados confiáveis e experiência premium ao paciente.</p></div>
+            </div>
+          </div>
+        </div>
+        <div data-r data-d="1">
+          <div class="for-quote">
+            <p class="for-q-tx">"Centralizamos três especialidades em um só app. Os pacientes adoram a experiência e nosso time de gestão tem muito mais controle."</p>
+            <div class="for-q-nm">Dra. Fernanda M.</div>
+            <div class="for-q-ro">Diretora Clínica · ORBI Clinic</div>
+          </div>
+          <div style="margin-top:1.5rem">
+            <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Clinic" target="_blank" rel="noopener" class="btn btn-lg" style="background:var(--cl);color:#fff;width:100%;justify-content:center">Quero o ORBI Clinic</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /clinic -->
+
+<!-- ══════════════════════════════════════════
+     PREÇOS
+══════════════════════════════════════════ -->
+<div id="precos" class="page prp">
+  <div class="w">
+    <div class="prp-hero">
+      <span class="tag-lbl">Preços</span>
+      <h1 class="h2" style="margin-top:.5rem">Planos para cada profissional</h1>
+      <p class="lead" style="margin-top:1rem">Mensalidade em reais, sem câmbio, com tudo que você precisa para profissionalizar seu atendimento.</p>
+    </div>
+    <div class="prp-grid">
+      <div class="prc" data-r>
+        <div class="prc-stripe" style="background:var(--mo)"></div>
+        <span class="prc-tag" style="color:var(--mo)">ORBI Motion</span>
+        <div class="prc-nm">Personal Trainers</div>
+        <div class="prc-ro">Para profissionais de treino</div>
+        <div class="prc-pr">
+          <div class="prc-am">—</div>
+          <div class="prc-so">Em breve</div>
+        </div>
+        <ul class="prc-fl">
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>App white-label com sua marca</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Biblioteca de exercícios</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Avaliações físicas</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Dashboard de evolução</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ea580c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Suporte em PT-BR</li>
+        </ul>
+        <div class="prc-ct"><a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Motion" target="_blank" rel="noopener" class="btn btn-o btn-sm" style="width:100%;justify-content:center">Entrar na lista</a></div>
+      </div>
+      <div class="prc" data-r data-d="1">
+        <div class="prc-stripe" style="background:var(--ba)"></div>
+        <span class="prc-tag" style="color:var(--ba)">ORBI Balance</span>
+        <div class="prc-nm">Nutricionistas</div>
+        <div class="prc-ro">Para profissionais de nutrição</div>
+        <div class="prc-pr">
+          <div class="prc-am">—</div>
+          <div class="prc-so">Em breve</div>
+        </div>
+        <ul class="prc-fl">
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>App white-label com sua marca</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Planos alimentares</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Tabela de substituições</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Anamnese digital</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#16a34a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Suporte em PT-BR</li>
+        </ul>
+        <div class="prc-ct"><a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Balance" target="_blank" rel="noopener" class="btn btn-o btn-sm" style="width:100%;justify-content:center">Entrar na lista</a></div>
+      </div>
+      <div class="prc" data-r data-d="2" style="border-color:rgba(124,58,237,.2)">
+        <div class="prc-stripe" style="background:var(--pr)"></div>
+        <span class="prc-tag" style="color:var(--pr)">ORBI Pro</span>
+        <div class="prc-nm">Coaches de Saúde</div>
+        <div class="prc-ro">Motion + Balance integrados</div>
+        <div class="prc-pr">
+          <div class="prc-am">—</div>
+          <div class="prc-so">Em breve</div>
+        </div>
+        <ul class="prc-fl">
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Tudo do Motion + Balance</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Dashboard unificado</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Relatórios integrados</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Gestão de clientes</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7c3aed" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Suporte prioritário</li>
+        </ul>
+        <div class="prc-ct"><a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Pro" target="_blank" rel="noopener" class="btn btn-sm" style="background:var(--pr);color:#fff;width:100%;justify-content:center">Entrar na lista</a></div>
+      </div>
+      <div class="prc" data-r data-d="3">
+        <div class="prc-stripe" style="background:var(--cl)"></div>
+        <span class="prc-tag" style="color:var(--cl)">ORBI Clinic</span>
+        <div class="prc-nm">Clínicas de Saúde</div>
+        <div class="prc-ro">Para equipes e clínicas</div>
+        <div class="prc-pr">
+          <div class="prc-am">—</div>
+          <div class="prc-so">Em breve</div>
+        </div>
+        <ul class="prc-fl">
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>App white-label da clínica</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Multi-profissional e multi-sala</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Prontuários digitais</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Relatórios financeiros</li>
+          <li class="prc-fi"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#0d9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 7 5.5 11 12.5 3"/></svg>Onboarding dedicado</li>
+        </ul>
+        <div class="prc-ct"><a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20ORBI%20Clinic" target="_blank" rel="noopener" class="btn btn-o btn-sm" style="width:100%;justify-content:center">Entrar na lista</a></div>
+      </div>
+    </div>
+    <p class="prc-note">Os preços serão anunciados no lançamento. Profissionais que entrarem na lista de espera agora terão acesso a condições exclusivas de early access. <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" style="color:var(--g);font-weight:600">Fale com a nossa equipe.</a></p>
+  </div>
+  <section class="ctaf" style="margin-top:5rem">
+    <div class="w"><div class="ctaf-in" data-r>
+      <h2 class="ctaf-ti">Garanta sua vaga com condições especiais</h2>
+      <p class="lead ctaf-sb">As primeiras vagas têm preço de early access. Entre na lista agora.</p>
+      <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="btn btn-w btn-lg">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 2C5.6 2 2 5.6 2 10c0 1.5.4 2.9 1.1 4.1L2 18l4-1.1C7.1 17.6 8.5 18 10 18c4.4 0 8-3.6 8-8s-3.6-8-8-8zm3.9 10.9c-.2.5-.9.9-1.5 1-.4.1-.9.1-1.3-.1-.4-.1-.9-.3-1.5-.6-2.6-1.3-4.3-4-4.5-4.2-.2-.3-1-1.4-1-2.5 0-1.2.6-1.8.8-2 .2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.7 1.8c.1.2.1.4 0 .6l-.3.4-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1.9.8 1.7 1.1 2 1.2.3.1.5.1.7-.1l.4-.5c.2-.2.4-.3.7-.2l1.7.8c.2.1.4.2.5.4.1.2.1.6-.1 1z"/></svg>
+        Entrar na lista pelo WhatsApp
+      </a>
+    </div></div>
+  </section>
+</div><!-- /precos -->
+
+<!-- ══════════════════════════════════════════
+     CONTATO
+══════════════════════════════════════════ -->
+<div id="contato" class="page cop">
+  <div class="w">
+    <div class="cop-hero">
+      <div class="cop-in">
+        <span class="tag-lbl">Contato</span>
+        <h1 class="h2" style="margin-top:.5rem;max-width:440px">Fale com a equipe ORBI HEALTH</h1>
+        <p class="lead" style="margin-top:1rem;max-width:480px">Respondemos em até 24 horas. Se preferir, fale diretamente pelo WhatsApp — é mais rápido.</p>
+        <div class="cop-ways">
+          <a href="https://wa.me/5582998042717?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20a%20ORBI%20HEALTH" target="_blank" rel="noopener" class="cw" data-r>
+            <div class="cw-ico">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="var(--g)" aria-hidden="true"><path d="M11 2C6.1 2 2 6.1 2 11c0 1.6.4 3.2 1.2 4.5L2 20l4.6-1.2C7.9 19.5 9.4 20 11 20c4.9 0 9-4.1 9-9s-4.1-9-9-9zm4.3 12c-.2.5-1 1-1.6 1.1-.4.1-1 .1-1.5-.1-.4-.1-1-.4-1.7-.7-2.9-1.4-4.7-4.4-4.9-4.6-.2-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 .9-2.2.2-.2.5-.3.8-.3H6c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .6l-.3.5-.4.4c-.2.2-.3.3-.2.6.2.3.9 1.5 1.9 2.3 1 .9 1.9 1.2 2.2 1.3.3.2.6.1.8-.1l.4-.5c.2-.3.5-.3.8-.2l1.9.9c.2.1.4.2.5.4.2.3.2.7-.1 1.1z"/></svg>
+            </div>
+            <div>
+              <div class="cw-ti">WhatsApp</div>
+              <div class="cw-va">+55 (82) 99804-2717</div>
+            </div>
+            <div class="cw-ar"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h12M10 5l4 4-4 4"/></svg></div>
+          </a>
+          <a href="/cdn-cgi/l/email-protection#8ae9e5e4feebfee5cae5f8e8e3e2efebe6fee2a4e9e5e7a4e8f8" class="cw" data-r data-d="1">
+            <div class="cw-ico">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="var(--g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="18" height="12" rx="2"/><path d="M2 8l9 6 9-6"/></svg>
+            </div>
+            <div>
+              <div class="cw-ti">E-mail</div>
+              <div class="cw-va"><span class="__cf_email__" data-cfemail="ceada1a0baafbaa18ea1bcaca7a6abafa2baa6e0ada1a3e0acbc">[email&#160;protected]</span></div>
+            </div>
+            <div class="cw-ar"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h12M10 5l4 4-4 4"/></svg></div>
+          </a>
+        </div>
+
+        <div class="cop-info" data-r>
+          <h2 class="h3" style="margin-bottom:.5rem">Perguntas frequentes</h2>
+          <p class="txt">Caso prefira, aqui estão as respostas rápidas para as dúvidas mais comuns:</p>
+          <div class="cop-info-grid" style="margin-top:2rem">
+            <div>
+              <h3 class="h3" style="font-size:.9375rem;margin-bottom:.375rem">Preciso de desenvolvedor?</h3>
+              <p class="txt">Não. A configuração é 100% visual, sem código. Em menos de 10 minutos o app está com a sua marca.</p>
+            </div>
+            <div>
+              <h3 class="h3" style="font-size:.9375rem;margin-bottom:.375rem">Meu cliente precisa instalar?</h3>
+              <p class="txt">Não obrigatoriamente. O app funciona no browser e pode ser instalado como PWA — sem App Store.</p>
+            </div>
+            <div>
+              <h3 class="h3" style="font-size:.9375rem;margin-bottom:.375rem">Posso trocar de plano?</h3>
+              <p class="txt">Sim. Você pode mudar de linha a qualquer momento conforme suas necessidades evoluem.</p>
+            </div>
+            <div>
+              <h3 class="h3" style="font-size:.9375rem;margin-bottom:.375rem">Os preços são em reais?</h3>
+              <p class="txt">Sim. Cobramos em BRL, sem variação cambial. Os valores serão divulgados no lançamento.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /contato -->
+
+</main>
+
+<!-- ══════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════ -->
+<footer class="ftr">
+  <div class="w ftr-in">
+    <div>
+      <a href="#" onclick="go('home');return false;" class="logo" aria-label="ORBI HEALTH">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="#16a34a" opacity="0.15"/><polygon points="14,2 25,8 25,20 14,26 3,20 3,8" fill="none" stroke="#16a34a" stroke-width="1.75"/><circle cx="14" cy="14" r="3.5" fill="#16a34a"/></svg>
+        <span class="logo-tx ftr-lnm">ORBI <b>HEALTH</b></span>
+      </a>
+      <p class="ftr-tag">Seu app. Seus clientes. Sua marca.</p>
+    </div>
+    <div class="ftr-lks">
+      <div>
+        <div class="ftr-ct">Soluções</div>
+        <button onclick="go('motion')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">ORBI Motion</button>
+        <button onclick="go('balance')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">ORBI Balance</button>
+        <button onclick="go('pro')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">ORBI Pro</button>
+        <button onclick="go('clinic')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">ORBI Clinic</button>
+      </div>
+      <div>
+        <div class="ftr-ct">Menu</div>
+        <button onclick="go('precos')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">Preços</button>
+        <button onclick="go('contato')" class="ftr-lk" style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;font-size:.875rem;text-align:left">Contato</button>
+        <a href="#" class="ftr-lk">Política de Privacidade</a>
+        <a href="#" class="ftr-lk">Termos de Uso</a>
+      </div>
+      <div>
+        <div class="ftr-ct">Contato</div>
+        <a href="/cdn-cgi/l/email-protection#99faf6f7edf8edf6d9f6ebfbf0f1fcf8f5edf1b7faf6f4b7fbeb" class="ftr-lk"><span class="__cf_email__" data-cfemail="c9aaa6a7bda8bda689a6bbaba0a1aca8a5bda1e7aaa6a4e7abbb">[email&#160;protected]</span></a>
+        <a href="https://wa.me/5582998042717" target="_blank" rel="noopener" class="ftr-lk">WhatsApp</a>
+      </div>
+    </div>
+  </div>
+  <div class="ftr-bt">
+    <div class="w"><p class="ftr-cp">© 2025 ORBI HEALTH. Todos os direitos reservados.</p></div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+(function(){
+'use strict';
+
+/* ── Router ── */
+var cur = 'home';
+function go(id){
+  var prev = document.getElementById(cur);
+  var next = document.getElementById(id);
+  if(!next || id === cur) return;
+  if(prev) prev.classList.remove('active');
+  next.classList.add('active');
+  cur = id;
+  window.scrollTo({top:0,behavior:'instant'});
+  history.replaceState(null,'','#'+id);
+  updateNav(id);
+  closeDrop();
+  // Re-run reveals on new page
+  observe();
+}
+window.go = go;
+
+function updateNav(id){
+  document.querySelectorAll('[data-page]').forEach(function(el){
+    el.classList.toggle('on', el.getAttribute('data-page')===id);
+  });
+  // dropdown button active when on a product page
+  var dropBtn = document.getElementById('nb');
+  var products = ['motion','balance','pro','clinic'];
+  if(dropBtn) dropBtn.classList.toggle('on', products.indexOf(id)>-1);
+}
+
+// Hash on load
+(function(){
+  var h = location.hash.replace('#','');
+  if(h && document.getElementById(h)) go(h);
+})();
+
+/* ── Header scroll ── */
+var hdr = document.getElementById('hdr');
+window.addEventListener('scroll', function(){ hdr.classList.toggle('sh', window.scrollY > 20); }, {passive:true});
+
+/* ── Dropdown ── */
+var dropBtn = document.getElementById('nb');
+var dropMenu = document.getElementById('dm');
+function closeDrop(){
+  if(dropMenu) dropMenu.classList.remove('open');
+  if(dropBtn) { dropBtn.classList.remove('open'); dropBtn.setAttribute('aria-expanded','false'); }
+}
+window.closeDrop = closeDrop;
+if(dropBtn){
+  dropBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var open = dropMenu.classList.contains('open');
+    closeDrop();
+    if(!open){ dropMenu.classList.add('open'); dropBtn.classList.add('open'); dropBtn.setAttribute('aria-expanded','true'); }
+  });
+  document.addEventListener('click', closeDrop);
+  dropMenu.addEventListener('click', function(e){ e.stopPropagation(); });
+}
+
+/* ── Mobile menu ── */
+var burger = document.getElementById('bg');
+var mn = document.getElementById('mn');
+function mclose(){ mn.classList.remove('open'); burger.classList.remove('open'); burger.setAttribute('aria-expanded','false'); }
+window.mclose = mclose;
+if(burger){ burger.addEventListener('click', function(){
+  var open = mn.classList.contains('open');
+  mclose();
+  if(!open){ mn.classList.add('open'); burger.classList.add('open'); burger.setAttribute('aria-expanded','true'); }
+}); }
+
+/* ── Scroll reveal ── */
+var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function observe(){
+  if(reduced){ document.querySelectorAll('[data-r]:not(.on)').forEach(function(el){ el.classList.add('on'); }); return; }
+  var els = document.querySelectorAll('.page.active [data-r]:not(.on)');
+  if(!els.length) return;
+  var ro = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(!e.isIntersecting) return; e.target.classList.add('on'); ro.unobserve(e.target); });
+  }, {threshold:0.08, rootMargin:'0px 0px -32px 0px'});
+  els.forEach(function(el){ ro.observe(el); });
+}
+observe();
+
+/* ── Counters ── */
+function animCount(el, target, dur){
+  var start = performance.now();
+  (function tick(now){
+    var t = Math.min((now-start)/dur,1);
+    var ease = 1-Math.pow(1-t,3);
+    el.textContent = Math.round(ease*target);
+    if(t<1) requestAnimationFrame(tick);
+  })(start);
+}
+if(!reduced){
+  var co = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var el = e.target;
+      var val = parseInt(el.getAttribute('data-c'),10);
+      animCount(el, val, 1600);
+      co.unobserve(el);
+    });
+  },{threshold:.6});
+  var c1 = document.getElementById('c1');
+  var c2 = document.getElementById('c2');
+  if(c1){ c1.setAttribute('data-c','200'); c1.textContent='0'; co.observe(c1); }
+  if(c2){ c2.setAttribute('data-c','10'); c2.textContent='0'; co.observe(c2); }
+}
+
+})();
+
+// ── Animated background dots ──────────────────────────────
+(function(){
+  var container = document.getElementById('hero-dots');
+  if(!container) return;
+  var DOT_COUNT = 28;
+  for(var i = 0; i < DOT_COUNT; i++){
+    var d = document.createElement('div');
+    d.className = 'hero-dot';
+    var size = 3 + Math.random() * 5;
+    var left = Math.random() * 100;
+    var bottom = Math.random() * 60;
+    var dur = 8 + Math.random() * 14;
+    var delay = Math.random() * 12;
+    d.style.cssText = [
+      'width:' + size + 'px',
+      'height:' + size + 'px',
+      'left:' + left + '%',
+      'bottom:' + bottom + '%',
+      'animation-duration:' + dur + 's',
+      'animation-delay:' + delay + 's'
+    ].join(';');
+    container.appendChild(d);
+  }
+})();
+
+// ── Phone screen alternation ──────────────────────────────
+(function(){
+  var login = document.getElementById('screen-login');
+  var dash  = document.getElementById('screen-dash');
+  if(!login || !dash) return;
+  var current = 'login'; // starts on login
+  setInterval(function(){
+    if(current === 'login'){
+      login.classList.remove('active'); login.classList.add('hidden');
+      dash.classList.remove('hidden');  dash.classList.add('active');
+      current = 'dash';
+    } else {
+      dash.classList.remove('active');  dash.classList.add('hidden');
+      login.classList.remove('hidden'); login.classList.add('active');
+      current = 'login';
+    }
+  }, 3500);
+})();
+
+// ── How it works: scroll-driven card switching ──────────────
+(function(){
+  var steps = document.querySelectorAll('.hfw-step');
+  var cards = [
+    document.getElementById('hfw-card-1'),
+    document.getElementById('hfw-card-2'),
+    document.getElementById('hfw-card-3')
+  ];
+  if(!steps.length || !cards[0]) return;
+  function showCard(n){
+    cards.forEach(function(c, i){
+      if(c){ c.classList.toggle('active', i === n); }
+    });
+  }
+  var so = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        var step = parseInt(e.target.getAttribute('data-step'), 10) - 1;
+        showCard(step);
+      }
+    });
+  }, {threshold: 0.35, rootMargin: '0px 0px -25% 0px'});
+  steps.forEach(function(s){ so.observe(s); });
+})();
+
+</script>
+</body>
+</html>
