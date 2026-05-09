@@ -304,6 +304,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
   const [loading,    setLoading]    = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [dispensing, setDispensing] = useState(false);
+  const [expanded,   setExpanded]   = useState(false);
 
   useEffect(() => { load(); }, [studentUserId]);
 
@@ -324,7 +325,6 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     } finally { setLoading(false); }
   };
 
-  // Detect display mode: sectioned (titulo) > flat template (tipo) > classic
   const isSectionMode  = template.length > 0 && template[0]?.titulo !== undefined;
   const isTemplateMode = !isSectionMode && template.length > 0 && template[0]?.tipo !== undefined;
 
@@ -365,63 +365,21 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
   const dispensarAnamnese = async () => {
     setDispensing(true);
     try {
-      const { error } = await supabase
-        .from("alunos")
-        .update({ anamnese_dispensada: true })
-        .eq("id", studentAlunoId);
+      const { error } = await supabase.from("alunos").update({ anamnese_dispensada: true }).eq("id", studentAlunoId);
       if (error) throw error;
-      toast({ title: "Anamnese dispensada!", description: "O aluno não será mais redirecionado para preenchê-la." });
+      toast({ title: "Anamnese dispensada!" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setDispensing(false); }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-14 gap-2 text-white/25">
-      <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando anamnese...</span>
-    </div>
-  );
-
-  if (!data) return (
-    <div className="rounded-2xl border border-white/8 py-14 flex flex-col items-center gap-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
-        <ClipboardCheck className="w-6 h-6 text-green-500/50" />
-      </div>
-      <div>
-        <p className="text-white/50 font-medium text-sm">Anamnese não preenchida</p>
-        <p className="text-white/25 text-xs mt-1 max-w-xs">O aluno ainda não preencheu a ficha de anamnese.</p>
-      </div>
-      <div className="flex flex-col gap-2 w-full max-w-xs px-4">
-        <button onClick={requestFirst} disabled={requesting}
-          className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
-          {requesting ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <AlertCircle className="w-3.5 h-3.5" />}
-          Solicitar preenchimento
-        </button>
-        <button onClick={dispensarAnamnese} disabled={dispensing}
-          className="flex items-center justify-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
-          {dispensing ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-          Dispensar anamnese (já preenchida externamente)
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── Helpers de display ────────────────────────────────────────
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-      <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-3">{title}</p>
-      <div className="space-y-2.5">{children}</div>
-    </div>
-  );
-
+  // ── Helpers ───────────────────────────────────────────────────
   const FldText = ({ label, value }: { label: string; value: string | number | null | undefined }) => {
     if (!value && value !== 0) return null;
     return (
       <div>
         <p className="text-[11px] text-white/35 mb-0.5">{label}</p>
-        <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap">{String(value)}</p>
+        <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{String(value)}</p>
       </div>
     );
   };
@@ -441,11 +399,10 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     );
   };
 
-  // ── Template mode display ─────────────────────────────────────
-  const renderTemplateValue = (campo: any) => {
+  const renderCampo = (campo: any) => {
+    if (!data) return null;
     const raw = data.respostas_extras?.[campo.id];
     if (raw == null || raw === "") return null;
-
     if (campo.tipo === "checkbox") {
       try {
         const vals: string[] = JSON.parse(raw);
@@ -453,140 +410,234 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
         return <FldTags key={campo.id} label={campo.label} value={labels} />;
       } catch { return <FldText key={campo.id} label={campo.label} value={raw} />; }
     }
-
     if (campo.tipo === "radio") {
-      const label = campo.opcoes?.find((o: any) => o.value === raw)?.label ?? raw;
-      return <FldText key={campo.id} label={campo.label} value={label} />;
+      return <FldText key={campo.id} label={campo.label} value={campo.opcoes?.find((o: any) => o.value === raw)?.label ?? raw} />;
     }
-
-    if (campo.tipo === "file") {
-      try {
-        const paths: string[] = JSON.parse(raw);
-        if (!paths.length) return null;
-        return (
-          <div key={campo.id}>
-            <p className="text-[11px] text-white/35 mb-1.5">{campo.label}</p>
-            <p className="text-xs text-white/50">{paths.length} arquivo{paths.length !== 1 ? "s" : ""} enviado{paths.length !== 1 ? "s" : ""}</p>
-          </div>
-        );
-      } catch { return null; }
-    }
-
+    if (campo.tipo === "file") return null;
     return <FldText key={campo.id} label={campo.label} value={raw} />;
   };
 
-  // ── Header actions ────────────────────────────────────────────
-  const HeaderBar = () => (
-    <div className="flex items-center justify-between flex-wrap gap-2">
-      <p className="text-xs text-white/35">
-        Preenchida em {format(parseISO(data.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-        {data.updated_at !== data.created_at && ` · Atualizada em ${format(parseISO(data.updated_at), "dd/MM/yyyy", { locale: ptBR })}`}
-      </p>
-      {!data.pendente && (
-        <button onClick={requestNew} disabled={requesting}
-          className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}>
-          {requesting ? <Spinner className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-          Solicitar nova anamnese
-        </button>
-      )}
+  // Download anamnese as plain text
+  const downloadAnamnese = () => {
+    if (!data) return;
+    let txt = `ANAMNESE\nPreenchida em: ${format(parseISO(data.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}\n\n`;
+
+    if (isSectionMode) {
+      for (const secao of template) {
+        const campos = (secao.campos ?? []).filter((c: any) => data.respostas_extras?.[c.id] != null && data.respostas_extras?.[c.id] !== "");
+        if (!campos.length) continue;
+        txt += `${(secao.titulo as string).toUpperCase()}\n`;
+        for (const c of campos) txt += `${c.label}: ${data.respostas_extras?.[c.id]}\n`;
+        txt += "\n";
+      }
+    } else if (isTemplateMode) {
+      for (const c of template) {
+        const raw = data.respostas_extras?.[c.id];
+        if (raw != null && raw !== "") txt += `${c.label}: ${raw}\n`;
+      }
+    } else {
+      // classic
+      const pairs: [string, any][] = [
+        ["Nome completo", data.nome_completo], ["Idade", data.idade], ["Altura", data.altura],
+        ["Peso atual", data.peso_atual], ["WhatsApp", data.whatsapp], ["Sexo", data.sexo],
+        ["Objetivo", data.objetivo], ["Pratica atividade física", data.pratica_atividade],
+        ["Medicações", data.medicamentos], ["Lesões/cirurgias", data.lesoes_cirurgias],
+        ["Restrições alimentares", data.restricoes_alimentares], ["Suplementos", data.suplementos],
+        ["Sono", data.sono], ["Observações", data.observacoes],
+      ];
+      for (const [l, v] of pairs) if (v) txt += `${l}: ${v}\n`;
+    }
+
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `anamnese.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div className="flex items-center justify-center py-14 gap-2 text-white/25">
+      <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando anamnese...</span>
     </div>
   );
 
-  // ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* Status banner */}
-      {data.pendente && (
+
+      {/* ── Header row ── */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Ficha de Anamnese</p>
+          <p className="text-[11px] text-white/25 mt-0.5">{data ? "1 anamnese registrada" : "Nenhuma anamnese registrada"}</p>
+        </div>
+        {data && !data.pendente && (
+          <button onClick={requestNew} disabled={requesting}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+            {requesting ? <Spinner className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            Solicitar atualização
+          </button>
+        )}
+      </div>
+
+      {/* ── Pending banner ── */}
+      {data?.pendente && (
         <div className="rounded-2xl border px-4 py-3 flex items-center gap-3"
           style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", borderColor: "rgba(var(--cp-rgb),0.2)" }}>
-          <AlertCircle className="w-4 h-4 text-green-500 shrink-0" />
-          <p className="text-sm text-green-500/80">Atualização solicitada — aguardando resposta do aluno.</p>
+          <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+          <p className="text-sm flex-1" style={{ color: "var(--cp-300)" }}>
+            Atualização solicitada — aguardando resposta do aluno.
+          </p>
         </div>
       )}
 
-      <HeaderBar />
+      {/* ── Empty state ── */}
+      {!data && (
+        <div className="rounded-2xl border border-white/8 py-14 flex flex-col items-center gap-4 text-center"
+          style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
+            <ClipboardCheck className="w-6 h-6 text-green-500/50" />
+          </div>
+          <div>
+            <p className="text-white/50 font-medium text-sm">Anamnese não preenchida</p>
+            <p className="text-white/25 text-xs mt-1 max-w-xs">O aluno ainda não preencheu a ficha de anamnese.</p>
+          </div>
+          <div className="flex flex-col gap-2 w-full max-w-xs px-4">
+            <button onClick={requestFirst} disabled={requesting}
+              className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+              {requesting ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <AlertCircle className="w-3.5 h-3.5" />}
+              Solicitar preenchimento
+            </button>
+            <button onClick={dispensarAnamnese} disabled={dispensing}
+              className="flex items-center justify-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
+              {dispensing ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
+              Dispensar (já preenchida externamente)
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* ── Section mode: grouped by titled sections ── */}
-      {isSectionMode && (
-        <div className="space-y-3">
-          {template.map((secao: any) => {
-            const visibleCampos = (secao.campos ?? []).filter((c: any) => {
-              const raw = data.respostas_extras?.[c.id];
-              return raw != null && raw !== "";
-            });
-            if (visibleCampos.length === 0) return null;
-            return (
-              <div key={secao.id} className="rounded-2xl border border-white/8 p-4"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-                <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-3">
-                  {secao.titulo}
-                </p>
-                <div className="space-y-2.5">
-                  {visibleCampos.map((campo: any) => renderTemplateValue(campo))}
+      {/* ── Anamnese card ── */}
+      {data && (
+        <div className="rounded-2xl border overflow-hidden"
+          style={{ borderColor: "rgba(var(--cp-rgb),0.2)", backgroundColor: "rgba(var(--cp-rgb),0.03)" }}>
+
+          {/* Card header */}
+          <div className="flex items-center">
+            <button onClick={() => setExpanded(e => !e)}
+              className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left min-w-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-sm font-semibold text-white/80">
+                    {format(parseISO(data.created_at), "dd 'de' MMMM yyyy", { locale: ptBR })}
+                  </span>
+                  {data.updated_at && data.updated_at !== data.created_at && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}>
+                      Atualizada em {format(parseISO(data.updated_at), "dd/MM/yyyy", { locale: ptBR })}
+                    </span>
+                  )}
                 </div>
               </div>
-            );
-          })}
-          {(!data.respostas_extras || Object.keys(data.respostas_extras).length === 0) && (
-            <p className="text-xs text-white/30 text-center py-6">Nenhuma resposta registrada.</p>
+              {expanded
+                ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
+                : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
+            </button>
+
+            {/* Download button */}
+            <button onClick={downloadAnamnese}
+              className="px-3 h-full flex items-center gap-1.5 text-xs font-medium transition-colors shrink-0"
+              style={{ color: "var(--cp-400)" }}
+              title="Baixar anamnese">
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Expanded answers */}
+          {expanded && (
+            <div className="border-t px-4 py-4 space-y-5" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+
+              {/* Section mode */}
+              {isSectionMode && (
+                <div className="space-y-5">
+                  {template.map((secao: any) => {
+                    const campos = (secao.campos ?? []).filter((c: any) => {
+                      const raw = data.respostas_extras?.[c.id];
+                      return raw != null && raw !== "";
+                    });
+                    if (!campos.length) return null;
+                    return (
+                      <div key={secao.id}>
+                        <p className="text-[10px] font-semibold text-white/35 uppercase tracking-wider mb-3">{secao.titulo}</p>
+                        <div className="space-y-3">{campos.map((c: any) => renderCampo(c))}</div>
+                      </div>
+                    );
+                  })}
+                  {(!data.respostas_extras || Object.keys(data.respostas_extras).length === 0) && (
+                    <p className="text-xs text-white/30 text-center py-4">Nenhuma resposta registrada.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Flat template mode */}
+              {isTemplateMode && (
+                <div className="space-y-3">
+                  {template.map((c: any) => renderCampo(c))}
+                  {(!data.respostas_extras || Object.keys(data.respostas_extras).length === 0) && (
+                    <p className="text-xs text-white/30">Nenhuma resposta registrada.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Classic mode */}
+              {!isSectionMode && !isTemplateMode && (
+                <div className="space-y-5">
+                  {[
+                    { title: "Dados pessoais", fields: [
+                      ["Nome completo", data.nome_completo], ["Idade", data.idade ? `${data.idade} anos` : null],
+                      ["Altura", data.altura], ["Peso atual", data.peso_atual ? `${data.peso_atual} kg` : null],
+                      ["WhatsApp", data.whatsapp], ["Sexo", data.sexo],
+                    ]},
+                    { title: "Objetivo e atividade física", fields: [
+                      ["Objetivo principal", data.objetivo], ["Pratica atividade física", data.pratica_atividade],
+                      ["Há quanto tempo", data.tempo_pratica], ["Frequência semanal", data.frequencia_treino_opcao],
+                      ["Tempo por sessão", data.tempo_por_sessao],
+                    ]},
+                    { title: "Saúde", fields: [
+                      ["Lesões / cirurgias", data.lesoes_cirurgias], ["Medicações", data.medicamentos],
+                      ["Dor ao exercitar", data.desconforto_dor],
+                    ]},
+                    { title: "Alimentação", fields: [
+                      ["Restrições / alergias", data.restricoes_alimentares],
+                      ["Qualidade alimentar", data.qualidade_alimentacao],
+                      ["Suplementos", data.suplementos], ["Álcool", data.alcool],
+                    ]},
+                    { title: "Hábitos", fields: [
+                      ["Sono", data.sono], ["Nível de estresse", data.estresse], ["Observações", data.observacoes],
+                    ]},
+                  ].map(({ title, fields }) => {
+                    const visible = fields.filter(([, v]) => v);
+                    if (!visible.length) return null;
+                    return (
+                      <div key={title}>
+                        <p className="text-[10px] font-semibold text-white/35 uppercase tracking-wider mb-3">{title}</p>
+                        <div className="space-y-3">
+                          {visible.map(([l, v]) => <FldText key={String(l)} label={String(l)} value={v as any} />)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
-      )}
-
-      {/* ── Flat template mode: all questions in one card ── */}
-      {isTemplateMode && (
-        <div className="rounded-2xl border border-white/8 p-4 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-          {template.map((campo: any) => renderTemplateValue(campo))}
-          {(!data.respostas_extras || Object.keys(data.respostas_extras).length === 0) && (
-            <p className="text-xs text-white/30">Nenhuma resposta registrada.</p>
-          )}
-        </div>
-      )}
-
-      {/* ── Classic mode: hardcoded fields ── */}
-      {!isSectionMode && !isTemplateMode && (
-        <>
-          <Section title="Dados pessoais">
-            <FldText label="Nome completo" value={data.nome_completo} />
-            <FldText label="Idade"         value={data.idade ? `${data.idade} anos` : null} />
-            <FldText label="Altura"        value={data.altura} />
-            <FldText label="Peso atual"    value={data.peso_atual ? `${data.peso_atual} kg` : null} />
-            <FldText label="WhatsApp"      value={data.whatsapp} />
-            <FldText label="Sexo"          value={data.sexo} />
-          </Section>
-          <Section title="Objetivo e atividade física">
-            <FldText label="Objetivo principal"       value={data.objetivo} />
-            <FldText label="Pratica atividade física" value={data.pratica_atividade} />
-            <FldText label="Há quanto tempo"          value={data.tempo_pratica} />
-            <FldText label="Frequência semanal"       value={data.frequencia_treino_opcao} />
-            <FldText label="Tempo por sessão"         value={data.tempo_por_sessao} />
-          </Section>
-          <Section title="Saúde">
-            <FldTags label="Condições de saúde" value={data.condicoes_saude} />
-            <FldText label="Lesões / cirurgias" value={data.lesoes_cirurgias} />
-            <FldText label="Medicações"         value={data.medicamentos} />
-            <FldText label="Dor ao exercitar"   value={data.desconforto_dor} />
-          </Section>
-          <Section title="Alimentação">
-            <FldText label="Restrições / alergias" value={data.restricoes_alimentares} />
-            <FldText label="Qualidade alimentar"   value={data.qualidade_alimentacao} />
-            <FldText label="Suplementos"           value={data.suplementos} />
-            <FldText label="Álcool"                value={data.alcool} />
-          </Section>
-          <Section title="Hábitos">
-            <FldText label="Sono"             value={data.sono} />
-            <FldText label="Nível de estresse" value={data.estresse} />
-            {data.observacoes && <FldText label="Observações" value={data.observacoes} />}
-          </Section>
-          {template.length > 0 && data.respostas_extras && Object.keys(data.respostas_extras).length > 0 && (
-            <Section title="Perguntas personalizadas">
-              {template.map((p: any) => (
-                <FldText key={p.id} label={p.texto ?? p.label} value={data.respostas_extras?.[p.id]} />
-              ))}
-            </Section>
-          )}
-        </>
       )}
     </div>
   );
@@ -635,11 +686,13 @@ interface AtualizacaoResp   { id: string; submitted_at: string; valores: Atualiz
 
 const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string }) => {
   const { toast } = useToast();
-  const [respostas,    setRespostas]    = useState<AtualizacaoResp[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [expanded,     setExpanded]     = useState<string | null>(null);
-  const [previewUrls,  setPreviewUrls]  = useState<Record<string, string>>({});
-  const [downloading,  setDownloading]  = useState<string | null>(null);
+  const [respostas,      setRespostas]      = useState<AtualizacaoResp[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [expanded,       setExpanded]       = useState<string | null>(null);
+  const [previewUrls,    setPreviewUrls]    = useState<Record<string, string>>({});
+  const [downloading,    setDownloading]    = useState<string | null>(null);
+  const [deleting,       setDeleting]       = useState<string | null>(null);
+  const [confirmDelete,  setConfirmDelete]  = useState<string | null>(null);
 
   useEffect(() => { load(); }, [studentUserId]);
 
@@ -706,6 +759,25 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
     for (const arq of resp.arquivos) { await downloadFoto(arq); await new Promise(r => setTimeout(r, 300)); }
   };
 
+  const deleteResposta = async (respId: string) => {
+    setDeleting(respId); setConfirmDelete(null);
+    try {
+      const resp = respostas.find(r => r.id === respId);
+      if (resp?.arquivos.length) {
+        await supabase.storage.from("atualizacoes").remove(resp.arquivos.map(a => a.storage_path));
+        await supabase.from("atualizacao_resposta_arquivos").delete().eq("resposta_id", respId);
+      }
+      await supabase.from("atualizacao_resposta_valores").delete().eq("resposta_id", respId);
+      const { error } = await supabase.from("atualizacao_respostas").delete().eq("id", respId);
+      if (error) throw error;
+      setRespostas(prev => prev.filter(r => r.id !== respId));
+      if (expanded === respId) setExpanded(null);
+      toast({ title: "Atualização excluída com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally { setDeleting(null); }
+  };
+
   if (loading) return <div className="flex justify-center py-12"><Spinner className="w-5 h-5 animate-spin text-white/30" /></div>;
 
   if (respostas.length === 0) return (
@@ -727,21 +799,47 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
         const nFotos  = resp.arquivos.length;
         return (
           <div key={resp.id} className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-            <button onClick={() => toggleExpand(resp.id, resp.arquivos)}
-              className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5 text-white/40" />
-                  <span className="text-sm font-semibold text-white/80">{fmtDate(resp.submitted_at)}</span>
-                  {nFotos > 0 && (
-                    <span className="flex items-center gap-1 text-xs ml-2" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
-                      <ImageIcon className="w-3 h-3" /> {nFotos} foto{nFotos !== 1 ? "s" : ""}
-                    </span>
-                  )}
+            <div className="flex items-center">
+              <button onClick={() => toggleExpand(resp.id, resp.arquivos)}
+                className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-white/40" />
+                    <span className="text-sm font-semibold text-white/80">{fmtDate(resp.submitted_at)}</span>
+                    {nFotos > 0 && (
+                      <span className="flex items-center gap-1 text-xs ml-2" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
+                        <ImageIcon className="w-3 h-3" /> {nFotos} foto{nFotos !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {isOpen ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" /> : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
+              </button>
+              {/* Trash / inline confirm */}
+              <div className="flex items-center gap-1 pr-3">
+                {confirmDelete === resp.id ? (
+                  <>
+                    <span className="text-xs text-white/50 mr-1">Excluir?</span>
+                    <button onClick={() => deleteResposta(resp.id)} disabled={deleting === resp.id}
+                      className="text-xs px-2 h-7 rounded-lg font-semibold"
+                      style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                      {deleting === resp.id ? "..." : "Sim"}
+                    </button>
+                    <button onClick={() => setConfirmDelete(null)}
+                      className="text-xs px-2 h-7 rounded-lg font-semibold"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                      Não
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmDelete(resp.id)} disabled={deleting === resp.id}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6"
+                    style={{ color: "rgba(255,255,255,0.2)" }}>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-              {isOpen ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" /> : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
-            </button>
+            </div>
 
             {isOpen && (
               <div className="border-t px-4 py-4 space-y-5" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
