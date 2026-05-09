@@ -317,11 +317,30 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
 
   const capture = () => {
     if (!videoRef.current || !canvasRef.current) return;
-    const v = videoRef.current;
-    const c = canvasRef.current;
-    c.width  = v.videoWidth;
-    c.height = v.videoHeight;
-    c.getContext("2d")!.drawImage(v, 0, 0);
+    const v   = videoRef.current;
+    const c   = canvasRef.current;
+    const vw  = v.videoWidth;
+    const vh  = v.videoHeight;
+    const ctx = c.getContext("2d")!;
+
+    // iOS can deliver landscape pixel data even when the phone is portrait.
+    // Detect: if the video element appears portrait on screen but raw pixels are landscape → rotate 90°.
+    const displayedPortrait = v.clientHeight > v.clientWidth;
+    const rawLandscape      = vw > vh;
+
+    if (displayedPortrait && rawLandscape) {
+      // Rotate 90° clockwise so portrait orientation is preserved
+      c.width  = vh;
+      c.height = vw;
+      ctx.translate(vh / 2, vw / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(v, -vw / 2, -vh / 2);
+    } else {
+      c.width  = vw;
+      c.height = vh;
+      ctx.drawImage(v, 0, 0);
+    }
+
     const url = c.toDataURL("image/jpeg", 0.88);
     setPreview(url);
     streamRef.current?.getTracks().forEach((t) => t.stop());

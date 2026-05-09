@@ -1756,21 +1756,16 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
     } finally { setSavingNotes(null); }
   };
 
-  const downloadOne = async (foto: any, label: string) => {
-    try {
-      const res  = await fetch(foto.signedUrl);
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `postural_${foto.test_key}_${label.replace(/\s+/g, "_")}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(foto.signedUrl, "_blank");
-    }
+  const downloadOne = async (storagePath: string, filename: string) => {
+    const { data, error } = await supabase.storage
+      .from(POSTURAL_BUCKET)
+      .createSignedUrl(storagePath, 60, { download: filename });
+    if (error || !data?.signedUrl) return;
+    const a = document.createElement("a");
+    a.href = data.signedUrl;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const downloadAll = async (evalId: string, evalDate: string) => {
@@ -1779,9 +1774,9 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
     for (let i = 0; i < fotos.length; i++) {
       const f = fotos[i];
       const teste = POSTURAL_TESTES.find(t => t.key === f.test_key);
-      const pl = teste?.photoLabels[f.photo_index] ?? `foto_${i}`;
-      await downloadOne(f, `${evalDate}_${pl}`);
-      await new Promise(r => setTimeout(r, 300));
+      const pl = (teste?.photoLabels[f.photo_index] || `foto_${i}`).replace(/\s+/g, "_");
+      await downloadOne(f.storage_path, `postural_${evalDate}_${pl}.jpg`);
+      await new Promise(r => setTimeout(r, 600));
     }
     setDownloading(null);
   };
@@ -1881,7 +1876,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
                               <ImageIcon className="w-3.5 h-3.5 text-white" />
                             </button>
                             <button
-                              onClick={() => downloadOne(foto, label)}
+                              onClick={() => downloadOne(foto.storage_path, `postural_${foto.test_key}_${label.replace(/\s+/g, "_")}.jpg`)}
                               className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors">
                               <Download className="w-3.5 h-3.5 text-white" />
                             </button>
