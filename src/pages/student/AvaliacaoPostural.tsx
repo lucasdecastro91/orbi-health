@@ -796,7 +796,7 @@ const AvaliacaoPostural = () => {
       <>
         {CameraEl}
         {PhotoViewer}
-        <div className="min-h-screen pb-28">
+        <div className="min-h-screen pb-44">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 pt-5 pb-3 sticky top-0 z-10"
             style={{ backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)" }}>
@@ -905,9 +905,9 @@ const AvaliacaoPostural = () => {
             </div>
           </div>
 
-          {/* Bottom navigation */}
-          <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4"
-            style={{ backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          {/* Bottom navigation — sits above the 64px student nav bar */}
+          <div className="fixed left-0 right-0 px-4 pt-4 pb-4"
+            style={{ bottom: 64, backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex gap-3">
               {slideIndex > 0 && (
                 <button onClick={prevSlide}
