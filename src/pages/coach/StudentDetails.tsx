@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, Utensils, Dumbbell, MessageSquare, Weight, ClipboardList, Star, ChevronDown, ChevronUp, Image as ImageIcon, TrendingUp, TrendingDown, Minus, Plus, Loader2 as Spinner, Sparkles, RefreshCw, ClipboardCheck, AlertCircle, Camera, X as XIcon, ChevronLeft as ChevLeft, ChevronRight as ChevRight, Download, Calendar, Play, ChevronRight, ScanLine, NotebookPen } from "lucide-react";
+import { ArrowLeft, User, Utensils, Dumbbell, MessageSquare, Weight, ClipboardList, Star, ChevronDown, ChevronUp, Image as ImageIcon, TrendingUp, TrendingDown, Minus, Plus, Loader2 as Spinner, Sparkles, RefreshCw, ClipboardCheck, AlertCircle, Camera, X as XIcon, ChevronLeft as ChevLeft, ChevronRight as ChevRight, Download, Calendar, Play, ChevronRight, ScanLine, NotebookPen, Trash2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1649,6 +1649,8 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
   const [notes,         setNotes]         = useState<Record<string, string>>({});
   const [savingNotes,   setSavingNotes]   = useState<string | null>(null);
   const [downloading,   setDownloading]   = useState<string | null>(null);
+  const [deleting,      setDeleting]      = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [lightbox,      setLightbox]      = useState<{ url: string; label: string; evalDate: string } | null>(null);
   const [compareMode,   setCompareMode]   = useState(false);
   const [compareIds,    setCompareIds]    = useState<[string, string] | [string]>([]);
@@ -1779,6 +1781,42 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
       await new Promise(r => setTimeout(r, 600));
     }
     setDownloading(null);
+  };
+
+  const deleteAvaliacao = async (evalId: string) => {
+    setDeleting(evalId);
+    setConfirmDelete(null);
+    try {
+      // 1. Get all photo records to know which storage paths to delete
+      const { data: fotos } = await supabase
+        .from("avaliacao_fotos")
+        .select("storage_path")
+        .eq("avaliacao_id", evalId);
+
+      // 2. Delete files from Storage
+      if (fotos && fotos.length > 0) {
+        const paths = fotos.map((f: any) => f.storage_path);
+        await supabase.storage.from(POSTURAL_BUCKET).remove(paths);
+      }
+
+      // 3. Delete photo records (cascade should handle this, but explicit is safer)
+      await supabase.from("avaliacao_fotos").delete().eq("avaliacao_id", evalId);
+
+      // 4. Delete evaluation record
+      const { error } = await supabase.from("avaliacoes_posturais").delete().eq("id", evalId);
+      if (error) throw error;
+
+      // 5. Update local state
+      setAvaliacoes(prev => prev.filter(a => a.id !== evalId));
+      setPhotoMap(prev => { const next = { ...prev }; delete next[evalId]; return next; });
+      if (expanded === evalId) setExpanded(null);
+
+      toast({ title: "Avaliação excluída com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir avaliação", description: e.message, variant: "destructive" });
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const toggleCompare = (evalId: string) => {
@@ -2127,37 +2165,67 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
                 }}>
 
                 {/* Row header */}
-                <button
-                  onClick={() => toggleExpand(av.id)}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      {isFirst && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                          style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}>
-                          Mais recente
+                <div className="flex items-center">
+                  <button
+                    onClick={() => toggleExpand(av.id)}
+                    className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left min-w-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        {isFirst && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                            style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}>
+                            Mais recente
+                          </span>
+                        )}
+                        <span className="text-sm font-semibold text-white/80">
+                          {fmtDateLong(av.created_at)}
                         </span>
-                      )}
-                      <span className="text-sm font-semibold text-white/80">
-                        {fmtDateLong(av.created_at)}
-                      </span>
-                      {av.status === "concluida" && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: "rgba(34,197,94,0.1)", color: "rgb(74,222,128)" }}>
-                          ✓ Concluída
-                        </span>
-                      )}
-                      {total !== null && (
-                        <span className="text-[11px] text-white/35 flex items-center gap-1">
-                          <Camera className="w-3 h-3" /> {total} foto{total !== 1 ? "s" : ""}
-                        </span>
-                      )}
+                        {av.status === "concluida" && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: "rgba(34,197,94,0.1)", color: "rgb(74,222,128)" }}>
+                            ✓ Concluída
+                          </span>
+                        )}
+                        {total !== null && (
+                          <span className="text-[11px] text-white/35 flex items-center gap-1">
+                            <Camera className="w-3 h-3" /> {total} foto{total !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    {isOpen
+                      ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
+                      : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
+                  </button>
+
+                  {/* Delete button / confirm */}
+                  <div className="px-3 flex items-center gap-2 shrink-0">
+                    {confirmDelete === av.id ? (
+                      <>
+                        <span className="text-xs text-white/40">Excluir?</span>
+                        <button
+                          onClick={() => deleteAvaliacao(av.id)}
+                          disabled={deleting === av.id}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                          style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "rgb(252,165,165)" }}>
+                          {deleting === av.id ? <Spinner className="w-3 h-3 animate-spin" /> : "Sim"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(null)}
+                          className="text-xs font-medium px-2.5 py-1 rounded-lg text-white/30 hover:text-white/60 transition-colors"
+                          style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                          Não
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDelete(av.id)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
-                  {isOpen
-                    ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
-                </button>
+                </div>
 
                 {/* Expanded content */}
                 {isOpen && (
