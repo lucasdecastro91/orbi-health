@@ -326,24 +326,31 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     if (!vw || !vh) return;
 
     // Replicate CSS object-cover: capture only the visible region of the video.
-    // This is orientation-agnostic — the output always matches what the user sees on screen,
-    // regardless of whether iOS delivers landscape or portrait raw pixels.
-    const dispW = v.clientWidth  || window.innerWidth;
-    const dispH = v.clientHeight || window.innerHeight;
+    // IMPORTANT: always use window.innerWidth/innerHeight, NOT v.clientWidth/clientHeight.
+    // On some iOS/Safari versions clientWidth/clientHeight return the video's intrinsic
+    // pixel size instead of the rendered CSS size, which breaks the crop calculation.
+    const dispW = window.innerWidth;
+    const dispH = window.innerHeight;
 
     const videoAspect   = vw / vh;
     const displayAspect = dispW / dispH;
 
     let sx = 0, sy = 0, sw = vw, sh = vh;
     if (videoAspect > displayAspect) {
-      // Video relatively wider → crop left and right
+      // Video relatively wider than viewport → crop left and right
       sw = Math.round(vh * displayAspect);
       sx = Math.round((vw - sw) / 2);
-    } else {
-      // Video relatively taller → crop top and bottom
+    } else if (videoAspect < displayAspect) {
+      // Video relatively taller than viewport → crop top and bottom
       sh = Math.round(vw / displayAspect);
       sy = Math.round((vh - sh) / 2);
     }
+
+    // Safety clamp — prevents invalid drawImage calls
+    sw = Math.min(sw, vw);
+    sh = Math.min(sh, vh);
+    sx = Math.max(0, Math.min(sx, vw - sw));
+    sy = Math.max(0, Math.min(sy, vh - sh));
 
     c.width  = sw;
     c.height = sh;
