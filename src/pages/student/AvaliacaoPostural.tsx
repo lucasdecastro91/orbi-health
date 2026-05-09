@@ -504,8 +504,11 @@ const AvaliacaoPostural = () => {
 
   const currentTeste = TESTES[slideIndex];
 
-  // Reset instructions panel when moving to a different test
-  useEffect(() => { setShowInstructions(false); }, [slideIndex]);
+  // Reset scroll + instructions panel when moving to a different test or entering testing phase
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    setShowInstructions(false);
+  }, [slideIndex, phase]);
 
   // ── Auth / load ────────────────────────────────────────────────
 
