@@ -896,12 +896,13 @@ const AvaliacaoPostural = () => {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => openCameraFor(pi)}
-                      className={`h-9 px-4 rounded-xl text-xs font-semibold shrink-0 transition-colors ${url ? "bg-white/8 text-white/50" : "text-white"}`}
-                      style={url ? undefined : { background: "var(--cp-gradient)" }}>
-                      {url ? <RotateCcw className="w-3.5 h-3.5" /> : "Tirar foto"}
-                    </button>
+                    {url && (
+                      <button
+                        onClick={() => openCameraFor(pi)}
+                        className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/8 text-white/50 shrink-0">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
