@@ -299,12 +299,15 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
 const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: string; studentAlunoId: string }) => {
   const { toast } = useToast();
   const { orgId } = useTenantContext();
-  const [data,       setData]       = useState<any | null>(null);
-  const [template,   setTemplate]   = useState<any[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [requesting, setRequesting] = useState(false);
-  const [dispensing, setDispensing] = useState(false);
-  const [expanded,   setExpanded]   = useState(false);
+  const [data,           setData]           = useState<any | null>(null);
+  const [template,       setTemplate]       = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [requesting,     setRequesting]     = useState(false);
+  const [dispensing,     setDispensing]     = useState(false);
+  const [canceling,      setCanceling]      = useState(false);
+  const [deleting,       setDeleting]       = useState(false);
+  const [confirmDelete,  setConfirmDelete]  = useState(false);
+  const [expanded,       setExpanded]       = useState(false);
 
   useEffect(() => { load(); }, [studentUserId]);
 
@@ -371,6 +374,32 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setDispensing(false); }
+  };
+
+  const cancelarSolicitacao = async () => {
+    if (!data) return;
+    setCanceling(true);
+    try {
+      const { error } = await supabase.from("anamneses").update({ pendente: false }).eq("id", data.id);
+      if (error) throw error;
+      setData((d: any) => ({ ...d, pendente: false }));
+      toast({ title: "Solicitação cancelada." });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally { setCanceling(false); }
+  };
+
+  const deleteAnamnese = async () => {
+    if (!data) return;
+    setDeleting(true); setConfirmDelete(false);
+    try {
+      const { error } = await supabase.from("anamneses").delete().eq("id", data.id);
+      if (error) throw error;
+      setData(null);
+      toast({ title: "Anamnese excluída com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally { setDeleting(false); }
   };
 
   // ── Helpers ───────────────────────────────────────────────────
@@ -473,12 +502,15 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
           <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Ficha de Anamnese</p>
           <p className="text-[11px] text-white/25 mt-0.5">{data ? "1 anamnese registrada" : "Nenhuma anamnese registrada"}</p>
         </div>
-        {data && !data.pendente && (
-          <button onClick={requestNew} disabled={requesting}
+        {/* Solicitar anamnese / atualização */}
+        {!data?.pendente && (
+          <button
+            onClick={data ? requestNew : requestFirst}
+            disabled={requesting}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
             {requesting ? <Spinner className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-            Solicitar atualização
+            {data ? "Solicitar atualização" : "Solicitar anamnese"}
           </button>
         )}
       </div>
@@ -489,8 +521,13 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
           style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", borderColor: "rgba(var(--cp-rgb),0.2)" }}>
           <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
           <p className="text-sm flex-1" style={{ color: "var(--cp-300)" }}>
-            Atualização solicitada — aguardando resposta do aluno.
+            Anamnese solicitada — aguardando resposta do aluno.
           </p>
+          <button onClick={cancelarSolicitacao} disabled={canceling}
+            className="text-xs font-medium px-2 py-1 rounded-lg shrink-0 transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}>
+            {canceling ? "..." : "Cancelar"}
+          </button>
         </div>
       )}
 
@@ -506,20 +543,12 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
             <p className="text-white/50 font-medium text-sm">Anamnese não preenchida</p>
             <p className="text-white/25 text-xs mt-1 max-w-xs">O aluno ainda não preencheu a ficha de anamnese.</p>
           </div>
-          <div className="flex flex-col gap-2 w-full max-w-xs px-4">
-            <button onClick={requestFirst} disabled={requesting}
-              className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
-              {requesting ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <AlertCircle className="w-3.5 h-3.5" />}
-              Solicitar preenchimento
-            </button>
-            <button onClick={dispensarAnamnese} disabled={dispensing}
-              className="flex items-center justify-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
-              {dispensing ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
-              Dispensar (já preenchida externamente)
-            </button>
-          </div>
+          <button onClick={dispensarAnamnese} disabled={dispensing}
+            className="flex items-center justify-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
+            {dispensing ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
+            Dispensar (já preenchida externamente)
+          </button>
         </div>
       )}
 
@@ -550,13 +579,36 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
                 : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
             </button>
 
-            {/* Download button */}
-            <button onClick={downloadAnamnese}
-              className="px-3 h-full flex items-center gap-1.5 text-xs font-medium transition-colors shrink-0"
-              style={{ color: "var(--cp-400)" }}
-              title="Baixar anamnese">
-              <Download className="w-3.5 h-3.5" />
-            </button>
+            {/* Download + Trash */}
+            <div className="flex items-center gap-1 pr-3">
+              <button onClick={downloadAnamnese}
+                className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6 shrink-0"
+                style={{ color: "var(--cp-400)" }}
+                title="Baixar anamnese">
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              {confirmDelete ? (
+                <>
+                  <span className="text-xs text-white/50 mr-1">Excluir?</span>
+                  <button onClick={deleteAnamnese} disabled={deleting}
+                    className="text-xs px-2 h-7 rounded-lg font-semibold"
+                    style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                    {deleting ? "..." : "Sim"}
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)}
+                    className="text-xs px-2 h-7 rounded-lg font-semibold"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                    Não
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} disabled={deleting}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6 shrink-0"
+                  style={{ color: "rgba(255,255,255,0.2)" }}>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Expanded answers */}
