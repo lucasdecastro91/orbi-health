@@ -111,6 +111,7 @@ const StudentDashboard = () => {
   const [lastFeedback, setLastFeedback] = useState<Feedback | null>(null);
   const [avaliacaoPendente,  setAvaliacaoPendente]  = useState(false);
   const [anamnese_pendente,  setAnamnese_pendente]  = useState(false);
+  const [anamneseDismissed,  setAnamneseDismissed]  = useState(false); // só nessa sessão
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -309,6 +310,57 @@ const StudentDashboard = () => {
       </div>
 
       <div className="px-4 space-y-3">
+
+        {/* ── Card de anamnese pendente ── */}
+        {anamnese_pendente && !anamneseDismissed && (
+          <div
+            className="rounded-2xl border overflow-hidden"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.3)" }}
+          >
+            {/* Faixa de destaque no topo */}
+            <div
+              className="h-1 w-full"
+              style={{ background: "var(--cp-gradient)" }}
+            />
+            <div className="px-4 pt-4 pb-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(var(--cp-rgb),0.15)" }}
+                >
+                  <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <p className="text-sm font-bold text-foreground leading-snug">
+                    Anamnese pendente
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Seu treinador solicitou o preenchimento da sua ficha de saúde. Leva poucos minutos e é essencial para personalizar seu treino.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`${base}/anamnese`)}
+                  className="flex-1 h-11 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"
+                  style={{ background: "var(--cp-gradient)", color: "#000" }}
+                >
+                  Preencher agora
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnamneseDismissed(true)}
+                  className="h-11 px-4 rounded-xl text-sm font-medium transition-colors"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
+                >
+                  Lembrar depois
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DashboardCard
           title="Meu treino atual"
           description={plano ? "Plano ativo da consultoria" : "Aguardando plano"}
@@ -422,24 +474,6 @@ const StudentDashboard = () => {
             </EmptyState>
           )}
         </DashboardCard>
-
-        {anamnese_pendente && (
-          <button
-            type="button"
-            onClick={() => navigate(`${base}/anamnese`)}
-            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
-              <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Anamnese pendente</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Seu treinador solicitou o preenchimento da anamnese. Toque para responder.</p>
-            </div>
-            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
-          </button>
-        )}
 
         {avaliacaoPendente && (
           <button
