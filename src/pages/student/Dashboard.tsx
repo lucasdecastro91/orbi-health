@@ -140,7 +140,7 @@ const StudentDashboard = () => {
         return;
       }
 
-      const { data: aluno } = await supabase
+      const { data: aluno } = await (supabase as any)
         .from("alunos")
         .select("id, form_atualizacao_ultima_data, avaliacao_postural_pendente, anamnese_dispensada, anamnese_pendente")
         .eq("user_id", session.user.id)

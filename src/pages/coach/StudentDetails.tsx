@@ -336,7 +336,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     setRequesting(true);
     try {
       // Update flag on alunos (coach has permission); anamneses.pendente kept in sync but may be blocked by RLS
-      await supabase.from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
+      await (supabase as any).from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
       await supabase.from("anamneses").update({ pendente: true }).eq("id", data.id);
       await supabase.from("notificacoes").insert({
         user_id: studentUserId, org_id: orgId,
@@ -354,7 +354,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
   const requestFirst = async () => {
     setRequesting(true);
     try {
-      await supabase.from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
+      await (supabase as any).from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
       await supabase.from("notificacoes").insert({
         user_id: studentUserId, org_id: orgId,
         titulo: "Seu treinador solicitou o preenchimento da anamnese",
@@ -382,7 +382,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     if (!data) return;
     setCanceling(true);
     try {
-      await supabase.from("alunos").update({ anamnese_pendente: false }).eq("id", studentAlunoId);
+      await (supabase as any).from("alunos").update({ anamnese_pendente: false }).eq("id", studentAlunoId);
       await supabase.from("anamneses").update({ pendente: false }).eq("id", data.id);
       setData((d: any) => ({ ...d, pendente: false }));
       toast({ title: "Solicitação cancelada." });
