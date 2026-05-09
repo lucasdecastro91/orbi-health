@@ -239,7 +239,7 @@ const RefImage = ({
       key={srcs[idx]}
       src={srcs[idx]}
       alt=""
-      className={contain ? "w-full object-contain" : "w-full h-full object-cover"}
+      className={contain ? "w-full h-full object-contain" : "w-full h-full object-cover"}
       onError={() => setIdx((i) => i + 1)}
     />
   );
@@ -828,8 +828,8 @@ const AvaliacaoPostural = () => {
               </div>
             </div>
 
-            {/* Reference image — full, uncropped */}
-            <div className="rounded-2xl overflow-hidden bg-black">
+            {/* Reference image — full, uncropped, height-capped */}
+            <div className="rounded-2xl overflow-hidden bg-black" style={{ height: 240 }}>
               <RefImage testKey={teste.key} emoji={teste.emoji} contain />
             </div>
 
