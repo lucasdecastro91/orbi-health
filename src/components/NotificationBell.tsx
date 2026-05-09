@@ -1,6 +1,12 @@
-﻿import { useState, useEffect, useRef } from "react";
-import { Bell, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Bell, Loader2,
+  ClipboardCheck, ClipboardList, AlertTriangle, Info,
+  ScanLine, Dumbbell, Utensils, MessageSquare,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/contexts/TenantContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -13,14 +19,36 @@ interface Notificacao {
   created_at: string;
 }
 
-const TIPO_EMOJI: Record<string, string> = {
-  checkin:  "📋",
-  anamnese: "📝",
-  alerta:   "⚠️",
-  info:     "ℹ️",
+// Lucide icon per notification type
+const TIPO_ICON: Record<string, React.ElementType> = {
+  checkin:          ClipboardList,
+  anamnese:         ClipboardCheck,
+  avaliacao:        ScanLine,
+  treino:           Dumbbell,
+  dieta:            Utensils,
+  mensagem:         MessageSquare,
+  alerta:           AlertTriangle,
+  info:             Info,
+};
+
+// Route per notification type (returns null if no navigation)
+const tipoRoute = (tipo: string, base: string): string | null => {
+  const map: Record<string, string> = {
+    anamnese:  `${base}/anamnese`,
+    avaliacao: `${base}/avaliacao-postural`,
+    treino:    `${base}/treinos`,
+    dieta:     `${base}/dieta`,
+    mensagem:  `${base}/mensagens`,
+    checkin:   `${base}/atualizacao`,
+  };
+  return map[tipo] ?? null;
 };
 
 const NotificationBell = () => {
+  const navigate      = useNavigate();
+  const { slug }      = useTenantContext();
+  const base          = `/${slug}/aluno`;
+
   const [notifs,  setNotifs]  = useState<Notificacao[]>([]);
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(true);
@@ -85,10 +113,18 @@ const NotificationBell = () => {
     setNotifs((prev) => prev.map((n) => ({ ...n, lida: true })));
   };
 
-  const markRead = async (id: string) => {
-    if (notifs.find((n) => n.id === id)?.lida) return;
-    await supabase.from("notificacoes").update({ lida: true }).eq("id", id);
-    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, lida: true } : n)));
+  const handleNotifClick = async (n: Notificacao) => {
+    // Mark as read
+    if (!n.lida) {
+      await supabase.from("notificacoes").update({ lida: true }).eq("id", n.id);
+      setNotifs((prev) => prev.map((x) => (x.id === n.id ? { ...x, lida: true } : x)));
+    }
+    // Navigate if route defined
+    const route = tipoRoute(n.tipo, base);
+    if (route) {
+      setOpen(false);
+      navigate(route);
+    }
   };
 
   const unread = notifs.filter((n) => !n.lida).length;
@@ -168,42 +204,54 @@ const NotificationBell = () => {
                 <p className="text-white/30 text-sm">Sem notificações</p>
               </div>
             ) : (
-              notifs.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => markRead(n.id)}
-                  className="w-full text-left px-4 py-3 transition-colors"
-                  style={{
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    backgroundColor: n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.05)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)"; }}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span className="text-base mt-0.5 shrink-0 leading-none">
-                      {TIPO_EMOJI[n.tipo] ?? "🔔"}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold leading-snug ${n.lida ? "text-white/50" : "text-white"}`}>
-                        {n.titulo}
-                      </p>
-                      {n.mensagem && (
-                        <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed">{n.mensagem}</p>
-                      )}
-                      <p className="text-[10px] text-white/20 mt-1">
-                        {format(parseISO(n.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                    {!n.lida && (
+              notifs.map((n) => {
+                const IconComp = TIPO_ICON[n.tipo] ?? Bell;
+                const hasRoute = !!tipoRoute(n.tipo, base);
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => handleNotifClick(n)}
+                    className="w-full text-left px-4 py-3 transition-colors"
+                    style={{
+                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      backgroundColor: n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)",
+                      cursor: hasRoute ? "pointer" : "default",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.05)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)"; }}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {/* Icon container */}
                       <div
-                        className="w-2 h-2 rounded-full shrink-0 mt-1"
-                        style={{ backgroundColor: "var(--cp-500)" }}
-                      />
-                    )}
-                  </div>
-                </button>
-              ))
+                        className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ backgroundColor: n.lida ? "rgba(255,255,255,0.05)" : "rgba(var(--cp-rgb),0.12)" }}
+                      >
+                        <IconComp
+                          className="w-3.5 h-3.5"
+                          style={{ color: n.lida ? "rgba(255,255,255,0.3)" : "var(--cp-400)" }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold leading-snug ${n.lida ? "text-white/50" : "text-white"}`}>
+                          {n.titulo}
+                        </p>
+                        {n.mensagem && (
+                          <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed">{n.mensagem}</p>
+                        )}
+                        <p className="text-[10px] text-white/20 mt-1">
+                          {format(parseISO(n.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                      {!n.lida && (
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0 mt-1"
+                          style={{ backgroundColor: "var(--cp-500)" }}
+                        />
+                      )}
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

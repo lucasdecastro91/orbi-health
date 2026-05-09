@@ -9,13 +9,14 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   Download,
   Dumbbell,
-  ExternalLink,
   FileText,
   Home,
   MessageSquare,
+  ScanLine,
   Utensils,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -64,7 +65,7 @@ interface DashboardCardProps {
 }
 
 const DashboardCard = ({ title, description, icon: Icon, isNew, children }: DashboardCardProps) => (
-  <section className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+  <section className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "var(--surface-1)" }}>
     <div className="px-4 py-3 border-b border-white/6">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
@@ -97,7 +98,7 @@ const EmptyState = ({ children }: { children: React.ReactNode }) => (
 );
 
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.035)" }}>
+  <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "var(--surface-2)" }}>
     <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
     <p className="text-sm font-medium text-foreground leading-snug">{value}</p>
   </div>
@@ -106,9 +107,10 @@ const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) =>
 const StudentDashboard = () => {
   const [plano, setPlano] = useState<Plano | null>(null);
   const [dieta, setDieta] = useState<DietaStatus | null>(null);
-  const [formUrl, setFormUrl] = useState<string | null>(null);
   const [proximaAtualizacao, setProximaAtualizacao] = useState<string | null>(null);
   const [lastFeedback, setLastFeedback] = useState<Feedback | null>(null);
+  const [avaliacaoPendente,  setAvaliacaoPendente]  = useState(false);
+  const [anamnese_pendente,  setAnamnese_pendente]  = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -139,7 +141,7 @@ const StudentDashboard = () => {
 
       const { data: aluno } = await supabase
         .from("alunos")
-        .select("id, form_atualizacao_url, form_atualizacao_ultima_data")
+        .select("id, form_atualizacao_ultima_data, avaliacao_postural_pendente, anamnese_dispensada")
         .eq("user_id", session.user.id)
         .single();
 
@@ -152,8 +154,20 @@ const StudentDashboard = () => {
         return;
       }
 
-      setFormUrl(aluno.form_atualizacao_url);
       setProximaAtualizacao(aluno.form_atualizacao_ultima_data);
+      setAvaliacaoPendente(!!aluno.avaliacao_postural_pendente);
+
+      // Anamnese pendente: só mostra card se não foi dispensada
+      if (!aluno.anamnese_dispensada) {
+        const { data: anamneseRec } = await supabase
+          .from("anamneses")
+          .select("id, pendente")
+          .eq("student_id", session.user.id)
+          .maybeSingle();
+        // Mostra o card se: ainda não preencheu OU se preencheu mas está pendente (nova solicitação)
+        const showCard = !anamneseRec || !!anamneseRec.pendente;
+        setAnamnese_pendente(showCard);
+      }
 
       const { data: planoData } = await supabase
         .from("planos_treino")
@@ -282,7 +296,7 @@ const StudentDashboard = () => {
               type="button"
               onClick={() => navigate(item.path)}
               className="rounded-2xl border border-white/8 px-3 py-3 text-left transition-colors hover:bg-white/5"
-              style={{ backgroundColor: item.active ? "rgba(var(--cp-rgb),0.08)" : "rgba(255,255,255,0.025)" }}
+              style={{ backgroundColor: item.active ? "rgba(var(--cp-rgb),0.08)" : "var(--surface-1)" }}
             >
               <item.icon
                 className={`w-4 h-4 mb-2 ${!item.active && "text-muted-foreground opacity-60"}`}
@@ -362,9 +376,6 @@ const StudentDashboard = () => {
           icon={FileText}
         >
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Use esta área para manter sua consultoria atualizada com medidas, fotos e dúvidas sobre treino ou dieta.
-            </p>
             {proximaAtualizacao && (
               <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.22)" }}>
                 <CalendarDays className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
@@ -373,20 +384,14 @@ const StudentDashboard = () => {
                 </p>
               </div>
             )}
-            {formUrl ? (
-              <Button
-                onClick={() => window.open(formUrl, "_blank")}
-                className="w-full h-12 rounded-2xl text-primary-foreground text-sm font-semibold"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Responder formulário
-              </Button>
-            ) : (
-              <EmptyState>
-                Seu treinador ainda não cadastrou um formulário de atualização.
-              </EmptyState>
-            )}
+            <Button
+              onClick={() => navigate(`${base}/atualizacao`)}
+              className="w-full h-12 rounded-2xl text-primary-foreground text-sm font-semibold"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              <ChevronRight className="w-4 h-4 mr-2" />
+              Responder Atualização
+            </Button>
           </div>
         </DashboardCard>
 
@@ -398,7 +403,7 @@ const StudentDashboard = () => {
         >
           {lastFeedback ? (
             <div className="space-y-3">
-              <div className="rounded-2xl px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.035)" }}>
+              <div className="rounded-2xl px-4 py-3" style={{ backgroundColor: "var(--surface-2)" }}>
                 <p className="text-[11px] text-muted-foreground mb-1">{format(new Date(lastFeedback.created_at), "dd/MM/yyyy")}</p>
                 <p className="text-sm font-semibold text-foreground mb-2">{lastFeedback.titulo || "Sem título"}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{lastFeedback.mensagem}</p>
@@ -418,7 +423,43 @@ const StudentDashboard = () => {
           )}
         </DashboardCard>
 
-        <div className="rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        {anamnese_pendente && (
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/anamnese`)}
+            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+              <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Anamnese pendente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Seu treinador solicitou o preenchimento da anamnese. Toque para responder.</p>
+            </div>
+            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+          </button>
+        )}
+
+        {avaliacaoPendente && (
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/avaliacao-postural`)}
+            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+              <ScanLine className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Avaliação postural pendente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Seu treinador solicitou uma avaliação. Toque para iniciar.</p>
+            </div>
+            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+          </button>
+        )}
+
+        <div className="rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "var(--surface-1)" }}>
           <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50 shrink-0" />
           <p className="text-xs text-muted-foreground leading-relaxed">
             Complete seus treinos e check-ins para manter seu acompanhamento sempre em dia.
