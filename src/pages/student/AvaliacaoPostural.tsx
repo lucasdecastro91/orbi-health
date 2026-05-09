@@ -829,7 +829,7 @@ const AvaliacaoPostural = () => {
             </div>
 
             {/* Reference image — full, uncropped, height-capped */}
-            <div className="rounded-2xl overflow-hidden bg-black" style={{ height: 240 }}>
+            <div className="rounded-2xl overflow-hidden bg-black" style={{ height: 320 }}>
               <RefImage testKey={teste.key} emoji={teste.emoji} contain />
             </div>
 
