@@ -142,7 +142,7 @@ const StudentDashboard = () => {
 
       const { data: aluno } = await supabase
         .from("alunos")
-        .select("id, form_atualizacao_ultima_data, avaliacao_postural_pendente, anamnese_dispensada")
+        .select("id, form_atualizacao_ultima_data, avaliacao_postural_pendente, anamnese_dispensada, anamnese_pendente")
         .eq("user_id", session.user.id)
         .single();
 
@@ -157,18 +157,8 @@ const StudentDashboard = () => {
 
       setProximaAtualizacao(aluno.form_atualizacao_ultima_data);
       setAvaliacaoPendente(!!aluno.avaliacao_postural_pendente);
-
-      // Anamnese pendente: só mostra card se não foi dispensada
-      if (!aluno.anamnese_dispensada) {
-        const { data: anamneseRec } = await supabase
-          .from("anamneses")
-          .select("id, pendente")
-          .eq("student_id", session.user.id)
-          .maybeSingle();
-        // Mostra o card se: ainda não preencheu OU se preencheu mas está pendente (nova solicitação)
-        const showCard = !anamneseRec || !!anamneseRec.pendente;
-        setAnamnese_pendente(showCard);
-      }
+      // Usa a coluna na tabela alunos (que o coach consegue atualizar sem bloqueio de RLS)
+      setAnamnese_pendente(!!aluno.anamnese_pendente);
 
       const { data: planoData } = await supabase
         .from("planos_treino")
