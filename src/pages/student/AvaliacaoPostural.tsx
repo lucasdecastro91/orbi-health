@@ -319,27 +319,35 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     if (!videoRef.current || !canvasRef.current) return;
     const v   = videoRef.current;
     const c   = canvasRef.current;
-    const vw  = v.videoWidth;
-    const vh  = v.videoHeight;
     const ctx = c.getContext("2d")!;
 
-    // iOS can deliver landscape pixel data even when the phone is portrait.
-    // Detect: if the video element appears portrait on screen but raw pixels are landscape → rotate 90°.
-    const displayedPortrait = v.clientHeight > v.clientWidth;
-    const rawLandscape      = vw > vh;
+    const vw = v.videoWidth;
+    const vh = v.videoHeight;
+    if (!vw || !vh) return;
 
-    if (displayedPortrait && rawLandscape) {
-      // Rotate 90° clockwise so portrait orientation is preserved
-      c.width  = vh;
-      c.height = vw;
-      ctx.translate(vh / 2, vw / 2);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(v, -vw / 2, -vh / 2);
+    // Replicate CSS object-cover: capture only the visible region of the video.
+    // This is orientation-agnostic — the output always matches what the user sees on screen,
+    // regardless of whether iOS delivers landscape or portrait raw pixels.
+    const dispW = v.clientWidth  || window.innerWidth;
+    const dispH = v.clientHeight || window.innerHeight;
+
+    const videoAspect   = vw / vh;
+    const displayAspect = dispW / dispH;
+
+    let sx = 0, sy = 0, sw = vw, sh = vh;
+    if (videoAspect > displayAspect) {
+      // Video relatively wider → crop left and right
+      sw = Math.round(vh * displayAspect);
+      sx = Math.round((vw - sw) / 2);
     } else {
-      c.width  = vw;
-      c.height = vh;
-      ctx.drawImage(v, 0, 0);
+      // Video relatively taller → crop top and bottom
+      sh = Math.round(vw / displayAspect);
+      sy = Math.round((vh - sh) / 2);
     }
+
+    c.width  = sw;
+    c.height = sh;
+    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
 
     const url = c.toDataURL("image/jpeg", 0.88);
     setPreview(url);
