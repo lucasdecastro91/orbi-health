@@ -6,6 +6,7 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import {
   User, Target, Heart, Utensils, Moon, MessageSquare,
   ChevronRight, ChevronLeft, Check, Loader2, Upload, X as XIcon,
+  ClipboardCheck,
 } from "lucide-react";
 
 // ── Tipos ──────────────────────────────────────────────────────
@@ -56,6 +57,29 @@ const STEPS_CONFIG = [
 ];
 
 const CAMPOS_PER_PAGE = 5;
+
+// ── Phone helpers ──────────────────────────────────────────────
+// Formats raw digits as (XX) XXXXX-XXXX for display
+const formatPhone = (raw: string): string => {
+  const digits = raw.replace(/\D/g, "").replace(/^55/, "").slice(0, 11);
+  if (digits.length <= 2)  return digits;
+  if (digits.length <= 7)  return `(${digits.slice(0,2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+};
+
+// Normalizes to +55XXXXXXXXXXX for storage; returns null if invalid
+const normalizePhone = (raw: string): string | null => {
+  const digits = raw.replace(/\D/g, "").replace(/^55/, "");
+  if (digits.length < 10 || digits.length > 11) return null;
+  return `+55${digits}`;
+};
+
+// Strips +55 prefix for display
+const phoneForDisplay = (stored: string): string => {
+  const digits = stored.replace(/\D/g, "").replace(/^55/, "");
+  return formatPhone(digits);
+};
 
 // ── Helpers ────────────────────────────────────────────────────
 const OptionBtn = ({ value, active, onClick }: { value: string; active: boolean; onClick: () => void }) => (
@@ -120,35 +144,47 @@ const Anamnese = () => {
   const [isTemplateMode, setTplMode]    = useState(false);
   const [secoesTpl,    setSecoesTpl]    = useState<SecaoTemplate[]>([]);
   const [isSectionMode, setSectionMode] = useState(false);
+  const [introducao,   setIntroducao]   = useState<string>("");
+  const [introAceita,  setIntroAceita]  = useState(false);
   const [treinadorId,  setTreinadorId]  = useState<string | null>(null);
   const [alunoRecId,   setAlunoRecId]   = useState<string | null>(null);
   const [studentId,    setStudentId]    = useState<string | null>(null);
+  const [alunoNome,    setAlunoNome]    = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
   const [done,         setDone]         = useState(false);
   const [loadingInit,  setLoading]      = useState(true);
   const [isEditing,    setIsEditing]    = useState(false);
-  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileRefs     = useRef<Record<string, HTMLInputElement | null>>({});
+  const initialized  = useRef(false);
 
-  useEffect(() => { init(); }, []);
+  // Re-runs whenever orgId becomes available (TenantContext may load after mount)
+  useEffect(() => {
+    if (!orgId || initialized.current) return;
+    initialized.current = true;
+    init();
+  }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const init = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { navigate("/auth"); return; }
     setStudentId(session.user.id);
 
-    const [alunoRes, anamneseRes, templateRes] = await Promise.all([
+    const [alunoRes, anamneseRes, templateRes, profileRes] = await Promise.all([
       supabase.from("alunos").select("id, treinador_id").eq("user_id", session.user.id).maybeSingle(),
       supabase.from("anamneses").select("*").eq("student_id", session.user.id).maybeSingle(),
-      orgId
-        ? supabase.from("anamnese_templates").select("perguntas").eq("org_id", orgId).maybeSingle()
-        : Promise.resolve({ data: null }),
+      supabase.from("anamnese_templates").select("perguntas, introducao").eq("org_id", orgId!).maybeSingle(),
+      supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
     ]);
 
     if (alunoRes.data?.treinador_id) setTreinadorId(alunoRes.data.treinador_id);
     if (alunoRes.data?.id) setAlunoRecId(alunoRes.data.id);
+    if (profileRes.data?.nome) setAlunoNome(profileRes.data.nome);
 
     // Detect template mode — sectioned (titulo) > flat (tipo) > classic
-    const perguntas   = (templateRes as any)?.data?.perguntas ?? [];
+    const tplData     = (templateRes as any)?.data;
+    const perguntas   = tplData?.perguntas ?? [];
+    const introText   = tplData?.introducao ?? "";
+    if (introText) setIntroducao(introText);
     const sectionMode = perguntas.length > 0 && perguntas[0]?.titulo !== undefined;
     const richMode    = !sectionMode && perguntas.length > 0 && perguntas[0]?.tipo !== undefined;
 
@@ -173,7 +209,7 @@ const Anamnese = () => {
           idade:                   a.idade != null ? String(a.idade) : "",
           altura:                  a.altura ?? "",
           peso_atual:              a.peso_atual != null ? String(a.peso_atual) : "",
-          whatsapp:                a.whatsapp ?? "",
+          whatsapp:                a.whatsapp ? phoneForDisplay(a.whatsapp) : "",
           sexo:                    a.sexo ?? "",
           objetivo:                a.objetivo ?? "",
           pratica_atividade:       a.pratica_atividade ?? "",
@@ -266,7 +302,7 @@ const Anamnese = () => {
           idade:                   form.idade                   ? Number(form.idade)      : null,
           altura:                  form.altura                  || null,
           peso_atual:              form.peso_atual              ? Number(form.peso_atual) : null,
-          whatsapp:                form.whatsapp                || null,
+          whatsapp:                form.whatsapp ? (normalizePhone(form.whatsapp) ?? form.whatsapp) : null,
           sexo:                    form.sexo                    || null,
           objetivo:                form.objetivo                || null,
           pratica_atividade:       form.pratica_atividade       || null,
@@ -300,12 +336,19 @@ const Anamnese = () => {
       }
 
       if (final && !isEditing && treinadorId) {
-        supabase.from("notificacoes").insert({
-          user_id: treinadorId, org_id: orgId,
-          titulo:  "Anamnese preenchida",
-          mensagem: "Um aluno preencheu a ficha de anamnese. Acesse o perfil para visualizar.",
-          tipo: "anamnese",
-        }).catch(() => {});
+        void (async () => {
+          try {
+            await supabase.from("notificacoes").insert({
+              user_id:    treinadorId,
+              org_id:     orgId,
+              aluno_id:   alunoRecId,
+              aluno_nome: alunoNome,
+              titulo:     "Anamnese preenchida",
+              mensagem:   `${alunoNome ?? "Um aluno"} preencheu a ficha de anamnese. Acesse o perfil para visualizar.`,
+              tipo:       "anamnese",
+            });
+          } catch { /* silencioso */ }
+        })();
       }
       return true;
     } catch (err: any) {
@@ -449,6 +492,59 @@ const Anamnese = () => {
     </div>
   );
 
+  // ── Tela de introdução (se o treinador configurou) ──────────
+  if (introducao && !introAceita && !isEditing) return (
+    <div className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-5">
+      {/* Cabeçalho */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+          <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-white leading-tight">Anamnese</h1>
+          <p className="text-xs text-white/40">Antes de começar, leia as orientações</p>
+        </div>
+      </div>
+
+      {/* Estilos para o HTML do editor */}
+      <style>{`
+        .anamnese-intro b, .anamnese-intro strong { color: #fff; font-weight: 700; }
+        .anamnese-intro i, .anamnese-intro em { font-style: italic; }
+        .anamnese-intro u { text-decoration: underline; }
+        .anamnese-intro a { color: var(--cp-400); text-decoration: underline; }
+        .anamnese-intro p { margin-bottom: 0.6rem; }
+        .anamnese-intro br + br { display: block; content: ""; margin-top: 0.4rem; }
+      `}</style>
+
+      {/* Conteúdo da introdução */}
+      <div
+        className="anamnese-intro rounded-2xl border p-5 text-sm text-white/75 leading-relaxed"
+        style={{
+          borderColor: "rgba(255,255,255,0.08)",
+          backgroundColor: "rgba(255,255,255,0.025)",
+          lineHeight: "1.8",
+        }}
+        dangerouslySetInnerHTML={{ __html: introducao }}
+      />
+
+      {/* Botão */}
+      <button
+        type="button"
+        onClick={() => setIntroAceita(true)}
+        className="w-full h-12 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
+        style={{ background: "var(--cp-gradient)", color: "#000" }}
+      >
+        <Check className="w-4 h-4" />
+        Começar preenchimento
+      </button>
+
+      <p className="text-center text-xs text-white/20">
+        Suas respostas são salvas automaticamente a cada etapa.
+      </p>
+    </div>
+  );
+
   if (done) return (
     <div className="max-w-lg mx-auto px-4 py-16 flex flex-col items-center gap-6 text-center">
       <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "var(--cp-gradient)" }}>
@@ -538,7 +634,7 @@ const Anamnese = () => {
         {isTemplateMode && tplPageCampos.map(c => renderCampo(c))}
 
         {/* ── Classic mode ───────────────────────────────────────── */}
-        {!isTemplateMode && step === 1 && (
+        {!isTemplateMode && !isSectionMode && step === 1 && (
           <>
             <Field label="Nome completo">
               <TextInput value={form.nome_completo} onChange={set("nome_completo")} placeholder="Seu nome completo" />
@@ -549,7 +645,13 @@ const Anamnese = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Peso atual (kg)"><TextInput type="number" value={form.peso_atual} onChange={set("peso_atual")} placeholder="75" /></Field>
-              <Field label="WhatsApp"><TextInput value={form.whatsapp} onChange={set("whatsapp")} placeholder="(11) 99999-9999" /></Field>
+              <Field label="WhatsApp" hint={form.whatsapp && !normalizePhone(form.whatsapp) ? "⚠️ Digite entre 10 e 11 dígitos" : undefined}>
+                <TextInput
+                  value={form.whatsapp}
+                  onChange={(v) => set("whatsapp")(formatPhone(v))}
+                  placeholder="(82) 99999-9999"
+                />
+              </Field>
             </div>
             <Field label="Sexo">
               <div className="flex flex-wrap gap-2">
@@ -561,7 +663,7 @@ const Anamnese = () => {
           </>
         )}
 
-        {!isTemplateMode && step === 2 && (
+        {!isTemplateMode && !isSectionMode && step === 2 && (
           <>
             <Field label="Objetivo principal">
               <div className="flex flex-wrap gap-2">
@@ -599,7 +701,7 @@ const Anamnese = () => {
           </>
         )}
 
-        {!isTemplateMode && step === 3 && (
+        {!isTemplateMode && !isSectionMode && step === 3 && (
           <>
             <Field label="Possui alguma condição de saúde diagnosticada?" hint="Selecione todas que se aplicam">
               <div className="flex flex-wrap gap-2">
@@ -620,7 +722,7 @@ const Anamnese = () => {
           </>
         )}
 
-        {!isTemplateMode && step === 4 && (
+        {!isTemplateMode && !isSectionMode && step === 4 && (
           <>
             <Field label="Possui alguma restrição alimentar ou alergia?">
               <TextArea value={form.restricoes_alimentares} onChange={set("restricoes_alimentares")} placeholder="Ex: intolerante à lactose..." />
@@ -653,7 +755,7 @@ const Anamnese = () => {
           </>
         )}
 
-        {!isTemplateMode && step === 5 && (
+        {!isTemplateMode && !isSectionMode && step === 5 && (
           <>
             <Field label="Como é sua rotina de sono?">
               <div className="flex flex-col gap-2">
@@ -683,7 +785,7 @@ const Anamnese = () => {
           </>
         )}
 
-        {!isTemplateMode && step === 6 && (
+        {!isTemplateMode && !isSectionMode && step === 6 && (
           Object.keys(extrasAns).length > 0 ? (
             Object.entries(extrasAns).map(([id, val]) => (
               <Field key={id} label={id}>

@@ -24,9 +24,11 @@ import StudentLayout from "./components/student/StudentLayout";
 
 // Coach pages
 import CoachDashboard    from "./pages/coach/Dashboard";
+import MeusClientes      from "./pages/coach/MeusClientes";
 import StudentDetails    from "./pages/coach/StudentDetails";
 import ExerciseLibrary   from "./pages/coach/ExerciseLibrary";
 import TrainingTemplates from "./pages/coach/TrainingTemplates";
+import ProdutosPlanos    from "./pages/coach/ProdutosPlanos";
 import Settings          from "./pages/coach/Settings";
 import CoachAlterarSenha    from "./pages/coach/AlterarSenha";
 import RevisaoAlimentos    from "./pages/coach/RevisaoAlimentos";
@@ -34,6 +36,13 @@ import BancoAlimentos      from "./pages/coach/BancoAlimentos";
 import Agenda              from "./pages/coach/Agenda";
 import Mensagens              from "./pages/coach/Mensagens";
 import NotificationsManager  from "./pages/coach/NotificationsManager";
+import ListaSubstituicao      from "./pages/coach/ListaSubstituicao";
+import FormBuilder            from "./pages/coach/FormBuilder";
+import AtualizacoesCoach      from "./pages/coach/AtualizacoesCoach";
+import AnamneseBuilder        from "./pages/coach/AnamneseBuilder";
+import PosturalEvalBuilder    from "./pages/coach/PosturalEvalBuilder";
+import Leads                  from "./pages/coach/Leads";
+import Financeiro             from "./pages/coach/Financeiro";
 
 // Student pages
 import StudentDashboard   from "./pages/student/Dashboard";
@@ -46,6 +55,7 @@ import Dieta              from "./pages/student/Dieta";
 import Historico          from "./pages/student/Historico";
 import StudentAlterarSenha from "./pages/student/AlterarSenha";
 import CheckIn            from "./pages/student/CheckIn";
+import Atualizacao        from "./pages/student/Atualizacao";
 import Profile            from "./pages/student/Profile";
 import Feedbacks          from "./pages/student/Feedbacks";
 import Evolucao           from "./pages/student/Evolucao";
@@ -56,6 +66,7 @@ import DietHistory           from "./pages/student/DietHistory";
 import Ranking               from "./pages/student/Ranking";
 import NotificationSettings  from "./pages/student/NotificationSettings";
 import AvaliacaoPostural     from "./pages/student/AvaliacaoPostural";
+import StudentCardio         from "./pages/student/Cardio";
 
 const queryClient = new QueryClient();
 
@@ -73,10 +84,14 @@ const OrgWrapper = () => (
 // ----------------------------------------------------------------
 // Utilitário: troca favicon da aba (usado antes do TenantContext montar)
 // ----------------------------------------------------------------
-function applyFavicon(href: string) {
-  document.querySelectorAll<HTMLLinkElement>(
-    'link[rel="icon"], link[rel="shortcut icon"]'
-  ).forEach((el) => { el.href = href; });
+function applyFavicon(href: string, type = "image/x-icon") {
+  document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']")
+    .forEach((el) => el.parentNode?.removeChild(el));
+  const link = document.createElement("link");
+  link.rel  = "icon";
+  link.type = type;
+  link.href = `${href}?v=${Date.now()}`;
+  document.head.appendChild(link);
 }
 
 // ----------------------------------------------------------------
@@ -93,17 +108,23 @@ const App = () => {
       const startTime = Date.now();
       const minDisplay = 1000;
       try {
-        // ── Camada 1: cache no localStorage (sem consulta ao banco) ──────
-        // Se o slug da URL já corresponde ao slug da org GS salvo anteriormente,
-        // ativa o branding instantaneamente — funciona para alunos em revisitas.
-        const storedGsSlug = localStorage.getItem("gs_org_slug");
-        const pathSlug     = window.location.pathname.split("/")[1] ?? "";
+        // Extrai o slug da org de qualquer rota:
+        //   /getshape/treinador  → pathParts[0] = "getshape"
+        //   /entrar/getshape     → pathParts[0] = "entrar", pathParts[1] = "getshape"
+        const pathParts      = window.location.pathname.split("/").filter(Boolean);
+        const firstSegment   = pathParts[0] ?? "";
+        const loginOrgSlug   = firstSegment === "entrar" ? (pathParts[1] ?? "") : "";
+        // slug efetivo da org (ignora segmentos como "entrar", "cadastro" etc.)
+        const knownPublicPaths = ["", "auth", "entrar", "cadastro", "assinar", "auth-legacy"];
+        const pathSlug = loginOrgSlug || (knownPublicPaths.includes(firstSegment) ? "" : firstSegment);
 
+        // ── Camada 1: cache no localStorage (sem consulta ao banco) ──────
+        const storedGsSlug = localStorage.getItem("gs_org_slug");
         if (storedGsSlug && storedGsSlug === pathSlug) {
           localStorage.setItem("gs_brand", "1");
           setIsGetShapeUser(true);
           document.title = "Get Shape";
-          applyFavicon("/favicon-gs.png");
+          applyFavicon("/favicon-gs.png", "image/png");
           return; // já sabemos — não precisa consultar o banco
         }
 
@@ -113,14 +134,12 @@ const App = () => {
           localStorage.setItem("gs_brand", "1");
           setIsGetShapeUser(true);
           document.title = "Get Shape";
-          applyFavicon("/favicon-gs.png");
+          applyFavicon("/favicon-gs.png", "image/png");
           return;
         }
 
         // ── Camada 3: primeiro acesso em dispositivo novo ─────────────────
         // Consulta o banco pela flag is_gs_brand.
-        // Aplica somente quando há um slug de org na URL (evita query em /auth, /cadastro etc.)
-        const knownPublicPaths = ["", "auth", "entrar", "cadastro", "assinar", "auth-legacy"];
         if (pathSlug && !knownPublicPaths.includes(pathSlug)) {
           const { data: orgData } = await supabase
             .from("organizations")
@@ -135,7 +154,7 @@ const App = () => {
             localStorage.setItem("gs_brand",    "1");
             setIsGetShapeUser(true);
             document.title = "Get Shape";
-            applyFavicon("/favicon-gs.png");
+            applyFavicon("/favicon-gs.png", "image/png");
           }
         }
       } finally {
@@ -176,9 +195,11 @@ const App = () => {
               {/* Coach routes */}
               <Route path="treinador" element={<CoachLayout />}>
                 <Route index                   element={<CoachDashboard />} />
+                <Route path="clientes"         element={<MeusClientes />} />
                 <Route path="aluno/:id"        element={<StudentDetails />} />
                 <Route path="biblioteca"       element={<ExerciseLibrary />} />
                 <Route path="modelos"          element={<TrainingTemplates />} />
+                <Route path="produtos"         element={<ProdutosPlanos />} />
                 <Route path="configuracoes"    element={<Settings />} />
                 <Route path="alterar-senha"      element={<CoachAlterarSenha />} />
                 <Route path="revisao-alimentos" element={<RevisaoAlimentos />} />
@@ -186,6 +207,13 @@ const App = () => {
                 <Route path="agenda"            element={<Agenda />} />
                 <Route path="mensagens"         element={<Mensagens />} />
                 <Route path="notificacoes"      element={<NotificationsManager />} />
+                <Route path="lista-substituicao" element={<ListaSubstituicao />} />
+                <Route path="formulario"         element={<FormBuilder />} />
+                <Route path="atualizacoes"       element={<AtualizacoesCoach />} />
+                <Route path="anamnese-builder"        element={<AnamneseBuilder />} />
+                <Route path="postural-eval-builder"   element={<PosturalEvalBuilder />} />
+                <Route path="leads"                   element={<Leads />} />
+                <Route path="financeiro"             element={<Financeiro />} />
               </Route>
 
               {/* Student routes — com layout */}
@@ -196,6 +224,7 @@ const App = () => {
                 <Route path="dieta/historico" element={<DietHistory />} />
                 <Route path="ranking"         element={<Ranking />} />
                 <Route path="check-in"         element={<CheckIn />} />
+                <Route path="atualizacao"      element={<Atualizacao />} />
                 <Route path="feedbacks"        element={<Feedbacks />} />
                 <Route path="perfil"           element={<Profile />} />
                 <Route path="alterar-senha"    element={<StudentAlterarSenha />} />
@@ -205,6 +234,7 @@ const App = () => {
                 <Route path="anamnese"               element={<Anamnese />} />
                 <Route path="notificacoes"           element={<NotificationSettings />} />
                 <Route path="avaliacao-postural"    element={<AvaliacaoPostural />} />
+                <Route path="cardio"               element={<StudentCardio />} />
               </Route>
 
               {/* Student routes — sem layout (fullscreen) */}

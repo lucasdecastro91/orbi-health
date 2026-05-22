@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, BellOff, ScanLine } from "lucide-react";
+import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, BellOff, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -22,6 +22,12 @@ const Profile = () => {
   const [uploading,      setUploading]      = useState(false);
   const [loggingOut,     setLoggingOut]     = useState(false);
   const [anamneseDate,   setAnamneseDate]   = useState<string | null>(null);
+  const [plano, setPlano] = useState<{
+    plano_nome: string | null;
+    plano_inicio: string | null;
+    data_expiracao_plano: string | null;
+    plano_valor_pago: number | null;
+  } | null>(null);
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -30,9 +36,13 @@ const Profile = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
 
-      const [profileRes, anamneseRes] = await Promise.all([
+      const [profileRes, anamneseRes, alunoRes] = await Promise.all([
         supabase.from("profiles").select("nome, avatar_url").eq("id", session.user.id).single(),
         supabase.from("anamneses").select("updated_at").eq("student_id", session.user.id).maybeSingle(),
+        supabase.from("alunos")
+          .select("plano_nome, plano_inicio, data_expiracao_plano, plano_valor_pago")
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
       ]);
 
       if (profileRes.data) {
@@ -41,6 +51,7 @@ const Profile = () => {
       }
       setEmail(session.user.email || "");
       if (anamneseRes.data?.updated_at) setAnamneseDate(anamneseRes.data.updated_at);
+      if (alunoRes.data?.plano_nome) setPlano(alunoRes.data as any);
     } catch (err: any) {
       toast({ title: "Erro ao carregar perfil", description: err.message, variant: "destructive" });
     } finally {
@@ -224,6 +235,87 @@ const Profile = () => {
           <ChevronRight className="w-4 h-4 text-muted-foreground opacity-40 shrink-0" />
         </button>
       </div>
+
+      {/* Meu Plano */}
+      {plano && (() => {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const venc = plano.data_expiracao_plano ? new Date(plano.data_expiracao_plano + "T00:00:00") : null;
+        const diasRestantes = venc ? Math.ceil((venc.getTime() - hoje.getTime()) / 86400000) : null;
+
+        const statusColor =
+          diasRestantes === null       ? "rgba(255,255,255,0.4)"   :
+          diasRestantes < 0            ? "hsl(0 70% 60%)"          :
+          diasRestantes <= 7           ? "hsl(38 95% 58%)"         :
+          "hsl(142 70% 50%)";
+
+        const statusBg =
+          diasRestantes === null       ? "rgba(255,255,255,0.05)"  :
+          diasRestantes < 0            ? "rgba(239,68,68,0.08)"    :
+          diasRestantes <= 7           ? "rgba(245,158,11,0.08)"   :
+          "rgba(34,197,94,0.08)";
+
+        const StatusIcon =
+          diasRestantes === null       ? Clock          :
+          diasRestantes < 0            ? AlertTriangle  :
+          diasRestantes <= 7           ? AlertTriangle  :
+          CheckCircle2;
+
+        const statusText =
+          diasRestantes === null       ? "Sem vencimento"                  :
+          diasRestantes < 0            ? "Vencido"                         :
+          diasRestantes === 0          ? "Vence hoje"                      :
+          diasRestantes <= 7           ? `Vence em ${diasRestantes} dias`  :
+          "Ativo";
+
+        return (
+          <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meu Plano</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: statusBg, border: `1px solid ${statusColor}22` }}>
+              {/* Nome do plano + status */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 shrink-0" style={{ color: statusColor }} />
+                  <p className="text-sm font-semibold text-foreground leading-tight">{plano.plano_nome}</p>
+                </div>
+                <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                  style={{ backgroundColor: `${statusColor}20`, color: statusColor }}>
+                  <StatusIcon className="w-3 h-3" />
+                  {statusText}
+                </span>
+              </div>
+
+              {/* Datas + valor */}
+              <div className="grid grid-cols-2 gap-2">
+                {plano.plano_inicio && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Início</p>
+                    <p className="text-xs font-medium text-foreground mt-0.5">
+                      {format(new Date(plano.plano_inicio + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                )}
+                {venc && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Vencimento</p>
+                    <p className="text-xs font-medium mt-0.5" style={{ color: statusColor }}>
+                      {format(venc, "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                )}
+                {plano.plano_valor_pago != null && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Valor pago</p>
+                    <p className="text-xs font-semibold text-foreground mt-0.5">
+                      {Number(plano.plano_valor_pago).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Ferramentas IA */}
       <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>

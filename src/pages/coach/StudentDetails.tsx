@@ -2,8 +2,8 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, Utensils, Dumbbell, MessageSquare, Weight, ClipboardList, Star, ChevronDown, ChevronUp, Image as ImageIcon, TrendingUp, TrendingDown, Minus, Plus, Loader2 as Spinner, Sparkles, RefreshCw, ClipboardCheck, AlertCircle, Camera, X as XIcon, ChevronLeft as ChevLeft, ChevronRight as ChevRight, Download, Calendar, Play, ChevronRight, ScanLine, NotebookPen, Trash2 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ArrowLeft, User, Utensils, Dumbbell, MessageSquare, Weight, ClipboardList, Star, ChevronDown, ChevronUp, Image as ImageIcon, TrendingUp, TrendingDown, Minus, Plus, Loader2 as Spinner, Sparkles, RefreshCw, ClipboardCheck, AlertCircle, Camera, X as XIcon, ChevronLeft as ChevLeft, ChevronRight as ChevRight, Download, Calendar, Play, ChevronRight, ScanLine, NotebookPen, Trash2, BarChart2, CreditCard, CheckCircle2, Pencil, Save } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TrainingPlanManager from "./TrainingPlanManager";
@@ -21,11 +21,12 @@ interface StudentData {
   profiles: { nome: string };
 }
 
-type TabKey = "treinos" | "dieta" | "checkins" | "evolucao" | "anamnese" | "atualizacao" | "feedbacks" | "alongamentos" | "cardio" | "postural";
+type TabKey = "treinos" | "dieta" | "checkins" | "evolucao" | "anamnese" | "atualizacao" | "feedbacks" | "alongamentos" | "cardio" | "postural" | "plano";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "treinos",      label: "Treinos",      icon: Dumbbell       },
   { key: "dieta",        label: "Dieta",        icon: Utensils       },
+  { key: "plano",        label: "Plano",        icon: CreditCard     },
   { key: "alongamentos", label: "Alongamentos", icon: TrendingUp     },
   { key: "cardio",       label: "Cardio",       icon: Calendar       },
   { key: "postural",     label: "Avaliação",    icon: ScanLine       },
@@ -154,7 +155,7 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
           <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Gráfico de evolução</p>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
               <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
               <YAxis domain={["auto", "auto"]} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
@@ -1432,8 +1433,8 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
               Cancelar
             </button>
             <button onClick={save} disabled={saving || !selectedBase}
-              className="h-10 px-5 rounded-xl text-sm font-semibold text-black disabled:opacity-40 flex items-center gap-2 flex-1 justify-center"
-              style={{ background: saving || !selectedBase ? 'rgba(255,255,255,0.1)' : 'var(--cp-gradient)', color: saving || !selectedBase ? 'rgba(255,255,255,0.3)' : '#000' }}>
+              className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex items-center gap-2 flex-1 justify-center"
+              style={{ background: saving || !selectedBase ? 'rgba(255,255,255,0.1)' : 'var(--cp-gradient)', color: saving || !selectedBase ? 'rgba(255,255,255,0.3)' : '#fff' }}>
               {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Adicionar
             </button>
@@ -1727,7 +1728,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
               Cancelar
             </button>
             <button onClick={save} disabled={saving}
-              className="h-10 px-5 rounded-xl text-sm font-semibold text-black disabled:opacity-50 flex items-center gap-2 flex-1 justify-center"
+              className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2 flex-1 justify-center"
               style={{ background: 'linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))' }}>
               {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Salvar
@@ -2421,6 +2422,681 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
   );
 };
 
+// ── Volume por grupamento ─────────────────────────────────────────
+const GRUPO_COLORS: Record<string, string> = {
+  'Peito':       '#ec4899',
+  'Costas':      '#3b82f6',
+  'Ombros':      '#f97316',
+  'Bíceps':      '#a855f7',
+  'Tríceps':     '#eab308',
+  'Abdômen':     '#06b6d4',
+  'Glúteos':     '#10b981',
+  'Quadríceps':  '#f59e0b',
+  'Posteriores': '#6366f1',
+  'Panturrilha': '#84cc16',
+};
+
+const VOL_SETTINGS_KEY = 'orbi_volume_settings';
+
+interface VolumeSettings {
+  countWarmup:      boolean;
+  countFeeder:      boolean;
+  dropSetMult:      number;
+  restPauseMult:    number;
+  muscleRoundMult:  number;
+  clusterLoadMult:  number;
+  clusterRepsMult:  number;
+}
+
+const DEFAULT_VOL_SETTINGS: VolumeSettings = {
+  countWarmup:      false,
+  countFeeder:      false,
+  dropSetMult:      1.5,
+  restPauseMult:    1.5,
+  muscleRoundMult:  2,
+  clusterLoadMult:  1,
+  clusterRepsMult:  2,
+};
+
+const loadVolSettings = (): VolumeSettings => {
+  try {
+    const s = localStorage.getItem(VOL_SETTINGS_KEY);
+    return s ? { ...DEFAULT_VOL_SETTINGS, ...JSON.parse(s) } : DEFAULT_VOL_SETTINGS;
+  } catch { return DEFAULT_VOL_SETTINGS; }
+};
+
+const saveVolSettings = (s: VolumeSettings) => {
+  try { localStorage.setItem(VOL_SETTINGS_KEY, JSON.stringify(s)); } catch {}
+};
+
+/** Returns effective sets for one serie entry (já multiplica pela quantidade) */
+const calcSerieVol = (s: any, cfg: VolumeSettings): number => {
+  const qty = Math.max(1, parseInt(s.quantidade) || 1);
+  switch (s.tipo) {
+    case 'warm-up':      return cfg.countWarmup ? qty : 0;
+    case 'feeder':       return cfg.countFeeder  ? qty : 0;
+    case 'trabalho':     return qty;
+    case 'tecnica':      return qty;
+    case 'drop-set':     return qty * cfg.dropSetMult;
+    case 'rest-pause':   return qty * cfg.restPauseMult;
+    case 'muscle-round': return qty * cfg.muscleRoundMult;
+    case 'cluster':
+      return qty * ((s.tipo_calculo === 'percentual' || s.tipo_calculo === 'aumento')
+        ? cfg.clusterLoadMult
+        : cfg.clusterRepsMult);
+    default: return qty;
+  }
+};
+
+/** Returns total effective sets for one exercício row */
+const calcExVol = (ex: any, cfg: VolumeSettings): number => {
+  const sd = ex.series_detalhadas;
+  if (Array.isArray(sd) && sd.length > 0) {
+    return sd.reduce((acc: number, s: any) => acc + calcSerieVol(s, cfg), 0);
+  }
+  return parseInt(ex.series) || 0;
+};
+
+/** Splits "Glúteos,Quadríceps" → ['Glúteos', 'Quadríceps'] */
+const parseGroups = (s: string | null | undefined): string[] =>
+  s ? s.split(',').map(g => g.trim()).filter(Boolean) : [];
+
+// ── Carga progression viewer (coach – Treinos tab) ────────────────
+interface ExercicioOption { id: string; nome: string }
+
+const toNumCoach = (s: string): number | null => {
+  const m = s.match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+};
+
+const CargaTooltipCoach = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border px-3 py-2" style={{ backgroundColor: "#111113", borderColor: "rgba(255,255,255,0.1)" }}>
+      <p className="text-[11px] text-white/40">{label}</p>
+      <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
+    </div>
+  );
+};
+
+const ALL_GRUPOS_VOL = [
+  'Peito','Costas','Ombros','Bíceps','Tríceps',
+  'Abdômen','Glúteos','Quadríceps','Posteriores','Panturrilha',
+];
+
+const VolTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-white/10 px-3 py-2 space-y-1" style={{ backgroundColor: "#18181b" }}>
+      <p className="text-[11px] font-semibold mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</p>
+      {payload.map((p: any) => (
+        <div key={p.dataKey} className="flex items-center gap-2 min-w-[130px]">
+          <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
+          <span className="text-xs flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>{p.dataKey}</span>
+          <span className="text-xs font-bold" style={{ color: p.color }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/** Painel compartilhado: gráfico de linhas + legenda */
+const VolumePanel = ({
+  chartData, grupos, chartType, emptyMsg, setsLabel,
+}: {
+  chartData: Record<string, any>[];
+  grupos: string[];
+  chartType: 'bar' | 'line';
+  emptyMsg: string;
+  setsLabel?: string;
+}) => {
+  /* Totais acumulados por músculo (soma de todas as semanas) */
+  const totais: Record<string, number> = {};
+  for (const row of chartData) {
+    for (const [k, v] of Object.entries(row)) {
+      if (k === 'week') continue;
+      totais[k] = (totais[k] || 0) + (v as number);
+    }
+  }
+  const maxVol = Math.max(...Object.values(totais), 1);
+
+  const axisProps = {
+    tick: { fill: "rgba(255,255,255,0.35)", fontSize: 11 },
+    tickLine: false as const,
+    axisLine: false as const,
+  };
+
+  const hasAnyData = grupos.length > 0 && chartData.length > 0;
+
+  return (
+    <div className="space-y-0 rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+
+      {/* ── Gráfico de linhas (Volume Realizado) ── */}
+      {chartType === 'line' && (
+        <div className="p-4 border-b border-white/5">
+          {!hasAnyData ? (
+            <div className="flex items-center justify-center h-[180px]">
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>{emptyMsg}</p>
+            </div>
+          ) : (
+            <div style={{ width: "100%", height: 240 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                  <XAxis dataKey="week" {...axisProps} interval="preserveStartEnd" />
+                  <YAxis {...axisProps} allowDecimals={false} width={36} />
+                  <Tooltip content={<VolTooltip />} />
+                  {grupos.map(g => (
+                    <Line key={g} type="monotone" dataKey={g}
+                      stroke={GRUPO_COLORS[g] ?? '#6366f1'} strokeWidth={2.5}
+                      dot={{ r: 4, strokeWidth: 0, fill: GRUPO_COLORS[g] ?? '#6366f1' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }} connectNulls
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cabeçalho da tabela */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/6">
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>Músculo</span>
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>
+          {setsLabel ?? (chartType === 'bar' ? 'Sets prescritos' : 'Total sets')}
+        </span>
+      </div>
+
+      {/* Linhas — todos os 10 músculos sempre visíveis */}
+      {ALL_GRUPOS_VOL.map((g, i) => {
+        const val = Math.round((totais[g] || 0) * 10) / 10;
+        const color = GRUPO_COLORS[g] ?? '#6366f1';
+        const hasData = val > 0;
+        return (
+          <div key={g} className="flex items-center gap-4 px-5 py-4"
+            style={{ borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
+            {/* Checkbox colorido */}
+            <div className="w-6 h-6 rounded-md shrink-0 flex items-center justify-center"
+              style={{ backgroundColor: hasData ? color : 'rgba(255,255,255,0.07)' }}>
+              {hasData && (
+                <svg viewBox="0 0 10 8" className="w-3 h-3" fill="none">
+                  <path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+            {/* Nome */}
+            <span className="flex-1 text-base" style={{ color: hasData ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.25)" }}>
+              {g}
+            </span>
+            {/* Valor */}
+            <span className="text-base font-bold tabular-nums" style={{ color: hasData ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.18)" }}>
+              {val || 0}
+            </span>
+          </div>
+          );
+        })}
+      </div>
+  );
+};
+
+/** Retorna a segunda-feira da semana de uma data ISO */
+const getWeekStart = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const day = d.getUTCDay(); // 0=Dom
+  const diff = day === 0 ? -6 : 1 - day;
+  const mon = new Date(d);
+  mon.setUTCDate(d.getUTCDate() + diff);
+  return mon.toISOString().split('T')[0]; // "YYYY-MM-DD" da segunda-feira
+};
+
+const fmtWeekLabel = (iso: string): string => {
+  try { return format(parseISO(iso), "dd/MM", { locale: ptBR }); } catch { return iso; }
+};
+
+const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
+  const [view,        setView]        = useState<'carga' | 'volume'>('carga');
+  const [volView,     setVolView]     = useState<'prescrito' | 'realizado'>('prescrito');
+  // aba carga
+  const [exercicios,  setExercicios]  = useState<ExercicioOption[]>([]);
+  const [selectedId,  setSelectedId]  = useState<string | null>(null);
+  const [historico,   setHistorico]   = useState<{ carga: string; data_registro: string }[]>([]);
+  const [loadingEx,   setLoadingEx]   = useState(true);
+  const [loadingHist, setLoadingHist] = useState(false);
+  // volume prescrito
+  const [prescrData,   setPrescrData]   = useState<Record<string, any>[]>([]);
+  const [prescrGrupos, setPrescrGrupos] = useState<string[]>([]);
+  const [loadingPresc, setLoadingPresc] = useState(false);
+  // volume realizado
+  const [volChartData,  setVolChartData]  = useState<Record<string, any>[]>([]);
+  const [volGrupos,     setVolGrupos]     = useState<string[]>([]);
+  const [loadingVol,    setLoadingVol]    = useState(false);
+  const [volSettings,   setVolSettings]   = useState<VolumeSettings>(loadVolSettings);
+  const [showSettings,  setShowSettings]  = useState(false);
+
+  useEffect(() => { loadExercicios(); loadVolumePrescrito(); loadVolume(volSettings); }, [alunoId]);
+  useEffect(() => { if (selectedId) loadHistorico(selectedId); }, [selectedId]);
+
+  /** Volume Prescrito: séries planejadas pelo treinador, agrupadas por semana/bloco */
+  const loadVolumePrescrito = async () => {
+    setLoadingPresc(true);
+    setPrescrData([]);
+    setPrescrGrupos([]);
+    try {
+      const { data: plano } = await supabase
+        .from("planos_treino")
+        .select("id, data_inicio")
+        .eq("aluno_id", alunoId)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (!plano?.data_inicio) return;
+
+      const planStart = parseISO(plano.data_inicio);
+
+      const { data: semanas } = await supabase
+        .from("semanas")
+        .select("id, numero_semana, semana_inicio, semana_fim")
+        .eq("plano_id", plano.id)
+        .order("semana_inicio", { ascending: true });
+      if (!semanas?.length) return;
+
+      const semanaIds = semanas.map((s: any) => s.id);
+      const { data: treinos } = await supabase
+        .from("treinos").select("id, semana_id").in("semana_id", semanaIds);
+      if (!treinos?.length) return;
+
+      const treinoIds = treinos.map((t: any) => t.id);
+      const { data: exercicios } = await supabase
+        .from("exercicios")
+        .select("id, treino_id, series, series_detalhadas, exercicio_base_id")
+        .in("treino_id", treinoIds);
+      if (!exercicios?.length) return;
+
+      const baseIds = [...new Set((exercicios ?? []).map((e: any) => e.exercicio_base_id).filter(Boolean))];
+      const baseMap: Record<string, any> = {};
+      if (baseIds.length) {
+        const { data: bases } = await supabase
+          .from("exercicios_base")
+          .select("id, grupo_muscular_principal, grupo_muscular_secundario")
+          .in("id", baseIds);
+        for (const b of bases ?? []) baseMap[b.id] = b;
+      }
+
+      // Índice: treino_id → semana_id
+      const treinoToSem: Record<string, string> = {};
+      for (const t of treinos) treinoToSem[(t as any).id] = (t as any).semana_id;
+
+      // Agrega volume por semana
+      const semMap: Record<string, Record<string, number>> = {};
+      for (const s of semanas) semMap[(s as any).id] = {};
+      const allG = new Set<string>();
+
+      for (const ex of exercicios as any[]) {
+        const semId = treinoToSem[ex.treino_id];
+        if (!semId) continue;
+        const base = baseMap[ex.exercicio_base_id];
+        if (!base) continue;
+        const vol = calcExVol(ex, volSettings);
+        for (const g of parseGroups(base.grupo_muscular_principal)) {
+          allG.add(g); semMap[semId][g] = (semMap[semId][g] || 0) + vol;
+        }
+        for (const g of parseGroups(base.grupo_muscular_secundario)) {
+          allG.add(g); semMap[semId][g] = (semMap[semId][g] || 0) + vol * 0.5;
+        }
+      }
+
+      const rows = (semanas as any[])
+        .sort((a, b) => (a.semana_inicio ?? a.numero_semana) - (b.semana_inicio ?? b.numero_semana))
+        .map(s => {
+          const ini = s.semana_inicio ?? s.numero_semana ?? 1;
+          const startDate = new Date(planStart.getTime() + (ini - 1) * 7 * 86400_000);
+          const label = fmtWeekLabel(startDate.toISOString());
+          const row: Record<string, any> = { week: label };
+          for (const [g, v] of Object.entries(semMap[s.id] ?? {})) row[g] = Math.round((v as number) * 10) / 10;
+          return row;
+        });
+
+      setPrescrGrupos([...allG].sort());
+      setPrescrData(rows);
+    } catch (e: any) {
+      console.warn("[loadVolumePrescrito]", e?.message ?? e);
+    } finally { setLoadingPresc(false); }
+  };
+
+  /**
+   * Volume real executado: agrega séries por grupamento muscular semana a semana
+   * a partir do historico_carga (execuções reais do aluno, não do plano estático).
+   */
+  const loadVolume = async (cfg: VolumeSettings) => {
+    setLoadingVol(true);
+    setVolGrupos([]);
+    setVolChartData([]);
+    try {
+      // 1. Plano ativo — precisa da data_inicio para calcular datas das semanas
+      const { data: plano, error: errP } = await supabase
+        .from("planos_treino")
+        .select("id, data_inicio")
+        .eq("aluno_id", alunoId)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (errP) { console.warn("[vol] plano:", errP.message); return; }
+      if (!plano?.data_inicio) return;
+
+      const planStart = parseISO(plano.data_inicio); // Date base do plano
+
+      // 2. Semanas do plano (semana_inicio e semana_fim são números de semana, ex: 1 e 8)
+      const { data: semanas, error: errSem } = await supabase
+        .from("semanas")
+        .select("id, numero_semana, semana_inicio, semana_fim")
+        .eq("plano_id", plano.id)
+        .order("semana_inicio", { ascending: true });
+      if (errSem) { console.warn("[vol] semanas:", errSem.message); return; }
+      if (!semanas?.length) return;
+
+      // Cada semana/bloco ocupa semana_inicio..semana_fim semanas do plano.
+      // Data de início do bloco = planStart + (semana_inicio - 1) * 7 dias
+      // Data de fim    do bloco = planStart + semana_fim * 7 dias (exclusivo)
+      const semanaRanges = semanas.map((s: any) => {
+        const ini = s.semana_inicio ?? s.numero_semana ?? 1;
+        const fim = s.semana_fim    ?? ini;
+        const startMs = planStart.getTime() + (ini - 1) * 7 * 86400_000;
+        const endMs   = planStart.getTime() + fim       * 7 * 86400_000; // exclusivo
+        return {
+          id:       s.id as string,
+          startMs,
+          endMs,
+          label: fmtWeekLabel(new Date(startMs).toISOString()),
+          sortKey: startMs,
+        };
+      });
+
+      // 3. Todos os treinos → exercícios do plano para montar o mapa exId → grupos
+      const semanaIds = semanas.map((s: any) => s.id);
+      const { data: treinos } = await supabase
+        .from("treinos").select("id, semana_id").in("semana_id", semanaIds);
+
+      const exMap: Record<string, any> = {};
+      if (treinos?.length) {
+        const treinoIds = treinos.map((t: any) => t.id);
+        const { data: exercicios } = await supabase
+          .from("exercicios")
+          .select("id, series, series_detalhadas, exercicio_base_id")
+          .in("treino_id", treinoIds);
+
+        const baseIds = [...new Set((exercicios ?? []).map((e: any) => e.exercicio_base_id).filter(Boolean))];
+        const baseMap: Record<string, any> = {};
+        if (baseIds.length) {
+          const { data: bases } = await supabase
+            .from("exercicios_base")
+            .select("id, grupo_muscular_principal, grupo_muscular_secundario")
+            .in("id", baseIds);
+          for (const b of bases ?? []) baseMap[b.id] = b;
+        }
+        for (const e of exercicios ?? []) exMap[e.id] = { ...e, base: baseMap[e.exercicio_base_id] };
+      }
+
+      // 4. Histórico real de execuções do aluno
+      const { data: histo, error: errH } = await supabase
+        .from("historico_carga")
+        .select("exercicio_id, data_registro")
+        .eq("aluno_id", alunoId)
+        .not("exercicio_id", "is", null)
+        .order("data_registro", { ascending: true });
+      if (errH) { console.warn("[vol] historico:", errH.message); return; }
+      if (!histo?.length) return;
+
+      // 5. Deduplica por (exercicio_id, dia) e mapeia ao bloco correto do plano
+      const seen = new Set<string>();
+      const allGrupos = new Set<string>();
+      // weekVol: semana.startMs → grupo → volume
+      const weekVol: Record<number, Record<string, number>> = {};
+      for (const sem of semanaRanges) weekVol[sem.startMs] = {};
+
+      for (const h of histo) {
+        if (!h.exercicio_id) continue;
+        const day = (h.data_registro as string).slice(0, 10);
+        const dedupKey = `${h.exercicio_id}__${day}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+
+        // Qual bloco cobre esta data?
+        const hMs = new Date(h.data_registro).getTime();
+        const sem = semanaRanges.find(s => hMs >= s.startMs && hMs < s.endMs);
+        if (!sem) continue; // fora do intervalo do plano
+
+        const ex = exMap[h.exercicio_id];
+        if (!ex?.base) continue;
+        const vol = calcExVol(ex, cfg);
+        for (const g of parseGroups(ex.base.grupo_muscular_principal)) {
+          allGrupos.add(g);
+          weekVol[sem.startMs][g] = (weekVol[sem.startMs][g] || 0) + vol;
+        }
+        for (const g of parseGroups(ex.base.grupo_muscular_secundario)) {
+          allGrupos.add(g);
+          weekVol[sem.startMs][g] = (weekVol[sem.startMs][g] || 0) + vol * 0.5;
+        }
+      }
+
+      // 6. Monta rows para recharts — ordenados pela data real do bloco
+      const chartRows = semanaRanges
+        .sort((a, b) => a.sortKey - b.sortKey)
+        .map(sem => {
+          const row: Record<string, any> = { week: sem.label };
+          for (const [g, v] of Object.entries(weekVol[sem.startMs])) {
+            row[g] = Math.round(v * 10) / 10;
+          }
+          return row;
+        });
+
+      setVolGrupos([...allGrupos].sort());
+      setVolChartData(chartRows);
+    } catch (e: any) {
+      console.warn("[loadVolume] erro:", e?.message ?? e);
+    } finally { setLoadingVol(false); }
+  };
+
+  const updateVolSettings = (patch: Partial<VolumeSettings>) => {
+    setVolSettings(prev => {
+      const next = { ...prev, ...patch };
+      saveVolSettings(next);
+      loadVolume(next);
+      return next;
+    });
+  };
+
+  const loadExercicios = async () => {
+    setLoadingEx(true);
+    try {
+      const { data } = await supabase
+        .from("historico_carga")
+        .select("exercicio_id, exercicios(nome_exercicio)")
+        .eq("aluno_id", alunoId)
+        .order("exercicio_id");
+      const seen = new Set<string>();
+      const list: ExercicioOption[] = [];
+      for (const r of data ?? []) {
+        if (!seen.has(r.exercicio_id)) {
+          seen.add(r.exercicio_id);
+          list.push({ id: r.exercicio_id, nome: (r.exercicios as any)?.nome_exercicio ?? r.exercicio_id });
+        }
+      }
+      list.sort((a, b) => a.nome.localeCompare(b.nome));
+      setExercicios(list);
+      if (list.length > 0) setSelectedId(list[0].id);
+    } finally { setLoadingEx(false); }
+  };
+
+  const loadHistorico = async (exercicioId: string) => {
+    setLoadingHist(true);
+    const { data } = await supabase
+      .from("historico_carga")
+      .select("carga, data_registro")
+      .eq("aluno_id", alunoId)
+      .eq("exercicio_id", exercicioId)
+      .order("data_registro", { ascending: true })
+      .limit(60);
+    setHistorico(data ?? []);
+    setLoadingHist(false);
+  };
+
+  const chartData = historico
+    .map((r) => ({ date: format(parseISO(r.data_registro), "dd/MM", { locale: ptBR }), carga: toNumCoach(r.carga) }))
+    .filter((r) => r.carga != null) as { date: string; carga: number }[];
+
+  const cargas = chartData.map((d) => d.carga);
+  const cargaMax    = cargas.length ? Math.max(...cargas) : null;
+  const cargaAtual  = cargas.length ? cargas[cargas.length - 1] : null;
+  const cargaInicial = cargas.length ? cargas[0] : null;
+  const variacao = cargaInicial && cargaInicial > 0 && cargaAtual != null
+    ? ((cargaAtual - cargaInicial) / cargaInicial) * 100 : null;
+
+  if (loadingEx) return null;
+
+  return (
+    <div className="space-y-4">
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+        {([
+          { key: 'carga',  label: 'Progressão de Carga',      icon: <TrendingUp className="w-3.5 h-3.5" /> },
+          { key: 'volume', label: 'Volume por Grupamento', icon: <BarChart2 className="w-3.5 h-3.5" /> },
+        ] as const).map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={{
+              backgroundColor: view === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
+              color: view === key ? "var(--cp-400)" : "rgba(255,255,255,0.4)",
+              border: view === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
+            }}
+          >
+            {icon}{label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Aba: Progressão de Carga ── */}
+      {view === 'carga' && (exercicios.length === 0 ? (
+        <div className="rounded-2xl border border-white/8 py-10 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <p className="text-white/30 text-sm">Nenhum histórico de carga ainda.</p>
+          <p className="text-white/20 text-xs mt-1">O aluno precisa registrar cargas no app para aparecer aqui.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {exercicios.map((ex) => (
+              <button key={ex.id} onClick={() => setSelectedId(ex.id)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: selectedId === ex.id ? "rgba(var(--cp-rgb),0.2)" : "rgba(255,255,255,0.05)",
+                  color: selectedId === ex.id ? "var(--cp-400)" : "rgba(255,255,255,0.45)",
+                  border: `1px solid ${selectedId === ex.id ? "rgba(var(--cp-rgb),0.3)" : "rgba(255,255,255,0.07)"}`,
+                }}>
+                {ex.nome}
+              </button>
+            ))}
+          </div>
+
+          {loadingHist ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-white/30">
+              <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+            </div>
+          ) : chartData.length < 1 ? (
+            <div className="rounded-2xl border border-white/8 py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+              <p className="text-white/30 text-sm">Nenhum registro de carga para este exercício.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Maior carga", value: cargaMax != null ? `${cargaMax} kg` : "—" },
+                  { label: "Carga atual", value: cargaAtual != null ? `${cargaAtual} kg` : "—" },
+                  { label: "Variação", value: variacao != null ? `${variacao > 0 ? "+" : ""}${variacao.toFixed(1)}%` : "—",
+                    color: variacao == null ? undefined : variacao > 0 ? "hsl(42 95% 58%)" : "hsl(0 70% 55%)" },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-2xl border border-white/8 px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">{s.label}</p>
+                    <p className="text-base font-bold" style={{ color: s.color ?? "#fff" }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
+                  {exercicios.find((e) => e.id === selectedId)?.nome}
+                </p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis domain={["auto", "auto"]} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CargaTooltipCoach />} />
+                    <Line type="monotone" dataKey="carga" stroke="hsl(42 95% 58%)" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(42 95% 58%)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          )}
+        </>
+      ))}
+
+      {/* ── Aba: Volume por Grupamento ── */}
+      {view === 'volume' && (
+        <div className="space-y-4">
+          {/* Sub-abas: Prescrito / Realizado */}
+          <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+            {([
+              { key: 'prescrito', label: 'Volume Prescrito' },
+              { key: 'realizado', label: 'Volume Realizado' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setVolView(key)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: volView === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
+                  color: volView === key ? "var(--cp-400)" : "rgba(255,255,255,0.4)",
+                  border: volView === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
+                }}
+              >{label}</button>
+            ))}
+          </div>
+
+          {/* ── Sub-aba: Volume Prescrito ── */}
+          {volView === 'prescrito' && (loadingPresc ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-white/30">
+              <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+            </div>
+          ) : (
+            <VolumePanel
+              chartData={prescrData}
+              grupos={prescrGrupos}
+              chartType="bar"
+              setsLabel="Sets prescritos"
+              emptyMsg="Nenhum exercício com grupamento definido no plano."
+            />
+          ))}
+
+          {/* ── Sub-aba: Volume Realizado ── */}
+          {volView === 'realizado' && (loadingVol ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-white/30">
+              <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+            </div>
+          ) : (
+            <VolumePanel
+              chartData={volChartData}
+              grupos={volGrupos}
+              chartType="line"
+              setsLabel="Total sets"
+              emptyMsg="Nenhuma sessão registrada ainda."
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Sidebar color — keeps header band consistent with sidebar
 const BAND_BG = "#0f0f11";
 
@@ -2435,6 +3111,17 @@ const StudentDetails = () => {
   const [activeTab,     setActiveTab]     = useState<TabKey>("treinos");
   const [studentWeight, setStudentWeight] = useState<number | null>(null);
   const [coachId,       setCoachId]       = useState<string | null>(null);
+  const [plano, setPlano] = useState<{
+    plano_nome: string;
+    plano_inicio: string;
+    data_expiracao_plano: string;
+    plano_valor_pago: number | null;
+  } | null>(null);
+  const [planoEdit, setPlanoEdit] = useState(false);
+  const [planoForm, setPlanoForm] = useState({
+    plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: ""
+  });
+  const [planoSaving, setPlanoSaving] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -2456,12 +3143,18 @@ const StudentDetails = () => {
       if (!session) return;
       const { data, error } = await supabase
         .from("alunos")
-        .select("id, user_id, observacoes, profiles!alunos_user_id_fkey(nome)")
+        .select("id, user_id, observacoes, profiles!alunos_user_id_fkey(nome), plano_nome, plano_inicio, data_expiracao_plano, plano_valor_pago")
         .eq("id", id)
         .eq("treinador_id", session.user.id)
         .single();
       if (error) throw error;
       setStudent(data as StudentData);
+      // Carrega plano se existir
+      if ((data as any).plano_nome) {
+        const p = data as any;
+        setPlano({ plano_nome: p.plano_nome, plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago ?? null });
+        setPlanoForm({ plano_nome: p.plano_nome ?? "", plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago != null ? String(p.plano_valor_pago) : "" });
+      }
       // Busca peso do último check-in
       loadWeight((data as StudentData).user_id);
     } catch (err: any) {
@@ -2609,7 +3302,142 @@ const StudentDetails = () => {
       ══════════════════════════════════════════════════════ */}
       <div className="px-6 lg:px-8 py-6 max-w-5xl">
 
-        {activeTab === "treinos" && <TrainingPlanManager studentId={id!} />}
+        {activeTab === "treinos" && (
+          <div className="space-y-8">
+            <TrainingPlanManager studentId={id!} />
+            <div className="rounded-2xl border border-white/8 p-5" style={{ backgroundColor: "rgba(255,255,255,0.015)" }}>
+              <CargaProgressao alunoId={id!} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "plano" && (() => {
+          const savePlano = async () => {
+            if (!planoForm.plano_nome.trim()) {
+              toast({ title: "Nome do plano obrigatório", variant: "destructive" }); return;
+            }
+            setPlanoSaving(true);
+            try {
+              const payload: Record<string, unknown> = {
+                plano_nome:           planoForm.plano_nome.trim() || null,
+                plano_inicio:         planoForm.plano_inicio      || null,
+                data_expiracao_plano: planoForm.data_expiracao_plano || null,
+                plano_valor_pago:     planoForm.plano_valor_pago   ? parseFloat(planoForm.plano_valor_pago.replace(",", ".")) : null,
+              };
+              const { error } = await supabase.from("alunos").update(payload).eq("id", id!);
+              if (error) throw error;
+              setPlano({ plano_nome: payload.plano_nome as string, plano_inicio: payload.plano_inicio as string, data_expiracao_plano: payload.data_expiracao_plano as string, plano_valor_pago: payload.plano_valor_pago as number | null });
+              setPlanoEdit(false);
+              toast({ title: "Plano atualizado!" });
+            } catch (e: any) {
+              toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+            } finally { setPlanoSaving(false); }
+          };
+
+          const hoje = new Date(); hoje.setHours(0,0,0,0);
+          const venc = plano?.data_expiracao_plano ? new Date(plano.data_expiracao_plano + "T00:00:00") : null;
+          const dias = venc ? Math.ceil((venc.getTime() - hoje.getTime()) / 86400000) : null;
+          const cor  = dias === null ? "rgba(255,255,255,0.4)" : dias < 0 ? "hsl(0 70% 60%)" : dias <= 7 ? "hsl(38 95% 58%)" : "hsl(142 70% 50%)";
+          const statusTxt = dias === null ? "Sem vencimento" : dias < 0 ? "Vencido" : dias === 0 ? "Vence hoje" : dias <= 7 ? `Vence em ${dias} dias` : "Ativo";
+
+          const inp = "w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-amber-500/40";
+          const lbl = "text-[11px] text-white/40 uppercase tracking-wider mb-1 block";
+
+          return (
+            <div className="max-w-lg space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+                  <h2 className="text-base font-bold text-white">Plano do aluno</h2>
+                </div>
+                {!planoEdit && (
+                  <button onClick={() => { setPlanoEdit(true); if (!plano) setPlanoForm({ plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: "" }); }}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                    style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}>
+                    <Pencil className="w-3 h-3" />{plano ? "Editar" : "Definir plano"}
+                  </button>
+                )}
+              </div>
+
+              {/* Read view */}
+              {plano && !planoEdit && (
+                <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">{plano.plano_nome}</p>
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                      style={{ backgroundColor: `${cor}20`, color: cor }}>{statusTxt}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {plano.plano_inicio && (
+                      <div>
+                        <p className="text-[10px] text-white/35 uppercase tracking-wider">Início</p>
+                        <p className="text-xs font-medium text-white mt-0.5">{format(new Date(plano.plano_inicio + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>
+                      </div>
+                    )}
+                    {venc && (
+                      <div>
+                        <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencimento</p>
+                        <p className="text-xs font-medium mt-0.5" style={{ color: cor }}>{format(venc, "dd/MM/yyyy", { locale: ptBR })}</p>
+                      </div>
+                    )}
+                    {plano.plano_valor_pago != null && (
+                      <div>
+                        <p className="text-[10px] text-white/35 uppercase tracking-wider">Valor pago</p>
+                        <p className="text-xs font-semibold text-white mt-0.5">{Number(plano.plano_valor_pago).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!plano && !planoEdit && (
+                <div className="rounded-2xl p-6 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}>
+                  <CreditCard className="w-6 h-6 text-white/15 mx-auto mb-2" />
+                  <p className="text-sm text-white/30">Nenhum plano definido</p>
+                  <p className="text-xs text-white/20 mt-1">Preenchido automaticamente via pagamento ou manualmente aqui.</p>
+                </div>
+              )}
+
+              {/* Edit form */}
+              {planoEdit && (
+                <div className="rounded-2xl p-4 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="space-y-1">
+                    <label className={lbl}>Nome do plano *</label>
+                    <input className={inp} value={planoForm.plano_nome} onChange={(e) => setPlanoForm(f => ({ ...f, plano_nome: e.target.value }))} placeholder="Ex: Consultoria Online Anual" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className={lbl}>Data de início</label>
+                      <input type="date" className={inp} value={planoForm.plano_inicio} onChange={(e) => setPlanoForm(f => ({ ...f, plano_inicio: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className={lbl}>Data de vencimento</label>
+                      <input type="date" className={inp} value={planoForm.data_expiracao_plano} onChange={(e) => setPlanoForm(f => ({ ...f, data_expiracao_plano: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className={lbl}>Valor pago (R$)</label>
+                    <input className={inp} value={planoForm.plano_valor_pago} onChange={(e) => setPlanoForm(f => ({ ...f, plano_valor_pago: e.target.value }))} placeholder="3600,00" inputMode="decimal" />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setPlanoEdit(false)}
+                      className="flex-1 h-10 rounded-xl text-sm font-medium text-white/50 transition-colors"
+                      style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                      Cancelar
+                    </button>
+                    <button onClick={savePlano} disabled={planoSaving}
+                      className="flex-1 h-10 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={{ background: "var(--cp-gradient)" }}>
+                      {planoSaving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {activeTab === "dieta" && (
           <div className="space-y-6">

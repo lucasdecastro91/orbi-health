@@ -265,7 +265,7 @@ const Mensagens = () => {
                 </div>
                 {unread > 0 && (
                   <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-black shrink-0"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                     style={{ background: "var(--cp-gradient)" }}
                   >
                     {unread > 9 ? "9+" : unread}

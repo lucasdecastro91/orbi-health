@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users, BookOpen, FileText, Settings, LogOut, ShieldCheck,
   Apple, Database, ChevronDown, Calendar, MessageSquare,
-  AlertCircle, Crown, Bell,
+  AlertCircle, Crown, Bell, ListOrdered, ClipboardList, ClipboardCheck, Package,
+  LayoutDashboard, ScanLine, Target, Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
@@ -51,7 +52,9 @@ const CoachLayout = () => {
   const [profileName, setProfileName]     = useState("");
   const [profileAvatar, setProfileAvatar] = useState("");
   const [userEmail, setUserEmail]         = useState("");
+  const [clientesOpen,  setClientesOpen]  = useState(false);
   const [alimentosOpen, setAlimentosOpen] = useState(false);
+  const [configOpen,    setConfigOpen]    = useState(false);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [orgStatus, setOrgStatus]         = useState<string>("trial");
@@ -85,13 +88,34 @@ const CoachLayout = () => {
     }
   }, [org]);
 
+  // Auto-expand Clientes section if we're on the clientes page
+  useEffect(() => {
+    if (location.pathname.includes("/clientes")) {
+      setClientesOpen(true);
+    }
+  }, [location.pathname]);
+
   // Auto-expand Alimentos section if we're on a food page
   useEffect(() => {
     if (
       location.pathname.includes("/alimentos") ||
-      location.pathname.includes("/revisao-alimentos")
+      location.pathname.includes("/revisao-alimentos") ||
+      location.pathname.includes("/lista-substituicao")
     ) {
       setAlimentosOpen(true);
+    }
+  }, [location.pathname]);
+
+  // Auto-expand Configurações section if we're on config, formulario or anamnese page
+  useEffect(() => {
+    if (
+      location.pathname.includes("/configuracoes") ||
+      location.pathname.includes("/formulario") ||
+      location.pathname.includes("/alterar-senha") ||
+      location.pathname.includes("/anamnese-builder") ||
+      location.pathname.includes("/postural-eval-builder")
+    ) {
+      setConfigOpen(true);
     }
   }, [location.pathname]);
 
@@ -162,40 +186,75 @@ const CoachLayout = () => {
 
   // Mobile bottom-nav items (flat, no sub-items)
   const menuItems = [
-    { icon: Users,           label: "Alunos",     path: base,                       badge: 0 },
-    { icon: Calendar,        label: "Agenda",     path: `${base}/agenda`,           badge: 0 },
-    { icon: MessageSquare,   label: "Mensagens",  path: `${base}/mensagens`,        badge: unreadCount },
-    { icon: Apple,           label: "Alimentos",  path: `${base}/alimentos`,        badge: 0 },
-    { icon: Settings,        label: "Config.",    path: `${base}/configuracoes`,    badge: 0 },
+    { icon: LayoutDashboard, label: "Resumo",    path: base,                       badge: 0 },
+    { icon: Users,           label: "Clientes",  path: `${base}/clientes`,         badge: 0 },
+    { icon: MessageSquare,   label: "Mensagens", path: `${base}/mensagens`,        badge: unreadCount },
+    { icon: Apple,           label: "Alimentos", path: `${base}/alimentos`,        badge: 0 },
+    { icon: Settings,        label: "Config.",   path: `${base}/configuracoes`,    badge: 0 },
   ];
 
-  // Sidebar items (desktop)
-  const mainItems = [
-    { icon: Users,          label: "Meus Alunos",             path: base,                    badge: 0 },
-    { icon: Calendar,       label: "Agenda",                  path: `${base}/agenda`,        badge: 0 },
-    { icon: MessageSquare,  label: "Mensagens",               path: `${base}/mensagens`,     badge: unreadCount },
-    { icon: Bell,           label: "Notificações",             path: `${base}/notificacoes`,  badge: 0 },
-    { icon: BookOpen,       label: "Biblioteca de Exercícios", path: `${base}/biblioteca`,   badge: 0 },
-    { icon: FileText,       label: "Modelos de Treino",        path: `${base}/modelos`,      badge: 0 },
-    { icon: Settings,       label: "Configurações",            path: `${base}/configuracoes`, badge: 0 },
+  // Sidebar items (desktop) — split into groups to allow expandable sections in between
+  // Order: Resumo → Clientes → Agenda/Mensagens/Produtos/Biblioteca/Modelos → Alimentos → Notificações → Configurações
+  const topItems = [
+    { icon: LayoutDashboard, label: "Resumo", path: base, badge: 0, exact: true },
+  ];
+
+  const midItems = [
+    { icon: Calendar,      label: "Agenda",                   path: `${base}/agenda`,     badge: 0,          exact: false },
+    { icon: MessageSquare, label: "Mensagens",                path: `${base}/mensagens`,  badge: unreadCount, exact: false },
+    { icon: Target,        label: "Leads / CRM",             path: `${base}/leads`,       badge: 0,          exact: false },
+    { icon: Wallet,        label: "Financeiro",              path: `${base}/financeiro`,  badge: 0,          exact: false },
+    { icon: Package,       label: "Produtos / Planos",        path: `${base}/produtos`,   badge: 0,          exact: false },
+    { icon: BookOpen,      label: "Biblioteca de Exercícios", path: `${base}/biblioteca`, badge: 0,          exact: false },
+    { icon: FileText,      label: "Modelos de Treino",        path: `${base}/modelos`,    badge: 0,          exact: false },
+  ];
+
+  const bottomItems = [
+    { icon: Bell, label: "Notificações", path: `${base}/notificacoes`, badge: 0, exact: false },
+  ];
+
+  // Meus Clientes sub-items
+  const clientesItems = [
+    { label: "Todos",     path: `${base}/clientes`,                  dot: "rgba(255,255,255,0.3)" },
+    { label: "Ativos",   path: `${base}/clientes?filter=ativos`,    dot: "rgb(74,222,128)" },
+    { label: "Inativos", path: `${base}/clientes?filter=inativos`,  dot: "rgba(255,255,255,0.3)" },
   ];
 
   // Alimentos sub-items
   const alimentosItems = [
-    { icon: Database,    label: "Banco de Alimentos", path: `${base}/alimentos` },
+    { icon: Database,      label: "Banco de Alimentos",    path: `${base}/alimentos` },
+    { icon: ListOrdered,   label: "Lista de Substituição", path: `${base}/lista-substituicao` },
     ...(isSuperAdmin
-      ? [{ icon: ShieldCheck, label: "Revisão",           path: `${base}/revisao-alimentos` }]
+      ? [{ icon: ShieldCheck, label: "Revisão",            path: `${base}/revisao-alimentos` }]
       : []),
   ];
 
-  const isActive = (path: string) =>
-    path === base
-      ? location.pathname === base
+  // Configurações sub-items
+  const configItems = [
+    { icon: Settings,      label: "Configurações",            path: `${base}/configuracoes`          },
+    { icon: ClipboardCheck, label: "Anamnese",                path: `${base}/anamnese-builder`       },
+    { icon: ScanLine,      label: "Avaliação Postural",        path: `${base}/postural-eval-builder`  },
+    { icon: ClipboardList, label: "Formulário de Atualização", path: `${base}/formulario`            },
+  ];
+
+  const isActive = (path: string, exact = false) =>
+    exact || path === base
+      ? location.pathname === path
       : location.pathname.startsWith(path);
+
+  const isClientesActive = location.pathname.startsWith(`${base}/clientes`);
 
   const isAlimentosActive =
     location.pathname.includes("/alimentos") ||
-    location.pathname.includes("/revisao-alimentos");
+    location.pathname.includes("/revisao-alimentos") ||
+    location.pathname.includes("/lista-substituicao");
+
+  const isConfigActive =
+    location.pathname.includes("/configuracoes") ||
+    location.pathname.includes("/formulario") ||
+    location.pathname.includes("/alterar-senha") ||
+    location.pathname.includes("/anamnese-builder") ||
+    location.pathname.includes("/postural-eval-builder");
 
   return (
     <div className="min-h-screen bg-background">
@@ -222,7 +281,7 @@ const CoachLayout = () => {
           />
         )}
         <div className="flex items-center gap-2">
-          <NotificationBell />
+          <NotificationBell role="coach" />
           <button
             onClick={handleLogout}
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
@@ -293,7 +352,7 @@ const CoachLayout = () => {
               className="w-[120px] h-auto object-contain"
             />
           )}
-          <NotificationBell />
+          <NotificationBell role="coach" />
         </div>
 
         {/* Profile */}
@@ -328,20 +387,102 @@ const CoachLayout = () => {
         {/* Nav items */}
         <nav className="flex-1 px-4 py-4 space-y-0.5 overflow-y-auto">
 
-          {/* Main items */}
-          {mainItems.map((item) => {
-            const active = isActive(item.path);
+          {/* ── Top items: Resumo ── */}
+          {topItems.map((item) => {
+            const active = isActive(item.path, item.exact);
             return (
               <Link key={item.path} to={item.path}>
                 <div
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
                   style={
                     active
-                      ? {
-                          background: "var(--cp-gradient)",
-                          color: "#ffffff",
-                          boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)",
-                        }
+                      ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                      : { color: S.textMuted }
+                  }
+                  onMouseEnter={(e) => {
+                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textMuted;
+                  }}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+
+          {/* ── Meus Clientes (expandable section) ── */}
+          <div>
+            <button
+              onClick={() => setClientesOpen((v) => !v)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={
+                isClientesActive && !clientesOpen
+                  ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                  : { color: isClientesActive ? S.textPrimary : S.textMuted }
+              }
+              onMouseEnter={(e) => {
+                if (!isClientesActive || clientesOpen) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                  (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isClientesActive || clientesOpen) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = isClientesActive ? S.textPrimary : S.textMuted;
+                }
+              }}
+            >
+              <Users className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Meus Clientes</span>
+              <ChevronDown
+                className="w-3.5 h-3.5 transition-transform duration-200"
+                style={{ transform: clientesOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+            {clientesOpen && (
+              <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: `1px solid ${S.border}` }}>
+                {clientesItems.map((item) => {
+                  const active = location.pathname + location.search === item.path ||
+                    (item.path === `${base}/clientes` && location.pathname === `${base}/clientes` && !location.search);
+                  return (
+                    <Link key={item.path} to={item.path}>
+                      <div
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                        style={active
+                          ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 8px rgba(var(--cp-rgb), 0.2)" }
+                          : { color: S.textMuted }}
+                        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover; (e.currentTarget as HTMLElement).style.color = S.textPrimary; } }}
+                        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLElement).style.color = S.textMuted; } }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: active ? "rgba(255,255,255,0.7)" : item.dot }}
+                        />
+                        {item.label}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Mid items: Agenda, Mensagens, Produtos, Biblioteca, Modelos ── */}
+          {midItems.map((item) => {
+            const active = isActive(item.path, item.exact);
+            return (
+              <Link key={item.path} to={item.path}>
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                  style={
+                    active
+                      ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
                       : { color: S.textMuted }
                   }
                   onMouseEnter={(e) => {
@@ -358,10 +499,7 @@ const CoachLayout = () => {
                   {item.badge > 0 && (
                     <span
                       className="min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center px-1"
-                      style={{
-                        backgroundColor: active ? "rgba(255,255,255,0.25)" : "hsl(0 70% 55%)",
-                        color: active ? "#fff" : "#fff",
-                      }}
+                      style={{ backgroundColor: active ? "rgba(255,255,255,0.25)" : "hsl(0 70% 55%)", color: "#fff" }}
                     >
                       {item.badge > 99 ? "99+" : item.badge}
                     </span>
@@ -373,17 +511,12 @@ const CoachLayout = () => {
 
           {/* ── Alimentos (expandable section) ── */}
           <div>
-            {/* Section header toggle */}
             <button
               onClick={() => setAlimentosOpen((v) => !v)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
               style={
                 isAlimentosActive && !alimentosOpen
-                  ? {
-                      background: "var(--cp-gradient)",
-                      color: "#ffffff",
-                      boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)",
-                    }
+                  ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
                   : { color: isAlimentosActive ? S.textPrimary : S.textMuted }
               }
               onMouseEnter={(e) => {
@@ -406,8 +539,6 @@ const CoachLayout = () => {
                 style={{ transform: alimentosOpen ? "rotate(180deg)" : "rotate(0deg)" }}
               />
             </button>
-
-            {/* Sub-items */}
             {alimentosOpen && (
               <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: `1px solid ${S.border}` }}>
                 {alimentosItems.map((item) => {
@@ -416,23 +547,89 @@ const CoachLayout = () => {
                     <Link key={item.path} to={item.path}>
                       <div
                         className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-                        style={
-                          active
-                            ? {
-                                background: "var(--cp-gradient)",
-                                color: "#ffffff",
-                                boxShadow: "0 2px 8px rgba(var(--cp-rgb), 0.2)",
-                              }
-                            : { color: S.textMuted }
-                        }
-                        onMouseEnter={(e) => {
-                          if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
-                          if (!active) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                          if (!active) (e.currentTarget as HTMLElement).style.color = S.textMuted;
-                        }}
+                        style={active ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 8px rgba(var(--cp-rgb), 0.2)" } : { color: S.textMuted }}
+                        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover; (e.currentTarget as HTMLElement).style.color = S.textPrimary; } }}
+                        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLElement).style.color = S.textMuted; } }}
+                      >
+                        <item.icon className="w-3.5 h-3.5 shrink-0" />
+                        {item.label}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Bottom items: Notificações ── */}
+          {bottomItems.map((item) => {
+            const active = isActive(item.path, item.exact);
+            return (
+              <Link key={item.path} to={item.path}>
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                  style={
+                    active
+                      ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                      : { color: S.textMuted }
+                  }
+                  onMouseEnter={(e) => {
+                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textMuted;
+                  }}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+
+          {/* ── Configurações (expandable section) ── */}
+          <div>
+            <button
+              onClick={() => setConfigOpen((v) => !v)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={
+                isConfigActive && !configOpen
+                  ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                  : { color: isConfigActive ? S.textPrimary : S.textMuted }
+              }
+              onMouseEnter={(e) => {
+                if (!isConfigActive || configOpen) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                  (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isConfigActive || configOpen) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = isConfigActive ? S.textPrimary : S.textMuted;
+                }
+              }}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Configurações</span>
+              <ChevronDown
+                className="w-3.5 h-3.5 transition-transform duration-200"
+                style={{ transform: configOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
+            {configOpen && (
+              <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: `1px solid ${S.border}` }}>
+                {configItems.map((item) => {
+                  const active = isActive(item.path);
+                  return (
+                    <Link key={item.path} to={item.path}>
+                      <div
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                        style={active ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 8px rgba(var(--cp-rgb), 0.2)" } : { color: S.textMuted }}
+                        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover; (e.currentTarget as HTMLElement).style.color = S.textPrimary; } }}
+                        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLElement).style.color = S.textMuted; } }}
                       >
                         <item.icon className="w-3.5 h-3.5 shrink-0" />
                         {item.label}

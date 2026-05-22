@@ -74,6 +74,7 @@ serve(async (req) => {
   const event = payload.event as string;
   const payment = payload.payment as Record<string, unknown> | undefined;
   const asaasSubId = payment?.subscription as string | undefined;
+  const asaasPaymentId = payment?.id as string | undefined;
 
   // Busca subscription e org
   let orgId: string | null = null;
@@ -114,6 +115,32 @@ serve(async (req) => {
       if (asaasSubId) {
         await setSubscriptionStatus(asaasSubId, "suspended", { grace_until: graceUntil });
       }
+
+      // Notifica aluno sobre cobrança avulsa vencida (evento 4)
+      if (asaasPaymentId && !asaasSubId) {
+        try {
+          const { data: cobOverdue } = await supabase
+            .from("cobrancas")
+            .select("id, aluno_id, org_id, descricao, data_vencimento")
+            .eq("asaas_id", asaasPaymentId)
+            .maybeSingle();
+          if (cobOverdue) {
+            const { data: alunoOverdue } = await supabase
+              .from("alunos").select("user_id").eq("id", cobOverdue.aluno_id).maybeSingle();
+            if (alunoOverdue?.user_id) {
+              const dueFmt = (cobOverdue.data_vencimento as string)?.split("-").reverse().join("/") ?? "";
+              await supabase.from("notificacoes").insert({
+                user_id:  alunoOverdue.user_id,
+                org_id:   cobOverdue.org_id,
+                titulo:   "Pagamento em atraso",
+                mensagem: `${cobOverdue.descricao} venceu em ${dueFmt}. Regularize para manter seu acesso.`,
+                tipo:     "financeiro",
+              });
+            }
+          }
+        } catch (_) { /* não bloqueia o fluxo principal */ }
+      }
+
       if (orgId) {
         // Mantém org active durante carência (painel do aluno continua)
         // Envia email de aviso (via enviar-email function se disponível)
@@ -165,6 +192,83 @@ serve(async (req) => {
     default:
       // Outros eventos apenas logados
       break;
+  }
+
+  // ── Cobranças de alunos (pagamentos avulsos criados pelo treinador) ─────────
+  // Identificados pelo asaas_id na tabela cobrancas (sem subscription)
+  if (asaasPaymentId && !asaasSubId) {
+    const COBRANCA_STATUS: Record<string, string> = {
+      PAYMENT_RECEIVED:  "RECEIVED",
+      PAYMENT_CONFIRMED: "CONFIRMED",
+      PAYMENT_OVERDUE:   "OVERDUE",
+      PAYMENT_DELETED:   "CANCELLED",
+      PAYMENT_REFUNDED:  "REFUNDED",
+      PAYMENT_RESTORED:  "PENDING",
+    };
+    const newStatus = COBRANCA_STATUS[event];
+    if (newStatus) {
+      const dataPagamento = (newStatus === "RECEIVED" || newStatus === "CONFIRMED")
+        ? (payment?.paymentDate as string ?? new Date().toISOString().slice(0, 10))
+        : null;
+
+      await supabase
+        .from("cobrancas")
+        .update({ status: newStatus, data_pagamento: dataPagamento })
+        .eq("asaas_id", asaasPaymentId);
+
+      // Ações pós-pagamento confirmado
+      if (newStatus === "RECEIVED" || newStatus === "CONFIRMED") {
+        const { data: cob } = await supabase
+          .from("cobrancas")
+          .select("id, treinador_id, org_id, aluno_id, valor, descricao, data_vencimento")
+          .eq("asaas_id", asaasPaymentId)
+          .maybeSingle();
+
+        if (cob) {
+          const { data: alunoRow } = await supabase
+            .from("alunos").select("user_id").eq("id", cob.aluno_id).maybeSingle();
+          const { data: prof } = alunoRow
+            ? await supabase.from("profiles").select("nome").eq("id", alunoRow.user_id).maybeSingle()
+            : { data: null };
+
+          const valorFmt = `R$ ${Number(cob.valor).toFixed(2).replace(".", ",")}`;
+          const datePaid = dataPagamento ?? new Date().toISOString().slice(0, 10);
+          const dateFmt  = datePaid.split("-").reverse().join("/");
+
+          // Notifica o treinador (evento 5)
+          await supabase.from("notificacoes").insert({
+            user_id:  cob.treinador_id,
+            org_id:   cob.org_id,
+            titulo:   `Pagamento recebido — ${valorFmt}`,
+            mensagem: `${prof?.nome ?? "Aluno"} pagou: ${cob.descricao}`,
+            tipo:     "financeiro",
+          });
+
+          // Notifica o aluno (evento 2)
+          if (alunoRow?.user_id) {
+            await supabase.from("notificacoes").insert({
+              user_id:  alunoRow.user_id,
+              org_id:   cob.org_id,
+              titulo:   "Pagamento confirmado!",
+              mensagem: `${cob.descricao} — ${valorFmt} confirmado em ${dateFmt}`,
+              tipo:     "financeiro",
+            });
+          }
+
+          // Atualiza dados do plano no aluno
+          await supabase
+            .from("alunos")
+            .update({
+              plano_nome:           cob.descricao,
+              plano_inicio:         datePaid,
+              data_expiracao_plano: cob.data_vencimento,
+              plano_valor_pago:     Number(cob.valor),
+              plano_cobranca_id:    cob.id,
+            })
+            .eq("id", cob.aluno_id);
+        }
+      }
+    }
   }
 
   return new Response(JSON.stringify({ received: true, event }), {

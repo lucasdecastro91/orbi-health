@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Loader2,
   ClipboardCheck, ClipboardList, AlertTriangle, Info,
-  ScanLine, Dumbbell, Utensils, MessageSquare,
+  ScanLine, Dumbbell, Utensils, MessageSquare, User, CreditCard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
@@ -17,47 +17,61 @@ interface Notificacao {
   tipo: string;
   lida: boolean;
   created_at: string;
+  aluno_nome?: string | null;
+  link?: string | null;
 }
 
 // Lucide icon per notification type
 const TIPO_ICON: Record<string, React.ElementType> = {
-  checkin:          ClipboardList,
-  anamnese:         ClipboardCheck,
-  avaliacao:        ScanLine,
-  treino:           Dumbbell,
-  dieta:            Utensils,
-  mensagem:         MessageSquare,
-  alerta:           AlertTriangle,
-  info:             Info,
+  checkin:    ClipboardList,
+  anamnese:   ClipboardCheck,
+  avaliacao:  ScanLine,
+  treino:     Dumbbell,
+  dieta:      Utensils,
+  mensagem:   MessageSquare,
+  alerta:     AlertTriangle,
+  info:       Info,
+  financeiro: CreditCard,
 };
 
-// Route per notification type (returns null if no navigation)
-const tipoRoute = (tipo: string, base: string): string | null => {
-  const map: Record<string, string> = {
-    anamnese:  `${base}/anamnese`,
-    avaliacao: `${base}/avaliacao-postural`,
-    treino:    `${base}/treinos`,
-    dieta:     `${base}/dieta`,
-    mensagem:  `${base}/mensagens`,
-    checkin:   `${base}/atualizacao`,
-  };
-  return map[tipo] ?? null;
-};
+interface NotificationBellProps {
+  /** "coach" renders coach-side routes; "student" (default) renders student-side routes */
+  role?: "coach" | "student";
+}
 
-const NotificationBell = () => {
+const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
   const navigate      = useNavigate();
   const { slug }      = useTenantContext();
-  const base          = `/${slug}/aluno`;
 
   const [notifs,  setNotifs]  = useState<Notificacao[]>([]);
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId,  setUserId]  = useState<string | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const updateDropdownPos = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const DROPDOWN_W = 320;
+    const MARGIN = 8;
+    // Prefer right-aligned to bell; clamp so it never overflows the viewport
+    let left = rect.right - DROPDOWN_W;
+    if (left < MARGIN) left = MARGIN;
+    if (left + DROPDOWN_W > window.innerWidth - MARGIN) {
+      left = window.innerWidth - DROPDOWN_W - MARGIN;
+    }
+    setDropdownPos({ top: rect.bottom + 6, left });
+  }, []);
 
   useEffect(() => {
     init();
   }, []);
+
+  // Recalculate position whenever dropdown opens
+  useEffect(() => {
+    if (open) updateDropdownPos();
+  }, [open, updateDropdownPos]);
 
   // Close on outside click
   useEffect(() => {
@@ -93,7 +107,7 @@ const NotificationBell = () => {
     try {
       const { data } = await supabase
         .from("notificacoes")
-        .select("*")
+        .select("id, titulo, mensagem, tipo, lida, created_at, aluno_nome, link")
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(25);
@@ -114,16 +128,36 @@ const NotificationBell = () => {
   };
 
   const handleNotifClick = async (n: Notificacao) => {
-    // Mark as read
     if (!n.lida) {
       await supabase.from("notificacoes").update({ lida: true }).eq("id", n.id);
       setNotifs((prev) => prev.map((x) => (x.id === n.id ? { ...x, lida: true } : x)));
     }
-    // Navigate if route defined
-    const route = tipoRoute(n.tipo, base);
-    if (route) {
+
+    // Navigate to relevant page
+    if (role === "coach") {
       setOpen(false);
-      navigate(route);
+      navigate(`/${slug}/treinador/notificacoes`);
+    } else {
+      // Student: financeiro with external link → open in new tab
+      if (n.tipo === "financeiro" && n.link) {
+        setOpen(false);
+        window.open(n.link, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const map: Record<string, string> = {
+        anamnese:   `/${slug}/aluno/anamnese`,
+        avaliacao:  `/${slug}/aluno/avaliacao-postural`,
+        treino:     `/${slug}/aluno/treinos`,
+        dieta:      `/${slug}/aluno/dieta`,
+        mensagem:   `/${slug}/aluno/mensagens`,
+        checkin:    `/${slug}/aluno/atualizacao`,
+        financeiro: `/${slug}/aluno/perfil`,
+      };
+      const route = map[n.tipo] ?? null;
+      if (route) {
+        setOpen(false);
+        navigate(route);
+      }
     }
   };
 
@@ -156,11 +190,18 @@ const NotificationBell = () => {
         )}
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown — fixed so it never gets clipped by overflow:hidden parents */}
       {open && (
         <div
-          className="absolute right-0 top-11 w-80 rounded-2xl border shadow-2xl z-50 overflow-hidden"
-          style={{ backgroundColor: "#17171a", borderColor: "rgba(255,255,255,0.1)" }}
+          className="w-80 rounded-2xl border shadow-2xl overflow-hidden"
+          style={{
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            zIndex: 9999,
+            backgroundColor: "#17171a",
+            borderColor: "rgba(255,255,255,0.1)",
+          }}
         >
           {/* Header */}
           <div
@@ -206,7 +247,6 @@ const NotificationBell = () => {
             ) : (
               notifs.map((n) => {
                 const IconComp = TIPO_ICON[n.tipo] ?? Bell;
-                const hasRoute = !!tipoRoute(n.tipo, base);
                 return (
                   <button
                     key={n.id}
@@ -215,13 +255,11 @@ const NotificationBell = () => {
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.04)",
                       backgroundColor: n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)",
-                      cursor: hasRoute ? "pointer" : "default",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.05)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)"; }}
                   >
                     <div className="flex items-start gap-2.5">
-                      {/* Icon container */}
                       <div
                         className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                         style={{ backgroundColor: n.lida ? "rgba(255,255,255,0.05)" : "rgba(var(--cp-rgb),0.12)" }}
@@ -235,8 +273,15 @@ const NotificationBell = () => {
                         <p className={`text-xs font-semibold leading-snug ${n.lida ? "text-white/50" : "text-white"}`}>
                           {n.titulo}
                         </p>
+                        {/* Show aluno name when available (coach-side notifications) */}
+                        {n.aluno_nome && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <User className="w-2.5 h-2.5 text-white/25" />
+                            <p className="text-[10px] text-white/35 font-medium">{n.aluno_nome}</p>
+                          </div>
+                        )}
                         {n.mensagem && (
-                          <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed">{n.mensagem}</p>
+                          <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed line-clamp-2">{n.mensagem}</p>
                         )}
                         <p className="text-[10px] text-white/20 mt-1">
                           {format(parseISO(n.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
@@ -254,6 +299,22 @@ const NotificationBell = () => {
               })
             )}
           </div>
+
+          {/* Footer — link to full inbox (coach only) */}
+          {role === "coach" && notifs.length > 0 && (
+            <button
+              onClick={() => { setOpen(false); navigate(`/${slug}/treinador/notificacoes`); }}
+              className="w-full py-2.5 text-[11px] font-medium transition-colors"
+              style={{
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                color: "var(--cp-500)",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--cp-400)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--cp-500)"; }}
+            >
+              Ver todas as notificações →
+            </button>
+          )}
         </div>
       )}
     </div>
