@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Loader2,
@@ -190,15 +191,16 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
         )}
       </button>
 
-      {/* Dropdown — fixed so it never gets clipped by overflow:hidden parents */}
-      {open && (
+      {/* Dropdown — rendered via portal so backdrop-filter/stacking contexts
+           on parent headers (sticky + backdrop-blur) cannot trap it */}
+      {open && createPortal(
         <div
           className="w-80 rounded-2xl border shadow-2xl overflow-hidden"
           style={{
             position: "fixed",
             top: dropdownPos.top,
             left: dropdownPos.left,
-            zIndex: 9999,
+            zIndex: 99999,
             backgroundColor: "#17171a",
             borderColor: "rgba(255,255,255,0.1)",
           }}
@@ -315,7 +317,8 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
               Ver todas as notificações →
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

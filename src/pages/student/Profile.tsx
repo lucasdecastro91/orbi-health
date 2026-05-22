@@ -237,42 +237,65 @@ const Profile = () => {
       </div>
 
       {/* Meu Plano */}
-      {plano && (() => {
+      {(() => {
+        // ── sem plano: banner informativo ───────────────────────────────────
+        if (!plano) {
+          return (
+            <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meu Plano</p>
+              <div className="rounded-xl p-4 flex items-center gap-3"
+                style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <CreditCard className="w-4 h-4 text-muted-foreground opacity-40" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground opacity-50">Plano não registrado</p>
+                  <p className="text-xs text-muted-foreground opacity-50 mt-0.5">
+                    Seu treinador ainda não vinculou um plano à sua conta.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // ── com plano: informações completas ────────────────────────────────
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
         const venc = plano.data_expiracao_plano ? new Date(plano.data_expiracao_plano + "T00:00:00") : null;
         const diasRestantes = venc ? Math.ceil((venc.getTime() - hoje.getTime()) / 86400000) : null;
 
         const statusColor =
-          diasRestantes === null       ? "rgba(255,255,255,0.4)"   :
-          diasRestantes < 0            ? "hsl(0 70% 60%)"          :
-          diasRestantes <= 7           ? "hsl(38 95% 58%)"         :
+          diasRestantes === null ? "rgba(255,255,255,0.4)" :
+          diasRestantes < 0     ? "hsl(0 70% 60%)"        :
+          diasRestantes <= 7    ? "hsl(38 95% 58%)"        :
           "hsl(142 70% 50%)";
 
         const statusBg =
-          diasRestantes === null       ? "rgba(255,255,255,0.05)"  :
-          diasRestantes < 0            ? "rgba(239,68,68,0.08)"    :
-          diasRestantes <= 7           ? "rgba(245,158,11,0.08)"   :
+          diasRestantes === null ? "rgba(255,255,255,0.05)"  :
+          diasRestantes < 0     ? "rgba(239,68,68,0.08)"    :
+          diasRestantes <= 7    ? "rgba(245,158,11,0.08)"   :
           "rgba(34,197,94,0.08)";
 
         const StatusIcon =
-          diasRestantes === null       ? Clock          :
-          diasRestantes < 0            ? AlertTriangle  :
-          diasRestantes <= 7           ? AlertTriangle  :
+          diasRestantes === null ? Clock         :
+          diasRestantes < 0     ? AlertTriangle  :
+          diasRestantes <= 7    ? AlertTriangle  :
           CheckCircle2;
 
         const statusText =
-          diasRestantes === null       ? "Sem vencimento"                  :
-          diasRestantes < 0            ? "Vencido"                         :
-          diasRestantes === 0          ? "Vence hoje"                      :
-          diasRestantes <= 7           ? `Vence em ${diasRestantes} dias`  :
+          diasRestantes === null ? "Sem vencimento"                 :
+          diasRestantes < 0     ? "Vencido"                        :
+          diasRestantes === 0   ? "Vence hoje"                     :
+          diasRestantes <= 7    ? `Vence em ${diasRestantes} dias` :
           "Ativo";
 
         return (
           <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meu Plano</p>
             <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: statusBg, border: `1px solid ${statusColor}22` }}>
-              {/* Nome do plano + status */}
+              {/* Nome do plano + status badge */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 shrink-0" style={{ color: statusColor }} />

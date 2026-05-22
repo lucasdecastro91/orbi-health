@@ -7,6 +7,24 @@ const ASAAS_WEBHOOK_TOKEN = Deno.env.get("ASAAS_WEBHOOK_TOKEN") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+// ── Calcula data de expiração do plano pelo nome ────────────────────────────
+// Detecta palavras-chave: anual, semestral, quadrimestral, trimestral, etc.
+function calcPlanExpiry(descricao: string, startDate: string): string | null {
+  const n = descricao.toLowerCase();
+  const d = new Date(startDate + "T00:00:00");
+  let months = 0;
+  if      (n.includes("anual")         || n.includes("12 m") || n.includes("1 ano"))  months = 12;
+  else if (n.includes("semestral")     || n.includes("6 m")  || n.includes("6mes"))   months = 6;
+  else if (n.includes("quadrimestral") || n.includes("4 m")  || n.includes("4mes"))   months = 4;
+  else if (n.includes("trimestral")    || n.includes("3 m")  || n.includes("3mes"))   months = 3;
+  else if (n.includes("bimestral")     || n.includes("2 m")  || n.includes("2mes"))   months = 2;
+  else if (n.includes("mensal")        || n.includes("1 m")  || n.includes("1mes"))   months = 1;
+  if (months === 0) return null;
+  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() - 1); // último dia do período
+  return d.toISOString().slice(0, 10);
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function setOrgStatus(orgId: string, status: string) {
@@ -225,8 +243,8 @@ serve(async (req) => {
           .maybeSingle();
 
         if (cob) {
-          const { data: alunoRow } = await supabase
-            .from("alunos").select("user_id").eq("id", cob.aluno_id).maybeSingle();
+          const { data: alunoRow, error: alunoErr } = await supabase
+            .from("alunos").select("id, user_id").eq("id", cob.aluno_id).maybeSingle();
           const { data: prof } = alunoRow
             ? await supabase.from("profiles").select("nome").eq("id", alunoRow.user_id).maybeSingle()
             : { data: null };
@@ -235,33 +253,42 @@ serve(async (req) => {
           const datePaid = dataPagamento ?? new Date().toISOString().slice(0, 10);
           const dateFmt  = datePaid.split("-").reverse().join("/");
 
-          // Notifica o treinador (evento 5)
+          // ── Calcula data de expiração inteligente ────────────────────────
+          // Usa palavras-chave no nome do plano; cai de volta para data_vencimento
+          const expiryDate = calcPlanExpiry(cob.descricao, datePaid) ?? cob.data_vencimento;
+
+          // ── Notifica o treinador (evento 5) ──────────────────────────────
           await supabase.from("notificacoes").insert({
-            user_id:  cob.treinador_id,
-            org_id:   cob.org_id,
-            titulo:   `Pagamento recebido — ${valorFmt}`,
-            mensagem: `${prof?.nome ?? "Aluno"} pagou: ${cob.descricao}`,
-            tipo:     "financeiro",
+            user_id:    cob.treinador_id,
+            org_id:     cob.org_id,
+            aluno_id:   cob.aluno_id,
+            aluno_nome: prof?.nome ?? null,
+            titulo:     `Pagamento recebido — ${valorFmt}`,
+            mensagem:   `${prof?.nome ?? "Aluno"} pagou: ${cob.descricao}`,
+            tipo:       "financeiro",
           });
 
-          // Notifica o aluno (evento 2)
+          // ── Notifica o aluno (evento 2) ───────────────────────────────────
           if (alunoRow?.user_id) {
-            await supabase.from("notificacoes").insert({
+            const { error: notifErr } = await supabase.from("notificacoes").insert({
               user_id:  alunoRow.user_id,
               org_id:   cob.org_id,
-              titulo:   "Pagamento confirmado!",
-              mensagem: `${cob.descricao} — ${valorFmt} confirmado em ${dateFmt}`,
+              titulo:   "Pagamento confirmado! ✓",
+              mensagem: `${cob.descricao} — ${valorFmt} pago em ${dateFmt}`,
               tipo:     "financeiro",
             });
+            if (notifErr) console.error("[webhook] notif aluno:", notifErr.message);
+          } else {
+            console.warn("[webhook] alunoRow não encontrado para aluno_id:", cob.aluno_id, alunoErr?.message);
           }
 
-          // Atualiza dados do plano no aluno
+          // ── Atualiza dados do plano no registro do aluno ──────────────────
           await supabase
             .from("alunos")
             .update({
               plano_nome:           cob.descricao,
               plano_inicio:         datePaid,
-              data_expiracao_plano: cob.data_vencimento,
+              data_expiracao_plano: expiryDate,
               plano_valor_pago:     Number(cob.valor),
               plano_cobranca_id:    cob.id,
             })

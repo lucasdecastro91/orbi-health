@@ -3119,14 +3119,28 @@ const StudentDetails = () => {
   } | null>(null);
   const [planoEdit, setPlanoEdit] = useState(false);
   const [planoForm, setPlanoForm] = useState({
-    plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: ""
+    plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: "",
+    selected_plan_id: "",
   });
   const [planoSaving, setPlanoSaving] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<{ id: string; name: string; pix_value: number | null }[]>([]);
 
   useEffect(() => {
     checkAuth();
     if (id) loadStudentData();
   }, [id]);
+
+  // Carrega planos do treinador para o select da aba Plano
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("plans")
+      .select("id, name, pix_value")
+      .eq("org_id", orgId)
+      .eq("active", true)
+      .order("name")
+      .then(({ data }) => setAvailablePlans(data ?? []));
+  }, [orgId]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -3153,7 +3167,7 @@ const StudentDetails = () => {
       if ((data as any).plano_nome) {
         const p = data as any;
         setPlano({ plano_nome: p.plano_nome, plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago ?? null });
-        setPlanoForm({ plano_nome: p.plano_nome ?? "", plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago != null ? String(p.plano_valor_pago) : "" });
+        setPlanoForm({ plano_nome: p.plano_nome ?? "", plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago != null ? String(p.plano_valor_pago) : "", selected_plan_id: "" });
       }
       // Busca peso do último check-in
       loadWeight((data as StudentData).user_id);
@@ -3312,6 +3326,24 @@ const StudentDetails = () => {
         )}
 
         {activeTab === "plano" && (() => {
+          // ── Helper: calcula vencimento pelo nome do plano ──────────────────
+          const calcExpiry = (nome: string, inicio: string): string => {
+            if (!inicio) return "";
+            const n = nome.toLowerCase();
+            const d = new Date(inicio + "T00:00:00");
+            let months = 0;
+            if      (n.includes("anual")         || n.includes("12 m") || n.includes("1 ano"))  months = 12;
+            else if (n.includes("semestral")     || n.includes("6 m")  || n.includes("6mes"))   months = 6;
+            else if (n.includes("quadrimestral") || n.includes("4 m")  || n.includes("4mes"))   months = 4;
+            else if (n.includes("trimestral")    || n.includes("3 m")  || n.includes("3mes"))   months = 3;
+            else if (n.includes("bimestral")     || n.includes("2 m")  || n.includes("2mes"))   months = 2;
+            else if (n.includes("mensal")        || n.includes("1 m")  || n.includes("1mes"))   months = 1;
+            if (months === 0) return "";
+            d.setMonth(d.getMonth() + months);
+            d.setDate(d.getDate() - 1);
+            return d.toISOString().slice(0, 10);
+          };
+
           const savePlano = async () => {
             if (!planoForm.plano_nome.trim()) {
               toast({ title: "Nome do plano obrigatório", variant: "destructive" }); return;
@@ -3322,7 +3354,7 @@ const StudentDetails = () => {
                 plano_nome:           planoForm.plano_nome.trim() || null,
                 plano_inicio:         planoForm.plano_inicio      || null,
                 data_expiracao_plano: planoForm.data_expiracao_plano || null,
-                plano_valor_pago:     planoForm.plano_valor_pago   ? parseFloat(planoForm.plano_valor_pago.replace(",", ".")) : null,
+                plano_valor_pago:     planoForm.plano_valor_pago ? parseFloat(planoForm.plano_valor_pago.replace(",", ".")) : null,
               };
               const { error } = await supabase.from("alunos").update(payload).eq("id", id!);
               if (error) throw error;
@@ -3343,6 +3375,34 @@ const StudentDetails = () => {
           const inp = "w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white px-3 text-sm focus:outline-none focus:border-amber-500/40";
           const lbl = "text-[11px] text-white/40 uppercase tracking-wider mb-1 block";
 
+          // ── handler: seleciona plano do catálogo ──────────────────────────
+          const handleSelectPlan = (planId: string) => {
+            if (!planId) {
+              setPlanoForm(f => ({ ...f, selected_plan_id: "" }));
+              return;
+            }
+            const found = availablePlans.find(p => p.id === planId);
+            if (!found) return;
+            const expiry = planoForm.plano_inicio ? calcExpiry(found.name, planoForm.plano_inicio) : "";
+            setPlanoForm(f => ({
+              ...f,
+              selected_plan_id:     found.id,
+              plano_nome:           found.name,
+              plano_valor_pago:     found.pix_value != null ? String(found.pix_value) : f.plano_valor_pago,
+              data_expiracao_plano: expiry || f.data_expiracao_plano,
+            }));
+          };
+
+          // ── handler: muda data de início e recalcula vencimento ───────────
+          const handleInicioChange = (val: string) => {
+            const expiry = planoForm.plano_nome ? calcExpiry(planoForm.plano_nome, val) : "";
+            setPlanoForm(f => ({
+              ...f,
+              plano_inicio:         val,
+              data_expiracao_plano: expiry || f.data_expiracao_plano,
+            }));
+          };
+
           return (
             <div className="max-w-lg space-y-4">
               {/* Header */}
@@ -3352,7 +3412,7 @@ const StudentDetails = () => {
                   <h2 className="text-base font-bold text-white">Plano do aluno</h2>
                 </div>
                 {!planoEdit && (
-                  <button onClick={() => { setPlanoEdit(true); if (!plano) setPlanoForm({ plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: "" }); }}
+                  <button onClick={() => { setPlanoEdit(true); if (!plano) setPlanoForm({ plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: "", selected_plan_id: "" }); }}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
                     style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}>
                     <Pencil className="w-3 h-3" />{plano ? "Editar" : "Definir plano"}
@@ -3391,6 +3451,7 @@ const StudentDetails = () => {
                 </div>
               )}
 
+              {/* Empty state */}
               {!plano && !planoEdit && (
                 <div className="rounded-2xl p-6 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}>
                   <CreditCard className="w-6 h-6 text-white/15 mx-auto mb-2" />
@@ -3402,24 +3463,85 @@ const StudentDetails = () => {
               {/* Edit form */}
               {planoEdit && (
                 <div className="rounded-2xl p-4 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+
+                  {/* ── Selecionar plano do catálogo ──────────────────────── */}
+                  {availablePlans.length > 0 && (
+                    <div className="space-y-1">
+                      <label className={lbl}>Selecionar plano cadastrado</label>
+                      <select
+                        className={`${inp} appearance-none cursor-pointer`}
+                        value={planoForm.selected_plan_id}
+                        onChange={(e) => handleSelectPlan(e.target.value)}
+                        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
+                      >
+                        <option value="" style={{ backgroundColor: "#1a1a1e" }}>— selecionar do catálogo —</option>
+                        {availablePlans.map(p => (
+                          <option key={p.id} value={p.id} style={{ backgroundColor: "#1a1a1e" }}>
+                            {p.name}{p.pix_value != null ? ` — ${Number(p.pix_value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-white/25 mt-1">Preencherá automaticamente nome, valor e vencimento.</p>
+                    </div>
+                  )}
+
+                  {/* ── Nome do plano ──────────────────────────────────────── */}
                   <div className="space-y-1">
                     <label className={lbl}>Nome do plano *</label>
-                    <input className={inp} value={planoForm.plano_nome} onChange={(e) => setPlanoForm(f => ({ ...f, plano_nome: e.target.value }))} placeholder="Ex: Consultoria Online Anual" />
+                    <input
+                      className={inp}
+                      value={planoForm.plano_nome}
+                      onChange={(e) => {
+                        const nome = e.target.value;
+                        const expiry = planoForm.plano_inicio ? calcExpiry(nome, planoForm.plano_inicio) : "";
+                        setPlanoForm(f => ({ ...f, plano_nome: nome, selected_plan_id: "", data_expiracao_plano: expiry || f.data_expiracao_plano }));
+                      }}
+                      placeholder="Ex: Consultoria Online Anual"
+                    />
                   </div>
+
+                  {/* ── Datas ─────────────────────────────────────────────── */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className={lbl}>Data de início</label>
-                      <input type="date" className={inp} value={planoForm.plano_inicio} onChange={(e) => setPlanoForm(f => ({ ...f, plano_inicio: e.target.value }))} />
+                      <input
+                        type="date"
+                        className={inp}
+                        value={planoForm.plano_inicio}
+                        onChange={(e) => handleInicioChange(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-1">
-                      <label className={lbl}>Data de vencimento</label>
-                      <input type="date" className={inp} value={planoForm.data_expiracao_plano} onChange={(e) => setPlanoForm(f => ({ ...f, data_expiracao_plano: e.target.value }))} />
+                      <label className={lbl}>
+                        Vencimento
+                        {planoForm.plano_nome && planoForm.plano_inicio && calcExpiry(planoForm.plano_nome, planoForm.plano_inicio) && (
+                          <span className="ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                            style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}>
+                            AUTO
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="date"
+                        className={inp}
+                        value={planoForm.data_expiracao_plano}
+                        onChange={(e) => setPlanoForm(f => ({ ...f, data_expiracao_plano: e.target.value }))}
+                      />
                     </div>
                   </div>
+
+                  {/* ── Valor pago ────────────────────────────────────────── */}
                   <div className="space-y-1">
                     <label className={lbl}>Valor pago (R$)</label>
-                    <input className={inp} value={planoForm.plano_valor_pago} onChange={(e) => setPlanoForm(f => ({ ...f, plano_valor_pago: e.target.value }))} placeholder="3600,00" inputMode="decimal" />
+                    <input
+                      className={inp}
+                      value={planoForm.plano_valor_pago}
+                      onChange={(e) => setPlanoForm(f => ({ ...f, plano_valor_pago: e.target.value }))}
+                      placeholder="3.600,00"
+                      inputMode="decimal"
+                    />
                   </div>
+
                   <div className="flex gap-2 pt-1">
                     <button onClick={() => setPlanoEdit(false)}
                       className="flex-1 h-10 rounded-xl text-sm font-medium text-white/50 transition-colors"
