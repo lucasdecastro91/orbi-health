@@ -458,7 +458,7 @@ const WhatsappTemplatesModal = ({ orgId, onClose, onSaved }: TemplatesModalProps
                 <p className="text-[11px] text-white/25 uppercase tracking-wider">Modelos personalizados</p>
                 {customTpls.map((c) => (
                   <div key={c.tipo} className="rounded-xl p-3 space-y-2"
-                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
                     {/* Label row */}
                     <div className="flex items-center gap-2">
                       <input

@@ -50,6 +50,7 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
   const [userId,  setUserId]  = useState<string | null>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef  = useRef<HTMLDivElement>(null);
 
   const updateDropdownPos = useCallback(() => {
     if (!containerRef.current) return;
@@ -74,12 +75,13 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
     if (open) updateDropdownPos();
   }, [open, updateDropdownPos]);
 
-  // Close on outside click
+  // Close on outside click — must exclude both the bell button AND the portal dropdown
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      const inBell     = containerRef.current?.contains(target) ?? false;
+      const inDropdown = dropdownRef.current?.contains(target) ?? false;
+      if (!inBell && !inDropdown) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -166,17 +168,17 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
 
   return (
     <div className="relative" ref={containerRef}>
-      {/* Bell button */}
+      {/* Bell button — uses CSS vars so it adapts to dark/light theme */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-        style={{ color: open ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)" }}
+        style={{ color: open ? "var(--notif-bell-color-open)" : "var(--notif-bell-color)" }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)";
-          (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.06)";
+          (e.currentTarget as HTMLElement).style.color = "var(--notif-bell-color-open)";
+          (e.currentTarget as HTMLElement).style.backgroundColor = "var(--notif-bell-hover-bg)";
         }}
         onMouseLeave={(e) => {
-          if (!open) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)";
+          if (!open) (e.currentTarget as HTMLElement).style.color = "var(--notif-bell-color)";
           (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
         }}
       >
@@ -195,27 +197,30 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
            on parent headers (sticky + backdrop-blur) cannot trap it */}
       {open && createPortal(
         <div
-          className="w-80 rounded-2xl border shadow-2xl overflow-hidden"
+          ref={dropdownRef}
+          className="w-80 rounded-2xl overflow-hidden shadow-lg"
           style={{
             position: "fixed",
             top: dropdownPos.top,
             left: dropdownPos.left,
             zIndex: 99999,
-            backgroundColor: "#17171a",
-            borderColor: "rgba(255,255,255,0.1)",
+            backgroundColor: "var(--notif-bg)",
+            border: "1px solid var(--notif-border)",
           }}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between px-4 py-3"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+            style={{ borderBottom: "1px solid var(--notif-divider)" }}
           >
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-white">Notificações</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--notif-text-unread)" }}>
+                Notificações
+              </p>
               {unread > 0 && (
                 <span
                   className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-500)" }}
+                  style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
                 >
                   {unread} nova{unread !== 1 ? "s" : ""}
                 </span>
@@ -237,14 +242,14 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
           {/* List */}
           <div className="max-h-[360px] overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-10 gap-2 text-white/25">
+              <div className="flex items-center justify-center py-10 gap-2" style={{ color: "var(--notif-empty-text)" }}>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-xs">Carregando...</span>
               </div>
             ) : notifs.length === 0 ? (
               <div className="py-12 text-center">
-                <Bell className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                <p className="text-white/30 text-sm">Sem notificações</p>
+                <Bell className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--notif-empty-icon)" }} />
+                <p className="text-sm" style={{ color: "var(--notif-empty-text)" }}>Sem notificações</p>
               </div>
             ) : (
               notifs.map((n) => {
@@ -255,37 +260,43 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
                     onClick={() => handleNotifClick(n)}
                     className="w-full text-left px-4 py-3 transition-colors"
                     style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.04)",
+                      borderBottom: "1px solid var(--notif-item-divider)",
                       backgroundColor: n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.05)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--notif-hover-bg)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = n.lida ? "transparent" : "rgba(var(--cp-rgb),0.04)"; }}
                   >
                     <div className="flex items-start gap-2.5">
                       <div
                         className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ backgroundColor: n.lida ? "rgba(255,255,255,0.05)" : "rgba(var(--cp-rgb),0.12)" }}
+                        style={{ backgroundColor: n.lida ? "var(--notif-icon-bg)" : "var(--btn-soft-bg)" }}
                       >
                         <IconComp
                           className="w-3.5 h-3.5"
-                          style={{ color: n.lida ? "rgba(255,255,255,0.3)" : "var(--cp-400)" }}
+                          style={{ color: n.lida ? "var(--notif-icon-color)" : "var(--btn-soft-color)" }}
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold leading-snug ${n.lida ? "text-white/50" : "text-white"}`}>
+                        <p className="text-xs font-semibold leading-snug"
+                          style={{ color: n.lida ? "var(--notif-text-read)" : "var(--notif-text-unread)" }}>
                           {n.titulo}
                         </p>
                         {/* Show aluno name when available (coach-side notifications) */}
                         {n.aluno_nome && (
                           <div className="flex items-center gap-1 mt-0.5">
-                            <User className="w-2.5 h-2.5 text-white/25" />
-                            <p className="text-[10px] text-white/35 font-medium">{n.aluno_nome}</p>
+                            <User className="w-2.5 h-2.5" style={{ color: "var(--notif-meta-color)" }} />
+                            <p className="text-[10px] font-medium" style={{ color: "var(--notif-meta-color)" }}>
+                              {n.aluno_nome}
+                            </p>
                           </div>
                         )}
                         {n.mensagem && (
-                          <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed line-clamp-2">{n.mensagem}</p>
+                          <p className="text-[11px] mt-0.5 leading-relaxed line-clamp-2"
+                            style={{ color: "var(--notif-meta-color)" }}>
+                            {n.mensagem}
+                          </p>
                         )}
-                        <p className="text-[10px] text-white/20 mt-1">
+                        <p className="text-[10px] mt-1" style={{ color: "var(--notif-date-color)" }}>
                           {format(parseISO(n.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                         </p>
                       </div>
@@ -308,7 +319,7 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
               onClick={() => { setOpen(false); navigate(`/${slug}/treinador/notificacoes`); }}
               className="w-full py-2.5 text-[11px] font-medium transition-colors"
               style={{
-                borderTop: "1px solid rgba(255,255,255,0.06)",
+                borderTop: "1px solid var(--notif-divider)",
                 color: "var(--cp-500)",
               }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--cp-400)"; }}

@@ -112,10 +112,11 @@ const StudentDashboard = () => {
   const [avaliacaoPendente,  setAvaliacaoPendente]  = useState(false);
   const [anamnese_pendente,  setAnamnese_pendente]  = useState(false);
   const [anamneseDismissed,  setAnamneseDismissed]  = useState(false); // só nessa sessão
+  const [introAnamnese,      setIntroAnamnese]      = useState<string>("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { slug } = useTenantContext();
+  const { slug, orgId } = useTenantContext();
 
   useEffect(() => {
     loadDashboardData();
@@ -159,6 +160,16 @@ const StudentDashboard = () => {
       setAvaliacaoPendente(!!aluno.avaliacao_postural_pendente);
       // Usa a coluna na tabela alunos (que o coach consegue atualizar sem bloqueio de RLS)
       setAnamnese_pendente(!!aluno.anamnese_pendente);
+
+      // Busca mensagem de boas-vindas da anamnese (se existir)
+      if (aluno.anamnese_pendente && orgId) {
+        const { data: tpl } = await (supabase as any)
+          .from("anamnese_templates")
+          .select("introducao")
+          .eq("org_id", orgId)
+          .maybeSingle();
+        if (tpl?.introducao) setIntroAnamnese(tpl.introducao);
+      }
 
       const { data: planoData } = await supabase
         .from("planos_treino")
@@ -308,33 +319,53 @@ const StudentDashboard = () => {
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.3)" }}
           >
             {/* Faixa de destaque no topo */}
-            <div
-              className="h-1 w-full"
-              style={{ background: "var(--cp-gradient)" }}
-            />
+            <div className="h-1 w-full" style={{ background: "var(--cp-gradient)" }} />
+
             <div className="px-4 pt-4 pb-4 space-y-3">
-              <div className="flex items-start gap-3">
+              {/* Ícone + título */}
+              <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
                   style={{ background: "rgba(var(--cp-rgb),0.15)" }}
                 >
                   <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
                 </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <p className="text-sm font-bold text-foreground leading-snug">
-                    Anamnese pendente
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Seu treinador solicitou o preenchimento da sua ficha de saúde. Leva poucos minutos e é essencial para personalizar seu treino.
-                  </p>
-                </div>
+                <p className="text-sm font-bold text-foreground leading-snug">
+                  Ficha de Anamnese
+                </p>
               </div>
-              <div className="flex gap-2">
+
+              {/* Mensagem: introdução do template ou fallback */}
+              {introAnamnese ? (
+                <>
+                  {/* Estilos para o HTML do editor */}
+                  <style>{`
+                    .dash-intro b, .dash-intro strong { color: rgba(255,255,255,0.95); font-weight: 700; }
+                    .dash-intro i, .dash-intro em { font-style: italic; }
+                    .dash-intro u { text-decoration: underline; }
+                    .dash-intro a { color: var(--cp-400); }
+                    .dash-intro p { margin-bottom: 0.5rem; }
+                    .dash-intro div { margin-bottom: 0.3rem; }
+                  `}</style>
+                  <div
+                    className="dash-intro text-xs leading-relaxed max-h-48 overflow-y-auto pr-1"
+                    style={{ color: "rgba(255,255,255,0.6)" }}
+                    dangerouslySetInnerHTML={{ __html: introAnamnese }}
+                  />
+                </>
+              ) : (
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Para darmos início à estruturação do seu plano, preencha sua ficha de anamnese. Leva poucos minutos e é essencial para personalizar todo o seu material.
+                </p>
+              )}
+
+              {/* Botões */}
+              <div className="flex gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => navigate(`${base}/anamnese`)}
                   className="flex-1 h-11 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90"
-                  style={{ background: "var(--cp-gradient)", color: "#000" }}
+                  style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
                 >
                   Preencher agora
                 </button>
@@ -349,6 +380,25 @@ const StudentDashboard = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Avaliação postural pendente ── */}
+        {avaliacaoPendente && (
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/avaliacao-postural`)}
+            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+              <ScanLine className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Avaliação postural pendente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Seu treinador solicitou uma avaliação. Toque para iniciar.</p>
+            </div>
+            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+          </button>
         )}
 
         <DashboardCard
@@ -464,24 +514,6 @@ const StudentDashboard = () => {
             </EmptyState>
           )}
         </DashboardCard>
-
-        {avaliacaoPendente && (
-          <button
-            type="button"
-            onClick={() => navigate(`${base}/avaliacao-postural`)}
-            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
-          >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
-              <ScanLine className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">Avaliação postural pendente</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Seu treinador solicitou uma avaliação. Toque para iniciar.</p>
-            </div>
-            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
-          </button>
-        )}
 
         <div className="rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "var(--surface-1)" }}>
           <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50 shrink-0" />

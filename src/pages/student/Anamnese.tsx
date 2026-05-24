@@ -533,7 +533,7 @@ const Anamnese = () => {
         type="button"
         onClick={() => setIntroAceita(true)}
         className="w-full h-12 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
-        style={{ background: "var(--cp-gradient)", color: "#000" }}
+        style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
       >
         <Check className="w-4 h-4" />
         Começar preenchimento

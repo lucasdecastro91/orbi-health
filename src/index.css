@@ -133,6 +133,24 @@
     --section-card-border:  rgba(255,255,255,0.09);
     --section-header-bg:    rgba(255,255,255,0.03);
     --section-header-border:rgba(255,255,255,0.07);
+
+    /* ── Notification dropdown ── */
+    --notif-bg:           #17171a;
+    --notif-border:       rgba(255,255,255,0.10);
+    --notif-divider:      rgba(255,255,255,0.07);
+    --notif-item-divider: rgba(255,255,255,0.04);
+    --notif-hover-bg:     rgba(255,255,255,0.05);
+    --notif-icon-bg:      rgba(255,255,255,0.05);
+    --notif-icon-color:   rgba(255,255,255,0.30);
+    --notif-text-read:    rgba(255,255,255,0.50);
+    --notif-text-unread:  #ffffff;
+    --notif-meta-color:   rgba(255,255,255,0.35);
+    --notif-date-color:   rgba(255,255,255,0.20);
+    --notif-empty-icon:   rgba(255,255,255,0.10);
+    --notif-empty-text:   rgba(255,255,255,0.30);
+    --notif-bell-color:       rgba(255,255,255,0.50);
+    --notif-bell-color-open:  rgba(255,255,255,0.90);
+    --notif-bell-hover-bg:    rgba(255,255,255,0.06);
   }
 
   .dark {
@@ -251,6 +269,24 @@
     --section-card-border:   rgba(255,255,255,0.09);
     --section-header-bg:     rgba(255,255,255,0.03);
     --section-header-border: rgba(255,255,255,0.07);
+
+    /* ── Notification dropdown ── */
+    --notif-bg:           #17171a;
+    --notif-border:       rgba(255,255,255,0.10);
+    --notif-divider:      rgba(255,255,255,0.07);
+    --notif-item-divider: rgba(255,255,255,0.04);
+    --notif-hover-bg:     rgba(255,255,255,0.05);
+    --notif-icon-bg:      rgba(255,255,255,0.05);
+    --notif-icon-color:   rgba(255,255,255,0.30);
+    --notif-text-read:    rgba(255,255,255,0.50);
+    --notif-text-unread:  #ffffff;
+    --notif-meta-color:   rgba(255,255,255,0.35);
+    --notif-date-color:   rgba(255,255,255,0.20);
+    --notif-empty-icon:   rgba(255,255,255,0.10);
+    --notif-empty-text:   rgba(255,255,255,0.30);
+    --notif-bell-color:       rgba(255,255,255,0.50);
+    --notif-bell-color-open:  rgba(255,255,255,0.90);
+    --notif-bell-hover-bg:    rgba(255,255,255,0.06);
   }
 
   .light {
@@ -294,10 +330,10 @@
     --shadow-green: 0 0 24px hsl(142 76% 36% / 0.35);
 
     /* ── Semantic surface / border vars — light values ── */
-    --surface-1:     rgba(0,0,0,0.03);
-    --surface-2:     rgba(0,0,0,0.05);
-    --border-subtle: rgba(0,0,0,0.08);
-    --border-dim:    rgba(0,0,0,0.05);
+    --surface-1:     #ffffff;
+    --surface-2:     #f9fafb;
+    --border-subtle: #e5e7eb;
+    --border-dim:    #f3f4f6;
 
     /* ── Student layout header — light values ── */
     --header-bg:     rgba(252,252,253,0.95);
@@ -361,6 +397,24 @@
     --section-card-border:   #e5e7eb;
     --section-header-bg:     #f9fafb;
     --section-header-border: #e5e7eb;
+
+    /* ── Notification dropdown — light values ── */
+    --notif-bg:           #ffffff;
+    --notif-border:       #e5e7eb;
+    --notif-divider:      #e5e7eb;
+    --notif-item-divider: #f3f4f6;
+    --notif-hover-bg:     #f9fafb;
+    --notif-icon-bg:      #f3f4f6;
+    --notif-icon-color:   #9ca3af;
+    --notif-text-read:    #6b7280;
+    --notif-text-unread:  #111827;
+    --notif-meta-color:   #6b7280;
+    --notif-date-color:   #9ca3af;
+    --notif-empty-icon:   #d1d5db;
+    --notif-empty-text:   #9ca3af;
+    --notif-bell-color:       rgba(0,0,0,0.45);
+    --notif-bell-color-open:  rgba(0,0,0,0.85);
+    --notif-bell-hover-bg:    rgba(0,0,0,0.06);
   }
 }
 

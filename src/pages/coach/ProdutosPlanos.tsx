@@ -123,9 +123,9 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -164,7 +164,7 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
               {options.map((o) => (
                 <div key={o.installments}
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl"
-                  style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--modal-border)" }}>
                   <div className="min-w-0">
                     <p className="text-sm text-white font-medium">
                       {o.installments}x de {fmtBRL(o.client_value / o.installments)}/mês
@@ -185,7 +185,7 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
 
           {/* Adicionar nova opção */}
           <div className="space-y-2 rounded-xl p-3"
-            style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
             <p className="text-[10px] text-white/30 uppercase tracking-wider">Nova opção</p>
             <div className="flex gap-2">
               <div className="w-16 space-y-1 shrink-0">
@@ -343,8 +343,9 @@ const ProdutosPlanos = () => {
             <div key={plan.id}
               className="rounded-2xl p-4"
               style={{
-                backgroundColor: plan.active ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.015)",
-                border: plan.active ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(255,255,255,0.04)",
+                backgroundColor: "var(--surface-1)",
+                border: `1px solid ${plan.active ? "var(--border-subtle)" : "var(--border-dim)"}`,
+                opacity: plan.active ? 1 : 0.7,
               }}>
 
               {/* Row 1: nome + ativo toggle */}
@@ -368,7 +369,7 @@ const ProdutosPlanos = () => {
               <div className="flex flex-wrap gap-2 mb-3">
                 {plan.pix_value != null && (
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                    style={{ backgroundColor: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    style={{ backgroundColor: "var(--tag-success-bg)", color: "var(--tag-success-color)", border: "1px solid var(--tag-success-border)" }}>
                     <Smartphone className="w-3 h-3" />
                     PIX {fmtBRL(Number(plan.pix_value))}
                   </span>
@@ -376,7 +377,7 @@ const ProdutosPlanos = () => {
                 {(plan.installment_options ?? []).map((o) => (
                   <span key={o.installments}
                     className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                    style={{ backgroundColor: "rgba(99,102,241,0.1)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.2)" }}>
+                    style={{ backgroundColor: "var(--tag-indigo-bg)", color: "var(--tag-indigo-color)", border: "1px solid var(--tag-indigo-border)" }}>
                     <CreditCard className="w-3 h-3" />
                     {o.installments}x de {fmtBRL(o.client_value / o.installments)}/mês
                     <span style={{ color: "rgba(165,180,252,0.5)" }}>— cliente paga {fmtBRL(o.client_value)}</span>
@@ -388,12 +389,12 @@ const ProdutosPlanos = () => {
               <div className="flex gap-2">
                 <button onClick={() => { setEditPlan(plan); setModalOpen(true); }}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                  style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
                   <Pencil className="w-3 h-3" />Editar
                 </button>
                 <button onClick={() => handleDelete(plan.id)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={{ backgroundColor: "rgba(239,68,68,0.07)", color: "#f87171", border: "1px solid rgba(239,68,68,0.15)" }}>
+                  style={{ backgroundColor: "var(--btn-danger-bg)", color: "var(--btn-danger-color)", border: "1px solid var(--btn-danger-border)" }}>
                   <Trash2 className="w-3 h-3" />Excluir
                 </button>
               </div>

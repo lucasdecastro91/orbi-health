@@ -209,7 +209,7 @@ const AtualizacoesCoach = () => {
           <div
             key={resp.id}
             className="rounded-2xl border overflow-hidden"
-            style={{ borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)" }}
+            style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--surface-1)" }}
           >
             {/* Row header */}
             <button
