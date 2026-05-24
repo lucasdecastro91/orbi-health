@@ -813,4 +813,10 @@
 
   /* ── Primary button text always white ── */
   .light .text-primary-foreground { color: #ffffff !important; }
+
+  /* ── Any element with the primary gradient bg keeps white text ─────
+     Covers buttons, avatars, badges that use var(--cp-gradient) or the
+     hardcoded amber gradient, regardless of text-white class overrides. */
+  .light [style*="cp-gradient"] { color: #ffffff !important; }
+  .light [style*="42 95%"]      { color: #ffffff !important; }
 }
