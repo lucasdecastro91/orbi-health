@@ -103,6 +103,7 @@
     --tag-indigo-bg:       rgba(99,102,241,0.10);
     --tag-indigo-color:    #a5b4fc;
     --tag-indigo-border:   rgba(99,102,241,0.22);
+    --tag-indigo-muted:    rgba(165,180,252,0.50);
 
     /* ── Feature/status tags (Treino, Dieta, Cardio, Anamnese) ── */
     --tag-treino-bg:      rgba(234,88,12,0.10);
@@ -264,6 +265,7 @@
     --tag-indigo-bg:       rgba(99,102,241,0.10);
     --tag-indigo-color:    #a5b4fc;
     --tag-indigo-border:   rgba(99,102,241,0.22);
+    --tag-indigo-muted:    rgba(165,180,252,0.50);
 
     /* ── Feature/status tags (Treino, Dieta, Cardio, Anamnese) ── */
     --tag-treino-bg:      rgba(234,88,12,0.10);
@@ -417,6 +419,7 @@
     --tag-indigo-bg:       rgba(67,56,202,0.08);
     --tag-indigo-color:    #4338ca;
     --tag-indigo-border:   rgba(67,56,202,0.22);
+    --tag-indigo-muted:    rgba(67,56,202,0.60);
 
     /* ── Feature/status tags — light values ── */
     --tag-treino-bg:      #fff7ed;
@@ -815,8 +818,11 @@
   .light .text-primary-foreground { color: #ffffff !important; }
 
   /* ── Any element with the primary gradient bg keeps white text ─────
-     Covers buttons, avatars, badges that use var(--cp-gradient) or the
-     hardcoded amber gradient, regardless of text-white class overrides. */
-  .light [style*="cp-gradient"] { color: #ffffff !important; }
-  .light [style*="42 95%"]      { color: #ffffff !important; }
+     Covers buttons, avatars, badges, icons that use var(--cp-gradient) or
+     the hardcoded amber gradient, including their direct children (e.g.
+     <span> initials or SVG icons with text-white class). */
+  .light [style*="cp-gradient"],
+  .light [style*="cp-gradient"] > * { color: #ffffff !important; }
+  .light [style*="42 95%"],
+  .light [style*="42 95%"] > *      { color: #ffffff !important; }
 }

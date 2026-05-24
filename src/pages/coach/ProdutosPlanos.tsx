@@ -380,7 +380,7 @@ const ProdutosPlanos = () => {
                     style={{ backgroundColor: "var(--tag-indigo-bg)", color: "var(--tag-indigo-color)", border: "1px solid var(--tag-indigo-border)" }}>
                     <CreditCard className="w-3 h-3" />
                     {o.installments}x de {fmtBRL(o.client_value / o.installments)}/mês
-                    <span style={{ color: "rgba(165,180,252,0.5)" }}>— cliente paga {fmtBRL(o.client_value)}</span>
+                    <span style={{ color: "var(--tag-indigo-muted)" }}>— cliente paga {fmtBRL(o.client_value)}</span>
                   </span>
                 ))}
               </div>
