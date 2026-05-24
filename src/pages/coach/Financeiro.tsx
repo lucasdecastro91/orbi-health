@@ -746,8 +746,8 @@ const Financeiro = () => {
                 {/* Row 1: avatar + info + status */}
                 <div className="flex items-start justify-between gap-2 mb-2.5">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                      style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))" }}>
+                    <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
+                      style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}>
                       {initials}
                     </div>
                     <div className="min-w-0">
