@@ -82,11 +82,29 @@ interface Training {
 type TipoSerie   = string;
 type TipoCalculo = 'percentual' | 'reducao' | 'aumento' | 'manual';
 
-/** Fixed preset keys shown in the dropdown */
-const PRESET_TIPOS: string[] = [
-  'warm-up', 'feeder', 'trabalho', 'tecnica', 'drop-set', 'cluster',
-  'rest-pause', 'muscle-round',
+/** Tipos padrão — sempre visíveis no seletor */
+const PRESET_TIPOS_STANDARD: string[] = ['warm-up', 'feeder', 'trabalho'];
+
+/** Normaliza variações de nome de tipo para a chave interna canônica */
+const normalizeTipo = (t: string): string => {
+  const map: Record<string, string> = {
+    'warm up': 'warm-up', 'warm-up': 'warm-up', 'warmup': 'warm-up',
+    'feeder set': 'feeder', 'feeder': 'feeder',
+    'work set': 'trabalho', 'trabalho': 'trabalho', 'work': 'trabalho',
+    'drop set': 'drop-set', 'drop-set': 'drop-set', 'dropset': 'drop-set',
+    'cluster': 'cluster',
+    'rest pause': 'rest-pause', 'rest-pause': 'rest-pause', 'restpause': 'rest-pause',
+    'muscle round': 'muscle-round', 'muscle-round': 'muscle-round', 'muscleround': 'muscle-round',
+  };
+  return map[t.toLowerCase().trim()] ?? t;
+};
+
+/** Técnicas avançadas — ocultadas por padrão, expandidas sob demanda */
+const PRESET_TIPOS_ADVANCED: string[] = [
+  'drop-set', 'cluster', 'rest-pause', 'muscle-round',
 ];
+
+const PRESET_TIPOS: string[] = [...PRESET_TIPOS_STANDARD, ...PRESET_TIPOS_ADVANCED];
 
 interface SerieDetalhe {
   id: string;
@@ -94,6 +112,8 @@ interface SerieDetalhe {
   repeticoes: string;
   tipo_calculo: TipoCalculo;
   valor_calculo: string;
+  quantidade: number; // quantas vezes repetir este bloco (default 1)
+  descricao?: string; // descrição customizada da técnica (opcional, sobrescreve o padrão)
 }
 
 interface Exercise {
@@ -115,7 +135,25 @@ interface ExerciseBase {
   nome: string;
   video_url: string | null;
   descricao: string | null;
+  grupo_muscular_principal: string | null;
+  grupo_muscular_secundario: string | null;
 }
+
+const GRUPOS_MUSCULARES = [
+  'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps',
+  'Abdômen', 'Glúteos', 'Quadríceps', 'Posteriores', 'Panturrilha',
+] as const;
+
+const parseRepsNum = (s: string): number => {
+  if (!s) return 0;
+  if (s.includes('-')) {
+    const parts = s.split('-').map((n) => parseInt(n.trim())).filter((n) => !isNaN(n));
+    if (parts.length === 2) return Math.round((parts[0] + parts[1]) / 2);
+    return parts[0] || 0;
+  }
+  return parseInt(s) || 0;
+};
+
 
 const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const navigate = useNavigate();
@@ -1126,6 +1164,7 @@ const WeekDetails = ({ weekId }: { weekId: string }) => {
   );
 };
 
+
 const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [exercisesBase, setExercisesBase] = useState<ExerciseBase[]>([]);
@@ -1138,7 +1177,11 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
   const [comboOpen, setComboOpen] = useState(false);
   const [detailedSeries, setDetailedSeries] = useState<SerieDetalhe[]>([]);
   const [cargaBase, setCargaBase] = useState('');
+  const [descansoEx, setDescansoEx] = useState('');
   const [customTipos, setCustomTipos] = useState<string[]>([]);
+  // IDs de blocos de série que expandiram as Técnicas Avançadas no seletor
+  const [showAdvancedFor, setShowAdvancedFor] = useState<Set<string>>(new Set());
+  const [showDescFor, setShowDescFor] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { orgId } = useTenantContext();
 
@@ -1182,7 +1225,6 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
     'warm-up':      { tipo_calculo: 'percentual', valor_calculo: '50'  },
     'feeder':       { tipo_calculo: 'percentual', valor_calculo: '70'  },
     'trabalho':     { tipo_calculo: 'manual',     valor_calculo: ''    },
-    'tecnica':      { tipo_calculo: 'manual',     valor_calculo: ''    },
     'drop-set':     { tipo_calculo: 'reducao',    valor_calculo: '20'  },
     'cluster':      { tipo_calculo: 'aumento',    valor_calculo: '10'  },
     // Técnicas especiais: mesmo peso (100% da base)
@@ -1213,6 +1255,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
       repeticoes: '',
       tipo_calculo: defs.tipo_calculo,
       valor_calculo: defs.valor_calculo,
+      quantidade: 1,
     }]);
   };
 
@@ -1220,12 +1263,12 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
     setDetailedSeries(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const updateDetailedSerie = (idx: number, field: keyof SerieDetalhe, value: string) => {
+  const updateDetailedSerie = (idx: number, field: keyof SerieDetalhe, value: string | number) => {
     setDetailedSeries(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const updated = { ...s, [field]: value };
       // Auto-apply defaults when tipo changes
-      if (field === 'tipo') {
+      if (field === 'tipo' && typeof value === 'string') {
         const defs = DEFAULT_CALCULO[value as TipoSerie];
         if (defs) {
           updated.tipo_calculo = defs.tipo_calculo;
@@ -1249,22 +1292,26 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
   // ── Normalize backward-compat serie (old: tipo_carga/valor_carga) ──
   const normalizeSerie = (s: any): SerieDetalhe => ({
     id: s.id ?? crypto.randomUUID(),
-    tipo: s.tipo ?? 'trabalho',
+    tipo: normalizeTipo(s.tipo ?? 'trabalho'),
     repeticoes: s.repeticoes ?? '',
     tipo_calculo: s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
     valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
+    quantidade: typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
+    descricao: s.descricao ?? undefined,
   });
 
   // ── Auto-migrate old simple-series exercise to detailed format ────
   const migrateToDetailed = (series: string, repeticoes: string): SerieDetalhe[] => {
     const count = Math.max(1, parseInt(series) || 1);
-    return Array.from({ length: count }, () => ({
+    // Migra N séries antigas como 1 bloco Work Set com quantidade=N
+    return [{
       id: crypto.randomUUID(),
       tipo: 'trabalho',
       repeticoes: repeticoes || '',
       tipo_calculo: 'manual' as TipoCalculo,
       valor_calculo: '',
-    }));
+      quantidade: count,
+    }];
   };
 
   useEffect(() => {
@@ -1343,9 +1390,9 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
       // Compute legacy fields from detailedSeries for backward compatibility
       const exerciseData = {
         nome_exercicio: formData.get("nome_exercicio") as string,
-        series: String(detailedSeries.length),
+        series: String(detailedSeries.reduce((sum, s) => sum + (s.quantidade ?? 1), 0)),
         repeticoes: detailedSeries[0]?.repeticoes || '—',
-        descanso: null as string | null,
+        descanso: descansoEx.trim() || null,
         video_url: formData.get("video_url") as string || null,
         observacoes: formData.get("observacoes") as string || null,
         exercicio_base_id: selectedBase?.id || null,
@@ -1390,6 +1437,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
       setSaveToLibrary(false);
       setDetailedSeries([]);
       setCargaBase('');
+      setDescansoEx('');
       loadExercises();
       loadExercisesBase();
     } catch (error: any) {
@@ -1429,6 +1477,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
     setSelectedBase(null);
     setSaveToLibrary(false);
     setCargaBase(exercise?.carga_base || '');
+    setDescansoEx(exercise?.descanso || '');
 
     if (exercise?.series_detalhadas && exercise.series_detalhadas.length > 0) {
       // Use stored detailed series (normalize field names for backward compat)
@@ -1524,17 +1573,21 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                     {(() => {
                       const sd = exercise.series_detalhadas as SerieDetalhe[] | null | undefined;
                       const hasSd = sd && sd.length > 0;
-                      const count = hasSd ? sd.length : parseInt(exercise.series) || 0;
+                      // Total series = sum of quantities (not block count)
+                      const count = hasSd
+                        ? sd.reduce((sum, s) => sum + (s.quantidade ?? 1), 0)
+                        : parseInt(exercise.series) || 0;
 
-                      // Build tipo summary e.g. "2× Trabalho · 1× Warm-up"
+                      // Build tipo summary e.g. "2× Work Set · 1× Warm-up"
                       const tipoLabels: Record<string, string> = {
                         'warm-up': 'W-up', 'feeder': 'Feeder', 'trabalho': 'Work Set',
-                        'tecnica': 'Técnica', 'drop-set': 'Drop', 'cluster': 'Cluster',
+                        'drop-set': 'Drop', 'cluster': 'Cluster',
                         'rest-pause': 'Rest Pause', 'muscle-round': 'Muscle Rnd',
                       };
+                      // Count quantities per tipo (not block count)
                       const tipoCounts = hasSd
                         ? sd.reduce<Record<string, number>>((acc, s) => {
-                            acc[s.tipo] = (acc[s.tipo] || 0) + 1; return acc;
+                            acc[s.tipo] = (acc[s.tipo] || 0) + (s.quantidade ?? 1); return acc;
                           }, {})
                         : null;
                       const tipoSummary = tipoCounts
@@ -1609,9 +1662,10 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
         </div>
       )}
 
+
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
-        if (!open) { setDetailedSeries([]); setCargaBase(''); }
+        if (!open) { setDetailedSeries([]); setCargaBase(''); setDescansoEx(''); }
       }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1679,6 +1733,22 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
               />
             </div>
 
+            <div>
+              <Label htmlFor="descanso_ex">Tempo de Descanso (segundos)</Label>
+              <Input
+                id="descanso_ex"
+                type="number"
+                min={0}
+                max={600}
+                placeholder="Ex: 60, 90, 120 — padrão 60s"
+                value={descansoEx}
+                onChange={(e) => setDescansoEx(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Tempo exibido ao aluno e usado no cronômetro de descanso após cada série.
+              </p>
+            </div>
+
             {/* ── Séries ── */}
             <div className="space-y-3 pt-1 border-t border-border/50">
               <div className="flex items-center justify-between pt-2">
@@ -1686,7 +1756,13 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                   <Label className="text-sm font-semibold">Séries</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {detailedSeries.length > 0
-                      ? `${detailedSeries.length} ${detailedSeries.length === 1 ? 'série configurada' : 'séries configuradas'}`
+                      ? (() => {
+                          const total = detailedSeries.reduce((s, b) => s + (b.quantidade ?? 1), 0);
+                          const blocos = detailedSeries.length;
+                          return blocos === total
+                            ? `${total} ${total === 1 ? 'série configurada' : 'séries configuradas'}`
+                            : `${total} séries · ${blocos} ${blocos === 1 ? 'bloco' : 'blocos'}`;
+                        })()
                       : 'Adicione pelo menos uma série para salvar'}
                   </p>
                 </div>
@@ -1740,58 +1816,141 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                             {idx + 1}
                           </span>
 
-                          {/* Type selector — expands to show text input when custom */}
+                          {/* Type selector — tipos padrão sempre visíveis; avançados sob demanda */}
                           <div className="flex-1 flex flex-col gap-1">
-                            <select
-                              value={
-                                PRESET_TIPOS.includes(serie.tipo) || customTipos.includes(serie.tipo)
-                                  ? serie.tipo
-                                  : '__custom__'
-                              }
-                              onChange={(e) => {
-                                if (e.target.value === '__custom__') {
-                                  updateDetailedSerie(idx, 'tipo', '');
-                                } else {
-                                  updateDetailedSerie(idx, 'tipo', e.target.value);
-                                }
-                              }}
-                              className="w-full h-8 rounded-lg text-xs border bg-background px-2 cursor-pointer"
-                            >
-                              <optgroup label="Padrão">
-                                <option value="warm-up">Warm-up</option>
-                                <option value="feeder">Feeder</option>
-                                <option value="trabalho">Work Set</option>
-                                <option value="tecnica">Técnica</option>
-                                <option value="drop-set">Drop Set</option>
-                                <option value="cluster">Cluster</option>
-                              </optgroup>
-                              <optgroup label="Técnicas Especiais">
-                                <option value="rest-pause">Rest Pause</option>
-                                <option value="muscle-round">Muscle Round</option>
-                              </optgroup>
-                              {customTipos.length > 0 && (
-                                <optgroup label="Salvos">
-                                  {customTipos.map((t) => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              <option value="__custom__">Personalizado...</option>
-                            </select>
+                            {(() => {
+                              const isAdvanced = PRESET_TIPOS_ADVANCED.includes(serie.tipo);
+                              const showAdvanced = isAdvanced || showAdvancedFor.has(serie.id);
+                              return (
+                                <select
+                                  value={
+                                    PRESET_TIPOS.includes(serie.tipo) || customTipos.includes(serie.tipo)
+                                      ? serie.tipo
+                                      : '__custom__'
+                                  }
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '__show_advanced__') {
+                                      setShowAdvancedFor(prev => new Set([...prev, serie.id]));
+                                    } else if (val === '__custom__') {
+                                      updateDetailedSerie(idx, 'tipo', '');
+                                    } else {
+                                      updateDetailedSerie(idx, 'tipo', val);
+                                    }
+                                  }}
+                                  className="w-full h-8 rounded-lg text-xs border bg-background px-2 cursor-pointer"
+                                >
+                                  <optgroup label="Padrão">
+                                    <option value="warm-up">Warm Up</option>
+                                    <option value="feeder">Feeder Set</option>
+                                    <option value="trabalho">Work Set</option>
+                                  </optgroup>
+                                  {showAdvanced ? (
+                                    <optgroup label="Técnicas Avançadas">
+                                      <option value="drop-set">Drop Set</option>
+                                      <option value="cluster">Cluster</option>
+                                      <option value="rest-pause">Rest Pause</option>
+                                      <option value="muscle-round">Muscle Round</option>
+                                    </optgroup>
+                                  ) : (
+                                    <option value="__show_advanced__">＋ Técnicas Avançadas...</option>
+                                  )}
+                                  {customTipos.length > 0 && (
+                                    <optgroup label="Salvos">
+                                      {customTipos.map((t) => (
+                                        <option key={t} value={t}>{t}</option>
+                                      ))}
+                                    </optgroup>
+                                  )}
+                                  <option value="__custom__">Personalizado...</option>
+                                </select>
+                              );
+                            })()}
 
-                            {/* Technique hint — shown for special types */}
-                            {serie.tipo === 'rest-pause' && (
-                              <p className="text-[10px] px-2 py-1 rounded-md leading-relaxed"
-                                style={{ backgroundColor: 'rgba(251,113,133,0.08)', color: '#fb7185' }}>
-                                ⏱ Mesmo peso · descanse 20s · repita até a falha
-                              </p>
-                            )}
-                            {serie.tipo === 'muscle-round' && (
-                              <p className="text-[10px] px-2 py-1 rounded-md leading-relaxed"
-                                style={{ backgroundColor: 'rgba(34,211,238,0.08)', color: '#22d3ee' }}>
-                                🔄 Mesmo peso · 18 reps totais · descanse 10-15s ao falhar e continue
-                              </p>
-                            )}
+                            {/* Technique description — collapsible, editable for advanced types + warm-up + feeder */}
+                            {([...PRESET_TIPOS_ADVANCED, 'warm-up', 'feeder'] as string[]).includes(serie.tipo) && (() => {
+                              const getDefault = () => {
+                                const reps = parseInt(serie.repeticoes);
+                                if (serie.tipo === 'cluster') {
+                                  if (!isNaN(reps) && reps > 0) {
+                                    const rpb = Math.ceil(reps / 3);
+                                    return `Aumente a carga conforme o % indicado. Realize 3 blocos de ${rpb} reps com 20 segundos de descanso entre cada (3×${rpb} = ${3 * rpb} reps total). A carga exibida já é a carga aumentada.`;
+                                  }
+                                  return 'Aumente a carga conforme o % indicado. Realize 3 blocos com 20s de descanso entre cada, até completar o total de reps. A carga exibida já é a carga aumentada.';
+                                }
+                                const MAP: Record<string, string> = {
+                                  'warm-up':     'Execute com carga leve para aquecer as articulações e preparar o músculo. Não force ao máximo — o objetivo é ativar, não fadigar.',
+                                  'feeder':      'Execute com peso moderado antes das séries de trabalho para sentir o movimento e calibrar a conexão mente-músculo.',
+                                  'drop-set':    'Execute as repetições normalmente e, em seguida, reduza o peso conforme o % indicado e execute até a falha. A carga exibida já é a carga reduzida.',
+                                  'rest-pause':  'Execute as repetições da série normalmente. Descanse 20 segundos e, com o mesmo peso, execute até a falha.',
+                                  'muscle-round':'Execute 18 repetições totais. Ao chegar à falha, descanse 10 segundos e retome de onde parou até completar as 18 reps.',
+                                };
+                                return MAP[serie.tipo] ?? '';
+                              };
+
+                              const isOpen = showDescFor.has(serie.id);
+                              const currentVal = serie.descricao ?? '';
+                              const hasCustom = currentVal.trim() !== '';
+
+                              const toggleDesc = () => {
+                                setShowDescFor(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(serie.id)) {
+                                    next.delete(serie.id);
+                                  } else {
+                                    // Pre-fill with default when opening for the first time
+                                    if (!hasCustom) {
+                                      updateDetailedSerie(idx, 'descricao', getDefault());
+                                    }
+                                    next.add(serie.id);
+                                  }
+                                  return next;
+                                });
+                              };
+
+                              return (
+                                <div className="mt-1">
+                                  {/* Toggle header */}
+                                  <button
+                                    type="button"
+                                    onClick={toggleDesc}
+                                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    <ChevronDown
+                                      className="w-3 h-3 transition-transform duration-200"
+                                      style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                    />
+                                    <span>Descrição de execução</span>
+                                    {hasCustom && (
+                                      <span className="ml-1 text-[9px] px-1 rounded"
+                                        style={{ backgroundColor: 'var(--btn-soft-bg)', color: 'var(--btn-soft-color)' }}>
+                                        editada
+                                      </span>
+                                    )}
+                                  </button>
+
+                                  {/* Collapsible content */}
+                                  {isOpen && (
+                                    <div className="mt-1.5">
+                                      <textarea
+                                        value={currentVal}
+                                        onChange={(e) => updateDetailedSerie(idx, 'descricao', e.target.value)}
+                                        rows={4}
+                                        className="w-full text-[11px] rounded-lg border bg-background px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50"
+                                        style={{ color: 'inherit' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateDetailedSerie(idx, 'descricao', getDefault())}
+                                        className="text-[9px] text-muted-foreground underline mt-0.5"
+                                      >
+                                        Restaurar padrão
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Free-text input — shown when tipo is not preset and not a saved custom */}
                             {isCustomTipo(serie.tipo) && (
@@ -1835,10 +1994,30 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                           </Button>
                         </div>
 
-                        {/* Row 2: reps | tipo_calculo buttons | valor | preview */}
+                        {/* Row 2: quantidade | reps | tipo_calculo buttons | valor | preview */}
                         <div className="flex items-end gap-2 ml-7">
+                          {/* Quantidade de blocos */}
+                          <div className="shrink-0">
+                            <Label className="text-[10px] text-muted-foreground">Qtd</Label>
+                            <div className="flex items-center gap-0.5 mt-1 h-8">
+                              <button
+                                type="button"
+                                onClick={() => updateDetailedSerie(idx, 'quantidade', Math.max(1, (serie.quantidade ?? 1) - 1))}
+                                className="w-6 h-8 rounded-l-lg border border-r-0 border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+                              >−</button>
+                              <span className="w-8 h-8 border-y border-border flex items-center justify-center text-xs font-bold tabular-nums">
+                                {serie.quantidade ?? 1}×
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateDetailedSerie(idx, 'quantidade', Math.min(20, (serie.quantidade ?? 1) + 1))}
+                                className="w-6 h-8 rounded-r-lg border border-l-0 border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+                              >＋</button>
+                            </div>
+                          </div>
+
                           {/* Reps */}
-                          <div className="w-[4.5rem] shrink-0">
+                          <div className="w-[4rem] shrink-0">
                             <Label className="text-[10px] text-muted-foreground">Reps</Label>
                             <Input
                               value={serie.repeticoes}
@@ -1889,23 +2068,12 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                             />
                           </div>
 
-                          {/* Preview */}
+                          {/* Carga calculada */}
                           <div className="flex-1 text-right pb-0.5">
-                            {preview ? (
-                              <>
-                                <p className="text-[9px] text-muted-foreground">Preview</p>
-                                <p className="text-sm font-bold" style={{ color: 'var(--cp-400)' }}>
-                                  {serie.tipo_calculo !== 'manual' && cargaBase.trim()
-                                    ? `${cargaBase.trim()} → ${preview}`
-                                    : preview}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-[9px] text-muted-foreground opacity-0">Preview</p>
-                                <p className="text-sm font-bold text-muted-foreground/25">—</p>
-                              </>
-                            )}
+                            <p className="text-[9px] text-muted-foreground">Carga</p>
+                            <p className="text-sm font-bold" style={{ color: preview ? 'var(--cp-400)' : 'var(--muted-foreground)', opacity: preview ? 1 : 0.25 }}>
+                              {preview ?? '—'}
+                            </p>
                           </div>
                         </div>
                       </div>

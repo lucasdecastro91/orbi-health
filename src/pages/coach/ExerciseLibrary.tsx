@@ -7,6 +7,12 @@ import {
   Dumbbell, Loader2, X, Youtube,
 } from "lucide-react";
 
+const GRUPOS_MUSCULARES = [
+  'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps',
+  'Abdômen', 'Glúteos', 'Quadríceps', 'Posteriores', 'Panturrilha',
+] as const;
+type GrupoMuscular = typeof GRUPOS_MUSCULARES[number];
+
 interface Exercise {
   id: string;
   nome: string;
@@ -14,6 +20,8 @@ interface Exercise {
   descricao: string | null;
   categoria: string | null;
   musculos_principais: string | null;
+  grupo_muscular_principal: string | null;
+  grupo_muscular_secundario: string | null;
 }
 
 const emptyForm = {
@@ -22,6 +30,8 @@ const emptyForm = {
   descricao: "",
   categoria: "",
   musculos_principais: "",
+  grupo_muscular_principal: "",
+  grupo_muscular_secundario: "",
 };
 
 // ── YouTube thumbnail helper ───────────────────────────────────────
@@ -100,6 +110,8 @@ const ExerciseModal = ({
               descricao:          editing.descricao || "",
               categoria:          editing.categoria || "",
               musculos_principais: editing.musculos_principais || "",
+              grupo_muscular_principal: editing.grupo_muscular_principal || "",
+              grupo_muscular_secundario: editing.grupo_muscular_secundario || "",
             }
           : emptyForm,
       );
@@ -123,7 +135,8 @@ const ExerciseModal = ({
         video_url:          form.video_url || null,
         descricao:          form.descricao || null,
         categoria:          form.categoria || null,
-        musculos_principais: form.musculos_principais || null,
+        grupo_muscular_principal: form.grupo_muscular_principal || null,
+        grupo_muscular_secundario: form.grupo_muscular_secundario || null,
       };
 
       if (editing) {
@@ -172,6 +185,39 @@ const ExerciseModal = ({
     </div>
   );
 
+  /** Multi-select via chips — armazena como "Glúteos,Quadríceps" */
+  const ChipSelect = ({ label, name, hint }: { label: string; name: 'grupo_muscular_principal' | 'grupo_muscular_secundario'; hint?: string }) => {
+    const selected = (form[name] || '').split(',').map(s => s.trim()).filter(Boolean);
+    const toggle = (g: string) => {
+      const next = selected.includes(g) ? selected.filter(x => x !== g) : [...selected, g];
+      setForm(f => ({ ...f, [name]: next.join(',') }));
+    };
+    return (
+      <div>
+        <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1.5 block">
+          {label}
+          {hint && <span className="ml-1 normal-case" style={{ color: "rgba(255,255,255,0.25)" }}>{hint}</span>}
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {GRUPOS_MUSCULARES.map(g => {
+            const active = selected.includes(g);
+            return (
+              <button key={g} type="button" onClick={() => toggle(g)}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
+                  color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
+                  border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
+                }}>
+                {g}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
       <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#111113" }}>
@@ -189,7 +235,8 @@ const ExerciseModal = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
           <Field label="Nome *" name="nome" placeholder="Ex: Agachamento livre" />
           <Field label="Categoria" name="categoria" placeholder="Ex: Membros inferiores, Core" />
-          <Field label="Músculos principais" name="musculos_principais" placeholder="Ex: Quadríceps, Glúteos" />
+          <ChipSelect label="Músculos Principais" name="grupo_muscular_principal" hint="(1× volume)" />
+          <ChipSelect label="Músculos Secundários" name="grupo_muscular_secundario" hint="(0.5× volume)" />
           <div>
             <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1 block">URL do Vídeo (YouTube / Vimeo)</label>
             <div className="relative">
@@ -433,13 +480,23 @@ export default function ExerciseLibrary() {
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-2">
+                    {ex.grupo_muscular_principal && ex.grupo_muscular_principal.split(',').map(g => g.trim()).filter(Boolean).map(g => (
+                      <span key={g} className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--tag-amber-bg)", color: "var(--tag-amber-color)" }}>
+                        {g}
+                      </span>
+                    ))}
+                    {ex.grupo_muscular_secundario && ex.grupo_muscular_secundario.split(',').map(g => g.trim()).filter(Boolean).map(g => (
+                      <span key={`sec-${g}`} className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
+                        {g}
+                      </span>
+                    ))}
                     {ex.categoria && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                         {ex.categoria}
                       </span>
                     )}
                     {ex.musculos_principais && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                         {ex.musculos_principais}
                       </span>
                     )}

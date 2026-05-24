@@ -511,7 +511,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
             onClick={data ? requestNew : requestFirst}
             disabled={requesting}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+            style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
             {requesting ? <Spinner className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
             {data ? "Solicitar atualização" : "Solicitar anamnese"}
           </button>
@@ -528,7 +528,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
           </p>
           <button onClick={cancelarSolicitacao} disabled={canceling}
             className="text-xs font-medium px-2 py-1 rounded-lg shrink-0 transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}>
+            style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
             {canceling ? "..." : "Cancelar"}
           </button>
         </div>
@@ -905,7 +905,7 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
                       <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Fotos</p>
                       <button onClick={() => downloadAll(resp)}
                         className="flex items-center gap-1.5 text-xs px-3 h-7 rounded-lg"
-                        style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+                        style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                         <Download className="w-3 h-3" /> Baixar todas
                       </button>
                     </div>
@@ -1143,9 +1143,9 @@ const CheckInsViewer = ({ studentUserId }: { studentUserId: string }) => {
                       onClick={() => generateReport(ci.id)}
                       disabled={generatingReport === ci.id}
                       className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg disabled:opacity-50 transition-colors"
-                      style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(var(--cp-rgb),0.2)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(var(--cp-rgb),0.12)"; }}
+                      style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--btn-soft-bg-hover)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--btn-soft-bg)"; }}
                     >
                       {generatingReport === ci.id ? (
                         <><Spinner className="w-3 h-3 animate-spin" />Gerando...</>
@@ -1295,7 +1295,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
         <button
           onClick={() => { setShowForm(v => !v); if (showForm) resetForm(); }}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
-          style={{ backgroundColor: 'rgba(var(--cp-rgb),0.12)', color: 'var(--cp-400)' }}>
+          style={{ backgroundColor: 'var(--btn-soft-bg)', color: 'var(--btn-soft-color)' }}>
           <Plus className="w-3.5 h-3.5" /> {showForm ? 'Cancelar' : 'Adicionar'}
         </button>
       </div>
@@ -1463,7 +1463,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
               <div className="w-1 shrink-0" style={{ background: 'var(--cp-gradient)' }} />
               <div className="flex items-start gap-3 flex-1 px-4 py-3">
                 <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                  style={{ backgroundColor: 'rgba(var(--cp-rgb),0.12)', color: 'var(--cp-400)' }}>
+                  style={{ backgroundColor: 'var(--btn-soft-bg)', color: 'var(--btn-soft-color)' }}>
                   {String(idx + 1).padStart(2, '0')}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -1552,7 +1552,7 @@ const CardioManager = ({ alunoId, orgId }: { alunoId: string; orgId: string | nu
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Plano de cardio</p>
         <button onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
-          style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+          style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
           <Plus className="w-3.5 h-3.5" />{showForm ? 'Cancelar' : 'Adicionar'}
         </button>
       </div>
@@ -2021,7 +2021,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
             onClick={() => downloadAll(evalId, fmtDate(evalDate))}
             disabled={downloading === evalId}
             className="flex items-center gap-1.5 text-xs px-3 h-7 rounded-lg transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+            style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
             {downloading === evalId
               ? <Spinner className="w-3 h-3 animate-spin" />
               : <Download className="w-3 h-3" />}
@@ -2119,7 +2119,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
             <p className="text-sm font-semibold text-white/80">Comparativo de Avaliações</p>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
-                style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+                style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                 {fmtDate(av1.created_at)}
               </span>
               <span className="text-white/20 text-xs">vs</span>
@@ -2257,7 +2257,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
               onClick={requestAvaliacao}
               disabled={requesting}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
               {requesting ? <Spinner className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
               Solicitar avaliação
             </button>
@@ -2271,7 +2271,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
                 loadPhotos(avaliacoes[1].id);
               }}
               className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
-              style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
               <ScanLine className="w-3.5 h-3.5" /> Comparar últimas 2
             </button>
           )}
@@ -2296,7 +2296,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
               onClick={requestAvaliacao}
               disabled={requesting}
               className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "rgba(var(--cp-rgb),0.14)", color: "var(--cp-400)" }}>
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
               {requesting ? <Spinner className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Solicitar avaliação
             </button>
@@ -2326,7 +2326,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
                       <div className="flex items-center gap-2.5 flex-wrap">
                         {isFirst && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-                            style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}>
+                            style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                             Mais recente
                           </span>
                         )}
@@ -2955,7 +2955,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
   return (
     <div className="space-y-4">
       {/* Tab switcher */}
-      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "var(--toggle-bg)" }}>
         {([
           { key: 'carga',  label: 'Progressão de Carga',      icon: <TrendingUp className="w-3.5 h-3.5" /> },
           { key: 'volume', label: 'Volume por Grupamento', icon: <BarChart2 className="w-3.5 h-3.5" /> },
@@ -2966,7 +2966,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
               backgroundColor: view === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
-              color: view === key ? "var(--cp-400)" : "rgba(255,255,255,0.4)",
+              color: view === key ? "var(--cp-400)" : "var(--ui-inactive-color)",
               border: view === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
             }}
           >
@@ -3044,7 +3044,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
       {view === 'volume' && (
         <div className="space-y-4">
           {/* Sub-abas: Prescrito / Realizado */}
-          <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+          <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "var(--toggle-bg)" }}>
             {([
               { key: 'prescrito', label: 'Volume Prescrito' },
               { key: 'realizado', label: 'Volume Realizado' },
@@ -3055,7 +3055,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   backgroundColor: volView === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
-                  color: volView === key ? "var(--cp-400)" : "rgba(255,255,255,0.4)",
+                  color: volView === key ? "var(--cp-400)" : "var(--ui-inactive-color)",
                   border: volView === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
                 }}
               >{label}</button>
@@ -3262,7 +3262,7 @@ const StudentDetails = () => {
               {studentWeight && (
                 <span
                   className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
-                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}
+                  style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
                 >
                   <Weight className="w-3 h-3" />
                   {studentWeight} kg
@@ -3414,7 +3414,7 @@ const StudentDetails = () => {
                 {!planoEdit && (
                   <button onClick={() => { setPlanoEdit(true); if (!plano) setPlanoForm({ plano_nome: "", plano_inicio: "", data_expiracao_plano: "", plano_valor_pago: "", selected_plan_id: "" }); }}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
-                    style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.55)" }}>
+                    style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
                     <Pencil className="w-3 h-3" />{plano ? "Editar" : "Definir plano"}
                   </button>
                 )}
@@ -3422,7 +3422,7 @@ const StudentDetails = () => {
 
               {/* Read view */}
               {plano && !planoEdit && (
-                <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--modal-border)" }}>
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{plano.plano_nome}</p>
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
@@ -3472,11 +3472,11 @@ const StudentDetails = () => {
                         className={`${inp} appearance-none cursor-pointer`}
                         value={planoForm.selected_plan_id}
                         onChange={(e) => handleSelectPlan(e.target.value)}
-                        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
+                        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
                       >
-                        <option value="" style={{ backgroundColor: "#1a1a1e" }}>— selecionar do catálogo —</option>
+                        <option value="">— selecionar do catálogo —</option>
                         {availablePlans.map(p => (
-                          <option key={p.id} value={p.id} style={{ backgroundColor: "#1a1a1e" }}>
+                          <option key={p.id} value={p.id}>
                             {p.name}{p.pix_value != null ? ` — ${Number(p.pix_value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
                           </option>
                         ))}
@@ -3516,7 +3516,7 @@ const StudentDetails = () => {
                         Vencimento
                         {planoForm.plano_nome && planoForm.plano_inicio && calcExpiry(planoForm.plano_nome, planoForm.plano_inicio) && (
                           <span className="ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                            style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}>
+                            style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                             AUTO
                           </span>
                         )}

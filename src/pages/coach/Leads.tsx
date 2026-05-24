@@ -155,7 +155,7 @@ const CopyButton = ({ text }: { text: string }) => {
     <button
       onClick={copy}
       className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-      style={{ backgroundColor: copied ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.07)" }}
+      style={{ backgroundColor: copied ? "var(--btn-success-bg)" : "var(--btn-ghost-bg)" }}
       title="Copiar"
     >
       {copied
@@ -226,7 +226,7 @@ const LeadFormModal = ({ orgId, treinadorId, lead, onClose, onSaved }: LeadFormP
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -419,7 +419,7 @@ const WhatsappTemplatesModal = ({ orgId, onClose, onSaved }: TemplatesModalProps
     <div className="fixed inset-0 z-[60] flex items-end justify-center"
       style={{ backgroundColor: "rgba(0,0,0,0.75)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -702,7 +702,7 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -728,7 +728,7 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
           <Label className="text-[11px] text-white/40 uppercase tracking-wider">Data e Hora</Label>
           <input type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)}
             className="w-full h-11 rounded-xl px-3 text-sm text-white outline-none"
-            style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+            style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }} />
         </div>
 
         {/* Assunto da Call */}
@@ -756,7 +756,7 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
               onChange={(e) => setAssuntoCustom(e.target.value)}
               placeholder="Descreva o assunto..."
               className="w-full h-9 rounded-xl px-3 text-sm text-white outline-none"
-              style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}
             />
           )}
         </div>
@@ -785,7 +785,7 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
 
           {msgItems.map((item) => (
             <div key={item.id} className="rounded-xl p-3 space-y-2"
-              style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
 
               {/* Label row */}
               <div className="flex items-center gap-2">
@@ -964,7 +964,7 @@ const LeadDetailSheet = ({
       <div className="fixed inset-0 z-40 flex items-end justify-center"
         style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
         <div className="w-full max-w-lg rounded-t-3xl pb-8 overflow-y-auto"
-          style={{ maxHeight: "92vh", backgroundColor: "#0f0f11", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ maxHeight: "92vh", backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
           onClick={(e) => e.stopPropagation()}>
 
           <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mt-5 mb-4" />
@@ -1043,7 +1043,7 @@ const LeadDetailSheet = ({
                 <p className="text-[11px] text-white/40 uppercase tracking-wider font-medium">Calls</p>
                 <button onClick={() => setCallModalOpen(true)}
                   className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
-                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+                  style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                   <Plus className="w-3 h-3" />Agendar
                 </button>
               </div>
@@ -1096,7 +1096,7 @@ const LeadDetailSheet = ({
                             <button onClick={() => deleteCall(c.id)} title="Excluir"
                               disabled={deletingCall === c.id}
                               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                              style={{ backgroundColor: "var(--btn-ghost-bg)" }}>
                               <Trash2 className="w-3 h-3 text-white/30" />
                             </button>
                           </div>
@@ -1106,14 +1106,14 @@ const LeadDetailSheet = ({
                           <div className="mt-2 space-y-1.5">
                             {c.msg_confirmacao && (
                               <div className="flex items-start gap-2 rounded-lg p-2"
-                                style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                                style={{ backgroundColor: "var(--surface-1)" }}>
                                 <p className="text-[10px] text-white/30 leading-relaxed flex-1">{c.msg_confirmacao}</p>
                                 <CopyButton text={c.msg_confirmacao} />
                               </div>
                             )}
                             {c.msg_lembrete && (
                               <div className="flex items-start gap-2 rounded-lg p-2"
-                                style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                                style={{ backgroundColor: "var(--surface-1)" }}>
                                 <p className="text-[10px] text-white/30 leading-relaxed flex-1">{c.msg_lembrete}</p>
                                 <CopyButton text={c.msg_lembrete} />
                               </div>
@@ -1152,14 +1152,14 @@ const LeadDetailSheet = ({
                 <div className="space-y-2">
                   {interactions.map((i) => (
                     <div key={i.id} className="flex items-start gap-2 rounded-xl px-3 py-2.5"
-                      style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                      style={{ backgroundColor: "var(--surface-1)" }}>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-white/75 leading-relaxed whitespace-pre-line">{i.nota}</p>
                         <p className="text-[10px] text-white/25 mt-1">{fmtBR(i.created_at)}</p>
                       </div>
                       <button onClick={() => deleteInteraction(i.id)}
                         className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:opacity-100"
-                        style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                        style={{ backgroundColor: "var(--btn-ghost-bg)" }}>
                         <X className="w-3 h-3 text-white/30" />
                       </button>
                     </div>
@@ -1191,7 +1191,7 @@ const LeadDetailSheet = ({
                     <div className="flex gap-2">
                       <button onClick={() => setConvOpen(false)}
                         className="flex-1 h-9 rounded-xl text-xs font-semibold"
-                        style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                        style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
                         Cancelar
                       </button>
                       <button onClick={convertToStudent} disabled={converting}
@@ -1312,13 +1312,13 @@ const LeadCard = ({ lead, nextCall, onDetail, onScheduleCall }: LeadCardProps) =
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <button onClick={() => onScheduleCall(lead)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold transition-colors"
-            style={{ backgroundColor: "rgba(168,85,247,0.12)", color: "#c084fc" }}>
+            style={{ backgroundColor: "rgba(168,85,247,0.12)", color: "#9333ea" }}>
             <Calendar className="w-3 h-3" />
             Agendar Call
           </button>
           <button onClick={() => onDetail(lead)}
             className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold transition-colors ml-auto"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)" }}>
+            style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
             Ver detalhes
             <ChevronRight className="w-3 h-3" />
           </button>

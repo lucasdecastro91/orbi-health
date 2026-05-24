@@ -88,14 +88,14 @@ const CalendarGrid = ({
               className="relative flex flex-col items-center justify-center gap-1 py-1 rounded-xl transition-all"
               style={{
                 aspectRatio: "1",
-                backgroundColor: isSel ? "rgba(var(--cp-rgb),0.15)" : today ? "rgba(255,255,255,0.04)" : undefined,
-                border: isSel ? "1.5px solid rgba(var(--cp-rgb),0.5)" : today ? "1px solid rgba(255,255,255,0.08)" : "1px solid transparent",
+                backgroundColor: isSel ? "rgba(var(--cp-rgb),0.15)" : today ? "var(--cal-today-bg)" : undefined,
+                border: isSel ? "1.5px solid rgba(var(--cp-rgb),0.5)" : today ? "1px solid var(--cal-today-border)" : "1px solid transparent",
                 opacity: inMon ? 1 : 0.3,
               }}
             >
               <span
                 className="text-xs font-semibold leading-none"
-                style={{ color: isSel ? "var(--cp-400)" : today ? "#fff" : "rgba(255,255,255,0.6)" }}
+                style={{ color: isSel ? "var(--cp-400)" : today ? "var(--cal-today-color)" : "var(--cal-day-color)" }}
               >
                 {format(day, "d")}
               </span>
@@ -522,7 +522,7 @@ const Agenda = () => {
                       {format(day, "EEEE", { locale: ptBR })}
                     </span>
                     {dayApts.length > 0 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
                         {dayApts.length}
                       </span>
                     )}

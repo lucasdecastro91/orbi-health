@@ -64,6 +64,75 @@
     --cp-500:      hsl(142 69% 45%);
     --cp-600:      hsl(142 76% 36%);
     --cp-text:     #ffffff;
+
+    /* ── Semantic surface / border vars (used by Dashboard cards) ── */
+    --surface-1:     rgba(255,255,255,0.02);
+    --surface-2:     rgba(255,255,255,0.035);
+    --border-subtle: rgba(255,255,255,0.06);
+    --border-dim:    rgba(255,255,255,0.04);
+
+    /* ── Student layout header (adapts per theme) ── */
+    --header-bg:     rgba(9,9,11,0.9);
+    --header-border: rgba(255,255,255,0.05);
+
+    /* ── Modal / card surfaces ── */
+    --modal-bg:      #111113;
+    --modal-border:  rgba(255,255,255,0.08);
+
+    /* ── Inactive / ghost UI (tabs, day-pickers, toggle bg) ── */
+    --toggle-bg:           rgba(255,255,255,0.05);
+    --ui-inactive-color:   rgba(255,255,255,0.4);
+    --ui-inactive-bg:      rgba(255,255,255,0.04);
+    --ui-inactive-border:  rgba(255,255,255,0.07);
+
+    /* ── Status / feature tags (Treino, Dieta, Cardio…) ── */
+    --tag-inactive-bg:     rgba(255,255,255,0.04);
+    --tag-inactive-color:  rgba(255,255,255,0.3);
+    --tag-inactive-border: rgba(255,255,255,0.07);
+    --tag-success-bg:      rgba(34,197,94,0.10);
+    --tag-success-color:   #4ade80;
+    --tag-success-border:  rgba(34,197,94,0.22);
+    --tag-indigo-bg:       rgba(99,102,241,0.10);
+    --tag-indigo-color:    #a5b4fc;
+    --tag-indigo-border:   rgba(99,102,241,0.22);
+
+    /* ── Action buttons (semantic, low-saturation) ── */
+    --btn-ghost-bg:        rgba(255,255,255,0.06);
+    --btn-ghost-color:     rgba(255,255,255,0.5);
+    --btn-ghost-border:    transparent;
+    --btn-success-bg:      rgba(34,197,94,0.08);
+    --btn-success-color:   #4ade80;
+    --btn-success-border:  rgba(34,197,94,0.22);
+    --btn-danger-bg:       rgba(239,68,68,0.07);
+    --btn-danger-color:    #f87171;
+    --btn-danger-border:   rgba(239,68,68,0.18);
+    /* Soft primary buttons (secondary CTAs, small action buttons) */
+    --btn-soft-bg:         rgba(var(--cp-rgb),0.12);
+    --btn-soft-color:      var(--cp-400);
+    --btn-soft-bg-hover:   rgba(var(--cp-rgb),0.20);
+
+    /* ── Filter tabs (Meus Clientes, etc.) ── */
+    --filter-active-bg:     var(--cp-gradient);
+    --filter-active-color:  #ffffff;
+    --filter-active-border: transparent;
+
+    /* ── Calendar day cells ── */
+    --cal-day-color:    rgba(255,255,255,0.6);
+    --cal-today-bg:     rgba(255,255,255,0.06);
+    --cal-today-border: rgba(255,255,255,0.12);
+    --cal-today-color:  #ffffff;
+
+    /* ── Muscle/category tags (Exercise Library) ── */
+    --tag-neutral-bg:    rgba(255,255,255,0.07);
+    --tag-neutral-color: rgba(255,255,255,0.4);
+    --tag-amber-bg:      rgba(245,158,11,0.15);
+    --tag-amber-color:   hsl(42 95% 58%);
+
+    /* ── Section card containers (FormBuilder, AnamneseBuilder, etc.) ── */
+    --section-card-bg:      rgba(255,255,255,0.015);
+    --section-card-border:  rgba(255,255,255,0.09);
+    --section-header-bg:    rgba(255,255,255,0.03);
+    --section-header-border:rgba(255,255,255,0.07);
   }
 
   .dark {
@@ -113,6 +182,75 @@
     --cp-500:      hsl(142 69% 45%);
     --cp-600:      hsl(142 76% 36%);
     --cp-text:     #ffffff;
+
+    /* ── Semantic surface / border vars ── */
+    --surface-1:     rgba(255,255,255,0.02);
+    --surface-2:     rgba(255,255,255,0.035);
+    --border-subtle: rgba(255,255,255,0.06);
+    --border-dim:    rgba(255,255,255,0.04);
+
+    /* ── Student layout header ── */
+    --header-bg:     rgba(9,9,11,0.9);
+    --header-border: rgba(255,255,255,0.05);
+
+    /* ── Modal / card surfaces ── */
+    --modal-bg:      #111113;
+    --modal-border:  rgba(255,255,255,0.08);
+
+    /* ── Inactive / ghost UI ── */
+    --toggle-bg:           rgba(255,255,255,0.05);
+    --ui-inactive-color:   rgba(255,255,255,0.4);
+    --ui-inactive-bg:      rgba(255,255,255,0.04);
+    --ui-inactive-border:  rgba(255,255,255,0.07);
+
+    /* ── Status / feature tags ── */
+    --tag-inactive-bg:     rgba(255,255,255,0.04);
+    --tag-inactive-color:  rgba(255,255,255,0.3);
+    --tag-inactive-border: rgba(255,255,255,0.07);
+    --tag-success-bg:      rgba(34,197,94,0.10);
+    --tag-success-color:   #4ade80;
+    --tag-success-border:  rgba(34,197,94,0.22);
+    --tag-indigo-bg:       rgba(99,102,241,0.10);
+    --tag-indigo-color:    #a5b4fc;
+    --tag-indigo-border:   rgba(99,102,241,0.22);
+
+    /* ── Action buttons ── */
+    --btn-ghost-bg:        rgba(255,255,255,0.06);
+    --btn-ghost-color:     rgba(255,255,255,0.5);
+    --btn-ghost-border:    transparent;
+    --btn-success-bg:      rgba(34,197,94,0.08);
+    --btn-success-color:   #4ade80;
+    --btn-success-border:  rgba(34,197,94,0.22);
+    --btn-danger-bg:       rgba(239,68,68,0.07);
+    --btn-danger-color:    #f87171;
+    --btn-danger-border:   rgba(239,68,68,0.18);
+    /* Soft primary buttons */
+    --btn-soft-bg:         rgba(var(--cp-rgb),0.12);
+    --btn-soft-color:      var(--cp-400);
+    --btn-soft-bg-hover:   rgba(var(--cp-rgb),0.20);
+
+    /* ── Filter tabs ── */
+    --filter-active-bg:     var(--cp-gradient);
+    --filter-active-color:  #ffffff;
+    --filter-active-border: transparent;
+
+    /* ── Calendar day cells ── */
+    --cal-day-color:    rgba(255,255,255,0.6);
+    --cal-today-bg:     rgba(255,255,255,0.06);
+    --cal-today-border: rgba(255,255,255,0.12);
+    --cal-today-color:  #ffffff;
+
+    /* ── Muscle/category tags ── */
+    --tag-neutral-bg:    rgba(255,255,255,0.07);
+    --tag-neutral-color: rgba(255,255,255,0.4);
+    --tag-amber-bg:      rgba(245,158,11,0.15);
+    --tag-amber-color:   hsl(42 95% 58%);
+
+    /* ── Section card containers ── */
+    --section-card-bg:       rgba(255,255,255,0.015);
+    --section-card-border:   rgba(255,255,255,0.09);
+    --section-header-bg:     rgba(255,255,255,0.03);
+    --section-header-border: rgba(255,255,255,0.07);
   }
 
   .light {
@@ -154,6 +292,75 @@
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1);
     --shadow-green: 0 0 24px hsl(142 76% 36% / 0.35);
+
+    /* ── Semantic surface / border vars — light values ── */
+    --surface-1:     rgba(0,0,0,0.03);
+    --surface-2:     rgba(0,0,0,0.05);
+    --border-subtle: rgba(0,0,0,0.08);
+    --border-dim:    rgba(0,0,0,0.05);
+
+    /* ── Student layout header — light values ── */
+    --header-bg:     rgba(252,252,253,0.95);
+    --header-border: rgba(0,0,0,0.08);
+
+    /* ── Modal / card surfaces — light values ── */
+    --modal-bg:      hsl(var(--card));
+    --modal-border:  hsl(var(--border));
+
+    /* ── Inactive / ghost UI — light values ── */
+    --toggle-bg:           rgba(0,0,0,0.05);
+    --ui-inactive-color:   rgba(0,0,0,0.45);
+    --ui-inactive-bg:      rgba(0,0,0,0.05);
+    --ui-inactive-border:  rgba(0,0,0,0.10);
+
+    /* ── Status / feature tags — light values ── */
+    --tag-inactive-bg:     rgba(0,0,0,0.05);
+    --tag-inactive-color:  rgba(0,0,0,0.5);
+    --tag-inactive-border: rgba(0,0,0,0.12);
+    --tag-success-bg:      rgba(22,163,74,0.10);
+    --tag-success-color:   #15803d;
+    --tag-success-border:  rgba(22,163,74,0.28);
+    --tag-indigo-bg:       rgba(67,56,202,0.08);
+    --tag-indigo-color:    #4338ca;
+    --tag-indigo-border:   rgba(67,56,202,0.22);
+
+    /* ── Action buttons — light values ── */
+    --btn-ghost-bg:        rgba(0,0,0,0.06);
+    --btn-ghost-color:     rgba(0,0,0,0.6);
+    --btn-ghost-border:    rgba(0,0,0,0.10);
+    --btn-success-bg:      rgba(22,163,74,0.10);
+    --btn-success-color:   #15803d;
+    --btn-success-border:  rgba(22,163,74,0.28);
+    --btn-danger-bg:       rgba(220,38,38,0.08);
+    --btn-danger-color:    #b91c1c;
+    --btn-danger-border:   rgba(220,38,38,0.22);
+    /* Soft primary buttons — solid in light mode */
+    --btn-soft-bg:         hsl(var(--primary));
+    --btn-soft-color:      #ffffff;
+    --btn-soft-bg-hover:   hsl(var(--primary) / 0.85);
+
+    /* ── Filter tabs — light values ── */
+    --filter-active-bg:     #fff7ed;
+    --filter-active-color:  #ea580c;
+    --filter-active-border: #ea580c;
+
+    /* ── Calendar day cells — light values ── */
+    --cal-day-color:    #374151;
+    --cal-today-bg:     #ea580c;
+    --cal-today-border: #ea580c;
+    --cal-today-color:  #ffffff;
+
+    /* ── Muscle/category tags — light values ── */
+    --tag-neutral-bg:    #f3f4f6;
+    --tag-neutral-color: #374151;
+    --tag-amber-bg:      rgba(234,88,12,0.10);
+    --tag-amber-color:   #c2410c;
+
+    /* ── Section card containers — light values ── */
+    --section-card-bg:       #ffffff;
+    --section-card-border:   #e5e7eb;
+    --section-header-bg:     #f9fafb;
+    --section-header-border: #e5e7eb;
   }
 }
 
@@ -192,6 +399,33 @@
 
   .texto-multilinha {
     white-space: pre-line;
+  }
+
+  /* ── Native <select> dark theme ─────────────────────────────────
+     Browser-native selects bypass Tailwind, so we need explicit
+     base rules. `option` background controls the open-dropdown list.
+  ── */
+  select {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: hsl(var(--foreground));
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 0.75rem;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  select option {
+    background-color: #16161a;
+    color: hsl(var(--foreground));
+  }
+  /* Light-mode inversion */
+  .light select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+  }
+  .light select option {
+    background-color: #ffffff !important;
+    color: #111827 !important;
   }
 }
 
@@ -290,6 +524,7 @@
   .light .bg-black\/90  { background-color: rgb(248 248 248 / 0.96); }
   .light .bg-black\/95  { background-color: rgb(255 255 255 / 0.98); }
   /* White-tinted surfaces → black-tinted at same opacity */
+  .light .bg-white\/2   { background-color: rgb(0 0 0 / 0.02); }
   .light .bg-white\/3   { background-color: rgb(0 0 0 / 0.03); }
   .light .bg-white\/4   { background-color: rgb(0 0 0 / 0.04); }
   .light .bg-white\/5   { background-color: rgb(0 0 0 / 0.05); }
@@ -318,15 +553,23 @@
 
   /* ── Text ── */
   .light .text-white      { color: rgb(24 24 27); }
+  .light .text-white\/90  { color: rgb(24 24 27 / 0.9); }
+  .light .text-white\/85  { color: rgb(24 24 27 / 0.85); }
   .light .text-white\/80  { color: rgb(24 24 27 / 0.8); }
+  .light .text-white\/75  { color: rgb(24 24 27 / 0.75); }
   .light .text-white\/70  { color: rgb(24 24 27 / 0.7); }
+  .light .text-white\/65  { color: rgb(24 24 27 / 0.65); }
   .light .text-white\/60  { color: rgb(24 24 27 / 0.6); }
+  .light .text-white\/55  { color: rgb(24 24 27 / 0.55); }
   .light .text-white\/50  { color: rgb(24 24 27 / 0.5); }
+  .light .text-white\/45  { color: rgb(24 24 27 / 0.45); }
   .light .text-white\/40  { color: rgb(24 24 27 / 0.42); }
   .light .text-white\/35  { color: rgb(24 24 27 / 0.37); }
   .light .text-white\/30  { color: rgb(24 24 27 / 0.32); }
   .light .text-white\/25  { color: rgb(24 24 27 / 0.28); }
   .light .text-white\/20  { color: rgb(24 24 27 / 0.22); }
+  .light .text-white\/15  { color: rgb(24 24 27 / 0.18); }
+  .light .text-white\/10  { color: rgb(24 24 27 / 0.14); }
 
   /* ── Borders ── */
   .light .border-white\/5  { border-color: rgb(0 0 0 / 0.08); }
@@ -336,6 +579,8 @@
   .light .border-white\/20 { border-color: rgb(0 0 0 / 0.22); }
 
   /* ── Hover backgrounds ── */
+  .light .hover\:bg-white\/3:hover   { background-color: rgb(0 0 0 / 0.03); }
+  .light .hover\:bg-white\/4:hover   { background-color: rgb(0 0 0 / 0.04); }
   .light .hover\:bg-white\/5:hover   { background-color: rgb(0 0 0 / 0.05); }
   .light .hover\:bg-white\/6:hover   { background-color: rgb(0 0 0 / 0.06); }
   .light .hover\:bg-white\/8:hover   { background-color: rgb(0 0 0 / 0.08); }
@@ -367,7 +612,10 @@
   .light .text-red-400     { color: hsl(0   72% 42%); }   /* red-600 ~#c81e1e    */
   .light .text-blue-400    { color: hsl(217 91% 42%); }   /* blue-600 ~#1d4ed8   */
   .light .text-green-500   { color: hsl(var(--primary)); }
-  .light .text-yellow-400  { color: hsl(45  93% 35%); }   /* yellow-700 ~#a16207 */
+  .light .text-yellow-400      { color: hsl(45  93% 35%); }   /* yellow-700 ~#a16207 */
+  .light .text-yellow-400\/80  { color: hsl(45  93% 32% / 0.9); }
+  .light .text-amber-400       { color: hsl(30  90% 35%); }   /* amber-700  ~#b45309 */
+  .light .text-amber-400\/80   { color: hsl(30  90% 32% / 0.9); }
   .light .text-green-400   { color: var(--cp-400); }
 
   /* Bordas da table no light mode */
@@ -377,6 +625,34 @@
   /* ── Backdrop for dialogs/sheets in light mode ── */
   .light [data-radix-popper-content-wrapper] {
     filter: drop-shadow(0 4px 20px rgb(0 0 0 / 0.12));
+  }
+
+  /* ── Form elements: guarantee white bg + visible border in light mode ──
+     !important beats inline styles (e.g. backgroundColor: "#18181b").
+     Excludes checkboxes, radios, range, color pickers.
+  ── */
+  .light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .light textarea,
+  .light select {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    color-scheme: light !important;
+  }
+  .light input:not([type="checkbox"]):not([type="radio"])::placeholder,
+  .light textarea::placeholder {
+    color: #9ca3af !important;
+  }
+  .light select option {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+  .light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  .light textarea:focus,
+  .light select:focus {
+    border-color: #ea580c !important;
+    box-shadow: 0 0 0 2px rgba(234,88,12,0.12) !important;
+    outline: none !important;
   }
 
   /* ═══════════════════════════════════════════════════════════════

@@ -5,17 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Lock, Moon, Sun, Check, Loader2, Plus, Trash2, ChevronUp, ChevronDown, FileText, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar } from "lucide-react";
+import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { COLOR_PALETTE, ColorEntry } from "@/lib/colors";
-
-interface PerguntaExtra {
-  id: string;
-  texto: string;
-  tipo: "texto_livre" | "multipla_escolha";
-  opcoes?: string[];
-}
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -282,68 +275,6 @@ const Settings = () => {
 
   const senhaPath = `/${slug}/treinador/alterar-senha`;
 
-  // ── Anamnese template state ──────────────────────────────────────
-  const [perguntas,        setPerguntas]        = useState<PerguntaExtra[]>([]);
-  const [savingTemplate,   setSavingTemplate]   = useState(false);
-  const [loadingTemplate,  setLoadingTemplate]  = useState(true);
-  const [novaTexto,        setNovaTexto]        = useState("");
-  const [novaTipo,         setNovaTipo]         = useState<"texto_livre" | "multipla_escolha">("texto_livre");
-  const [novasOpcoes,      setNovasOpcoes]      = useState("");
-  const [showAddForm,      setShowAddForm]      = useState(false);
-
-  useEffect(() => { if (orgId) loadTemplate(); }, [orgId]);
-
-  const loadTemplate = async () => {
-    setLoadingTemplate(true);
-    try {
-      const { data } = await supabase
-        .from("anamnese_templates")
-        .select("perguntas")
-        .eq("org_id", orgId!)
-        .maybeSingle();
-      if (data?.perguntas) setPerguntas(data.perguntas as PerguntaExtra[]);
-    } catch {}
-    finally { setLoadingTemplate(false); }
-  };
-
-  const saveTemplate = async () => {
-    if (!orgId) return;
-    setSavingTemplate(true);
-    try {
-      const { error } = await supabase
-        .from("anamnese_templates")
-        .upsert({ org_id: orgId, perguntas }, { onConflict: "org_id" });
-      if (error) throw error;
-      toast({ title: "Template salvo!" });
-    } catch (err: any) {
-      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
-    } finally { setSavingTemplate(false); }
-  };
-
-  const addPergunta = () => {
-    if (!novaTexto.trim()) return;
-    const nova: PerguntaExtra = {
-      id:    crypto.randomUUID(),
-      texto: novaTexto.trim(),
-      tipo:  novaTipo,
-      ...(novaTipo === "multipla_escolha"
-        ? { opcoes: novasOpcoes.split(",").map((o) => o.trim()).filter(Boolean) }
-        : {}),
-    };
-    setPerguntas((p) => [...p, nova]);
-    setNovaTexto(""); setNovasOpcoes(""); setShowAddForm(false);
-  };
-
-  const removePergunta = (id: string) => setPerguntas((p) => p.filter((x) => x.id !== id));
-
-  const movePergunta = (idx: number, dir: -1 | 1) => {
-    const arr = [...perguntas];
-    const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= arr.length) return;
-    [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
-    setPerguntas(arr);
-  };
-
   // ── Seção reutilizável ─────────────────────────────────────────
   const Section = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
     <div className="rounded-2xl border border-white/6 bg-white/3 overflow-hidden">
@@ -525,7 +456,7 @@ const Settings = () => {
           {/* Badge */}
           <span
             className="px-2.5 py-1 rounded-full text-xs font-semibold"
-            style={{ background: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}
+            style={{ background: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
           >
             Badge
           </span>
@@ -732,188 +663,6 @@ const Settings = () => {
             <BillingSection />
             <SecuritySection />
           </div>
-        </div>
-
-        {/* ── Anamnese Template — full width ──────────────────────── */}
-        <div className="mt-6 max-w-5xl">
-          <Section
-            title="Anamnese — Perguntas personalizadas"
-            subtitle="Adicione perguntas extras que serão exibidas para os alunos ao preencher a anamnese"
-          >
-            {/* Perguntas fixas (read-only) */}
-            <div className="mb-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
-                Perguntas padrão (sempre presentes)
-              </p>
-              <div className="space-y-2">
-                {[
-                  "Objetivo principal (emagrecimento, hipertrofia, saúde...)",
-                  "Nível de atividade física atual",
-                  "Frequência e tempo disponível para treino",
-                  "Histórico de lesões e cirurgias",
-                  "Doenças, medicamentos e suplementos",
-                  "Restrições alimentares e alergias",
-                  "Qualidade do sono, estresse e hidratação",
-                  "Observações gerais",
-                ].map((q) => (
-                  <div
-                    key={q}
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-                    style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-white/20 shrink-0" />
-                    <span className="text-sm text-white/45">{q}</span>
-                    <span className="ml-auto text-[10px] text-white/20 uppercase tracking-wider">fixo</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Perguntas personalizadas */}
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
-                Perguntas personalizadas ({perguntas.length})
-              </p>
-
-              {loadingTemplate ? (
-                <div className="flex items-center gap-2 py-4 text-white/25">
-                  <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
-                </div>
-              ) : perguntas.length === 0 ? (
-                <div
-                  className="py-8 text-center rounded-2xl border border-dashed"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                >
-                  <p className="text-white/25 text-sm">Nenhuma pergunta personalizada ainda.</p>
-                  <p className="text-white/15 text-xs mt-1">Clique em "Adicionar pergunta" para criar uma.</p>
-                </div>
-              ) : (
-                <div className="space-y-2 mb-3">
-                  {perguntas.map((p, idx) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                      style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <button type="button" onClick={() => movePergunta(idx, -1)} disabled={idx === 0}
-                          className="w-5 h-4 flex items-center justify-center text-white/25 hover:text-white/60 disabled:opacity-20 transition-colors">
-                          <ChevronUp className="w-3 h-3" />
-                        </button>
-                        <button type="button" onClick={() => movePergunta(idx, 1)} disabled={idx === perguntas.length - 1}
-                          className="w-5 h-4 flex items-center justify-center text-white/25 hover:text-white/60 disabled:opacity-20 transition-colors">
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white/80">{p.texto}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-white/30 uppercase tracking-wider">
-                            {p.tipo === "multipla_escolha" ? "Múltipla escolha" : "Texto livre"}
-                          </span>
-                          {p.opcoes && p.opcoes.length > 0 && (
-                            <span className="text-[10px] text-white/20">
-                              {p.opcoes.join(" · ")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => removePergunta(p.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add form */}
-              {showAddForm ? (
-                <div
-                  className="rounded-2xl border p-4 space-y-3"
-                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.04)", borderColor: "rgba(var(--cp-rgb),0.2)" }}
-                >
-                  <div>
-                    <Label className="text-xs text-white/40 uppercase tracking-wider mb-1.5 block">Texto da pergunta</Label>
-                    <Input
-                      value={novaTexto}
-                      onChange={(e) => setNovaTexto(e.target.value)}
-                      placeholder="Ex: Qual seu maior desafio hoje?"
-                      className="bg-white/5 border-white/10 text-white rounded-xl h-10 focus:border-green-600/50"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-white/40 uppercase tracking-wider mb-1.5 block">Tipo de resposta</Label>
-                    <div className="flex gap-2">
-                      {(["texto_livre", "multipla_escolha"] as const).map((t) => (
-                        <button
-                          key={t} type="button"
-                          onClick={() => setNovaTipo(t)}
-                          className="flex-1 h-9 rounded-xl text-xs font-medium transition-colors"
-                          style={{
-                            backgroundColor: novaTipo === t ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.05)",
-                            border: `1.5px solid ${novaTipo === t ? "var(--cp-500)" : "rgba(255,255,255,0.1)"}`,
-                            color: novaTipo === t ? "var(--cp-400)" : "rgba(255,255,255,0.5)",
-                          }}
-                        >
-                          {t === "texto_livre" ? "Texto livre" : "Múltipla escolha"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {novaTipo === "multipla_escolha" && (
-                    <div>
-                      <Label className="text-xs text-white/40 uppercase tracking-wider mb-1.5 block">
-                        Opções (separadas por vírgula)
-                      </Label>
-                      <Input
-                        value={novasOpcoes}
-                        onChange={(e) => setNovasOpcoes(e.target.value)}
-                        placeholder="Sim, Não, Às vezes"
-                        className="bg-white/5 border-white/10 text-white rounded-xl h-10 focus:border-green-600/50"
-                      />
-                    </div>
-                  )}
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      type="button" onClick={addPergunta} disabled={!novaTexto.trim()}
-                      className="h-9 px-4 rounded-xl text-white text-xs font-semibold"
-                      style={{ background: "var(--cp-gradient)" }}
-                    >
-                      Adicionar
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowAddForm(false)}
-                      className="h-9 px-4 rounded-xl text-white/50 hover:text-white text-xs">
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button" onClick={() => setShowAddForm(true)}
-                  className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors mt-1"
-                  style={{ color: "var(--cp-400)", backgroundColor: "rgba(var(--cp-rgb),0.08)" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(var(--cp-rgb),0.15)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(var(--cp-rgb),0.08)"; }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar pergunta
-                </button>
-              )}
-            </div>
-
-            {/* Save button */}
-            <Button
-              type="button" onClick={saveTemplate} disabled={savingTemplate}
-              className="h-10 px-5 rounded-xl text-white font-semibold text-sm"
-              style={{ background: "var(--cp-gradient)" }}
-            >
-              {savingTemplate
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
-                : "Salvar template"
-              }
-            </Button>
-          </Section>
         </div>
 
       </div>
