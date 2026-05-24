@@ -2569,7 +2569,7 @@ const VolumePanel = ({
   const hasAnyData = grupos.length > 0 && chartData.length > 0;
 
   return (
-    <div className="space-y-0 rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+    <div className="space-y-0 rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
 
       {/* ── Gráfico de linhas (Volume Realizado) ── */}
       {chartType === 'line' && (
@@ -2977,7 +2977,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
 
       {/* ── Aba: Progressão de Carga ── */}
       {view === 'carga' && (exercicios.length === 0 ? (
-        <div className="rounded-2xl border border-white/8 py-10 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className="rounded-2xl py-10 text-center" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
           <p className="text-white/30 text-sm">Nenhum histórico de carga ainda.</p>
           <p className="text-white/20 text-xs mt-1">O aluno precisa registrar cargas no app para aparecer aqui.</p>
         </div>
@@ -2988,9 +2988,9 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
               <button key={ex.id} onClick={() => setSelectedId(ex.id)}
                 className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
                 style={{
-                  backgroundColor: selectedId === ex.id ? "rgba(var(--cp-rgb),0.2)" : "rgba(255,255,255,0.05)",
-                  color: selectedId === ex.id ? "var(--cp-400)" : "rgba(255,255,255,0.45)",
-                  border: `1px solid ${selectedId === ex.id ? "rgba(var(--cp-rgb),0.3)" : "rgba(255,255,255,0.07)"}`,
+                  backgroundColor: selectedId === ex.id ? "rgba(var(--cp-rgb),0.2)" : "var(--filter-inactive-bg)",
+                  color: selectedId === ex.id ? "var(--cp-400)" : "var(--filter-inactive-color)",
+                  border: `1px solid ${selectedId === ex.id ? "rgba(var(--cp-rgb),0.3)" : "var(--filter-inactive-border)"}`,
                 }}>
                 {ex.nome}
               </button>
@@ -3002,7 +3002,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
               <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
             </div>
           ) : chartData.length < 1 ? (
-            <div className="rounded-2xl border border-white/8 py-8 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
               <p className="text-white/30 text-sm">Nenhum registro de carga para este exercício.</p>
             </div>
           ) : (
@@ -3014,14 +3014,14 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
                   { label: "Variação", value: variacao != null ? `${variacao > 0 ? "+" : ""}${variacao.toFixed(1)}%` : "—",
                     color: variacao == null ? undefined : variacao > 0 ? "hsl(42 95% 58%)" : "hsl(0 70% 55%)" },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-2xl border border-white/8 px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                  <div key={s.label} className="rounded-2xl px-4 py-3" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
                     <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">{s.label}</p>
                     <p className="text-base font-bold" style={{ color: s.color ?? "#fff" }}>{s.value}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+              <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
                 <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
                   {exercicios.find((e) => e.id === selectedId)?.nome}
                 </p>

@@ -96,6 +96,20 @@
     --tag-indigo-color:    #a5b4fc;
     --tag-indigo-border:   rgba(99,102,241,0.22);
 
+    /* ── Feature/status tags (Treino, Dieta, Cardio, Anamnese) ── */
+    --tag-treino-bg:      rgba(234,88,12,0.10);
+    --tag-treino-color:   var(--cp-400);
+    --tag-treino-border:  rgba(234,88,12,0.25);
+    --tag-dieta-bg:       rgba(34,197,94,0.10);
+    --tag-dieta-color:    #4ade80;
+    --tag-dieta-border:   rgba(34,197,94,0.25);
+    --tag-cardio-bg:      rgba(59,130,246,0.10);
+    --tag-cardio-color:   #93c5fd;
+    --tag-cardio-border:  rgba(59,130,246,0.25);
+    --tag-anamnese-bg:    rgba(255,255,255,0.06);
+    --tag-anamnese-color: rgba(255,255,255,0.50);
+    --tag-anamnese-border:rgba(255,255,255,0.12);
+
     /* ── Action buttons (semantic, low-saturation) ── */
     --btn-ghost-bg:        rgba(255,255,255,0.06);
     --btn-ghost-color:     rgba(255,255,255,0.5);
@@ -115,6 +129,9 @@
     --filter-active-bg:     var(--cp-gradient);
     --filter-active-color:  #ffffff;
     --filter-active-border: transparent;
+    --filter-inactive-bg:     transparent;
+    --filter-inactive-color:  rgba(255,255,255,0.45);
+    --filter-inactive-border: rgba(255,255,255,0.10);
 
     /* ── Calendar day cells ── */
     --cal-day-color:    rgba(255,255,255,0.6);
@@ -232,6 +249,20 @@
     --tag-indigo-color:    #a5b4fc;
     --tag-indigo-border:   rgba(99,102,241,0.22);
 
+    /* ── Feature/status tags (Treino, Dieta, Cardio, Anamnese) ── */
+    --tag-treino-bg:      rgba(234,88,12,0.10);
+    --tag-treino-color:   var(--cp-400);
+    --tag-treino-border:  rgba(234,88,12,0.25);
+    --tag-dieta-bg:       rgba(34,197,94,0.10);
+    --tag-dieta-color:    #4ade80;
+    --tag-dieta-border:   rgba(34,197,94,0.25);
+    --tag-cardio-bg:      rgba(59,130,246,0.10);
+    --tag-cardio-color:   #93c5fd;
+    --tag-cardio-border:  rgba(59,130,246,0.25);
+    --tag-anamnese-bg:    rgba(255,255,255,0.06);
+    --tag-anamnese-color: rgba(255,255,255,0.50);
+    --tag-anamnese-border:rgba(255,255,255,0.12);
+
     /* ── Action buttons ── */
     --btn-ghost-bg:        rgba(255,255,255,0.06);
     --btn-ghost-color:     rgba(255,255,255,0.5);
@@ -251,6 +282,9 @@
     --filter-active-bg:     var(--cp-gradient);
     --filter-active-color:  #ffffff;
     --filter-active-border: transparent;
+    --filter-inactive-bg:     transparent;
+    --filter-inactive-color:  rgba(255,255,255,0.45);
+    --filter-inactive-border: rgba(255,255,255,0.10);
 
     /* ── Calendar day cells ── */
     --cal-day-color:    rgba(255,255,255,0.6);
@@ -291,7 +325,7 @@
 
   .light {
     /* ── LIGHT THEME ─────────────────────────────────────────── */
-    --background: 0 0% 97%;
+    --background: 220 14% 96%;
     --foreground: 0 0% 10%;
 
     --card: 0 0% 100%;
@@ -318,7 +352,7 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 210 11% 86%;
-    --input: 210 11% 86%;
+    --input: 220 13% 82%;
     --ring: 142 76% 45%;
 
     --gradient-primary: linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%));
@@ -360,6 +394,20 @@
     --tag-indigo-color:    #4338ca;
     --tag-indigo-border:   rgba(67,56,202,0.22);
 
+    /* ── Feature/status tags — light values ── */
+    --tag-treino-bg:      #fff7ed;
+    --tag-treino-color:   #ea580c;
+    --tag-treino-border:  #fed7aa;
+    --tag-dieta-bg:       #f0fdf4;
+    --tag-dieta-color:    #16a34a;
+    --tag-dieta-border:   #bbf7d0;
+    --tag-cardio-bg:      #eff6ff;
+    --tag-cardio-color:   #2563eb;
+    --tag-cardio-border:  #bfdbfe;
+    --tag-anamnese-bg:    #f9fafb;
+    --tag-anamnese-color: #6b7280;
+    --tag-anamnese-border:#e5e7eb;
+
     /* ── Action buttons — light values ── */
     --btn-ghost-bg:        rgba(0,0,0,0.06);
     --btn-ghost-color:     rgba(0,0,0,0.6);
@@ -379,6 +427,9 @@
     --filter-active-bg:     #fff7ed;
     --filter-active-color:  #ea580c;
     --filter-active-border: #ea580c;
+    --filter-inactive-bg:     transparent;
+    --filter-inactive-color:  #6b7280;
+    --filter-inactive-border: #e5e7eb;
 
     /* ── Calendar day cells — light values ── */
     --cal-day-color:    #374151;
@@ -398,19 +449,19 @@
     --section-header-bg:     #f9fafb;
     --section-header-border: #e5e7eb;
 
-    /* ── Notification dropdown — light values ── */
-    --notif-bg:           #ffffff;
-    --notif-border:       #e5e7eb;
-    --notif-divider:      #e5e7eb;
-    --notif-item-divider: #f3f4f6;
-    --notif-hover-bg:     #f9fafb;
-    --notif-icon-bg:      #f3f4f6;
+    /* ── Notification dropdown — dark panel in light mode ── */
+    --notif-bg:           #1f2937;
+    --notif-border:       rgba(255,255,255,0.10);
+    --notif-divider:      rgba(255,255,255,0.08);
+    --notif-item-divider: rgba(255,255,255,0.05);
+    --notif-hover-bg:     rgba(255,255,255,0.06);
+    --notif-icon-bg:      rgba(255,255,255,0.08);
     --notif-icon-color:   #9ca3af;
-    --notif-text-read:    #6b7280;
-    --notif-text-unread:  #111827;
-    --notif-meta-color:   #6b7280;
-    --notif-date-color:   #9ca3af;
-    --notif-empty-icon:   #d1d5db;
+    --notif-text-read:    #9ca3af;
+    --notif-text-unread:  #ffffff;
+    --notif-meta-color:   #9ca3af;
+    --notif-date-color:   #6b7280;
+    --notif-empty-icon:   rgba(255,255,255,0.20);
     --notif-empty-text:   #9ca3af;
     --notif-bell-color:       rgba(0,0,0,0.45);
     --notif-bell-color-open:  rgba(0,0,0,0.85);
@@ -734,4 +785,7 @@
   .group:hover .group-hover\:text-green-400 {
     color: var(--cp-400) !important;
   }
+
+  /* ── Primary button text always white ── */
+  .light .text-primary-foreground { color: #ffffff !important; }
 }

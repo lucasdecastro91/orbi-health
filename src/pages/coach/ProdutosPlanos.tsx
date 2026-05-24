@@ -369,7 +369,7 @@ const ProdutosPlanos = () => {
               <div className="flex flex-wrap gap-2 mb-3">
                 {plan.pix_value != null && (
                   <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                    style={{ backgroundColor: "var(--tag-success-bg)", color: "var(--tag-success-color)", border: "1px solid var(--tag-success-border)" }}>
+                    style={{ backgroundColor: "var(--tag-dieta-bg)", color: "var(--tag-dieta-color)", border: "1px solid var(--tag-dieta-border)" }}>
                     <Smartphone className="w-3 h-3" />
                     PIX {fmtBRL(Number(plan.pix_value))}
                   </span>

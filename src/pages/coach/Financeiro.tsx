@@ -94,9 +94,9 @@ const CopyBtn = ({ text, label }: { text: string; label: string }) => {
     <button onClick={copy}
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
       style={{
-        backgroundColor: copied ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.06)",
-        color:  copied ? "#4ade80" : "rgba(255,255,255,0.5)",
-        border: `1px solid ${copied ? "rgba(34,197,94,0.3)" : "transparent"}`,
+        backgroundColor: copied ? "var(--btn-success-bg)" : "var(--btn-ghost-bg)",
+        color:  copied ? "var(--btn-success-color)" : "var(--btn-ghost-color)",
+        border: `1px solid ${copied ? "var(--btn-success-border)" : "var(--btn-ghost-border)"}`,
       }}>
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
       {copied ? "Copiado!" : label}
@@ -111,9 +111,9 @@ const PaymentSuccessModal = ({
   cobranca, alunoNome, onClose,
 }: { cobranca: Cobranca; alunoNome: string; onClose: () => void }) => (
   <div className="fixed inset-0 z-50 flex items-end justify-center"
-    style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+    style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
     <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4"
-      style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
       onClick={(e) => e.stopPropagation()}>
 
       <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -132,7 +132,7 @@ const PaymentSuccessModal = ({
       {/* PIX copia e cola */}
       {cobranca.pix_key && (
         <div className="rounded-xl p-3 space-y-2.5"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+          style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
           <p className="text-[10px] text-white/35 uppercase tracking-wider">PIX — Copia e Cola</p>
           <p className="text-[11px] text-white/40 font-mono break-all leading-relaxed line-clamp-2">
             {cobranca.pix_key}
@@ -144,7 +144,7 @@ const PaymentSuccessModal = ({
       {/* Link de pagamento */}
       {cobranca.invoice_url && (
         <div className="rounded-xl p-3 space-y-2.5"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+          style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
           <p className="text-[10px] text-white/35 uppercase tracking-wider">Link de pagamento</p>
           <p className="text-[11px] text-white/40 break-all">{cobranca.invoice_url}</p>
           <CopyBtn text={cobranca.invoice_url} label="Copiar link" />
@@ -308,9 +308,9 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -460,8 +460,8 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
         <div className="space-y-1.5">
           <Label className="text-[11px] text-white/40 uppercase tracking-wider">Data de vencimento *</Label>
           <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)}
-            className="w-full h-11 rounded-xl px-3 text-sm text-white outline-none"
-            style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+            className="w-full h-11 rounded-xl px-3 text-sm text-foreground outline-none"
+            style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }} />
         </div>
 
         <Button onClick={handleCreate} disabled={saving || alunos.length === 0}
@@ -648,7 +648,7 @@ const Financeiro = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 px-4 pb-4">
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="w-3 h-3 text-green-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Recebido</p>
@@ -657,7 +657,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">este mês</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="w-2 h-2 rounded-full bg-amber-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Pendente</p>
@@ -666,7 +666,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">{countPend} cobranças</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <AlertTriangle className="w-3 h-3 text-red-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencido</p>
@@ -697,9 +697,9 @@ const Financeiro = () => {
               onClick={() => setStatusFilter(tab.key)}
               className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
               style={{
-                backgroundColor: statusFilter === tab.key ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
-                color:           statusFilter === tab.key ? "#fbbf24" : "rgba(255,255,255,0.4)",
-                border: `1px solid ${statusFilter === tab.key ? "rgba(251,191,36,0.3)" : "transparent"}`,
+                backgroundColor: statusFilter === tab.key ? "var(--filter-active-bg)" : "var(--filter-inactive-bg)",
+                color:           statusFilter === tab.key ? "var(--filter-active-color)" : "var(--filter-inactive-color)",
+                border: `1px solid ${statusFilter === tab.key ? "var(--filter-active-border)" : "var(--filter-inactive-border)"}`,
               }}>
               {tab.label}
               {cnt > 0 && (
@@ -737,10 +737,10 @@ const Financeiro = () => {
             return (
               <div key={c.id} className="rounded-2xl p-4"
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.03)",
+                  backgroundColor: "var(--surface-1)",
                   border: c.status === "OVERDUE"
-                    ? "1px solid rgba(239,68,68,0.2)"
-                    : "1px solid rgba(255,255,255,0.06)",
+                    ? "1px solid rgba(239,68,68,0.25)"
+                    : "1px solid var(--border-subtle)",
                 }}>
 
                 {/* Row 1: avatar + info + status */}
@@ -781,7 +781,7 @@ const Financeiro = () => {
                   {isActive && (
                     <button onClick={() => handleMarkPaid(c.id)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                      style={{ backgroundColor: "rgba(34,197,94,0.08)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }}>
+                      style={{ backgroundColor: "var(--btn-success-bg)", color: "var(--btn-success-color)", border: "1px solid var(--btn-success-border)" }}>
                       <CheckCircle2 className="w-3 h-3" />
                       Marcar pago
                     </button>
@@ -789,7 +789,7 @@ const Financeiro = () => {
                   {isActive && (
                     <button onClick={() => handleCancel(c.id)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                      style={{ backgroundColor: "rgba(239,68,68,0.07)", color: "#f87171", border: "1px solid rgba(239,68,68,0.15)" }}>
+                      style={{ backgroundColor: "var(--btn-danger-bg)", color: "var(--btn-danger-color)", border: "1px solid var(--btn-danger-border)" }}>
                       <X className="w-3 h-3" />
                       Cancelar
                     </button>
