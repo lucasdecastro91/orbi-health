@@ -429,23 +429,30 @@ const BancoAlimentos = () => {
     if (!confirm("Remover este alimento?")) return;
     setDeletingId(id);
     try {
-      const { data: deleted, error } = await supabase
+      // Soft-delete: marca status = 'removido' em vez de apagar a linha.
+      // Hard DELETE violaria a FK diet_meal_foods_alimento_id_fkey caso
+      // o alimento já esteja referenciado em planos alimentares.
+      // A query de listagem filtra status = 'aprovado', então o alimento
+      // desaparece da UI sem quebrar dados de dietas existentes.
+      const { data: updated, error } = await supabase
         .from("alimentos")
-        .delete()
+        .update({ status: "removido" })
         .eq("id", id)
         .select("id");
+
       if (error) throw error;
-      // Se RLS bloqueou silenciosamente, deleted será array vazio
-      if (!deleted || deleted.length === 0) {
-        throw new Error("Sem permissão para excluir este alimento ou ele já foi removido.");
+
+      // Se RLS bloqueou silenciosamente, updated será array vazio
+      if (!updated || updated.length === 0) {
+        throw new Error("Sem permissão para remover este alimento.");
       }
-      // Atualiza estado local imediatamente (sem depender do re-fetch)
+
+      // Remove do estado local imediatamente
       setAlimentos(prev => prev.filter(a => a.id !== id));
       setTotal(prev => Math.max(0, prev - 1));
       toast({ title: "Alimento removido." });
     } catch (err: any) {
       toast({ title: "Erro ao remover", description: err.message, variant: "destructive" });
-      // Re-fetch para garantir estado consistente
       loadAlimentos();
     } finally {
       setDeletingId(null);
