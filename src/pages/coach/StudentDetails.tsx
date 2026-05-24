@@ -2561,7 +2561,7 @@ const VolumePanel = ({
   const maxVol = Math.max(...Object.values(totais), 1);
 
   const axisProps = {
-    tick: { fill: "rgba(255,255,255,0.35)", fontSize: 11 },
+    tick: { fill: "var(--chart-tick)", fontSize: 11 },
     tickLine: false as const,
     axisLine: false as const,
   };
@@ -2573,16 +2573,16 @@ const VolumePanel = ({
 
       {/* ── Gráfico de linhas (Volume Realizado) ── */}
       {chartType === 'line' && (
-        <div className="p-4 border-b border-white/5">
+        <div className="p-4" style={{ borderBottom: "1px solid var(--divider-line)" }}>
           {!hasAnyData ? (
             <div className="flex items-center justify-center h-[180px]">
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.25)" }}>{emptyMsg}</p>
+              <p className="text-sm" style={{ color: "var(--text-dim)" }}>{emptyMsg}</p>
             </div>
           ) : (
             <div style={{ width: "100%", height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                  <CartesianGrid strokeDasharray="4 4" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis dataKey="week" {...axisProps} interval="preserveStartEnd" />
                   <YAxis {...axisProps} allowDecimals={false} width={36} />
                   <Tooltip content={<VolTooltip />} />
@@ -2601,9 +2601,9 @@ const VolumePanel = ({
       )}
 
       {/* Cabeçalho da tabela */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/6">
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>Músculo</span>
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>
+      <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--divider-line)" }}>
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--chart-tick)" }}>Músculo</span>
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--chart-tick)" }}>
           {setsLabel ?? (chartType === 'bar' ? 'Sets prescritos' : 'Total sets')}
         </span>
       </div>
@@ -2615,10 +2615,10 @@ const VolumePanel = ({
         const hasData = val > 0;
         return (
           <div key={g} className="flex items-center gap-4 px-5 py-4"
-            style={{ borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
+            style={{ borderTop: i === 0 ? 'none' : '1px solid var(--divider-line)' }}>
             {/* Checkbox colorido */}
             <div className="w-6 h-6 rounded-md shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: hasData ? color : 'rgba(255,255,255,0.07)' }}>
+              style={{ backgroundColor: hasData ? color : 'var(--border-subtle)' }}>
               {hasData && (
                 <svg viewBox="0 0 10 8" className="w-3 h-3" fill="none">
                   <path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -2626,11 +2626,11 @@ const VolumePanel = ({
               )}
             </div>
             {/* Nome */}
-            <span className="flex-1 text-base" style={{ color: hasData ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.25)" }}>
+            <span className="flex-1 text-base" style={{ color: hasData ? "var(--text-high)" : "var(--text-dim)" }}>
               {g}
             </span>
             {/* Valor */}
-            <span className="text-base font-bold tabular-nums" style={{ color: hasData ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.18)" }}>
+            <span className="text-base font-bold tabular-nums" style={{ color: hasData ? "var(--text-high)" : "var(--text-dim)" }}>
               {val || 0}
             </span>
           </div>
@@ -2978,8 +2978,8 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
       {/* ── Aba: Progressão de Carga ── */}
       {view === 'carga' && (exercicios.length === 0 ? (
         <div className="rounded-2xl py-10 text-center" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
-          <p className="text-white/30 text-sm">Nenhum histórico de carga ainda.</p>
-          <p className="text-white/20 text-xs mt-1">O aluno precisa registrar cargas no app para aparecer aqui.</p>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>Nenhum histórico de carga ainda.</p>
+          <p className="text-xs mt-1" style={{ color: "var(--chart-tick)" }}>O aluno precisa registrar cargas no app para aparecer aqui.</p>
         </div>
       ) : (
         <>
@@ -3015,21 +3015,21 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
                     color: variacao == null ? undefined : variacao > 0 ? "hsl(42 95% 58%)" : "hsl(0 70% 55%)" },
                 ].map((s) => (
                   <div key={s.label} className="rounded-2xl px-4 py-3" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
-                    <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">{s.label}</p>
-                    <p className="text-base font-bold" style={{ color: s.color ?? "#fff" }}>{s.value}</p>
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--chart-tick)" }}>{s.label}</p>
+                    <p className="text-base font-bold" style={{ color: s.color ?? "var(--text-high)" }}>{s.value}</p>
                   </div>
                 ))}
               </div>
 
               <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--chart-tick)" }}>
                   {exercicios.find((e) => e.id === selectedId)?.nome}
                 </p>
                 <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                    <YAxis domain={["auto", "auto"]} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} />
                     <Tooltip content={<CargaTooltipCoach />} />
                     <Line type="monotone" dataKey="carga" stroke="hsl(42 95% 58%)" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(42 95% 58%)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
                   </LineChart>

@@ -71,6 +71,14 @@
     --border-subtle: rgba(255,255,255,0.06);
     --border-dim:    rgba(255,255,255,0.04);
 
+    /* ── Chart & text semantic vars ── */
+    --chart-tick:    rgba(255,255,255,0.35);
+    --chart-grid:    rgba(255,255,255,0.05);
+    --text-high:     rgba(255,255,255,0.88);
+    --text-mid:      rgba(255,255,255,0.55);
+    --text-dim:      rgba(255,255,255,0.25);
+    --divider-line:  rgba(255,255,255,0.05);
+
     /* ── Student layout header (adapts per theme) ── */
     --header-bg:     rgba(9,9,11,0.9);
     --header-border: rgba(255,255,255,0.05);
@@ -224,6 +232,14 @@
     --border-subtle: rgba(255,255,255,0.06);
     --border-dim:    rgba(255,255,255,0.04);
 
+    /* ── Chart & text semantic vars ── */
+    --chart-tick:    rgba(255,255,255,0.35);
+    --chart-grid:    rgba(255,255,255,0.05);
+    --text-high:     rgba(255,255,255,0.88);
+    --text-mid:      rgba(255,255,255,0.55);
+    --text-dim:      rgba(255,255,255,0.25);
+    --divider-line:  rgba(255,255,255,0.05);
+
     /* ── Student layout header ── */
     --header-bg:     rgba(9,9,11,0.9);
     --header-border: rgba(255,255,255,0.05);
@@ -369,6 +385,14 @@
     --border-subtle: #e5e7eb;
     --border-dim:    #f3f4f6;
 
+    /* ── Chart & text semantic vars — light values ── */
+    --chart-tick:    #6b7280;
+    --chart-grid:    rgba(0,0,0,0.07);
+    --text-high:     #111827;
+    --text-mid:      #374151;
+    --text-dim:      #9ca3af;
+    --divider-line:  rgba(0,0,0,0.06);
+
     /* ── Student layout header — light values ── */
     --header-bg:     rgba(252,252,253,0.95);
     --header-border: rgba(0,0,0,0.08);
@@ -449,23 +473,24 @@
     --section-header-bg:     #f9fafb;
     --section-header-border: #e5e7eb;
 
-    /* ── Notification dropdown — dark panel in light mode ── */
-    --notif-bg:           #1f2937;
+    /* ── Notification dropdown — dark panel (same as dark mode) ── */
+    --notif-bg:           #17171a;
     --notif-border:       rgba(255,255,255,0.10);
-    --notif-divider:      rgba(255,255,255,0.08);
-    --notif-item-divider: rgba(255,255,255,0.05);
-    --notif-hover-bg:     rgba(255,255,255,0.06);
-    --notif-icon-bg:      rgba(255,255,255,0.08);
-    --notif-icon-color:   #9ca3af;
-    --notif-text-read:    #9ca3af;
+    --notif-divider:      rgba(255,255,255,0.07);
+    --notif-item-divider: rgba(255,255,255,0.04);
+    --notif-hover-bg:     rgba(255,255,255,0.05);
+    --notif-icon-bg:      rgba(255,255,255,0.05);
+    --notif-icon-color:   rgba(255,255,255,0.30);
+    --notif-text-read:    rgba(255,255,255,0.50);
     --notif-text-unread:  #ffffff;
-    --notif-meta-color:   #9ca3af;
-    --notif-date-color:   #6b7280;
-    --notif-empty-icon:   rgba(255,255,255,0.20);
-    --notif-empty-text:   #9ca3af;
-    --notif-bell-color:       rgba(0,0,0,0.45);
-    --notif-bell-color-open:  rgba(0,0,0,0.85);
-    --notif-bell-hover-bg:    rgba(0,0,0,0.06);
+    --notif-meta-color:   rgba(255,255,255,0.35);
+    --notif-date-color:   rgba(255,255,255,0.20);
+    --notif-empty-icon:   rgba(255,255,255,0.10);
+    --notif-empty-text:   rgba(255,255,255,0.30);
+    /* Bell sits on always-dark sidebar → keep white-based colors */
+    --notif-bell-color:       rgba(255,255,255,0.50);
+    --notif-bell-color-open:  rgba(255,255,255,0.90);
+    --notif-bell-hover-bg:    rgba(255,255,255,0.06);
   }
 }
 
