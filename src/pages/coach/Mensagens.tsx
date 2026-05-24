@@ -295,7 +295,8 @@ const Mensagens = () => {
     return (
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Chat header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/6">
+        <div className="flex items-center gap-3 px-5 py-4"
+          style={{ backgroundColor: "var(--surface-1)", borderBottom: "1px solid var(--border-subtle)" }}>
           <button
             onClick={() => { setMobileChat(false); setSelected(null); }}
             className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/8 transition-colors"
@@ -310,7 +311,7 @@ const Mensagens = () => {
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">{selected.profiles.nome}</p>
-            <p className="text-xs text-white/35">Aluno</p>
+            <p className="text-xs text-foreground/40">Aluno</p>
           </div>
         </div>
 

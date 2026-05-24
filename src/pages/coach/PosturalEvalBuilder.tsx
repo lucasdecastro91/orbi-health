@@ -291,8 +291,10 @@ const PosturalEvalBuilder = () => {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={resetToDefaults} title="Restaurar padrões"
-            className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium border border-white/10 transition-colors"
-            style={{ color: "rgba(255,255,255,0.5)" }}>
+            className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-medium transition-colors"
+            style={{ border: "1px solid var(--cp-500)", color: "var(--cp-500)", backgroundColor: "transparent" }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--btn-soft-bg)")}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}>
             <RotateCcw className="w-3.5 h-3.5" /> Restaurar
           </button>
           <button onClick={handleSave} disabled={saving}

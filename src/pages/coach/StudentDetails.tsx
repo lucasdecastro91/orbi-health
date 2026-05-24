@@ -1693,7 +1693,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Suplementação e Fitoterápicos</p>
         <button onClick={() => setAddOpen((o) => !o)}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
-          style={{ backgroundColor: addOpen ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.1)', color: 'rgb(251,191,36)' }}>
+          style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
           <Plus className="w-3.5 h-3.5" /> Adicionar
         </button>
       </div>
@@ -1701,7 +1701,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
       {/* Add form */}
       {addOpen && (
         <div className="rounded-2xl border p-4 space-y-3"
-          style={{ backgroundColor: 'rgba(245,158,11,0.03)', borderColor: 'rgba(245,158,11,0.15)' }}>
+          style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
           <div>
             <label className={lbl}>Nome do suplemento / fitoterápico *</label>
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
@@ -1723,8 +1723,8 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
           </div>
           <div className="flex gap-2">
             <button onClick={() => { setAddOpen(false); setForm({ nome: '', dosagem: '', instrucao: '' }); }}
-              className="h-10 px-4 rounded-xl text-sm font-medium text-white/50 transition-colors"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+              className="h-10 px-4 rounded-xl text-sm font-medium transition-colors"
+              style={{ backgroundColor: "var(--surface-2)", color: "var(--muted-foreground, rgba(255,255,255,0.5))", border: "1px solid var(--border-subtle)" }}>
               Cancelar
             </button>
             <button onClick={save} disabled={saving}
