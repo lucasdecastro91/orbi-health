@@ -345,7 +345,7 @@ const CoachDashboard = () => {
 
             {data.planosVencendo.length === 0 ? (
               <div className="px-5 py-12 text-center">
-                <p className="text-sm text-white/20">
+                <p className="text-sm" style={{ color: "var(--text-dim)" }}>
                   Nenhum plano vencendo nos próximos 30 dias.
                 </p>
               </div>
@@ -393,7 +393,7 @@ const CoachDashboard = () => {
 
             {data.atualizacoes.length === 0 ? (
               <div className="px-5 py-12 text-center">
-                <p className="text-sm text-white/20">
+                <p className="text-sm" style={{ color: "var(--text-dim)" }}>
                   Nenhuma atualização recebida nos últimos 7 dias.
                 </p>
               </div>
