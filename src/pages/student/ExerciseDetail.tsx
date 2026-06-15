@@ -6,8 +6,13 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import {
   ArrowLeft, Play, Weight,
   ChevronDown, ChevronUp, X,
-  Timer, Pause, SkipForward, CheckCircle,
+  Timer, Pause, SkipForward, CheckCircle, TrendingUp,
+  Circle, AlertCircle,
 } from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip,
+} from "recharts";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -21,6 +26,8 @@ interface SerieDetalhe {
   repeticoes: string;
   tipo_calculo: TipoCalculo;
   valor_calculo: string;
+  quantidade: number; // quantas vezes repetir este bloco (default 1)
+  observacoes?: string; // per-serie note set by trainer
 }
 
 interface Exercise {
@@ -104,17 +111,41 @@ const parseDescanso = (d: string | null): string => {
   return n >= 60 ? `${Math.floor(n / 60)}:${(n % 60).toString().padStart(2, "0")}` : `${n}s`;
 };
 
-const SERIE_TIPO_CONFIG: Record<string, { label: string; bg: string; text: string; hint?: string }> = {
+const SERIE_TIPO_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   'warm-up':      { label: 'Warm-up',    bg: 'rgba(59,130,246,0.12)',    text: '#60a5fa'       },
   'feeder':       { label: 'Feeder',     bg: 'rgba(245,158,11,0.12)',    text: '#fbbf24'       },
   'trabalho':     { label: 'Work Set',   bg: 'rgba(var(--cp-rgb),0.12)', text: 'var(--cp-400)' },
   'tecnica':      { label: 'Técnica',    bg: 'rgba(168,85,247,0.12)',    text: '#c084fc'       },
   'drop-set':     { label: 'Drop Set',   bg: 'rgba(239,68,68,0.12)',     text: '#f87171'       },
   'cluster':      { label: 'Cluster',    bg: 'rgba(34,197,94,0.12)',     text: '#4ade80'       },
-  'rest-pause':   { label: 'Rest Pause', bg: 'rgba(251,113,133,0.12)',   text: '#fb7185',
-                    hint: '⏱ 20s rest · mesmo peso · até a falha'               },
-  'muscle-round': { label: 'Muscle Rnd', bg: 'rgba(34,211,238,0.12)',    text: '#22d3ee',
-                    hint: '🔄 18 reps totais · 10-15s ao falhar · mesmo peso'   },
+  'rest-pause':   { label: 'Rest Pause', bg: 'rgba(251,113,133,0.12)',   text: '#fb7185'       },
+  'muscle-round': { label: 'Muscle Rnd', bg: 'rgba(34,211,238,0.12)',    text: '#22d3ee'       },
+};
+
+// Default rest times (seconds) per series type when no exercise rest is set
+const DEFAULT_REST_SECS: Record<string, number> = {
+  'warm-up': 45,
+  'feeder':  60,
+};
+
+// Hardcoded fallback hints — used only when org has no global config set.
+const DEFAULT_SERIE_HINT: Record<string, string> = {
+  'warm-up':      'Execute com carga leve para aquecer as articulações e preparar o músculo. Não force ao máximo — o objetivo é ativar, não fadigar.',
+  'feeder':       'Execute com peso moderado antes das séries de trabalho para sentir o movimento e calibrar a conexão mente-músculo.',
+  'trabalho':     'Série principal. Execute dentro da zona de repetições com máxima concentração e conexão mente-músculo.',
+  'drop-set':     'Execute as repetições normalmente e, em seguida, reduza o peso conforme o % indicado e execute até a falha. A carga exibida já é a carga reduzida.',
+  'rest-pause':   'Execute as repetições da série normalmente. Descanse 20 segundos e, com o mesmo peso, execute até a falha.',
+  'muscle-round': 'Execute 18 repetições totais. Ao chegar à falha, descanse 10 segundos e retome de onde parou até completar as 18 reps.',
+};
+
+/** Gera a descrição dinâmica do Cluster com base no número de reps da série. */
+const buildClusterHint = (repeticoes: string): string => {
+  const reps = parseInt(repeticoes);
+  if (!isNaN(reps) && reps > 0) {
+    const rpb = Math.ceil(reps / 3);
+    return `Aumente a carga conforme o % indicado. Realize 3 blocos de ${rpb} reps com 20 segundos de descanso entre cada (3×${rpb} = ${3 * rpb} reps total). A carga exibida já é a carga aumentada.`;
+  }
+  return 'Realize blocos de repetições com 20 segundos de descanso entre cada bloco, até completar o total de reps. A carga exibida já é a carga aumentada.';
 };
 
 /** Calculate load from base + tipo_calculo + valor */
@@ -242,17 +273,17 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Descanso</p>
-            <p className="text-sm font-medium text-muted-foreground mt-0.5 truncate max-w-[200px]">
+            <p className="text-xs uppercase tracking-wider font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Descanso</p>
+            <p className="text-sm font-medium mt-0.5 truncate max-w-[200px]" style={{ color: "rgba(255,255,255,0.6)" }}>
               {exerciseName}
             </p>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+            style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
           >
-            <X className="w-4 h-4 text-white/50" />
+            <X className="w-4 h-4" style={{ color: "rgba(255,255,255,0.75)" }} />
           </button>
         </div>
 
@@ -276,10 +307,10 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
                 </>
               ) : (
                 <>
-                  <p className="text-5xl font-bold text-foreground tabular-nums tracking-tight">
+                  <p className="text-5xl font-bold tabular-nums tracking-tight" style={{ color: "#ffffff" }}>
                     {fmtTime(remaining)}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{fmtTime(seconds)} total</p>
+                  <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>{fmtTime(seconds)} total</p>
                 </>
               )}
             </div>
@@ -290,7 +321,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
               <button
                 onClick={() => setRunning((v) => !v)}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold"
-                style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "hsl(var(--foreground) / 0.7)" }}
+                style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)" }}
               >
                 {running
                   ? <><Pause className="w-4 h-4" /> Pausar</>
@@ -365,15 +396,91 @@ const VideoModal = ({
 );
 
 // ─────────────────────────────────────────────────────────────
+// Load History Chart
+// ─────────────────────────────────────────────────────────────
+
+interface HistoricoEntry {
+  carga: string;
+  data_registro: string;
+}
+
+const fmtDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const toNum = (s: string): number | null => {
+  const m = s.match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+};
+
+const CargaTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="rounded-xl border px-3 py-2"
+      style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}
+    >
+      <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>{label}</p>
+      <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
+    </div>
+  );
+};
+
+const HistoricoChart = ({ historico, loading }: { historico: HistoricoEntry[]; loading: boolean }) => {
+  const chartData = historico
+    .map((r) => ({ date: fmtDate(r.data_registro), carga: toNum(r.carga) }))
+    .filter((r) => r.carga != null) as { date: string; carga: number }[];
+
+  return (
+    <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
+      <div className="flex items-center gap-1.5">
+        <TrendingUp className="w-3.5 h-3.5" style={{ color: "hsl(42 95% 58%)" }} />
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">Evolução de Carga</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-5 h-5 rounded-full border-2 border-white/10 border-t-amber-500/60 animate-spin" />
+        </div>
+      ) : chartData.length < 2 ? (
+        <div className="flex flex-col items-center gap-2 py-6">
+          <p className="text-xs text-muted-foreground/60 text-center">
+            {chartData.length === 0
+              ? "Salve sua carga acima para começar a registrar a evolução"
+              : "Salve a carga mais uma vez para o gráfico aparecer"}
+          </p>
+          <div className="flex gap-1 mt-1">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: i < chartData.length ? "hsl(42 95% 58%)" : "var(--border-subtle)" }} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={160}>
+          <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+            <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 10 }} tickLine={false} axisLine={false} />
+            <Tooltip content={<CargaTooltip />} />
+            <Line type="monotone" dataKey="carga" stroke="hsl(42 95% 58%)" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(42 95% 58%)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────
 
 const ExerciseDetail = () => {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { slug } = useTenantContext();
+  const { slug, org } = useTenantContext();
 
   const [exercise, setExercise]     = useState<Exercise | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -385,9 +492,32 @@ const ExerciseDetail = () => {
   const [descOpen, setDescOpen]     = useState(false);
   const [restOpen, setRestOpen]     = useState(false);
   const [restSecs, setRestSecs]     = useState(60);
+  const [historico, setHistorico]         = useState<HistoricoEntry[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(true);
+  const [doneSeries, setDoneSeries]       = useState<Set<string>>(new Set());
+  const [openHintKey, setOpenHintKey]     = useState<string | null>(null);
+
+  const toggleSerie = (serieKey: string, serieType: string) => {
+    const isCurrentlyDone = doneSeries.has(serieKey);
+    setDoneSeries((prev) => {
+      const next = new Set(prev);
+      next.has(serieKey) ? next.delete(serieKey) : next.add(serieKey);
+      return next;
+    });
+    // Ao marcar como concluída, abre o timer de descanso automaticamente
+    if (!isCurrentlyDone) {
+      const secs =
+        DEFAULT_REST_SECS[serieType] ??
+        parseDescansoSecs(exercise?.descanso);
+      setTimeout(() => {
+        setRestSecs(secs);
+        setRestOpen(true);
+      }, 150);
+    }
+  };
 
   useEffect(() => { loadExercise(); getAlunoId(); }, [id]);
-  useEffect(() => { if (alunoId && id) loadCarga(); }, [alunoId, id]);
+  useEffect(() => { if (alunoId && id) { loadCarga(); loadHistorico(); } }, [alunoId, id]);
 
   // Pre-fill carga from exercise.carga_base when student has no saved carga
   useEffect(() => {
@@ -418,11 +548,14 @@ const ExerciseDetail = () => {
       if (error) throw error;
       const q = data as unknown as ExerciseQueryResult;
       const normalizeSerie = (s: any): SerieDetalhe => ({
-        id:           s.id ?? '',
-        tipo:         s.tipo ?? 'trabalho',
-        repeticoes:   s.repeticoes ?? '',
-        tipo_calculo: s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
+        id:            s.id ?? '',
+        tipo:          s.tipo ?? 'trabalho',
+        repeticoes:    s.repeticoes ?? '',
+        tipo_calculo:  s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
         valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
+        quantidade:    typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
+        // Coach salva o texto em `descricao`; mantém retrocompatibilidade com `observacoes`
+        observacoes:   s.observacoes ?? s.descricao ?? '',
       });
 
       const rawSd = (q as any).series_detalhadas;
@@ -482,6 +615,23 @@ const ExerciseDetail = () => {
     }
   };
 
+  const loadHistorico = async () => {
+    if (!alunoId || !id) return;
+    setLoadingHistorico(true);
+    try {
+      const { data } = await supabase
+        .from("historico_carga")
+        .select("carga, data_registro")
+        .eq("exercicio_id", id)
+        .eq("aluno_id", alunoId)
+        .order("data_registro", { ascending: true })
+        .limit(60);
+      setHistorico(data ?? []);
+    } finally {
+      setLoadingHistorico(false);
+    }
+  };
+
   const saveCarga = async () => {
     if (!alunoId || !id || !carga.trim()) {
       toast({ title: "Atenção", description: "Digite uma carga válida", variant: "destructive" });
@@ -489,12 +639,20 @@ const ExerciseDetail = () => {
     }
     setSavingCarga(true);
     try {
-      const { error } = await supabase.from("exercicios_carga").upsert(
-        { exercicio_id: id, aluno_id: alunoId, carga: carga.trim(), data_registro: new Date().toISOString() },
-        { onConflict: "exercicio_id,aluno_id" }
-      );
-      if (error) throw error;
+      const now = new Date().toISOString();
+      const [upsertRes, insertRes] = await Promise.all([
+        supabase.from("exercicios_carga").upsert(
+          { exercicio_id: id, aluno_id: alunoId, carga: carga.trim(), data_registro: now },
+          { onConflict: "exercicio_id,aluno_id" }
+        ),
+        supabase.from("historico_carga").insert(
+          { exercicio_id: id, aluno_id: alunoId, carga: carga.trim(), data_registro: now }
+        ),
+      ]);
+      if (upsertRes.error) throw upsertRes.error;
+      if (insertRes.error) throw insertRes.error;
       toast({ title: "Carga salva!", description: "Registrada com sucesso" });
+      await loadHistorico();
     } catch (err: any) {
       toast({ title: "Erro ao salvar carga", description: err.message, variant: "destructive" });
     } finally {
@@ -503,12 +661,12 @@ const ExerciseDetail = () => {
   };
 
   const handleBack = () => {
-    const weekId  = searchParams.get("weekId");
     const treinoId = searchParams.get("treinoId");
-    const params  = new URLSearchParams();
-    if (weekId)   params.set("weekId", weekId);
-    if (treinoId) params.set("treinoId", treinoId);
-    navigate(`/${slug}/aluno/treinos${params.toString() ? `?${params.toString()}` : ""}`);
+    if (treinoId) {
+      navigate(`/${slug}/aluno/treinos?treinoId=${treinoId}`);
+    } else {
+      navigate(-1);
+    }
   };
 
   // ── Loading ───────────────────────────────────────────────
@@ -559,8 +717,7 @@ const ExerciseDetail = () => {
 
         {/* ── Sticky back bar — full-width bg, content capped to match cards ── */}
         <div
-          className="sticky top-0 z-10 py-3"
-          style={{ backgroundColor: "rgba(9,9,11,0.85)", backdropFilter: "blur(12px)" }}
+          className="sticky top-0 z-10 py-3 bg-background/90 backdrop-blur-md"
         >
           <div className="max-w-2xl mx-auto px-4 flex items-center gap-3">
             <button
@@ -614,13 +771,6 @@ const ExerciseDetail = () => {
                     <Play className="w-7 h-7 text-white fill-white ml-1" />
                   </div>
                 </div>
-                {/* Label */}
-                <div
-                  className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg text-xs text-white/80 font-medium pointer-events-none"
-                  style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
-                >
-                  Toque para assistir
-                </div>
               </button>
             </div>
           ) : (
@@ -645,7 +795,7 @@ const ExerciseDetail = () => {
           {exercise.descanso && (
             <div
               className="rounded-2xl border flex items-center justify-between px-4 py-3"
-              style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+              style={{ backgroundColor: "var(--surface-2)", borderColor: "var(--border-subtle)" }}
             >
               <div className="flex items-center gap-2">
                 <div
@@ -737,13 +887,26 @@ const ExerciseDetail = () => {
               </div>
 
               <div className="space-y-1.5">
-                {exercise.series_detalhadas.map((serie, idx) => {
+                {(() => {
+                  // Pré-computa total de séries por tipo somando `quantidade`
+                  // Ex: WORK SET com quantidade=2 → serieTotal=2 (exibe "2x" em uma única linha)
+                  const tipoCount: Record<string, number> = {};
+                  exercise.series_detalhadas!.forEach((s) => {
+                    tipoCount[s.tipo] = (tipoCount[s.tipo] || 0) + (s.quantidade ?? 1);
+                  });
+                  const tipoIdx: Record<string, number> = {};
+                  return exercise.series_detalhadas!.map((serie, idx) => {
+                  tipoIdx[serie.tipo] = (tipoIdx[serie.tipo] || 0) + 1;
+                  const serieNum   = tipoIdx[serie.tipo];
+                  const serieTotal = tipoCount[serie.tipo];
+                  const serieKey = serie.id || String(idx);
                   const cfg = SERIE_TIPO_CONFIG[serie.tipo] ?? {
                     label: serie.tipo || 'Custom',
-                    bg: 'rgba(255,255,255,0.08)',
-                    text: 'rgba(255,255,255,0.55)',
+                    bg:    'var(--surface-2)',
+                    text:  'var(--text-mid)',
                   };
-                  const tipoCalculo = serie.tipo_calculo;
+
+                  const tipoCalculo  = serie.tipo_calculo;
                   const valorCalculo = serie.valor_calculo;
 
                   const calculatedLoad = tipoCalculo !== 'manual' && carga.trim()
@@ -751,39 +914,86 @@ const ExerciseDetail = () => {
                     : null;
                   const manualLoad = tipoCalculo === 'manual' ? valorCalculo || null : null;
 
+                  // Prioridade: 1) texto por exercício  2) cluster dinâmico  3) config global da org  4) fallback hardcoded
+                  const orgSerieConfig = (org?.serie_config ?? {}) as Record<string, string>;
+                  const hintText = (() => {
+                    if (serie.observacoes && serie.observacoes.trim()) return serie.observacoes.trim();
+                    if (serie.tipo === 'cluster') return buildClusterHint(serie.repeticoes);
+                    if (orgSerieConfig[serie.tipo]?.trim()) return orgSerieConfig[serie.tipo].trim();
+                    return DEFAULT_SERIE_HINT[serie.tipo] ?? null;
+                  })();
+
+                  const done = doneSeries.has(serieKey);
+
                   return (
-                    <div
-                      key={serie.id || idx}
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                    >
-                      <span
-                        className="text-[10px] font-bold tabular-nums shrink-0 text-muted-foreground/60"
-                        style={{ width: 16 }}
+                    <div key={serieKey}>
+                      {/* Linha da série */}
+                      <div
+                        className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                        style={{
+                          backgroundColor: done ? 'rgba(34,197,94,0.05)' : 'var(--surface-2)',
+                          border: `1px solid ${done ? 'rgba(34,197,94,0.20)' : 'var(--border-subtle)'}`,
+                          transition: 'background-color 0.2s',
+                        }}
                       >
-                        {idx + 1}
-                      </span>
-                      <span
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0"
-                        style={{ backgroundColor: cfg.bg, color: cfg.text }}
-                      >
-                        {cfg.label}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-muted-foreground font-medium">
+                        {/* Número */}
+                        <span
+                          className="text-[10px] font-bold tabular-nums shrink-0"
+                          style={{ width: 14, color: done ? 'rgba(74,222,128,0.5)' : 'var(--text-dim)' }}
+                        >
+                          {idx + 1}
+                        </span>
+
+                        {/* Badge do tipo */}
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0"
+                          style={{
+                            backgroundColor: cfg.bg,
+                            color: done ? 'var(--text-dim)' : cfg.text,
+                          }}
+                        >
+                          {cfg.label}
+                        </span>
+
+                        {/* Ícone de observação — abre/fecha hint inline */}
+                        {hintText && (
+                          <button
+                            onClick={() => setOpenHintKey(openHintKey === serieKey ? null : serieKey)}
+                            className="shrink-0 flex items-center justify-center transition-opacity active:scale-95"
+                            style={{ color: openHintKey === serieKey ? cfg.text : (done ? 'var(--text-dim)' : cfg.text), opacity: done ? 0.5 : 1 }}
+                            aria-label="Ver observações"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Contador — total de séries desse tipo (ex: 1x, 3x) */}
+                        <span
+                          className="text-[10px] font-semibold tabular-nums shrink-0"
+                          style={{ color: done ? 'var(--text-dim)' : cfg.text, opacity: done ? 0.5 : 0.75 }}
+                        >
+                          {serieTotal}x
+                        </span>
+
+                        {/* Repetições */}
+                        <span
+                          className="text-sm font-medium shrink-0"
+                          style={{ color: done ? 'var(--text-dim)' : 'hsl(var(--muted-foreground))' }}
+                        >
                           {serie.repeticoes ? `${serie.repeticoes} reps` : '—'}
                         </span>
-                        {cfg.hint && (
-                          <p className="text-[10px] text-muted-foreground/60 mt-0.5 leading-snug">
-                            {cfg.hint}
-                          </p>
-                        )}
-                      </div>
-                      {/* Load display */}
+
+                      {/* Espaçador */}
+                      <div className="flex-1" />
+
+                      {/* Carga calculada */}
                       {(calculatedLoad || manualLoad) && (
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div
+                          className="flex items-center gap-1 shrink-0"
+                          style={{ opacity: done ? 0.4 : 1 }}
+                        >
                           {calculatedLoad && carga.trim() && (
-                            <span className="text-[11px] text-muted-foreground/60">
+                            <span className="text-[10px] text-muted-foreground/50 hidden xs:inline">
                               {carga} →
                             </span>
                           )}
@@ -792,9 +1002,50 @@ const ExerciseDetail = () => {
                           </span>
                         </div>
                       )}
+
+                        {/* Marcador de conclusão */}
+                        <button
+                          onClick={() => toggleSerie(serieKey, serie.tipo)}
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full ml-1 transition-all active:scale-90"
+                          style={{
+                            backgroundColor: done ? 'rgba(34,197,94,0.15)' : 'var(--surface-1)',
+                            border: `1.5px solid ${done ? 'rgba(34,197,94,0.45)' : 'var(--border-subtle)'}`,
+                          }}
+                          aria-label={done ? 'Desmarcar série' : 'Marcar série como concluída'}
+                        >
+                          {done
+                            ? <CheckCircle className="w-4 h-4 text-green-500" />
+                            : <Circle className="w-4 h-4" style={{ color: 'var(--text-dim)' }} />
+                          }
+                        </button>
+                      </div>
+
+                      {/* Hint inline — expande abaixo da série ao clicar no "!" */}
+                      {openHintKey === serieKey && hintText && (
+                        <div
+                          className="rounded-xl px-3 py-2.5 mt-1"
+                          style={{
+                            backgroundColor: 'var(--surface-1)',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          <p
+                            className="text-[10px] uppercase tracking-wider font-semibold mb-1.5"
+                            style={{ color: cfg.text }}
+                          >
+                            Observações da série
+                          </p>
+                          <p
+                            className="text-sm leading-relaxed whitespace-pre-line"
+                            style={{ color: 'var(--text-mid)' }}
+                          >
+                            {hintText}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
-                })}
+                })})()}
               </div>
 
               {/* Hint when no carga and series need it */}
@@ -805,6 +1056,9 @@ const ExerciseDetail = () => {
               )}
             </div>
           )}
+
+          {/* ── Evolução de Carga ── */}
+          <HistoricoChart historico={historico} loading={loadingHistorico} />
 
           {/* ── Warm-up / Feeder auto-calc ── */}
           {showWarmup && (

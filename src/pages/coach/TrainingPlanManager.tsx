@@ -154,14 +154,36 @@ const parseRepsNum = (s: string): number => {
   return parseInt(s) || 0;
 };
 
+// ── Notificação silenciosa de treino atualizado ───────────────────────────────
+const notifyTreinoAtualizado = (studentUserId: string, orgId: string) => {
+  void (async () => {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data: existing } = await supabase.from("notificacoes")
+        .select("id").eq("user_id", studentUserId)
+        .eq("tipo", "treino_atualizado").gte("created_at", oneHourAgo).limit(1);
+      if (!existing || existing.length === 0) {
+        await supabase.from("notificacoes").insert({
+          user_id: studentUserId,
+          org_id: orgId,
+          titulo: "Treino atualizado",
+          mensagem: 'Seu plano de treino foi atualizado. Clique em "Ver treinos" e confira.',
+          tipo: "treino_atualizado",
+        });
+      }
+    } catch {}
+  })();
+};
 
 const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const navigate = useNavigate();
+  const { orgId } = useTenantContext();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
+  const [studentUserId, setStudentUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,14 +192,14 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
 
   const loadPlans = async () => {
     try {
-      const { data, error } = await supabase
-        .from("planos_treino")
-        .select("*")
-        .eq("aluno_id", studentId)
-        .order("data_inicio", { ascending: false });
+      const [plansRes, alunoRes] = await Promise.all([
+        supabase.from("planos_treino").select("*").eq("aluno_id", studentId).order("data_inicio", { ascending: false }),
+        supabase.from("alunos").select("user_id").eq("id", studentId).maybeSingle(),
+      ]);
 
-      if (error) throw error;
-      setPlans(data || []);
+      if (plansRes.error) throw plansRes.error;
+      setPlans(plansRes.data || []);
+      if (alunoRes.data?.user_id) setStudentUserId(alunoRes.data.user_id);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar planos",
@@ -220,6 +242,26 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
 
         if (error) throw error;
         toast({ title: "Plano criado com sucesso!" });
+      }
+
+      if (studentUserId && orgId) {
+        void (async () => {
+          try {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            const { data: existing } = await supabase.from("notificacoes")
+              .select("id").eq("user_id", studentUserId)
+              .eq("tipo", "treino_atualizado").gte("created_at", oneHourAgo).limit(1);
+            if (!existing || existing.length === 0) {
+              await supabase.from("notificacoes").insert({
+                user_id: studentUserId,
+                org_id: orgId,
+                titulo: "Treino atualizado",
+                mensagem: "Seu plano de treino foi atualizado. Clique em \"Ver treinos\" e confira.",
+                tipo: "treino_atualizado",
+              });
+            }
+          } catch {}
+        })();
       }
 
       setDialogOpen(false);
@@ -322,7 +364,7 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <PlanDetails planId={plan.id} />
+                <PlanDetails planId={plan.id} studentUserId={studentUserId ?? undefined} />
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -404,13 +446,14 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   );
 };
 
-const PlanDetails = ({ planId }: { planId: string }) => {
+const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?: string }) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWeek, setEditingWeek] = useState<Week | null>(null);
   const [deletingWeekId, setDeletingWeekId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
 
   useEffect(() => {
     loadWeeks();
@@ -470,6 +513,8 @@ const PlanDetails = ({ planId }: { planId: string }) => {
         if (error) throw error;
         toast({ title: "Bloco criado!" });
       }
+
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
 
       setDialogOpen(false);
       setEditingWeek(null);
@@ -684,7 +729,7 @@ const PlanDetails = ({ planId }: { planId: string }) => {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <WeekDetails weekId={week.id} />
+                <WeekDetails weekId={week.id} studentUserId={studentUserId} />
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -809,13 +854,14 @@ const PlanDetails = ({ planId }: { planId: string }) => {
   );
 };
 
-const WeekDetails = ({ weekId }: { weekId: string }) => {
+const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?: string }) => {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
   const [deletingTrainingId, setDeletingTrainingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
 
   useEffect(() => {
     loadTrainings();
@@ -871,6 +917,8 @@ const WeekDetails = ({ weekId }: { weekId: string }) => {
         if (error) throw error;
         toast({ title: "Treino adicionado!" });
       }
+
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
 
       setDialogOpen(false);
       setEditingTraining(null);
@@ -935,6 +983,7 @@ const WeekDetails = ({ weekId }: { weekId: string }) => {
         .eq("id", targetTraining.id);
 
       toast({ title: "Ordem atualizada!" });
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
       loadTrainings(); // Recarregar lista
     } catch (error: any) {
       toast({
@@ -1093,7 +1142,7 @@ const WeekDetails = ({ weekId }: { weekId: string }) => {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <TrainingExercises trainingId={training.id} />
+                <TrainingExercises trainingId={training.id} studentUserId={studentUserId} />
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -1165,7 +1214,7 @@ const WeekDetails = ({ weekId }: { weekId: string }) => {
 };
 
 
-const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
+const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; studentUserId?: string }) => {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [exercisesBase, setExercisesBase] = useState<ExerciseBase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1178,45 +1227,68 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
   const [detailedSeries, setDetailedSeries] = useState<SerieDetalhe[]>([]);
   const [cargaBase, setCargaBase] = useState('');
   const [descansoEx, setDescansoEx] = useState('');
-  const [customTipos, setCustomTipos] = useState<string[]>([]);
+  const [customTipos, setCustomTipos] = useState<{ id: string; name: string; description: string | null }[]>([]);
   // IDs de blocos de série que expandiram as Técnicas Avançadas no seletor
   const [showAdvancedFor, setShowAdvancedFor] = useState<Set<string>>(new Set());
   const [showDescFor, setShowDescFor] = useState<Set<string>>(new Set());
   const { toast } = useToast();
-  const { orgId } = useTenantContext();
+  const { orgId, org } = useTenantContext();
 
   // ── Custom tipo helpers ────────────────────────────────────────────
   /** True when tipo is neither a preset nor a saved custom — shows free-text input */
   const isCustomTipo = (tipo: string) =>
-    !PRESET_TIPOS.includes(tipo) && !customTipos.includes(tipo);
+    !PRESET_TIPOS.includes(tipo) && !customTipos.some(t => t.name === tipo);
 
   const loadCustomTipos = async () => {
     if (!orgId) return;
     try {
       const { data } = await supabase
-        .from("serie_tipos_custom")
-        .select("nome")
+        .from("custom_techniques")
+        .select("id, name, description")
         .eq("org_id", orgId)
-        .order("nome");
-      if (data) setCustomTipos(data.map((r: any) => r.nome));
+        .order("name");
+      if (data) setCustomTipos(data as { id: string; name: string; description: string | null }[]);
     } catch { /* silent */ }
   };
 
-  const saveCustomTipo = async (nome: string) => {
+  const saveCustomTipo = async (nome: string, descricao?: string) => {
     if (!orgId || !nome.trim()) return;
     try {
-      const { error } = await supabase
-        .from("serie_tipos_custom")
-        .insert({ org_id: orgId, nome: nome.trim() });
+      const { data, error } = await supabase
+        .from("custom_techniques")
+        .insert({ org_id: orgId, name: nome.trim(), description: descricao?.trim() || null })
+        .select("id, name, description")
+        .single();
       if (error) throw error;
-      setCustomTipos((prev) => [...prev, nome.trim()].sort());
-      toast({ title: "Tipo salvo!", description: `"${nome.trim()}" adicionado à sua lista` });
+      setCustomTipos(prev =>
+        [...prev, data as { id: string; name: string; description: string | null }]
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+      toast({ title: "Técnica salva!", description: `"${nome.trim()}" adicionada à biblioteca` });
     } catch (err: any) {
       if (err.code === "23505") {
-        toast({ title: "Tipo já existe", description: "Este nome já está na sua lista" });
+        toast({ title: "Técnica já existe", description: "Este nome já está na sua biblioteca" });
       } else {
-        toast({ title: "Erro ao salvar tipo", description: err.message, variant: "destructive" });
+        toast({ title: "Erro ao salvar técnica", description: err.message, variant: "destructive" });
       }
+    }
+  };
+
+  const updateCustomTipoDesc = async (nome: string, descricao: string) => {
+    const found = customTipos.find(t => t.name === nome);
+    if (!found || !orgId) return;
+    try {
+      const { error } = await supabase
+        .from("custom_techniques")
+        .update({ description: descricao.trim() || null })
+        .eq("id", found.id);
+      if (error) throw error;
+      setCustomTipos(prev =>
+        prev.map(t => t.id === found.id ? { ...t, description: descricao.trim() || null } : t)
+      );
+      toast({ title: "Descrição atualizada globalmente!" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
   };
 
@@ -1290,15 +1362,20 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
   };
 
   // ── Normalize backward-compat serie (old: tipo_carga/valor_carga) ──
-  const normalizeSerie = (s: any): SerieDetalhe => ({
-    id: s.id ?? crypto.randomUUID(),
-    tipo: normalizeTipo(s.tipo ?? 'trabalho'),
-    repeticoes: s.repeticoes ?? '',
-    tipo_calculo: s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
-    valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
-    quantidade: typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
-    descricao: s.descricao ?? undefined,
-  });
+  const normalizeSerie = (s: any): SerieDetalhe => {
+    const tipo = normalizeTipo(s.tipo ?? 'trabalho');
+    const globalConfig = ((org as any)?.serie_config ?? {}) as Record<string, string>;
+    return {
+      id: s.id ?? crypto.randomUUID(),
+      tipo,
+      repeticoes: s.repeticoes ?? '',
+      tipo_calculo: s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
+      valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
+      quantidade: typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
+      // Descrição por exercício tem prioridade; fallback na config global da org
+      descricao: s.descricao?.trim() ? s.descricao : (globalConfig[tipo] || undefined),
+    };
+  };
 
   // ── Auto-migrate old simple-series exercise to detailed format ────
   const migrateToDetailed = (series: string, repeticoes: string): SerieDetalhe[] => {
@@ -1330,19 +1407,9 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
 
       if (error) throw error;
       
-      // Normalizar ordem para garantir valores sequenciais únicos (0, 1, 2, ...)
-      const sorted = data || [];
-      const needsNormalization = sorted.some((ex, i) => ex.ordem !== i);
-      
-      if (needsNormalization && sorted.length > 0) {
-        const updates = sorted.map((ex, i) => 
-          supabase.from("exercicios").update({ ordem: i }).eq("id", ex.id)
-        );
-        await Promise.all(updates);
-        sorted.forEach((ex, i) => { ex.ordem = i; });
-      }
-      
-      setExercises(sorted);
+      // Apenas exibe os exercícios na ordem retornada pelo banco — sem normalizar na leitura
+      // (evita N updates paralelos que causavam statement timeout)
+      setExercises(data || []);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar exercícios",
@@ -1362,7 +1429,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
       const { data, error } = await supabase
         .from("exercicios_base")
         .select("*")
-        .eq("treinador_id", user.id)
+        .eq("org_id", orgId)
         .order("nome");
 
       if (error) throw error;
@@ -1412,11 +1479,25 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
         const { error } = await supabase.from("exercicios").insert({
           ...exerciseData,
           treino_id: trainingId,
-          ordem: exercises.length,
+          ordem: exercises.length > 0 ? Math.max(...exercises.map(e => e.ordem ?? 0)) + 1 : 0,
         });
 
         if (error) throw error;
         toast({ title: "Exercício adicionado!" });
+      }
+
+      // Promove descrições de série para a config global da org (1 chamada só, sem SELECT extra)
+      const seriesComDescricao = detailedSeries.filter(s => s.descricao?.trim());
+      if (seriesComDescricao.length > 0 && orgId) {
+        const novaConfig: Record<string, string> = {};
+        seriesComDescricao.forEach(s => {
+          if (s.descricao?.trim()) novaConfig[s.tipo] = s.descricao.trim();
+        });
+        const configAtual = ((org as any)?.serie_config ?? {}) as Record<string, string>;
+        await supabase
+          .from("organizations")
+          .update({ serie_config: { ...configAtual, ...novaConfig } } as any)
+          .eq("id", orgId);
       }
 
       if (saveToLibrary && !editingExercise) {
@@ -1430,6 +1511,8 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
           });
         }
       }
+
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
 
       setDialogOpen(false);
       setEditingExercise(null);
@@ -1524,19 +1607,15 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
     });
 
     try {
-      const { error: err1 } = await supabase
-        .from("exercicios")
-        .update({ ordem: newCurrentOrdem })
-        .eq("id", currentExercise.id);
-      if (err1) throw err1;
-
-      const { error: err2 } = await supabase
-        .from("exercicios")
-        .update({ ordem: newTargetOrdem })
-        .eq("id", targetExercise.id);
-      if (err2) throw err2;
+      const [res1, res2] = await Promise.all([
+        supabase.from("exercicios").update({ ordem: newCurrentOrdem }).eq("id", currentExercise.id),
+        supabase.from("exercicios").update({ ordem: newTargetOrdem  }).eq("id", targetExercise.id),
+      ]);
+      if (res1.error) throw res1.error;
+      if (res2.error) throw res2.error;
 
       toast({ title: "Ordem atualizada!" });
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
     } catch (error: any) {
       toast({
         title: "Erro ao reordenar",
@@ -1824,7 +1903,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                               return (
                                 <select
                                   value={
-                                    PRESET_TIPOS.includes(serie.tipo) || customTipos.includes(serie.tipo)
+                                    PRESET_TIPOS.includes(serie.tipo) || customTipos.some(t => t.name === serie.tipo)
                                       ? serie.tipo
                                       : '__custom__'
                                   }
@@ -1858,7 +1937,7 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                                   {customTipos.length > 0 && (
                                     <optgroup label="Salvos">
                                       {customTipos.map((t) => (
-                                        <option key={t} value={t}>{t}</option>
+                                        <option key={t.id} value={t.name}>{t.name}</option>
                                       ))}
                                     </optgroup>
                                   )}
@@ -1868,8 +1947,14 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                             })()}
 
                             {/* Technique description — collapsible, editable for advanced types + warm-up + feeder */}
-                            {([...PRESET_TIPOS_ADVANCED, 'warm-up', 'feeder'] as string[]).includes(serie.tipo) && (() => {
+                            {(([...PRESET_TIPOS_ADVANCED, 'warm-up', 'feeder', 'trabalho', 'tecnica'] as string[]).includes(serie.tipo)
+                              || customTipos.some(t => t.name === serie.tipo)) && (() => {
+                              const isSavedCustom = customTipos.some(t => t.name === serie.tipo);
                               const getDefault = () => {
+                                // Técnica personalizada salva — usa descrição da biblioteca
+                                if (isSavedCustom) {
+                                  return customTipos.find(t => t.name === serie.tipo)?.description ?? '';
+                                }
                                 const reps = parseInt(serie.repeticoes);
                                 if (serie.tipo === 'cluster') {
                                   if (!isNaN(reps) && reps > 0) {
@@ -1939,13 +2024,25 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
                                         className="w-full text-[11px] rounded-lg border bg-background px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50"
                                         style={{ color: 'inherit' }}
                                       />
-                                      <button
-                                        type="button"
-                                        onClick={() => updateDetailedSerie(idx, 'descricao', getDefault())}
-                                        className="text-[9px] text-muted-foreground underline mt-0.5"
-                                      >
-                                        Restaurar padrão
-                                      </button>
+                                      <div className="flex items-center gap-3 mt-0.5">
+                                        {isSavedCustom ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => updateCustomTipoDesc(serie.tipo, currentVal)}
+                                            className="text-[9px] text-primary underline"
+                                          >
+                                            Salvar globalmente
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => updateDetailedSerie(idx, 'descricao', getDefault())}
+                                            className="text-[9px] text-muted-foreground underline"
+                                          >
+                                            Restaurar padrão
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -1954,27 +2051,75 @@ const TrainingExercises = ({ trainingId }: { trainingId: string }) => {
 
                             {/* Free-text input — shown when tipo is not preset and not a saved custom */}
                             {isCustomTipo(serie.tipo) && (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={serie.tipo}
-                                  onChange={(e) => updateDetailedSerie(idx, 'tipo', e.target.value)}
-                                  placeholder="Nome do tipo..."
-                                  className="flex-1 h-7 rounded-md text-[11px] border bg-background px-2 outline-none focus:ring-1 focus:ring-primary/50"
-                                />
-                                {serie.tipo.trim() && !customTipos.includes(serie.tipo.trim()) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => saveCustomTipo(serie.tipo.trim())}
-                                    title="Salvar tipo para reutilizar"
-                                    className="h-7 w-7 shrink-0 rounded-md flex items-center justify-center border border-border hover:border-primary hover:text-primary transition-colors"
-                                  >
-                                    <Bookmark className="w-3 h-3" />
-                                  </button>
-                                )}
-                                {serie.tipo.trim() && customTipos.includes(serie.tipo.trim()) && (
-                                  <span className="text-[10px] text-primary shrink-0">✓ salvo</span>
-                                )}
+                              <div className="space-y-1.5">
+                                {/* Nome da técnica + botão salvar */}
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={serie.tipo}
+                                    onChange={(e) => updateDetailedSerie(idx, 'tipo', e.target.value)}
+                                    placeholder="Nome da técnica..."
+                                    className="flex-1 h-7 rounded-md text-[11px] border bg-background px-2 outline-none focus:ring-1 focus:ring-primary/50"
+                                  />
+                                  {serie.tipo.trim() && !customTipos.some(t => t.name === serie.tipo.trim()) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => saveCustomTipo(serie.tipo.trim(), serie.descricao)}
+                                      title="Salvar técnica na biblioteca da org"
+                                      className="h-7 w-7 shrink-0 rounded-md flex items-center justify-center border border-border hover:border-primary hover:text-primary transition-colors"
+                                    >
+                                      <Bookmark className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  {serie.tipo.trim() && customTipos.some(t => t.name === serie.tipo.trim()) && (
+                                    <span className="text-[10px] text-primary shrink-0">✓ salvo</span>
+                                  )}
+                                </div>
+                                {/* Descrição de execução (opcional) */}
+                                {serie.tipo.trim() && (() => {
+                                  const isOpen = showDescFor.has(serie.id);
+                                  const currentVal = serie.descricao ?? '';
+                                  const hasCustom  = currentVal.trim() !== '';
+                                  const toggleDesc = () =>
+                                    setShowDescFor(prev => {
+                                      const next = new Set(prev);
+                                      next.has(serie.id) ? next.delete(serie.id) : next.add(serie.id);
+                                      return next;
+                                    });
+                                  return (
+                                    <div>
+                                      <button
+                                        type="button"
+                                        onClick={toggleDesc}
+                                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <ChevronDown
+                                          className="w-3 h-3 transition-transform duration-200"
+                                          style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                        />
+                                        <span>Descrição de execução</span>
+                                        {hasCustom && (
+                                          <span className="ml-1 text-[9px] px-1 rounded"
+                                            style={{ backgroundColor: 'var(--btn-soft-bg)', color: 'var(--btn-soft-color)' }}>
+                                            editada
+                                          </span>
+                                        )}
+                                      </button>
+                                      {isOpen && (
+                                        <div className="mt-1.5">
+                                          <textarea
+                                            value={currentVal}
+                                            onChange={(e) => updateDetailedSerie(idx, 'descricao', e.target.value)}
+                                            rows={3}
+                                            placeholder="Descreva como executar esta técnica..."
+                                            className="w-full text-[11px] rounded-lg border bg-background px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50"
+                                            style={{ color: 'inherit' }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>

@@ -1,14 +1,70 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar } from "lucide-react";
+import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar, Camera, Trash2, GripVertical, Plus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { COLOR_PALETTE, ColorEntry } from "@/lib/colors";
+import Cropper from "react-easy-crop";
+import type { Area } from "react-easy-crop";
+
+// ── Canvas helper: recorta a imagem e devolve Blob JPEG 400×400 ──────────────
+async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener("load", () => resolve(img));
+    img.addEventListener("error", reject);
+    img.src = imageSrc;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = 400;
+  canvas.height = 400;
+  const ctx = canvas.getContext("2d")!;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, 400, 400,
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => { blob ? resolve(blob) : reject(new Error("Canvas vazio")); },
+      "image/jpeg",
+      0.9,
+    );
+  });
+}
+
+// ── SlotInput: input com estado local para evitar re-render do pai a cada tecla ─
+// Atualiza o estado do pai apenas no onBlur (quando o usuário sai do campo).
+// Isso impede que o componente pai re-renderize a cada keypress,
+// o que causava desmontagem/remontagem do PhotoSlotsSection e scroll para o topo.
+const SlotInput = ({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+}) => {
+  const [local, setLocal] = useState(value);
+  // Sincroniza se o valor externo mudar (ex: ao reordenar slots)
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <Input
+      value={local}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={() => onCommit(local)}
+      maxLength={30}
+      className="flex-1 bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm focus:border-green-600/50"
+    />
+  );
+};
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -23,6 +79,13 @@ const Settings = () => {
   const [uploading, setUploading]         = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Crop modal
+  const [cropModalOpen,     setCropModalOpen]     = useState(false);
+  const [cropSrc,           setCropSrc]           = useState<string | null>(null);
+  const [cropPosition,      setCropPosition]      = useState({ x: 0, y: 0 });
+  const [cropZoom,          setCropZoom]          = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+
   // Tema da org
   const [theme, setTheme]       = useState<"dark" | "light">("dark");
   const [savingTheme, setSavingTheme] = useState(false);
@@ -30,6 +93,92 @@ const Settings = () => {
   // Cor primária
   const [primaryColor,  setPrimaryColor]  = useState<string>("#16a34a");
   const [savingColor,   setSavingColor]   = useState(false);
+
+  // Logo da org
+  const [logoUrl,         setLogoUrl]         = useState<string | null>(null);
+  const [logoPreview,     setLogoPreview]     = useState<string | null>(null);
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
+  const [uploadingLogo,   setUploadingLogo]   = useState(false);
+  const [removingLogo,    setRemovingLogo]    = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Ícone do app (favicon)
+  const [iconUrl,         setIconUrl]         = useState<string | null>(null);
+  const [iconPreview,     setIconPreview]     = useState<string | null>(null);
+  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null);
+  const [uploadingIcon,   setUploadingIcon]   = useState(false);
+  const [removingIcon,    setRemovingIcon]    = useState(false);
+  const iconInputRef = useRef<HTMLInputElement>(null);
+
+  // Slots de foto de evolução
+  interface EvoSlot { id?: string; label: string; slot_key: string; ordem: number; isNew?: boolean }
+  const DEFAULT_EVO_SLOTS: EvoSlot[] = [
+    { label: "Frente",    slot_key: "front",      ordem: 0 },
+    { label: "Lado E.",   slot_key: "side_left",  ordem: 1 },
+    { label: "Lado D.",   slot_key: "side_right", ordem: 2 },
+    { label: "Costas",    slot_key: "back",        ordem: 3 },
+    { label: "Livre",     slot_key: "free",        ordem: 4 },
+  ];
+  const [evoSlots,       setEvoSlots]       = useState<EvoSlot[]>(DEFAULT_EVO_SLOTS);
+  const [evoSlotsLoaded, setEvoSlotsLoaded] = useState(false);
+  const [savingSlots,    setSavingSlots]    = useState(false);
+
+  useEffect(() => {
+    if (orgId && !evoSlotsLoaded) loadEvoSlots(orgId);
+  }, [orgId]);
+
+  const loadEvoSlots = async (oid: string) => {
+    const { data } = await supabase
+      .from("evolution_photo_slots")
+      .select("id, label, slot_key, ordem")
+      .eq("org_id", oid)
+      .order("ordem", { ascending: true });
+    if (data && data.length > 0) setEvoSlots(data as EvoSlot[]);
+    setEvoSlotsLoaded(true);
+  };
+
+  const handleSaveSlots = async () => {
+    if (!orgId) return;
+    setSavingSlots(true);
+    try {
+      // Remove todos os existentes e recria na ordem atual
+      await supabase.from("evolution_photo_slots").delete().eq("org_id", orgId);
+      const rows = evoSlots.map((s, i) => ({
+        org_id:   orgId,
+        label:    s.label.trim() || `Slot ${i + 1}`,
+        slot_key: s.slot_key,
+        ordem:    i,
+      }));
+      const { error } = await supabase.from("evolution_photo_slots").insert(rows);
+      if (error) throw error;
+      toast({ title: "Slots salvos!", description: "Alunos verão a nova configuração ao recarregar a página." });
+      loadEvoSlots(orgId);
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar slots", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingSlots(false);
+    }
+  };
+
+  const addSlot = () => {
+    const idx = evoSlots.length;
+    setEvoSlots(s => [...s, { label: `Slot ${idx + 1}`, slot_key: `custom_${Date.now()}`, ordem: idx, isNew: true }]);
+  };
+
+  const removeSlot = (i: number) => setEvoSlots(s => s.filter((_, idx) => idx !== i));
+
+  const moveSlot = (from: number, to: number) => {
+    if (to < 0 || to >= evoSlots.length) return;
+    setEvoSlots(s => {
+      const arr = [...s];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return arr;
+    });
+  };
+
+  const updateSlotLabel = (i: number, label: string) =>
+    setEvoSlots(s => s.map((slot, idx) => idx === i ? { ...slot, label } : slot));
 
   // Assinatura / Billing
   interface SubscriptionData {
@@ -67,6 +216,15 @@ const Settings = () => {
   useEffect(() => {
     if (org?.primary_color) setPrimaryColor(org.primary_color);
   }, [org?.primary_color]);
+
+  useEffect(() => {
+    setLogoUrl(org?.logo_url ?? null);
+  }, [org?.logo_url]);
+
+  useEffect(() => {
+    setIconUrl(org?.icon_url ?? null);
+  }, [org?.icon_url]);
+
 
   const loadSubscription = async (oid: string) => {
     setLoadingBilling(true);
@@ -137,10 +295,11 @@ const Settings = () => {
     }
   };
 
-  // ── Upload de avatar ────────────────────────────────────────────
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Upload de avatar — abre modal de crop ──────────────────────
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     if (!["image/jpeg", "image/jpg", "image/png", "image/gif"].includes(file.type)) {
       toast({ title: "Tipo inválido", description: "Envie JPG, PNG ou GIF.", variant: "destructive" });
@@ -151,8 +310,27 @@ const Settings = () => {
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    setCropPosition({ x: 0, y: 0 });
+    setCropZoom(1);
+    setCroppedAreaPixels(null);
+    setCropModalOpen(true);
+  };
+
+  const closeCropModal = () => {
+    setCropModalOpen(false);
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  const handleCropCancel = () => closeCropModal();
+
+  const handleCropConfirm = async () => {
+    if (!cropSrc || !croppedAreaPixels) return;
     setUploading(true);
     try {
+      const blob = await getCroppedImg(cropSrc, croppedAreaPixels);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -161,22 +339,21 @@ const Settings = () => {
         if (oldPath) await supabase.storage.from("avatars").remove([`${user.id}/${oldPath}`]);
       }
 
-      const ext      = file.name.split(".").pop();
-      const filePath = `${user.id}/${user.id}-${Date.now()}.${ext}`;
-
-      const { error: uploadErr } = await supabase.storage.from("avatars").upload(filePath, file);
+      const filePath = `${user.id}/${user.id}-${Date.now()}.jpg`;
+      const { error: uploadErr } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, blob, { contentType: "image/jpeg" });
       if (uploadErr) throw uploadErr;
 
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
       await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
       setAvatarUrl(publicUrl);
       toast({ title: "Foto atualizada!" });
+      closeCropModal();
     } catch (err: any) {
       toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -273,7 +450,227 @@ const Settings = () => {
     }
   };
 
-  const senhaPath = `/${slug}/treinador/alterar-senha`;
+  // ── Seleciona logo (preview local, sem upload ainda) ───────────
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Formato não suportado. Use PNG, JPG, SVG ou WebP.", variant: "destructive" });
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 2097152) {
+      toast({ title: "Imagem muito grande. Máximo 2MB.", variant: "destructive" });
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      return;
+    }
+
+    setLogoPreview(URL.createObjectURL(file));
+    setPendingLogoFile(file);
+  };
+
+  // ── Salva logo no Storage e atualiza org ────────────────────────
+  const handleSaveLogo = async () => {
+    if (!pendingLogoFile || !orgId || !org?.slug) return;
+    setUploadingLogo(true);
+    try {
+      // Remove logo antiga do Storage (se existir)
+      if (logoUrl) {
+        const logoPath = logoUrl.split("/logos/")[1];
+        if (logoPath) await supabase.storage.from("logos").remove([decodeURIComponent(logoPath)]);
+      }
+
+      const ext      = pendingLogoFile.name.split(".").pop();
+      const filePath = `${org.slug}/logo-${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage.from("logos").upload(filePath, pendingLogoFile);
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(filePath);
+
+      const { error: dbErr } = await supabase
+        .from("organizations")
+        .update({ logo_url: publicUrl })
+        .eq("id", orgId);
+      if (dbErr) throw dbErr;
+
+      setLogoUrl(publicUrl);
+      setLogoPreview(null);
+      setPendingLogoFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      toast({ title: "Logo atualizada com sucesso!" });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar logo", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  // ── Remove logo ─────────────────────────────────────────────────
+  const handleRemoveLogo = async () => {
+    if (!orgId) return;
+    setRemovingLogo(true);
+    try {
+      if (logoUrl) {
+        const logoPath = logoUrl.split("/logos/")[1];
+        if (logoPath) await supabase.storage.from("logos").remove([decodeURIComponent(logoPath)]);
+      }
+      await supabase.from("organizations").update({ logo_url: null }).eq("id", orgId);
+      setLogoUrl(null);
+      setLogoPreview(null);
+      setPendingLogoFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      toast({ title: "Logo removida." });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao remover logo", description: err.message, variant: "destructive" });
+    } finally {
+      setRemovingLogo(false);
+    }
+  };
+
+  // ── Seleciona ícone (preview local, sem upload ainda) ──────────
+  const handleIconSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Formato não suportado. Use PNG, JPG, SVG ou WebP.", variant: "destructive" });
+      if (iconInputRef.current) iconInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 2097152) {
+      toast({ title: "Imagem muito grande. Máximo 2MB.", variant: "destructive" });
+      if (iconInputRef.current) iconInputRef.current.value = "";
+      return;
+    }
+
+    setIconPreview(URL.createObjectURL(file));
+    setPendingIconFile(file);
+  };
+
+  // ── Salva ícone no Storage e atualiza org ───────────────────────
+  const handleSaveIcon = async () => {
+    if (!pendingIconFile || !orgId || !org?.slug) return;
+    setUploadingIcon(true);
+    try {
+      if (iconUrl) {
+        const iconPath = iconUrl.split("/logos/")[1];
+        if (iconPath) await supabase.storage.from("logos").remove([decodeURIComponent(iconPath)]);
+      }
+
+      const ext      = pendingIconFile.name.split(".").pop();
+      const filePath = `${org.slug}/icon-${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage.from("logos").upload(filePath, pendingIconFile);
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(filePath);
+
+      const { error: dbErr } = await supabase
+        .from("organizations")
+        .update({ icon_url: publicUrl })
+        .eq("id", orgId);
+      if (dbErr) throw dbErr;
+
+      setIconUrl(publicUrl);
+      setIconPreview(null);
+      setPendingIconFile(null);
+      if (iconInputRef.current) iconInputRef.current.value = "";
+      toast({ title: "Ícone atualizado com sucesso!" });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar ícone", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
+  // ── Remove ícone ────────────────────────────────────────────────
+  const handleRemoveIcon = async () => {
+    if (!orgId) return;
+    setRemovingIcon(true);
+    try {
+      if (iconUrl) {
+        const iconPath = iconUrl.split("/logos/")[1];
+        if (iconPath) await supabase.storage.from("logos").remove([decodeURIComponent(iconPath)]);
+      }
+      await supabase.from("organizations").update({ icon_url: null }).eq("id", orgId);
+      setIconUrl(null);
+      setIconPreview(null);
+      setPendingIconFile(null);
+      if (iconInputRef.current) iconInputRef.current.value = "";
+      toast({ title: "Ícone removido." });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao remover ícone", description: err.message, variant: "destructive" });
+    } finally {
+      setRemovingIcon(false);
+    }
+  };
+
+const senhaPath = `/${slug}/treinador/alterar-senha`;
+
+  const PhotoSlotsSection = () => (
+    <Section title="Slots de Fotos (Evolução)" subtitle="Defina os ângulos que seus alunos registram na Evolução e no formulário de Atualização">
+      <div className="space-y-2 mb-4">
+        {evoSlots.map((slot, i) => (
+          <div key={slot.slot_key + i} className="flex items-center gap-2">
+            <div className="flex flex-col gap-0.5">
+              <button type="button" onClick={() => moveSlot(i, i - 1)} disabled={i === 0}
+                className="w-5 h-4 flex items-center justify-center rounded text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors">
+                <span className="text-[10px] leading-none">▲</span>
+              </button>
+              <button type="button" onClick={() => moveSlot(i, i + 1)} disabled={i === evoSlots.length - 1}
+                className="w-5 h-4 flex items-center justify-center rounded text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors">
+                <span className="text-[10px] leading-none">▼</span>
+              </button>
+            </div>
+            <SlotInput
+              value={slot.label}
+              onCommit={v => updateSlotLabel(i, v)}
+            />
+            <button
+              type="button"
+              onClick={() => removeSlot(i)}
+              disabled={evoSlots.length <= 1}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-20"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={addSlot}
+          disabled={evoSlots.length >= 8}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+          style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}
+        >
+          <Plus className="w-3.5 h-3.5" /> Adicionar slot
+        </button>
+        <Button
+          type="button"
+          onClick={handleSaveSlots}
+          disabled={savingSlots}
+          className="h-8 px-4 rounded-xl text-white font-semibold text-xs"
+          style={{ background: "var(--cp-gradient)" }}
+        >
+          {savingSlots ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Salvando...</> : <><Check className="w-3.5 h-3.5 mr-1.5" />Salvar slots</>}
+        </Button>
+      </div>
+      <p className="text-[11px] text-white/30 mt-3">
+        Máx 8 slots. Orgs sem configuração usam os 5 padrão (Frente, Lado E., Lado D., Costas, Livre).
+      </p>
+    </Section>
+  );
 
   // ── Seção reutilizável ─────────────────────────────────────────
   const Section = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
@@ -294,7 +691,7 @@ const Settings = () => {
         <div className="flex items-center gap-5">
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <Avatar className="w-20 h-20 ring-2 ring-white/10 group-hover:ring-green-600/40 transition-premium">
-              <AvatarImage src={avatarUrl} alt={nome} />
+              <AvatarImage src={avatarUrl} alt={nome} className="object-cover" />
               <AvatarFallback
                 className="text-white text-2xl font-bold"
                 style={{ background: "var(--cp-gradient)" }}
@@ -312,7 +709,8 @@ const Settings = () => {
           <div>
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleAvatarChange} className="hidden" />
             <p className="text-sm text-white/70 font-medium">Foto de perfil</p>
-            <p className="text-xs text-white/40 mt-0.5">JPG, PNG ou GIF · máx 2 MB</p>
+            <p className="text-xs text-white/40 mt-0.5">Para melhor resultado, use foto quadrada (1:1).</p>
+            <p className="text-xs text-white/40 mt-0.5">JPG, PNG ou GIF · máx 2MB.</p>
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
               className="text-xs text-green-500 hover:text-green-400 mt-1.5 transition-premium disabled:opacity-40">
               {uploading ? "Enviando..." : "Alterar foto"}
@@ -486,6 +884,243 @@ const Settings = () => {
     </Section>
   );
 
+  const LogoSection = () => {
+    const displaySrc = logoPreview ?? logoUrl;
+    return (
+      <Section title="Identidade Visual" subtitle="Logo exibida no sidebar e header do app">
+        <div className="space-y-4">
+          {/* Preview */}
+          <div
+            className="relative flex items-center justify-center rounded-xl overflow-hidden cursor-pointer group"
+            style={{
+              height: 96,
+              backgroundColor: "rgba(255,255,255,0.04)",
+              border: "1px dashed rgba(255,255,255,0.12)",
+            }}
+            onClick={() => logoInputRef.current?.click()}
+          >
+            {displaySrc ? (
+              <img
+                src={displaySrc}
+                alt="Logo da organização"
+                style={{ maxHeight: 72, maxWidth: "80%", objectFit: "contain" }}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Camera className="w-7 h-7 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Clique para enviar logo
+                </span>
+              </div>
+            )}
+            {/* Hover overlay */}
+            <div
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            >
+              <Upload className="w-5 h-5 text-white" />
+            </div>
+          </div>
+
+          {/* Input hidden */}
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+            onChange={handleLogoSelect}
+            className="hidden"
+          />
+
+          {/* Orientação */}
+          <p className="text-xs text-muted-foreground">
+            Use PNG com fundo transparente, preferencialmente 600x170px. Máx 2MB.
+          </p>
+
+          {/* Botões */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo || removingLogo}
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Enviar Logo
+            </button>
+
+            {pendingLogoFile && (
+              <button
+                type="button"
+                onClick={handleSaveLogo}
+                disabled={uploadingLogo}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40 text-black"
+                style={{ background: "var(--cp-gradient)" }}
+              >
+                {uploadingLogo
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Check className="w-3.5 h-3.5" />
+                }
+                Salvar
+              </button>
+            )}
+
+            {logoUrl && !pendingLogoFile && (
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                disabled={removingLogo}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+                style={{ backgroundColor: "rgba(239,68,68,0.10)", color: "rgba(239,68,68,0.75)" }}
+              >
+                {removingLogo
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+                Remover Logo
+              </button>
+            )}
+          </div>
+        </div>
+      </Section>
+    );
+  };
+
+  const IconSection = () => {
+    const displaySrc = iconPreview ?? iconUrl;
+    return (
+      <Section title="Ícone do App" subtitle="Usado como favicon e ícone do app. Use uma imagem quadrada (PNG recomendado).">
+        <div className="space-y-4">
+          {/* Preview quadrado 48×48 */}
+          <div className="flex items-center gap-4">
+            <div
+              className="relative flex items-center justify-center rounded-xl overflow-hidden cursor-pointer group shrink-0"
+              style={{
+                width: 64,
+                height: 64,
+                backgroundColor: "rgba(255,255,255,0.04)",
+                border: "1px dashed rgba(255,255,255,0.12)",
+              }}
+              onClick={() => iconInputRef.current?.click()}
+            >
+              {displaySrc ? (
+                <img
+                  src={displaySrc}
+                  alt="Ícone do app"
+                  style={{ width: 48, height: 48, objectFit: "contain" }}
+                />
+              ) : (
+                <Camera className="w-5 h-5 text-muted-foreground" />
+              )}
+              <div
+                className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+              >
+                <Upload className="w-4 h-4 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Use PNG com fundo transparente, preferencialmente 512×512px. Máx 2MB.
+            </p>
+          </div>
+
+          {/* Input hidden */}
+          <input
+            ref={iconInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+            onChange={handleIconSelect}
+            className="hidden"
+          />
+
+          {/* Botões */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => iconInputRef.current?.click()}
+              disabled={uploadingIcon || removingIcon}
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Enviar Ícone
+            </button>
+
+            {pendingIconFile && (
+              <button
+                type="button"
+                onClick={handleSaveIcon}
+                disabled={uploadingIcon}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40 text-black"
+                style={{ background: "var(--cp-gradient)" }}
+              >
+                {uploadingIcon
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Check className="w-3.5 h-3.5" />
+                }
+                Salvar
+              </button>
+            )}
+
+            {iconUrl && !pendingIconFile && (
+              <button
+                type="button"
+                onClick={handleRemoveIcon}
+                disabled={removingIcon}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+                style={{ backgroundColor: "rgba(239,68,68,0.10)", color: "rgba(239,68,68,0.75)" }}
+              >
+                {removingIcon
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+                Remover Ícone
+              </button>
+            )}
+          </div>
+        </div>
+      </Section>
+    );
+  };
+
+  const PLAN_INFO: Record<string, { label: string; description: string; badge?: string }> = {
+    motion:  { label: "Orbi Motion",  description: "Gestão de treinos"                  },
+    pro:     { label: "Orbi Pro",     description: "Treinos + Dieta"                    },
+    balance: { label: "Orbi Balance", description: "Gestão de dieta", badge: "em breve" },
+    clinic:  { label: "Orbi Clinic",  description: "Treinos + Dieta", badge: "em breve" },
+  };
+
+  const PlanSection = () => {
+    const planType = (org as any)?.plan_type ?? "pro";
+    const info = PLAN_INFO[planType] ?? PLAN_INFO.pro;
+    return (
+      <Section title="Plano Ativo" subtitle="Módulos disponíveis nesta organização">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              <Crown className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white flex items-center gap-2">
+                {info.label}
+                {info.badge && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/8 text-white/40 border border-white/10">
+                    {info.badge}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-white/40 mt-0.5">{info.description}</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-white/25 shrink-0">via admin</p>
+        </div>
+      </Section>
+    );
+  };
+
   const BillingSection = () => {
     const statusLabel: Record<string, string> = {
       trial: "Trial gratuito",
@@ -646,8 +1281,12 @@ const Settings = () => {
         {/* ── Mobile: coluna única ── Desktop: 2 colunas ─────── */}
         <div className="block lg:hidden max-w-xl space-y-4">
           <ProfileForm />
+          <LogoSection />
+          <IconSection />
           <ThemeSelector />
           <ColorPicker />
+          <PhotoSlotsSection />
+          <PlanSection />
           <BillingSection />
           <SecuritySection />
         </div>
@@ -656,16 +1295,99 @@ const Settings = () => {
           {/* Coluna esquerda — Perfil */}
           <ProfileForm />
 
-          {/* Coluna direita — Tema + Cor + Billing + Segurança */}
+          {/* Coluna direita — Logo + Ícone + Tema + Cor + Slots + Billing + Segurança */}
           <div className="space-y-4">
+            <LogoSection />
+            <IconSection />
             <ThemeSelector />
             <ColorPicker />
+            <PhotoSlotsSection />
             <BillingSection />
             <SecuritySection />
           </div>
         </div>
 
       </div>
+
+      {/* ── Modal de recorte de avatar ───────────────────────────────── */}
+      {cropModalOpen && cropSrc && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
+            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            {/* Header */}
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <h2 className="text-base font-semibold text-white">Recortar foto</h2>
+              <p className="text-xs text-white/40 mt-0.5">Arraste e use o zoom para enquadrar</p>
+            </div>
+
+            {/* Área do crop */}
+            <div className="relative" style={{ height: 320 }}>
+              <Cropper
+                image={cropSrc}
+                crop={cropPosition}
+                zoom={cropZoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCropPosition}
+                onZoomChange={setCropZoom}
+                onCropComplete={(_, area) => setCroppedAreaPixels(area)}
+              />
+            </div>
+
+            {/* Slider de zoom */}
+            <div
+              className="px-5 py-3 flex items-center gap-3"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <span className="text-sm text-white/30 select-none leading-none">−</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={cropZoom}
+                onChange={(e) => setCropZoom(Number(e.target.value))}
+                className="flex-1 h-1 cursor-pointer rounded-full"
+                style={{ accentColor: "hsl(var(--primary))" }}
+              />
+              <span className="text-sm text-white/30 select-none leading-none">+</span>
+            </div>
+
+            {/* Footer */}
+            <div
+              className="px-5 py-4 flex gap-3 justify-end"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <button
+                type="button"
+                onClick={handleCropCancel}
+                className="h-9 px-4 rounded-xl text-sm font-medium transition-colors"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCropConfirm}
+                disabled={uploading}
+                className="h-9 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center"
+                style={{ background: "var(--cp-gradient)" }}
+              >
+                {uploading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : "Confirmar"
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

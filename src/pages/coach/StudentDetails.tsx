@@ -1,5 +1,5 @@
-﻿import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+﻿import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, User, Utensils, Dumbbell, MessageSquare, Weight, ClipboardList, Star, ChevronDown, ChevronUp, Image as ImageIcon, TrendingUp, TrendingDown, Minus, Plus, Loader2 as Spinner, Sparkles, RefreshCw, ClipboardCheck, AlertCircle, Camera, X as XIcon, ChevronLeft as ChevLeft, ChevronRight as ChevRight, Download, Calendar, Play, ChevronRight, ScanLine, NotebookPen, Trash2, BarChart2, CreditCard, CheckCircle2, Pencil, Save } from "lucide-react";
@@ -11,6 +11,8 @@ import DietManager from "./DietManager";
 import UpdateFormManager from "./UpdateFormManager";
 import FeedbackManager from "@/components/coach/FeedbackManager";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -38,17 +40,209 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
 ];
 
 // ── Photo slot constants ───────────────────────────────────────────
-const PHOTO_SLOTS = [
+const DEFAULT_PHOTO_SLOTS = [
   { key: "front",      label: "Frente"  },
   { key: "side_left",  label: "Lado E." },
   { key: "side_right", label: "Lado D." },
   { key: "back",       label: "Costas"  },
   { key: "free",       label: "Livre"   },
-] as const;
+];
 const BUCKET = "evolution-photos";
 
+// ── Before/after photo comparator ─────────────────────────────────
+const EvolucaoCompareModal = ({
+  photos, slots, onClose, studentName,
+}: {
+  photos: { slot: string; taken_at: string; url: string }[];
+  slots: { key: string; label: string }[];
+  onClose: () => void;
+  studentName: string;
+}) => {
+  const availableSlots = slots.filter(s => photos.some(p => p.slot === s.key));
+  const [selectedSlot, setSelectedSlot] = useState(availableSlots[0]?.key ?? "");
+  const [dateA, setDateA] = useState("");
+  const [dateB, setDateB] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const photoRowRef = useRef<HTMLDivElement>(null);
+  const [photoRowWidth, setPhotoRowWidth] = useState<number | null>(null);
+  const loadedCountRef = useRef(0);
+  const measurePhotoRow = () => {
+    loadedCountRef.current += 1;
+    if (loadedCountRef.current >= 2 && photoRowRef.current) {
+      setPhotoRowWidth(photoRowRef.current.offsetWidth);
+    }
+  };
+  useEffect(() => {
+    loadedCountRef.current = 0;
+    setPhotoRowWidth(null);
+  }, [dateA, dateB]);
+
+  const slotPhotos = photos.filter(p => p.slot === selectedSlot);
+  const availDates = [...new Set(slotPhotos.map(p => p.taken_at))].sort((a, b) => b.localeCompare(a));
+
+  useEffect(() => {
+    if (availDates.length >= 2) {
+      setDateA(availDates[availDates.length - 1]);
+      setDateB(availDates[0]);
+    } else {
+      setDateA(availDates[0] ?? "");
+      setDateB("");
+    }
+  }, [selectedSlot]);
+
+  const photoA = slotPhotos.find(p => p.taken_at === dateA);
+  const photoB = slotPhotos.find(p => p.taken_at === dateB);
+  const canCompare = !!photoA && !!photoB && dateA !== dateB;
+
+
+  const handleSaveImage = async () => {
+    if (!photoA || !photoB || exporting) return;
+    setExporting(true);
+    try {
+      const loadImg = (src: string): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+
+      const [imgA, imgB] = await Promise.all([loadImg(photoA.url), loadImg(photoB.url)]);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+
+      // Normaliza alturas: ambas com a mesma altura máxima
+      const H = Math.max(imgA.naturalHeight, imgB.naturalHeight);
+      const scaleA = H / imgA.naturalHeight;
+      const scaleB = H / imgB.naturalHeight;
+      const wA = Math.round(imgA.naturalWidth * scaleA);
+      const wB = Math.round(imgB.naturalWidth * scaleB);
+      const GAP = 4;
+      canvas.width = wA + GAP + wB;
+      canvas.height = H;
+      ctx.fillStyle = "#0a0a0b";
+      ctx.fillRect(0, 0, canvas.width, H);
+      ctx.drawImage(imgA, 0, 0, wA, H);
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fillRect(wA, 0, GAP, H);
+      ctx.drawImage(imgB, wA + GAP, 0, wB, H);
+      // Labels
+      const addLabel = (text: string, x: number, y: number) => {
+        ctx.font = "bold 20px sans-serif";
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.beginPath();
+        ctx.roundRect(x, y, tw + 16, 28, 6);
+        ctx.fill();
+        ctx.fillStyle = "white";
+        ctx.fillText(text, x + 8, y + 20);
+      };
+      addLabel("ANTES", 10, 10);
+      addLabel("DEPOIS", wA + GAP + 10, 10);
+
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const safeName = studentName.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "_").toLowerCase();
+        a.download = `comparativo_${safeName}_${dateA}_vs_${dateB}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    } catch (err) {
+      console.error("Erro ao exportar imagem:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.85)" }} onClick={onClose}>
+      <div className="rounded-2xl flex flex-col transition-all duration-300" style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "85vh", overflow: "hidden", width: photoRowWidth ? photoRowWidth + 32 : "fit-content", minWidth: photoRowWidth ? undefined : 400, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
+        {/* Cabeçalho fixo */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+          <p className="text-sm font-semibold text-white/80">Comparar Fotos</p>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/8 transition-colors">
+            <XIcon className="w-4 h-4 text-white/50" />
+          </button>
+        </div>
+        {/* Conteúdo */}
+        <div className="p-4 space-y-3 overflow-y-auto">
+          {/* Seletor de ângulo */}
+          <div>
+            <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2">Ângulo</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableSlots.map(s => (
+                <button key={s.key} onClick={() => setSelectedSlot(s.key)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "rgba(255,255,255,0.06)",
+                    color: selectedSlot === s.key ? "var(--cp-400)" : "rgba(255,255,255,0.5)",
+                    border: `1px solid ${selectedSlot === s.key ? "rgba(var(--cp-rgb),0.35)" : "transparent"}`,
+                  }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Seletores de data */}
+          {availDates.length < 2 ? (
+            <p className="text-xs text-white/30 text-center py-2">Apenas 1 data disponível para este ângulo.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {([["Antes", dateA, setDateA, dateB], ["Depois", dateB, setDateB, dateA]] as const).map(([label, val, set, other]) => (
+                <div key={String(label)}>
+                  <p className="text-[11px] text-white/40 uppercase tracking-wider mb-1.5">{label}</p>
+                  <select value={val} onChange={e => { (set as (v: string) => void)(e.target.value); }}
+                    className="w-full h-9 rounded-xl text-xs px-2 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.75)" }}>
+                    {availDates.map(d => (
+                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "#1a1a1d" }}>
+                        {format(parseISO(d), "dd/MM/yyyy")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {canCompare && (
+            /* ── Lado a lado: cada foto em sua proporção natural, sem barras ── */
+            <div ref={photoRowRef} className="flex gap-0 rounded-xl overflow-hidden mx-auto" style={{ backgroundColor: "#0a0a0b", width: "fit-content" }}>
+              <div className="relative flex-none">
+                <img src={photoA!.url} style={{ height: "55vh", width: "auto", display: "block" }} onLoad={measurePhotoRow} alt="antes" draggable={false} />
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>ANTES</div>
+              </div>
+              <div className="shrink-0 self-stretch" style={{ width: 1, backgroundColor: "rgba(255,255,255,0.15)" }} />
+              <div className="relative flex-none">
+                <img src={photoB!.url} style={{ height: "55vh", width: "auto", display: "block" }} onLoad={measurePhotoRow} alt="depois" draggable={false} />
+                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>DEPOIS</div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Botão salvar imagem — fora do conteúdo, sempre visível */}
+        {canCompare && (
+          <div className="px-4 pb-4 shrink-0">
+            <button onClick={handleSaveImage} disabled={exporting}
+              className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-colors"
+              style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.09)" }}>
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? "Gerando..." : "Salvar imagem"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Evolução de peso viewer ────────────────────────────────────────
-const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
+const EvolucaoViewer = ({ studentUserId, studentName }: { studentUserId: string; studentName: string }) => {
   const { toast } = useToast();
   const { orgId } = useTenantContext();
   const [registros, setRegistros] = useState<any[]>([]);
@@ -58,14 +252,29 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
   const [saving,    setSaving]    = useState(false);
 
   // Photos
-  const [photos,      setPhotos]      = useState<any[]>([]);
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [photos,       setPhotos]       = useState<any[]>([]);
+  const [lightboxIdx,  setLightboxIdx]  = useState<number | null>(null);
+  const [slots,        setSlots]        = useState(DEFAULT_PHOTO_SLOTS);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [compareOpen,   setCompareOpen]   = useState(false);
 
   useEffect(() => { load(); }, [studentUserId]);
 
   const load = async () => {
     setLoading(true);
     try {
+      // Busca slots configurados pela org (fallback: padrão)
+      if (orgId) {
+        const { data: slotsData } = await supabase
+          .from("evolution_photo_slots")
+          .select("slot_key, label, ordem")
+          .eq("org_id", orgId)
+          .order("ordem", { ascending: true });
+        if (slotsData && slotsData.length > 0) {
+          setSlots(slotsData.map((s: any) => ({ key: s.slot_key, label: s.label })));
+        }
+      }
+
       const [weightRes, photoRes] = await Promise.all([
         supabase
           .from("registros_evolucao")
@@ -80,11 +289,78 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
       ]);
       if (weightRes.error) throw weightRes.error;
       setRegistros(weightRes.data ?? []);
-      if (!photoRes.error && photoRes.data) {
-        setPhotos(photoRes.data.map((p: any) => ({
-          ...p,
-          url: supabase.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl,
-        })));
+      // Fotos primárias (evolution_photos, bucket público)
+      const primaryPhotos = photoRes.error ? [] : (photoRes.data ?? []).map((p: any) => ({
+        ...p,
+        url: supabase.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl,
+      }));
+      const primaryKeys = new Set(primaryPhotos.map((p: any) => `${p.taken_at}_${p.slot}`));
+
+      // Fotos legadas: JOIN + batch createSignedUrls (evita rate limit)
+      const legacyPhotos: any[] = [];
+      try {
+        const { data: respostas } = await supabase
+          .from("atualizacao_respostas")
+          .select(`
+            id, submitted_at,
+            atualizacao_resposta_arquivos (id, storage_path, mime_type)
+          `)
+          .eq("student_id", studentUserId)
+          .order("submitted_at", { ascending: false });
+
+        if (respostas) {
+          // Converte timestamp UTC para data no fuso horário do Brasil
+          const toBRDate = (iso: string) =>
+            new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+
+          // Coleta candidatos (sem criar URL ainda)
+          const candidates: { id: string; storage_path: string; slotKey: string; date: string }[] = [];
+          for (const resp of respostas as any[]) {
+            const submittedAt: string = resp.submitted_at;
+            if (!submittedAt) continue;
+            const date = toBRDate(submittedAt);
+            const arquivos: any[] = resp.atualizacao_resposta_arquivos ?? [];
+            for (const arq of arquivos) {
+              if (!arq.storage_path || !arq.mime_type?.startsWith("image/")) continue;
+              const parts   = arq.storage_path.split("/");
+              const fname   = parts[parts.length - 1];
+              const slotKey = fname.replace(/_\d+\.\w+$/, "");
+              if (slotKey === fname) continue;
+              const key = `${date}_${slotKey}`;
+              if (primaryKeys.has(key)) continue; // já em evolution_photos
+              candidates.push({ id: arq.id, storage_path: arq.storage_path, slotKey, date });
+            }
+          }
+
+          // Uma única chamada batch para todas as URLs assinadas
+          if (candidates.length > 0) {
+            const { data: signedList } = await supabase.storage
+              .from("atualizacoes")
+              .createSignedUrls(candidates.map(c => c.storage_path), 3600);
+
+            if (signedList) {
+              for (let i = 0; i < candidates.length; i++) {
+                const signed = signedList[i];
+                if (!signed?.signedUrl) continue;
+                const c = candidates[i];
+                legacyPhotos.push({
+                  id:           `legacy_${c.id}`,
+                  slot:         c.slotKey,
+                  storage_path: c.storage_path,
+                  taken_at:     c.date,
+                  url:          signed.signedUrl,
+                });
+              }
+            }
+          }
+        }
+      } catch { /* fallback silencioso — não impede fotos primárias */ }
+
+      const allPhotos = [...primaryPhotos, ...legacyPhotos];
+      setPhotos(allPhotos);
+      if (allPhotos.length > 0) {
+        const latestDate = allPhotos.reduce((acc: string, p: any) => p.taken_at > acc ? p.taken_at : acc, allPhotos[0].taken_at);
+        setExpandedDates(new Set([latestDate]));
       }
     } catch (err: any) {
       toast({ title: "Erro ao carregar evolução", description: err.message, variant: "destructive" });
@@ -120,8 +396,8 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "#1a1a1d" }}>
-        <p className="text-[11px] text-white/40">{label}</p>
+      <div className="rounded-xl border px-3 py-2" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
+        <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>{label}</p>
         <p className="text-sm font-bold text-green-500">{payload[0].value} kg</p>
       </div>
     );
@@ -141,9 +417,9 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
               color: variacao == null ? undefined : variacao < 0 ? "var(--cp-400)" : variacao > 0 ? "hsl(0 70% 55%)" : undefined,
             },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-white/8 px-4 py-3" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-              <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">{s.label}</p>
-              <p className="text-base font-bold" style={{ color: s.color ?? "#fff" }}>{s.value}</p>
+            <div key={s.label} className="rounded-2xl border px-4 py-3" style={{ backgroundColor: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+              <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>{s.label}</p>
+              <p className="text-base font-bold" style={{ color: s.color ?? "var(--text-high)" }}>{s.value}</p>
             </div>
           ))}
         </div>
@@ -151,13 +427,13 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
 
       {/* Chart */}
       {chartData.length >= 2 && (
-        <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Gráfico de evolução</p>
+        <div className="rounded-2xl border p-4" style={{ backgroundColor: "var(--surface-2)", borderColor: "var(--border-subtle)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Gráfico de evolução</p>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis domain={["auto", "auto"]} tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+              <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="peso" stroke="var(--cp-500)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--cp-500)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </LineChart>
@@ -237,7 +513,7 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
                   <img src={flat[lightboxIdx].url} alt="" className="w-full rounded-2xl object-contain max-h-[75vh]" />
                   <div className="flex items-center justify-between mt-3">
                     <p className="text-sm text-white/50">
-                      {PHOTO_SLOTS.find((s) => s.key === flat[lightboxIdx].slot)?.label} — {format(parseISO(flat[lightboxIdx].taken_at), "dd/MM/yyyy")}
+                      {slots.find((s) => s.key === flat[lightboxIdx].slot)?.label} — {format(parseISO(flat[lightboxIdx].taken_at), "dd/MM/yyyy")}
                     </p>
                     <button onClick={() => setLightboxIdx(null)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
                       <XIcon className="w-4 h-4 text-white/70" />
@@ -257,38 +533,70 @@ const EvolucaoViewer = ({ studentUserId }: { studentUserId: string }) => {
               </div>
             )}
 
-            <div className="space-y-4">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Fotos de evolução</p>
-              {dates.map((date) => (
-                <div key={date}>
-                  <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2">
-                    {format(parseISO(date), "dd 'de' MMMM yyyy", { locale: ptBR })}
-                  </p>
-                  <div className="grid grid-cols-5 gap-2">
-                    {PHOTO_SLOTS.map(({ key, label }) => {
-                      const photo = byDate[date]?.find((p) => p.slot === key);
-                      if (!photo) {
-                        return (
-                          <div key={key} className="flex flex-col items-center gap-1">
-                            <div className="w-full aspect-square rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.07)" }} />
-                            <span className="text-[9px] text-white/20">{label}</span>
-                          </div>
-                        );
-                      }
-                      const flatIdx = flat.indexOf(photo);
-                      return (
-                        <div key={key} className="flex flex-col items-center gap-1">
-                          <button onClick={() => setLightboxIdx(flatIdx)} className="w-full aspect-square rounded-xl overflow-hidden">
-                            <img src={photo.url} alt={label} className="w-full h-full object-cover hover:scale-105 transition-transform" />
-                          </button>
-                          <span className="text-[9px] text-white/35">{label}</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Fotos de evolução</p>
+                {dates.length >= 2 && (
+                  <button
+                    onClick={() => setCompareOpen(true)}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}>
+                    <Camera className="w-3 h-3" /> Comparar
+                  </button>
+                )}
+              </div>
+              {dates.map((date) => {
+                const isExpanded = expandedDates.has(date);
+                return (
+                  <div key={date} className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <button
+                      onClick={() => setExpandedDates(prev => {
+                        const next = new Set(prev);
+                        if (next.has(date)) next.delete(date); else next.add(date);
+                        return next;
+                      })}
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors hover:bg-white/3"
+                      style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                      <p className="text-[11px] text-white/50 uppercase tracking-wider font-medium">
+                        {format(parseISO(date), "dd 'de' MMMM yyyy", { locale: ptBR })}
+                      </p>
+                      {isExpanded
+                        ? <ChevronUp className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                        : <ChevronDown className="w-3.5 h-3.5 text-white/25 shrink-0" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "rgba(255,255,255,0.01)" }}>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(slots.length, 5)}, 1fr)` }}>
+                          {slots.map(({ key, label }) => {
+                            const photo = byDate[date]?.find((p) => p.slot === key);
+                            if (!photo) {
+                              return (
+                                <div key={key} className="flex flex-col items-center gap-1">
+                                  <div className="w-full aspect-square rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.07)" }} />
+                                  <span className="text-[9px] text-white/20">{label}</span>
+                                </div>
+                              );
+                            }
+                            const flatIdx = flat.indexOf(photo);
+                            return (
+                              <div key={key} className="flex flex-col items-center gap-1">
+                                <button onClick={() => setLightboxIdx(flatIdx)} className="w-full aspect-square rounded-xl overflow-hidden">
+                                  <img src={photo.url} alt={label} className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                                </button>
+                                <span className="text-[9px] text-white/35">{label}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            {compareOpen && (
+              <EvolucaoCompareModal photos={flat} slots={slots} onClose={() => setCompareOpen(false)} studentName={studentName} />
+            )}
           </>
         );
       })()}
@@ -337,7 +645,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     setRequesting(true);
     try {
       // Update flag on alunos (coach has permission); anamneses.pendente kept in sync but may be blocked by RLS
-      await (supabase as any).from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
+      await (supabase as any).from("alunos").update({ anamnese_pendente: true, anamnese_dispensada: false }).eq("id", studentAlunoId);
       await supabase.from("anamneses").update({ pendente: true }).eq("id", data.id);
       await supabase.from("notificacoes").insert({
         user_id: studentUserId, org_id: orgId,
@@ -355,7 +663,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
   const requestFirst = async () => {
     setRequesting(true);
     try {
-      await (supabase as any).from("alunos").update({ anamnese_pendente: true }).eq("id", studentAlunoId);
+      await (supabase as any).from("alunos").update({ anamnese_pendente: true, anamnese_dispensada: false }).eq("id", studentAlunoId);
       await supabase.from("notificacoes").insert({
         user_id: studentUserId, org_id: orgId,
         titulo: "Seu treinador solicitou o preenchimento da anamnese",
@@ -371,7 +679,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
   const dispensarAnamnese = async () => {
     setDispensing(true);
     try {
-      const { error } = await supabase.from("alunos").update({ anamnese_dispensada: true }).eq("id", studentAlunoId);
+      const { error } = await supabase.from("alunos").update({ anamnese_dispensada: true, anamnese_pendente: false }).eq("id", studentAlunoId);
       if (error) throw error;
       toast({ title: "Anamnese dispensada!" });
     } catch (err: any) {
@@ -398,6 +706,8 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
     try {
       const { error } = await supabase.from("anamneses").delete().eq("id", data.id);
       if (error) throw error;
+      // Reseta o flag de pendência para que o painel do aluno não mostre aviso indevido
+      await (supabase as any).from("alunos").update({ anamnese_pendente: false }).eq("id", studentAlunoId);
       setData(null);
       toast({ title: "Anamnese excluída com sucesso." });
     } catch (err: any) {
@@ -741,6 +1051,7 @@ interface AtualizacaoResp   { id: string; submitted_at: string; valores: Atualiz
 
 const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string }) => {
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
   const [respostas,      setRespostas]      = useState<AtualizacaoResp[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [expanded,       setExpanded]       = useState<string | null>(null);
@@ -779,24 +1090,65 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
     } finally { setLoading(false); }
   };
 
-  const loadPreviews = async (arquivos: AtualizacaoArquivo[]) => {
+  // Deriva URL pública do bucket evolution-photos para imagens de slot.
+  // Formato do path em atualizacoes: {userId}/{respostaId}/{campoId}/{slotKey}_{timestamp}.{ext}
+  const getEvoPhotoUrl = (arq: AtualizacaoArquivo, submittedAt: string): string | null => {
+    if (!orgId || !arq.mime_type?.startsWith("image/") || !arq.storage_path) return null;
+    try {
+      const parts    = arq.storage_path.split("/");
+      if (parts.length < 4) return null;
+      const userId   = parts[0];
+      const filename = parts[parts.length - 1];
+      const ext      = filename.split(".").pop() ?? "jpg";
+      // Remove sufixo _timestamp.ext para obter slotKey
+      const slotKey  = filename.replace(/_\d+\.\w+$/, "");
+      if (slotKey === filename) return null; // padrão não reconhecido
+      const date     = submittedAt.split("T")[0];
+      const evoPath  = `${orgId}/${userId}/${date}_${slotKey}.${ext}`;
+      return supabase.storage.from("evolution-photos").getPublicUrl(evoPath).data.publicUrl;
+    } catch { return null; }
+  };
+
+  const loadPreviews = async (arquivos: AtualizacaoArquivo[], submittedAt: string) => {
+    const updates: Record<string, string> = {};
     for (const arq of arquivos) {
       if (previewUrls[arq.id] || !arq.mime_type?.startsWith("image/")) continue;
-      const { data } = await supabase.storage.from("atualizacoes").createSignedUrl(arq.storage_path, 3600);
-      if (data?.signedUrl) setPreviewUrls(p => ({ ...p, [arq.id]: data.signedUrl }));
+      // Tenta signed URL do bucket atualizacoes (requer SQL policy de leitura para coach)
+      const { data: signedData } = await supabase.storage
+        .from("atualizacoes")
+        .createSignedUrl(arq.storage_path, 3600);
+      if (signedData?.signedUrl) {
+        updates[arq.id] = signedData.signedUrl;
+      } else {
+        // Fallback: URL pública do evolution-photos (só existe para uploads após AJUSTE 3)
+        const evoUrl = getEvoPhotoUrl(arq, submittedAt);
+        if (evoUrl) updates[arq.id] = evoUrl;
+      }
     }
+    if (Object.keys(updates).length) setPreviewUrls(p => ({ ...p, ...updates }));
   };
 
-  const toggleExpand = (id: string, arquivos: AtualizacaoArquivo[]) => {
-    setExpanded(e => { const next = e === id ? null : id; if (next) loadPreviews(arquivos); return next; });
+  const toggleExpand = (id: string, resp: AtualizacaoResp) => {
+    setExpanded(e => { const next = e === id ? null : id; if (next) loadPreviews(resp.arquivos, resp.submitted_at); return next; });
   };
 
-  const downloadFoto = async (arq: AtualizacaoArquivo) => {
+  const downloadFoto = async (arq: AtualizacaoArquivo, submittedAt: string) => {
     setDownloading(arq.id);
     try {
-      const { data, error } = await supabase.storage.from("atualizacoes").createSignedUrl(arq.storage_path, 3600);
-      if (error) throw error;
-      const res  = await fetch(data.signedUrl);
+      // Usa signed URL do atualizacoes (requer SQL policy) ou evo-photos como fallback
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from("atualizacoes")
+        .createSignedUrl(arq.storage_path, 3600);
+      let downloadUrl: string;
+      if (signedData?.signedUrl) {
+        downloadUrl = signedData.signedUrl;
+      } else {
+        // Fallback: URL pública do evolution-photos (uploads recentes)
+        const evoUrl = getEvoPhotoUrl(arq, submittedAt);
+        if (!evoUrl) throw signedErr ?? new Error("Não foi possível obter URL da foto");
+        downloadUrl = evoUrl;
+      }
+      const res  = await fetch(downloadUrl);
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -811,7 +1163,10 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
   };
 
   const downloadAll = async (resp: AtualizacaoResp) => {
-    for (const arq of resp.arquivos) { await downloadFoto(arq); await new Promise(r => setTimeout(r, 300)); }
+    for (const arq of resp.arquivos) {
+      await downloadFoto(arq, resp.submitted_at);
+      await new Promise(r => setTimeout(r, 300));
+    }
   };
 
   const deleteResposta = async (respId: string) => {
@@ -855,7 +1210,7 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
         return (
           <div key={resp.id} className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
             <div className="flex items-center">
-              <button onClick={() => toggleExpand(resp.id, resp.arquivos)}
+              <button onClick={() => toggleExpand(resp.id, resp)}
                 className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -913,10 +1268,15 @@ const StudentAtualizacoesViewer = ({ studentUserId }: { studentUserId: string })
                       {resp.arquivos.map(arq => (
                         <div key={arq.id} className="relative rounded-xl overflow-hidden group" style={{ backgroundColor: "rgba(255,255,255,0.05)", aspectRatio: "1" }}>
                           {previewUrls[arq.id]
-                            ? <img src={previewUrls[arq.id]} alt="" className="w-full h-full object-cover" />
+                            ? <img
+                                src={previewUrls[arq.id]}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={() => setPreviewUrls(p => { const next = { ...p }; delete next[arq.id]; return next; })}
+                              />
                             : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-white/20" /></div>
                           }
-                          <button onClick={() => downloadFoto(arq)} disabled={downloading === arq.id}
+                          <button onClick={() => downloadFoto(arq, resp.submitted_at)} disabled={downloading === arq.id}
                             className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             {downloading === arq.id ? <Spinner className="w-4 h-4 text-white animate-spin" /> : <Download className="w-4 h-4 text-white" />}
                           </button>
@@ -1640,11 +2000,13 @@ const CardioManager = ({ alunoId, orgId }: { alunoId: string; orgId: string | nu
 // ── Suplementos Manager ────────────────────────────────────────────
 const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string | null }) => {
   const { toast } = useToast();
-  const [items,   setItems]   = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ nome: '', dosagem: '', instrucao: '' });
+  const [items,    setItems]    = useState<any[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [addOpen,  setAddOpen]  = useState(false);
+  const [form,     setForm]     = useState({ nome: '', dosagem: '', instrucao: '' });
+  const [editId,   setEditId]   = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ nome: '', dosagem: '', instrucao: '' });
 
   useEffect(() => { load(); }, [alunoId]);
 
@@ -1683,6 +2045,31 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
+  const startEdit = (item: any) => {
+    setEditId(item.id);
+    setEditForm({ nome: item.nome ?? '', dosagem: item.dosagem ?? '', instrucao: item.instrucao ?? '' });
+    setAddOpen(false);
+  };
+
+  const cancelEdit = () => setEditId(null);
+
+  const update = async () => {
+    if (!editForm.nome.trim()) { toast({ title: 'Nome obrigatório', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('suplementos').update({
+        nome:      editForm.nome.trim(),
+        dosagem:   editForm.dosagem.trim()   || null,
+        instrucao: editForm.instrucao.trim() || null,
+      }).eq('id', editId!);
+      if (error) throw error;
+      toast({ title: 'Suplemento atualizado!' });
+      setEditId(null);
+      await load();
+    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    finally { setSaving(false); }
+  };
+
   const inp = "w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-amber-500/40 transition-colors";
   const lbl = "text-[11px] text-white/40 uppercase tracking-wider mb-1.5 block";
 
@@ -1690,7 +2077,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
     <div className="space-y-4 pt-4 border-t border-white/5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Suplementação e Fitoterápicos</p>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Suplementação e Fitoterápicos</p>
         <button onClick={() => setAddOpen((o) => !o)}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
           style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
@@ -1739,35 +2126,86 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
 
       {/* List */}
       {loading ? (
-        <div className="flex items-center gap-2 py-4 text-white/30">
+        <div className="flex items-center gap-2 py-4" style={{ color: "var(--text-dim)" }}>
           <Spinner className="w-4 h-4 animate-spin" />
           <span className="text-sm">Carregando...</span>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/8 py-8 text-center">
-          <p className="text-white/25 text-sm">Nenhum suplemento cadastrado</p>
+        <div className="rounded-xl border border-dashed py-8 text-center" style={{ borderColor: "var(--border-subtle)" }}>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>Nenhum suplemento cadastrado</p>
         </div>
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-white/6 bg-white/2 px-4 py-3 flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-white/80">{item.nome}</span>
-                  {item.dosagem && (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: 'rgb(251,191,36)' }}>
-                      {item.dosagem}
-                    </span>
-                  )}
+            editId === item.id ? (
+              /* ── Edição inline ── */
+              <div key={item.id} className="rounded-2xl border p-4 space-y-3"
+                style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
+                <div>
+                  <label className={lbl}>Nome do suplemento / fitoterápico *</label>
+                  <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))}
+                    placeholder="Ex: Creatina, Whey Protein, Ômega 3..."
+                    className={inp} />
                 </div>
-                {item.instrucao && <p className="text-[11px] text-white/35 mt-1 leading-relaxed">{item.instrucao}</p>}
+                <div>
+                  <label className={lbl}>Dosagem</label>
+                  <input value={editForm.dosagem} onChange={e => setEditForm(f => ({ ...f, dosagem: e.target.value }))}
+                    placeholder="Ex: 5g, 1 cápsula, 30ml..."
+                    className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Instruções de uso</label>
+                  <textarea rows={2} value={editForm.instrucao}
+                    onChange={e => setEditForm(f => ({ ...f, instrucao: e.target.value }))}
+                    placeholder="Ex: Tomar com 300ml de água antes do treino..."
+                    className={inp + ' h-auto py-2 resize-none'} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={cancelEdit}
+                    className="h-10 px-4 rounded-xl text-sm font-medium transition-colors"
+                    style={{ backgroundColor: "var(--surface-2)", color: "var(--muted-foreground, rgba(255,255,255,0.5))", border: "1px solid var(--border-subtle)" }}>
+                    Cancelar
+                  </button>
+                  <button onClick={update} disabled={saving}
+                    className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2 flex-1 justify-center"
+                    style={{ background: 'linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))' }}>
+                    {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Salvar
+                  </button>
+                </div>
               </div>
-              <button onClick={() => remove(item.id)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
-                <XIcon className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            ) : (
+              /* ── Exibição normal ── */
+              <div key={item.id} className="rounded-xl px-4 py-3 flex items-start gap-3"
+                style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-foreground/80">{item.nome}</span>
+                    {item.dosagem && (
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: 'rgb(217,119,6)' }}>
+                        {item.dosagem}
+                      </span>
+                    )}
+                  </div>
+                  {item.instrucao && <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--text-mid)" }}>{item.instrucao}</p>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => startEdit(item)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                    style={{ color: "var(--text-dim)" }}
+                    title="Editar">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => remove(item.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    style={{ color: "var(--text-dim)" }}
+                    title="Remover">
+                    <XIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )
           ))}
         </div>
       )}
@@ -2239,7 +2677,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
             onClick={dispensarAvaliacao}
             disabled={requesting}
             className="text-xs font-medium px-3 py-1.5 rounded-lg shrink-0 transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
+            style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)", color: "var(--text-mid)" }}>
             Dispensar
           </button>
         </div>
@@ -2512,8 +2950,8 @@ const toNumCoach = (s: string): number | null => {
 const CargaTooltipCoach = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border px-3 py-2" style={{ backgroundColor: "#111113", borderColor: "rgba(255,255,255,0.1)" }}>
-      <p className="text-[11px] text-white/40">{label}</p>
+    <div className="rounded-xl border px-3 py-2" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
+      <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>{label}</p>
       <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
     </div>
   );
@@ -2965,9 +3403,9 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
             onClick={() => setView(key)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
-              backgroundColor: view === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
-              color: view === key ? "var(--cp-400)" : "var(--ui-inactive-color)",
-              border: view === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
+              backgroundColor: view === key ? "var(--surface-1)" : "transparent",
+              color: view === key ? "hsl(35 92% 44%)" : "var(--ui-inactive-color)",
+              border: view === key ? "1px solid rgba(var(--cp-rgb),0.35)" : "1px solid transparent",
             }}
           >
             {icon}{label}
@@ -2988,9 +3426,9 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
               <button key={ex.id} onClick={() => setSelectedId(ex.id)}
                 className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
                 style={{
-                  backgroundColor: selectedId === ex.id ? "rgba(var(--cp-rgb),0.2)" : "var(--filter-inactive-bg)",
-                  color: selectedId === ex.id ? "var(--cp-400)" : "var(--filter-inactive-color)",
-                  border: `1px solid ${selectedId === ex.id ? "rgba(var(--cp-rgb),0.3)" : "var(--filter-inactive-border)"}`,
+                  backgroundColor: selectedId === ex.id ? "var(--surface-1)" : "var(--filter-inactive-bg)",
+                  color: selectedId === ex.id ? "hsl(35 92% 44%)" : "var(--filter-inactive-color)",
+                  border: `1px solid ${selectedId === ex.id ? "rgba(var(--cp-rgb),0.35)" : "var(--filter-inactive-border)"}`,
                 }}>
                 {ex.nome}
               </button>
@@ -3054,9 +3492,9 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
                 onClick={() => setVolView(key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  backgroundColor: volView === key ? "rgba(var(--cp-rgb),0.2)" : "transparent",
-                  color: volView === key ? "var(--cp-400)" : "var(--ui-inactive-color)",
-                  border: volView === key ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid transparent",
+                  backgroundColor: volView === key ? "var(--surface-1)" : "transparent",
+                  color: volView === key ? "hsl(35 92% 44%)" : "var(--ui-inactive-color)",
+                  border: volView === key ? "1px solid rgba(var(--cp-rgb),0.35)" : "1px solid transparent",
                 }}
               >{label}</button>
             ))}
@@ -3103,12 +3541,44 @@ const BAND_BG = "#0f0f11";
 const StudentDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
+  const { hasDiet, hasTraining } = usePlanFeatures();
+  const { isCollaborator, can: collabCan, loading: collabLoading } = useCollaboratorPermissions();
+
+  // Abas visíveis de acordo com o plano da org e permissões do colaborador
+  const visibleTabs = TABS.filter((tab) => {
+    // Filtros de plano da org (valem para todos)
+    if (tab.key === "dieta"   && !hasDiet)     return false;
+    if (tab.key === "treinos" && !hasTraining) return false;
+
+    // Treinador dono: acesso irrestrito
+    if (!isCollaborator) return true;
+
+    // Colaborador: usa a seção abas_aluno das permissões
+    return collabCan("abas_aluno", tab.key);
+  });
 
   const [student,       setStudent]       = useState<StudentData | null>(null);
   const [loading,       setLoading]       = useState(true);
-  const [activeTab,     setActiveTab]     = useState<TabKey>("treinos");
+  // Persiste a aba ativa na URL (?tab=treinos) para sobreviver ao F5
+  const tabFromUrl = (searchParams.get("tab") as TabKey) || "treinos";
+  const activeTab: TabKey = visibleTabs.find(t => t.key === tabFromUrl)
+    ? tabFromUrl
+    : (visibleTabs[0]?.key ?? "treinos");
+
+  const setActiveTab = (tab: TabKey) => {
+    setSearchParams(prev => { prev.set("tab", tab); return prev; }, { replace: true });
+  };
+
+  // Garante que a aba inicial seja válida para o usuário logado
+  useEffect(() => {
+    if (collabLoading) return;
+    if (!visibleTabs.find((t) => t.key === activeTab) && visibleTabs.length > 0) {
+      setSearchParams(prev => { prev.set("tab", visibleTabs[0].key); return prev; }, { replace: true });
+    }
+  }, [collabLoading]);
   const [studentWeight, setStudentWeight] = useState<number | null>(null);
   const [coachId,       setCoachId]       = useState<string | null>(null);
   const [plano, setPlano] = useState<{
@@ -3127,8 +3597,12 @@ const StudentDetails = () => {
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (collabLoading || !orgId) return;
     if (id) loadStudentData();
-  }, [id]);
+  }, [id, collabLoading, orgId]);
 
   // Carrega planos do treinador para o select da aba Plano
   useEffect(() => {
@@ -3155,13 +3629,30 @@ const StudentDetails = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data, error } = await supabase
+
+      // Verifica colaborador diretamente no banco — evita race condition com o hook
+      const { data: collabRow } = await supabase
+        .from("collaborators")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("org_id", orgId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      const isCollab = !!collabRow;
+
+      let query = supabase
         .from("alunos")
         .select("id, user_id, observacoes, profiles!alunos_user_id_fkey(nome), plano_nome, plano_inicio, data_expiracao_plano, plano_valor_pago")
-        .eq("id", id)
-        .eq("treinador_id", session.user.id)
-        .single();
+        .eq("id", id);
+
+      if (!isCollab) {
+        query = query.eq("treinador_id", session.user.id);
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("Aluno não encontrado.");
       setStudent(data as StudentData);
       // Carrega plano se existir
       if ((data as any).plano_nome) {
@@ -3228,7 +3719,7 @@ const StudentDetails = () => {
 
           {/* Voltar */}
           <button
-            onClick={() => navigate(`/${slug}/treinador`)}
+            onClick={() => navigate(-1)}
             className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors shrink-0"
             style={{ color: "rgba(255,255,255,0.5)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
@@ -3286,7 +3777,7 @@ const StudentDetails = () => {
           className="px-6 lg:px-8 flex gap-0 overflow-x-auto scrollbar-none"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         >
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const active = activeTab === tab.key;
             return (
               <button
@@ -3582,7 +4073,7 @@ const StudentDetails = () => {
 
         {activeTab === "checkins" && <CheckInsViewer studentUserId={student.user_id} />}
 
-        {activeTab === "evolucao" && <EvolucaoViewer studentUserId={student.user_id} />}
+        {activeTab === "evolucao" && <EvolucaoViewer studentUserId={student.user_id} studentName={student.profiles.nome} />}
 
         {activeTab === "anamnese" && (
           <AnamneseViewer studentUserId={student.user_id} studentAlunoId={student.id} />

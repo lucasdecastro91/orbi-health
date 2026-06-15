@@ -57,8 +57,11 @@ const UpdateFormManager = ({ studentId }: UpdateFormManagerProps) => {
   );
 
   const hasDate = Boolean(nextDate);
-  const formatted = hasDate
-    ? format(parseISO(nextDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+  const formatted = hasDate && /^\d{4}-\d{2}-\d{2}$/.test(nextDate)
+    ? (() => {
+        const [y, m, d] = nextDate.split("-").map(Number);
+        return format(new Date(y, m - 1, d), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      })()
     : null;
 
   return (

@@ -48,34 +48,40 @@ interface Notificacao {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIPO_ICON: Record<string, React.ElementType> = {
-  checkin:   ClipboardList,
-  anamnese:  ClipboardCheck,
-  avaliacao: ScanLine,
-  treino:    Dumbbell,
-  dieta:     Utensils,
-  mensagem:  MessageSquare,
-  alerta:    AlertTriangle,
-  info:      Info,
+  atualizacao:    ClipboardList,
+  anamnese:       ClipboardCheck,
+  avaliacao:      ScanLine,
+  treino:         Dumbbell,
+  treino_completo: Dumbbell,
+  dieta:          Utensils,
+  dieta_completa: Utensils,
+  mensagem:       MessageSquare,
+  alerta:         AlertTriangle,
+  info:           Info,
 };
 
 const TIPO_COR: Record<string, { bg: string; text: string }> = {
-  checkin:   { bg: "rgba(59,130,246,0.12)",  text: "#60a5fa" },
-  anamnese:  { bg: "rgba(var(--cp-rgb),0.12)", text: "var(--cp-400)" },
-  avaliacao: { bg: "rgba(168,85,247,0.12)",  text: "#c084fc" },
-  treino:    { bg: "rgba(34,197,94,0.12)",   text: "#4ade80" },
-  dieta:     { bg: "rgba(251,191,36,0.12)",  text: "#fbbf24" },
-  mensagem:  { bg: "rgba(34,211,238,0.12)",  text: "#22d3ee" },
-  alerta:    { bg: "rgba(239,68,68,0.12)",   text: "#f87171" },
-  info:      { bg: "rgba(255,255,255,0.07)", text: "rgba(255,255,255,0.5)" },
+  atualizacao:    { bg: "rgba(59,130,246,0.12)",  text: "#60a5fa" },
+  anamnese:       { bg: "rgba(var(--cp-rgb),0.12)", text: "var(--cp-400)" },
+  avaliacao:      { bg: "rgba(168,85,247,0.12)",  text: "#c084fc" },
+  treino:         { bg: "rgba(34,197,94,0.12)",   text: "#4ade80" },
+  treino_completo: { bg: "rgba(34,197,94,0.12)",  text: "#4ade80" },
+  dieta:          { bg: "rgba(251,191,36,0.12)",  text: "#fbbf24" },
+  dieta_completa: { bg: "rgba(251,191,36,0.12)",  text: "#fbbf24" },
+  mensagem:       { bg: "rgba(34,211,238,0.12)",  text: "#22d3ee" },
+  alerta:         { bg: "rgba(239,68,68,0.12)",   text: "#f87171" },
+  info:           { bg: "rgba(255,255,255,0.07)", text: "rgba(255,255,255,0.5)" },
 };
 
 const TIPO_LABEL: Record<string, string> = {
-  todos:     "Todos",
-  checkin:   "Check-in",
-  anamnese:  "Anamnese",
-  avaliacao: "Avaliação",
-  treino:    "Treino",
-  alerta:    "Alertas",
+  todos:          "Todos",
+  atualizacao:    "Atualização",
+  anamnese:       "Anamnese",
+  avaliacao:      "Avaliação",
+  treino_completo: "Treino",
+  dieta_completa: "Dieta",
+  mensagem:       "Mensagem",
+  alerta:         "Alertas",
 };
 
 const EMOJI_SUGGESTIONS = ["📣", "💪", "🏋️", "🔥", "⚡", "🎯", "✨", "📋", "🥗", "💧", "⏰", "🌟"];
@@ -143,7 +149,7 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
     return true;
   });
 
-  const tiposList = ["todos", "checkin", "anamnese", "avaliacao", "treino", "alerta"];
+  const tiposList = ["todos", "atualizacao", "anamnese", "avaliacao", "treino_completo", "dieta_completa", "mensagem", "alerta"];
 
   return (
     <div className="space-y-4">

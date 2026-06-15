@@ -24,14 +24,22 @@ export interface Organization {
   slug: string;
   owner_id: string;
   logo_url: string | null;
+  /** Ícone quadrado (favicon, ícone PWA). Null = sem ícone customizado. */
+  icon_url: string | null;
   primary_color: string;
   theme: "dark" | "light";
   plan: "free" | "pro" | "enterprise";
+  /** Plano de produto — controla quais módulos estão disponíveis */
+  plan_type?: "motion" | "pro" | "balance" | "clinic";
   active: boolean;
   created_at: string;
   updated_at: string;
   /** Se true, toda a org usa branding Get Shape */
   is_gs_brand: boolean;
+  /** Descrições globais por tipo de série, editáveis pelo treinador */
+  serie_config?: Record<string, string> | null;
+  /** True quando o treinador completou ou dispensou o checklist de onboarding */
+  onboarding_completed: boolean;
 }
 
 export type OrgRole = "owner" | "trainer" | "student";
@@ -122,9 +130,7 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
   useEffect(() => {
     if (!org) return;
 
-    const effectiveColor = localStorage.getItem("gs_brand") === "1"
-      ? "#d97706"
-      : org.primary_color;
+    const effectiveColor = org.primary_color;
     const color = getColorEntry(effectiveColor);
     applyColorVars(color.hsl, color.rgb, color.gradient, color.light, color.mid, color.textOn);
 
@@ -140,17 +146,23 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
 
     if (isGetShapeOrg) {
       document.title = "Get Shape";
-      setFavicon("/favicon-gs.png");
+      // GS: usa icon_url se disponível, senão favicon padrão Get Shape
+      setFavicon(org.icon_url ?? "/favicon-gs.png");
     } else {
       document.title = org.name ?? "ORBI Pro";
-      setFavicon("/logos/orbi-logo-icon.svg");
+      // Outros tenants: usa icon_url se disponível; sem icon_url → remove favicon
+      if (org.icon_url) {
+        setFavicon(org.icon_url);
+      } else {
+        removeFavicon();
+      }
     }
 
     return () => {
       document.title = "ORBI Pro";
       setFavicon("/logos/orbi-logo-icon.svg");
     };
-  }, [org?.name, isGetShapeOrg]);
+  }, [org?.name, org?.icon_url, isGetShapeOrg]);
 
   // ── Função de carregamento ────────────────────────────────────
   const loadOrg = async (slugParam: string) => {
@@ -274,6 +286,15 @@ function setFavicon(href: string) {
     link.href = href;
     document.head.appendChild(link);
   }
+}
+
+// ----------------------------------------------------------------
+// Utilitário: remove o favicon da aba (sem ícone customizado)
+// ----------------------------------------------------------------
+function removeFavicon() {
+  document.querySelectorAll<HTMLLinkElement>(
+    'link[rel="icon"], link[rel="shortcut icon"]'
+  ).forEach((el) => el.parentNode?.removeChild(el));
 }
 
 // ----------------------------------------------------------------

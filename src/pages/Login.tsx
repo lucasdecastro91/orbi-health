@@ -11,7 +11,7 @@
  * Rota /entrar/:orgSlug → pre-carrega branding antes do usuario digitar
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,31 @@ interface TenantBranding {
   name: string;
   slug: string;
   logo_url: string | null;
+  icon_url: string | null;
   primary_color: string | null;
   theme: "dark" | "light";
+  is_gs_brand: boolean;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+const applyFavicon = (href: string, type = "image/x-icon") => {
+  // Remove todos os <link> de favicon existentes (podem ter type errado)
+  document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']")
+    .forEach((el) => el.parentNode?.removeChild(el));
+  // Cria novo <link> com tipo correto + cache-bust para forçar re-fetch
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = type;
+  link.href = `${href}?v=${Date.now()}`;
+  document.head.appendChild(link);
+};
+
+// Remove todos os favicons sem adicionar um novo (org sem ícone customizado)
+const removeFavicon = () => {
+  document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']")
+    .forEach((el) => el.parentNode?.removeChild(el));
+};
 
 const applyColorVars = (color: ReturnType<typeof getColorEntry>) => {
   const el = document.documentElement;
@@ -105,19 +125,78 @@ const Login = () => {
     setSlugLoading(true);
     supabase
       .from("organizations")
-      .select("name, slug, logo_url, primary_color, theme")
+      .select("name, slug, logo_url, icon_url, primary_color, theme, is_gs_brand")
       .eq("slug", orgSlug)
       .eq("active", true)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setTenant(data as TenantBranding);
+        if (data) {
+          const t = data as TenantBranding;
+          setTenant(t);
+          if (t.is_gs_brand) {
+            localStorage.setItem("gs_org_slug", data.slug);
+            localStorage.setItem("gs_org_id",   "");   // filled by TenantContext later
+            localStorage.setItem("gs_brand",    "1");
+            // Favicon GS: icon_url → logo_url → favicon padrão GS
+            applyFavicon(t.icon_url ?? t.logo_url ?? "/favicon-gs.png", "image/png");
+            document.title = data.name ?? "Get Shape Training";
+          } else {
+            // Tenant não-GS: usa icon_url como favicon, ou remove qualquer favicon padrão
+            if (t.icon_url) {
+              applyFavicon(t.icon_url, "image/png");
+            } else {
+              removeFavicon();
+            }
+            document.title = t.name ?? "ORBI Pro";
+          }
+        }
         setSlugLoading(false);
       });
   }, [orgSlug]);
 
+  // ── Favicon dinâmico: detecta slug diretamente na URL (sem DB, sem localStorage) ─
+  // useLayoutEffect roda antes do paint → sem flash do favicon errado
+  useLayoutEffect(() => {
+    const isGS = orgSlug === "getshape"
+              || (!!orgSlug && orgSlug === localStorage.getItem("gs_org_slug"));
+    if (isGS) {
+      applyFavicon("/favicon-gs.png", "image/png");
+      document.title = "Get Shape Training";
+    }
+    return () => {
+      applyFavicon("/logos/orbi-logo-icon.svg", "image/svg+xml");
+      document.title = "ORBI Pro";
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Favicon dinâmico: atualiza quando email GS é reconhecido ao digitar ──────
+  // Só age quando não há slug GS na URL (esse caso já foi tratado acima)
+  useEffect(() => {
+    if (orgSlug === "getshape") return;
+    const gsSlug = localStorage.getItem("gs_org_slug");
+    if (orgSlug && gsSlug && orgSlug === gsSlug) return;
+
+    if (isGetShapeEmail || isGetShapeTenant) {
+      applyFavicon("/favicon-gs.png", "image/png");
+      document.title = "Get Shape Training";
+    } else if (orgSlug && tenant) {
+      // Tenant com slug carregado: icon_url → sem favicon (nunca Orbi como fallback)
+      if (tenant.icon_url) {
+        applyFavicon(tenant.icon_url, "image/png");
+      } else {
+        removeFavicon();
+      }
+      document.title = tenant.name ?? "ORBI Pro";
+    } else if (!orgSlug) {
+      // Login padrão Orbi sem slug — mantém favicon Orbi
+      applyFavicon("/logos/orbi-logo-icon.svg", "image/svg+xml");
+      document.title = "ORBI Pro";
+    }
+  }, [email, tenant]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { setRedirecting(true); redirectUser(session.user.id); }
+      if (session) { setRedirecting(true); redirectUser(session.user.id, session.user.user_metadata); }
     });
   }, []);
 
@@ -126,7 +205,14 @@ const Login = () => {
     setTimeout(() => { setStep(next); setVisible(true); }, 200);
   };
 
-  const redirectUser = async (userId: string) => {
+  const redirectUser = async (userId: string, userMeta?: Record<string, any>) => {
+    // Colaborador: redireciona direto para a org convidada via metadata
+    const collabOrgSlug = userMeta?.collab_org_slug as string | undefined;
+    if (collabOrgSlug) {
+      navigate(`/${collabOrgSlug}/treinador`, { replace: true });
+      return;
+    }
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles").select("tipo_usuario").eq("id", userId).maybeSingle();
 
@@ -147,7 +233,7 @@ const Login = () => {
         await supabase.auth.signOut();
         return;
       }
-      return redirectUser(userId);
+      return redirectUser(userId, userMeta);
     }
 
     const { data: member } = await supabase
@@ -201,7 +287,7 @@ const Login = () => {
         toast({ title: "Senha incorreta", description: "Verifique sua senha e tente novamente.", variant: "destructive" });
         return;
       }
-      if (data.user) { setRedirecting(true); await redirectUser(data.user.id); }
+      if (data.user) { setRedirecting(true); await redirectUser(data.user.id, data.user.user_metadata); }
     } catch (err: any) {
       toast({ title: "Erro no login", description: err.message, variant: "destructive" });
     } finally {
@@ -234,7 +320,12 @@ const Login = () => {
   const isGetShapeLogin   = isGetShapeEmail || isGetShapeTenant;
   const isGetShape        = !!tenant && isGetShapeLogin;
 
-  if (redirecting || slugLoading) return <SplashScreen isGetShape={isGetShapeLogin} />;
+  // Tema do tenant: aplica para qualquer org com slug (incluindo GS brand)
+  // Não afeta o login padrão Orbi (sem orgSlug → ambos false)
+  const isOrgDark  = !!orgSlug && !!tenant && tenant.theme === "dark";
+  const isOrgLight = !!orgSlug && !!tenant && tenant.theme === "light";
+
+  if (redirecting || slugLoading) return <SplashScreen isGetShape={isGetShapeLogin} iconUrl={tenant?.icon_url ?? null} />;
 
   // ─── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -244,7 +335,7 @@ const Login = () => {
           LAYOUT MOBILE — exibido apenas em telas < md
           Mantido EXATAMENTE como estava — nenhuma alteracao
       ================================================================== */}
-      <div className="md:hidden min-h-screen w-full flex flex-col" style={{ backgroundColor: "#0A0A0A" }}>
+      <div className="md:hidden min-h-screen w-full flex flex-col" style={{ backgroundColor: isOrgLight ? "#F4F6F4" : "#0A0A0A" }}>
 
         {/* TOPO — fundo na cor do tenant (preto para Get Shape) */}
         <div
@@ -260,22 +351,23 @@ const Login = () => {
                 "radial-gradient(ellipse 60% 50% at 50% 42%, rgba(255,255,255,0.13) 0%, transparent 65%)",
             }}
           />
-          {/* Fusao gradiente → preto */}
+          {/* Fusao gradiente → fundo da pagina */}
           <div
             aria-hidden
             className="absolute bottom-0 left-0 right-0 pointer-events-none"
             style={{
               height: "68%",
-              background:
-                "linear-gradient(to bottom, transparent 0%, rgba(10,10,10,0.55) 45%, #0A0A0A 80%, #0A0A0A 100%)",
+              background: isOrgLight
+                ? "linear-gradient(to bottom, transparent 0%, rgba(244,246,244,0.55) 45%, #F4F6F4 80%, #F4F6F4 100%)"
+                : "linear-gradient(to bottom, transparent 0%, rgba(10,10,10,0.55) 45%, #0A0A0A 80%, #0A0A0A 100%)",
             }}
           />
           {/* Logo */}
           <div className="relative z-10 px-10 text-center select-none">
-            {isGetShapeLogin ? (
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={tenant.name} style={{ maxHeight: 64, maxWidth: 240, objectFit: "contain", display: "block", margin: "0 auto" }} />
+            ) : isGetShapeLogin ? (
               <img src="/logo-gs.png" alt="Get Shape Training" className="h-28 mx-auto object-contain" />
-            ) : tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant.name} className="h-20 max-w-[200px] mx-auto object-contain" />
             ) : tenant ? (
               <span className="text-4xl font-black tracking-tight text-white leading-tight">{tenant.name}</span>
             ) : (
@@ -289,12 +381,12 @@ const Login = () => {
           <div className="w-full max-w-md mx-auto flex-1 flex flex-col">
             <div style={{ opacity: visible ? 1 : 0, transition: "opacity 200ms ease" }} className="flex-1 flex flex-col">
 
-              <h2 className="text-[1.75rem] font-bold text-white tracking-tight mb-1 mt-3">
+              <h2 className={`text-[1.75rem] font-bold tracking-tight mb-1 mt-3 ${isOrgLight ? "text-gray-900" : "text-white"}`}>
                 {step === "email"    && "Acesse sua conta"}
                 {step === "password" && "Sua senha"}
                 {step === "forgot"   && "Recuperar acesso"}
               </h2>
-              <p className="text-sm mb-7" style={{ color: "rgba(255,255,255,0.38)" }}>
+              <p className="text-sm mb-7" style={{ color: isOrgLight ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.38)" }}>
                 {step === "email"    && "Entre com seu e-mail para continuar"}
                 {step === "password" && email}
                 {step === "forgot"   && "Enviaremos um link de recuperacao"}
@@ -304,17 +396,17 @@ const Login = () => {
               {step === "email" && (
                 <form onSubmit={handleEmailContinue} className="flex flex-col gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>E-mail</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: isOrgLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>E-mail</label>
                     <Input
                       type="email" value={email}
                       onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                       required autoFocus placeholder="Digite seu e-mail"
                       className={[
-                        "h-13 rounded-xl text-sm text-white placeholder:text-white/25 border transition-all duration-200",
+                        "h-13 rounded-xl text-sm border transition-all duration-200",
                         "focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-primary/25",
-                        emailError
-                          ? "border-red-500/40 bg-red-500/[0.06]"
-                          : "border-white/[0.1] bg-[#111111] focus-visible:border-primary/40",
+                        isOrgLight
+                          ? (emailError ? "border-red-300 bg-red-50 text-gray-900 placeholder:text-gray-300" : "border-gray-200 bg-white text-gray-900 placeholder:text-gray-300 focus-visible:border-primary/40")
+                          : (emailError ? "border-red-500/40 bg-red-500/[0.06] text-white placeholder:text-white/25" : "border-white/[0.1] bg-[#111111] text-white placeholder:text-white/25 focus-visible:border-primary/40"),
                       ].join(" ")}
                     />
                     {emailError && <p className="text-xs px-0.5" style={{ color: "rgba(248,113,113,0.9)" }}>{emailError}</p>}
@@ -333,12 +425,12 @@ const Login = () => {
               {step === "password" && (
                 <form onSubmit={handleLogin} className="flex flex-col gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>Senha</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: isOrgLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>Senha</label>
                     <Input
                       type="password" value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required autoFocus placeholder="Digite sua senha" minLength={6}
-                      className="h-13 rounded-xl text-sm text-white border border-white/[0.1] bg-[#111111] placeholder:text-white/25 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-primary/25 focus-visible:border-primary/40"
+                      className={`h-13 rounded-xl text-sm border transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-primary/25 focus-visible:border-primary/40 ${isOrgLight ? "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300" : "text-white border-white/[0.1] bg-[#111111] placeholder:text-white/25"}`}
                     />
                     <div className="flex justify-end pt-1">
                       <button type="button" onClick={() => goToStep("forgot")}
@@ -357,8 +449,8 @@ const Login = () => {
                   </div>
                   <div className="flex justify-center">
                     <button type="button" onClick={() => goToStep("email")}
-                      className="flex items-center gap-1.5 text-sm transition-colors hover:text-white/60"
-                      style={{ color: "rgba(255,255,255,0.38)" }}>
+                      className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-75"
+                      style={{ color: isOrgLight ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.38)" }}>
                       <ArrowLeft className="w-3.5 h-3.5" /> Voltar
                     </button>
                   </div>
@@ -370,9 +462,9 @@ const Login = () => {
                 <>
                   {!resetSent ? (
                     <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
-                      <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+                      <p className="text-sm leading-relaxed" style={{ color: isOrgLight ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
                         Enviaremos um link para{" "}
-                        <span className="font-medium" style={{ color: "rgba(255,255,255,0.8)" }}>{email}</span>
+                        <span className="font-medium" style={{ color: isOrgLight ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.8)" }}>{email}</span>
                       </p>
                       <div className="pt-2">
                         <button type="submit" disabled={resetLoading}
@@ -383,8 +475,8 @@ const Login = () => {
                       </div>
                       <div className="flex justify-center">
                         <button type="button" onClick={() => goToStep("password")}
-                          className="flex items-center gap-1.5 text-sm transition-colors hover:text-white/60"
-                          style={{ color: "rgba(255,255,255,0.38)" }}>
+                          className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-75"
+                          style={{ color: isOrgLight ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.38)" }}>
                           <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
                         </button>
                       </div>
@@ -396,15 +488,15 @@ const Login = () => {
                         <Mail className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
                       </div>
                       <div>
-                        <h3 className="text-white font-semibold text-lg">E-mail enviado!</h3>
-                        <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+                        <h3 className={`font-semibold text-lg ${isOrgLight ? "text-gray-900" : "text-white"}`}>E-mail enviado!</h3>
+                        <p className="text-sm mt-1.5 leading-relaxed" style={{ color: isOrgLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>
                           Verifique sua caixa de entrada em{" "}
-                          <span style={{ color: "rgba(255,255,255,0.7)" }}>{email}</span>
+                          <span style={{ color: isOrgLight ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.7)" }}>{email}</span>
                         </p>
                       </div>
                       <button type="button" onClick={() => goToStep("password")}
-                        className="flex items-center gap-1.5 text-sm transition-colors hover:text-white/60"
-                        style={{ color: "rgba(255,255,255,0.38)" }}>
+                        className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-75"
+                        style={{ color: isOrgLight ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.38)" }}>
                         <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
                       </button>
                     </div>
@@ -415,8 +507,8 @@ const Login = () => {
               <div className="flex-1" />
 
               {/* Rodape mobile */}
-              <div className="flex items-center justify-between pt-5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-                <span className="text-[10px] uppercase tracking-[0.15em] select-none" style={{ color: "rgba(255,255,255,0.15)" }}>
+              <div className="flex items-center justify-between pt-5" style={{ borderTop: `1px solid ${isOrgLight ? "rgba(0,0,0,0.07)" : "rgba(255,255,255,0.07)"}` }}>
+                <span className="text-[10px] uppercase tracking-[0.15em] select-none" style={{ color: isOrgLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)" }}>
                   {tenant ? "Powered by ORBI Health" : "ORBI Pro"}
                 </span>
                 {!tenant && (
@@ -437,7 +529,7 @@ const Login = () => {
       ================================================================== */}
       <div
         className="hidden md:flex flex-col min-h-screen w-full items-center justify-center px-4"
-        style={{ backgroundColor: "#F4F6F4" }}
+        style={{ backgroundColor: isOrgDark ? "#09090b" : "#F4F6F4" }}
       >
           {/* Logo acima do card — aneis orbitais concentricos ao fundo */}
           <div className="relative flex justify-center mb-8">
@@ -456,20 +548,25 @@ const Login = () => {
               <circle cx="0" cy="0" r="195" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.5" opacity="0.05" />
             </svg>
 
-            {isGetShapeLogin ? (
-              <img src="/logo-gs.png" alt="Get Shape Training" className="relative h-[90px] w-auto object-contain" style={{ filter: "brightness(0)" }} />
-            ) : tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant.name} className="relative h-[70px] object-contain" />
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={tenant.name} className="relative object-contain" style={{ maxHeight: 64, maxWidth: 240 }} />
+            ) : isGetShapeLogin ? (
+              <img src="/logo-gs.png" alt="Get Shape Training" className="relative h-[90px] w-auto object-contain" style={isOrgDark ? {} : { filter: "brightness(0)" }} />
             ) : tenant ? (
-              <span className="relative text-2xl font-black tracking-tight text-gray-900">{tenant.name}</span>
+              <span className={`relative text-2xl font-black tracking-tight ${isOrgDark ? "text-white" : "text-gray-900"}`}>{tenant.name}</span>
             ) : (
               <img src="/logos/orbi-logo-vertical-light.svg" alt="ORBI" className="relative h-[107px] w-auto" />
             )}
           </div>
 
         <div
-          className="w-full max-w-[420px] bg-white rounded-2xl px-10 py-12"
-          style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)" }}
+          className={`w-full max-w-[420px] rounded-2xl px-10 py-12${isOrgDark ? " border border-white/6" : ""}`}
+          style={{
+            backgroundColor: isOrgDark ? "#111111" : "#ffffff",
+            boxShadow: isOrgDark
+              ? "0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3)"
+              : "0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)",
+          }}
         >
 
           {/* Fade entre etapas */}
@@ -477,12 +574,12 @@ const Login = () => {
 
             {/* Cabecalho */}
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+              <h2 className={`text-xl font-bold tracking-tight ${isOrgDark ? "text-white" : "text-gray-900"}`}>
                 {step === "email"    && "Acesse sua conta"}
                 {step === "password" && "Sua senha"}
                 {step === "forgot"   && "Recuperar acesso"}
               </h2>
-              <p className="text-sm mt-1 text-gray-400">
+              <p className={`text-sm mt-1 ${isOrgDark ? "text-white/40" : "text-gray-400"}`}>
                 {step === "email"    && "Entre com seu e-mail para continuar"}
                 {step === "password" && email}
                 {step === "forgot"   && "Enviaremos um link de recuperacao"}
@@ -493,15 +590,17 @@ const Login = () => {
             {step === "email" && (
               <form onSubmit={handleEmailContinue} className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">E-mail</label>
+                  <label className={`block text-xs font-semibold uppercase tracking-wider ${isOrgDark ? "text-white/50" : "text-gray-400"}`}>E-mail</label>
                   <Input
                     type="email" value={email}
                     onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                     required autoFocus placeholder="Digite seu e-mail"
                     className={[
-                      "h-12 rounded-xl text-sm text-gray-900 bg-white border placeholder:text-gray-300",
+                      "h-12 rounded-xl text-sm border",
                       "transition-all focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 focus-visible:border-primary/50",
-                      emailError ? "border-red-300" : "border-gray-200",
+                      isOrgDark
+                        ? (emailError ? "border-red-500/40 bg-white/5 text-white placeholder:text-white/25" : "border-white/10 bg-white/5 text-white placeholder:text-white/25")
+                        : (emailError ? "border-red-300 text-gray-900 bg-white placeholder:text-gray-300" : "border-gray-200 text-gray-900 bg-white placeholder:text-gray-300"),
                     ].join(" ")}
                   />
                   {emailError && <p className="text-xs text-red-500 px-0.5">{emailError}</p>}
@@ -520,12 +619,12 @@ const Login = () => {
             {step === "password" && (
               <form onSubmit={handleLogin} className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">Senha</label>
+                  <label className={`block text-xs font-semibold uppercase tracking-wider ${isOrgDark ? "text-white/50" : "text-gray-400"}`}>Senha</label>
                   <Input
                     type="password" value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required autoFocus placeholder="Digite sua senha" minLength={6}
-                    className="h-12 rounded-xl text-sm text-gray-900 bg-white border border-gray-200 placeholder:text-gray-300 transition-all focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 focus-visible:border-primary/50"
+                    className={`h-12 rounded-xl text-sm border transition-all focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 focus-visible:border-primary/50 ${isOrgDark ? "text-white bg-white/5 border-white/10 placeholder:text-white/25" : "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300"}`}
                   />
                   <div className="flex justify-end pt-0.5">
                     <button type="button" onClick={() => goToStep("forgot")}
@@ -544,7 +643,7 @@ const Login = () => {
                 </div>
                 <div className="flex justify-center pt-1">
                   <button type="button" onClick={() => goToStep("email")}
-                    className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-600">
+                    className={`flex items-center gap-1.5 text-sm transition-colors hover:opacity-75 ${isOrgDark ? "text-white/40" : "text-gray-400"}`}>
                     <ArrowLeft className="w-3.5 h-3.5" /> Voltar
                   </button>
                 </div>
@@ -556,9 +655,9 @@ const Login = () => {
               <>
                 {!resetSent ? (
                   <form onSubmit={handleForgotPassword} className="space-y-3">
-                    <p className="text-sm text-gray-500 leading-relaxed">
+                    <p className={`text-sm leading-relaxed ${isOrgDark ? "text-white/50" : "text-gray-500"}`}>
                       Enviaremos um link para{" "}
-                      <span className="font-medium text-gray-800">{email}</span>
+                      <span className={`font-medium ${isOrgDark ? "text-white/80" : "text-gray-800"}`}>{email}</span>
                     </p>
                     <div className="pt-1">
                       <button type="submit" disabled={resetLoading}
@@ -569,7 +668,7 @@ const Login = () => {
                     </div>
                     <div className="flex justify-center pt-1">
                       <button type="button" onClick={() => goToStep("password")}
-                        className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-600">
+                        className={`flex items-center gap-1.5 text-sm transition-colors hover:opacity-75 ${isOrgDark ? "text-white/40" : "text-gray-400"}`}>
                         <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
                       </button>
                     </div>
@@ -581,14 +680,14 @@ const Login = () => {
                       <Mail className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">E-mail enviado!</h3>
-                      <p className="text-sm mt-1 text-gray-500 leading-relaxed">
+                      <h3 className={`font-semibold ${isOrgDark ? "text-white" : "text-gray-900"}`}>E-mail enviado!</h3>
+                      <p className={`text-sm mt-1 leading-relaxed ${isOrgDark ? "text-white/50" : "text-gray-500"}`}>
                         Verifique sua caixa de entrada em{" "}
-                        <span className="font-medium text-gray-700">{email}</span>
+                        <span className={`font-medium ${isOrgDark ? "text-white/70" : "text-gray-700"}`}>{email}</span>
                       </p>
                     </div>
                     <button type="button" onClick={() => goToStep("password")}
-                      className="flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-gray-600">
+                      className={`flex items-center gap-1.5 text-sm transition-colors hover:opacity-75 ${isOrgDark ? "text-white/40" : "text-gray-400"}`}>
                       <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao login
                     </button>
                   </div>
@@ -598,8 +697,8 @@ const Login = () => {
           </div>
 
           {/* Rodape desktop */}
-          <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-[0.15em] text-gray-300 select-none">
+          <div className={`mt-8 pt-6 flex items-center justify-between ${isOrgDark ? "border-t border-white/8" : "border-t border-gray-100"}`}>
+            <span className={`text-[10px] uppercase tracking-[0.15em] select-none ${isOrgDark ? "text-white/20" : "text-gray-300"}`}>
               {tenant ? "Powered by ORBI Health" : "ORBI Pro"}
             </span>
             {!tenant && (

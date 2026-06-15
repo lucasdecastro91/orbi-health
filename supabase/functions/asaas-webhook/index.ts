@@ -225,8 +225,10 @@ serve(async (req) => {
     };
     const newStatus = COBRANCA_STATUS[event];
     if (newStatus) {
+      // Usa paymentDate do Asaas (já em BRT) ou fallback com data atual em BRT (UTC-3)
       const dataPagamento = (newStatus === "RECEIVED" || newStatus === "CONFIRMED")
-        ? (payment?.paymentDate as string ?? new Date().toISOString().slice(0, 10))
+        ? (payment?.paymentDate as string
+            ?? new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10))
         : null;
 
       await supabase
@@ -250,7 +252,8 @@ serve(async (req) => {
             : { data: null };
 
           const valorFmt = `R$ ${Number(cob.valor).toFixed(2).replace(".", ",")}`;
-          const datePaid = dataPagamento ?? new Date().toISOString().slice(0, 10);
+          // dataPagamento já está em BRT (paymentDate do Asaas é BRT, ou fallback Date.now()-3h)
+          const datePaid = dataPagamento ?? new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
           const dateFmt  = datePaid.split("-").reverse().join("/");
 
           // ── Calcula data de expiração inteligente ────────────────────────

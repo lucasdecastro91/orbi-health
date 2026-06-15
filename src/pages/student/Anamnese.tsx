@@ -326,13 +326,11 @@ const Anamnese = () => {
       const { error } = await supabase.from("anamneses").upsert(row, { onConflict: "student_id,org_id" });
       if (error) throw error;
 
-      // Zera o flag de pendência no registro do aluno (fire-and-forget, nunca propaga erro)
+      // Zera o flag de pendência no registro do aluno
       if (alunoRecId) {
-        void (async () => {
-          try {
-            await (supabase as any).from("alunos").update({ anamnese_pendente: false }).eq("id", alunoRecId);
-          } catch { /* silencioso */ }
-        })();
+        try {
+          await (supabase as any).from("alunos").update({ anamnese_pendente: false }).eq("id", alunoRecId);
+        } catch { /* silencioso */ }
       }
 
       if (final && !isEditing && treinadorId) {

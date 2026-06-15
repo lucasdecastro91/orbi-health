@@ -10,6 +10,8 @@ import {
   ArrowRight, Loader2, Target, Phone, AlertTriangle,
 } from "lucide-react";
 import { getSessionDirect } from "@/lib/sessionUtils";
+import OnboardingChecklist from "@/components/coach/OnboardingChecklist";
+import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,7 @@ const CoachDashboard = () => {
   const navigate  = useNavigate();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
+  const { isCollaborator, loading: collabLoading } = useCollaboratorPermissions();
   const [data,    setData]    = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -101,11 +104,10 @@ const CoachDashboard = () => {
         .from("profiles").select("nome, tipo_usuario").eq("id", session.userId).single();
       if (profile?.tipo_usuario !== "treinador") { navigate(`/${slug}/aluno`); return; }
 
-      // All alunos of this trainer
+      // RLS filtra automaticamente: treinador vê os seus, colaborador vê os da org
       const { data: alunos } = await supabase
         .from("alunos")
-        .select("id, user_id, ativo, data_fim")
-        .eq("treinador_id", session.userId);
+        .select("id, user_id, ativo, data_fim");
 
       const allAlunos  = alunos ?? [];
       const ativosArr  = allAlunos.filter((a) => a.ativo);
@@ -500,6 +502,10 @@ const CoachDashboard = () => {
         )}
 
       </div>
+
+      {/* ── Onboarding checklist — apenas para o dono da org ── */}
+      {!isCollaborator && <OnboardingChecklist />}
+
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { grantXP } from "@/lib/xp";
 import {
   Clock, Utensils, Flame, Beef, Wheat, Droplet,
   CheckCircle2, Circle, X, RefreshCw, ChevronRight, History,
-  BookOpen, ChefHat, Shuffle,
+  BookOpen, ChefHat, Shuffle, ListOrdered, Leaf, FileText,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -57,6 +57,15 @@ interface DietFood {
   alimentos: AlimentoData | null;
   substitution_group_id: string | null;
   parent_food_id: string | null;
+  lista_subst_grupo_id: string | null;
+  lista_subst_porcoes: number | null;
+}
+
+interface ListaSubstItem {
+  id: string;
+  nome: string;
+  porcao: string | null;
+  ordem: number;
 }
 
 interface DietMeal {
@@ -74,6 +83,8 @@ interface Diet {
   id: string;
   title: string;
   calories: number | null;
+  observacoes: string | null;
+  refeicao_livre: string | null;
   diet_meals: DietMeal[];
 }
 
@@ -339,9 +350,12 @@ const InlineSubstitutions = ({ food, options, loading, selectedId, onSelect, onR
 // directly as substitution options (parent_food_id = original food)
 // ─────────────────────────────────────────────────────────────
 
-interface ChildSubsListProps { foods: DietFood[] }
+interface ChildSubsListProps {
+  foods: DietFood[];
+  onListaRef: (grupoId: string, porcoes: number) => void;
+}
 
-const ChildSubsList = ({ foods }: ChildSubsListProps) => {
+const ChildSubsList = ({ foods, onListaRef }: ChildSubsListProps) => {
   if (foods.length === 0) return null;
   return (
     <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
@@ -364,6 +378,38 @@ const ChildSubsList = ({ foods }: ChildSubsListProps) => {
         {/* Options */}
         <div className="space-y-1">
           {foods.map((f) => {
+            /* ── Lista de substituição reference ── */
+            if (f.lista_subst_grupo_id) {
+              const porcoes = f.lista_subst_porcoes ?? 1;
+              const porcLabel = porcoes === 1 ? "1 porção" : `${porcoes} porções`;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => onListaRef(f.lista_subst_grupo_id!, porcoes)}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors active:scale-[0.98]"
+                  style={{
+                    backgroundColor: "rgba(var(--cp-rgb), 0.06)",
+                    border: "1px solid rgba(var(--cp-rgb), 0.18)",
+                  }}
+                >
+                  <ListOrdered
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: "var(--cp-400)" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium" style={{ color: "var(--cp-300)" }}>
+                      {porcLabel} da lista de substituição
+                    </span>
+                    <p className="text-[10px] mt-0.5" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
+                      Toque para ver as opções disponíveis
+                    </p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--cp-400)", opacity: 0.55 }} />
+                </button>
+              );
+            }
+
+            /* ── Regular food substitute ── */
             const macros = calcFoodMacros(f);
             const name   = f.alimentos?.nome ?? f.name;
             const qty    = f.quantidade != null
@@ -569,6 +615,158 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
 };
 
 // ─────────────────────────────────────────────────────────────
+// ListaSubstSheet
+// ─────────────────────────────────────────────────────────────
+
+interface ListaSubstSheetProps {
+  porcoes: number;
+  loading: boolean;
+  data: { numero: number; nome: string; itens: ListaSubstItem[] } | null;
+  onClose: () => void;
+}
+
+/**
+ * Multiplica a string de porção por um fator.
+ * "50g" × 4 → "200g" | "150ml" × 2 → "300ml" | "1 fatia" × 3 → "3 fatias"
+ * Se não conseguir parsear, exibe "N× original".
+ */
+const multiplyPorcao = (porcao: string, fator: number): string => {
+  if (fator <= 1) return porcao;
+  const match = porcao.trim().match(/^(\d+(?:[,.]?\d+)?)(.*)/);
+  if (!match) return `${fator}× ${porcao}`;
+  const num    = parseFloat(match[1].replace(',', '.'));
+  const unit   = match[2].trim();
+  const result = Number((num * fator).toFixed(1)).toString().replace('.', ',');
+  return unit ? `${result}${unit}` : result;
+};
+
+const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetProps) => {
+  const isVegetais = data ? data.numero >= 13 : false;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="w-full max-w-lg rounded-t-3xl flex flex-col"
+        style={{
+          backgroundColor: "#0f0f10",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderBottom: "none",
+          maxHeight: "82vh",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+        </div>
+
+        {/* Header */}
+        <div
+          className="flex items-start justify-between px-5 py-3 border-b shrink-0"
+          style={{ borderColor: "rgba(255,255,255,0.07)" }}
+        >
+          <div>
+            <p className="text-[10px] text-white/35 uppercase tracking-wider mb-0.5">
+              {porcoes === 1 ? "1 porção" : `${porcoes} porções`} · Lista de Substituição
+            </p>
+            {data && (
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{ background: "var(--cp-gradient)", color: "#fff" }}
+                >
+                  {data.numero}
+                </div>
+                <p className="text-sm font-semibold text-white">{data.nome}</p>
+                {isVegetais && <Leaf className="w-3.5 h-3.5 text-green-500/60" />}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+            style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+          >
+            <X className="w-4 h-4 text-white/50" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 px-4 py-4">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div
+                className="w-5 h-5 rounded-full border-2 animate-spin"
+                style={{ borderColor: "rgba(255,255,255,0.1)", borderTopColor: "rgba(255,255,255,0.5)" }}
+              />
+            </div>
+          ) : !data || data.itens.length === 0 ? (
+            <p className="text-sm text-white/30 text-center py-8">
+              Nenhum item cadastrado neste grupo.
+            </p>
+          ) : (
+            <>
+              {isVegetais && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3"
+                  style={{ backgroundColor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}
+                >
+                  <Leaf className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                  <p className="text-xs text-green-400">À vontade — sem restrição de porção</p>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                {data.itens.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    <div
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: "rgba(var(--cp-rgb),0.5)" }}
+                    />
+                    <span className="flex-1 text-sm text-white/85 break-words">{item.nome}</span>
+                    {item.porcao ? (
+                      <span
+                        className="text-xs font-semibold shrink-0 px-2 py-0.5 rounded-lg"
+                        style={{
+                          backgroundColor: "rgba(var(--cp-rgb),0.1)",
+                          color: "var(--cp-400)",
+                        }}
+                      >
+                        {multiplyPorcao(item.porcao, porcoes)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-green-500/60 shrink-0">livre</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {!isVegetais && porcoes > 1 && (
+                <p className="text-[10px] text-white/25 text-center mt-4">
+                  Você pode usar {porcoes} itens diferentes ou repetir o mesmo {porcoes}×
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div style={{ height: "env(safe-area-inset-bottom, 12px)" }} />
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────
 
@@ -580,6 +778,9 @@ const Dieta = () => {
   const [diet, setDiet]         = useState<Diet | null>(null);
   const [loading, setLoading]   = useState(true);
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [treinadorId, setTreinadorId] = useState<string | null>(null);
+  const [alunoRecId,  setAlunoRecId]  = useState<string | null>(null);
+  const [alunoNomeDieta, setAlunoNomeDieta] = useState<string | null>(null);
   const today = brazilToday();
 
   const [doneMeals, setDoneMeals]   = useState<Set<string>>(new Set());
@@ -602,6 +803,24 @@ const Dieta = () => {
   // Recipe sheet
   const [recipeMeal, setRecipeMeal] = useState<DietMeal | null>(null);
 
+  // Suplementação
+  const [suplementos, setSuplementos] = useState<{ id: string; nome: string; dosagem: string | null; instrucao: string | null }[]>([]);
+
+  // Observações sheet
+  const [obsOpen, setObsOpen] = useState(false);
+
+  // Lista de Substituição sheet
+  const [listaSheet, setListaSheet] = useState<{
+    grupoId: string;
+    porcoes: number;
+  } | null>(null);
+  const [listaSheetData, setListaSheetData] = useState<{
+    numero: number;
+    nome: string;
+    itens: ListaSubstItem[];
+  } | null>(null);
+  const [listaSheetLoading, setListaSheetLoading] = useState(false);
+
   // ── Load data ───────────────────────────────────────────────
 
   useEffect(() => { loadData(); }, []);
@@ -616,12 +835,13 @@ const Dieta = () => {
         supabase
           .from("diets")
           .select(`
-            id, title, calories,
+            id, title, calories, observacoes, refeicao_livre,
             diet_meals (
               id, name, time_suggestion, notes, observacoes_receita, modo_preparo, order_index,
               diet_meal_foods (
                 id, name, portion, order_index, quantidade, unidade,
                 alimento_id, parent_food_id, substitution_group_id,
+                lista_subst_grupo_id, lista_subst_porcoes,
                 alimentos ( id, nome, porcao_gramas, kcal, proteina_g, carb_g, gordura_g, fibra_g )
               )
             )
@@ -688,6 +908,21 @@ const Dieta = () => {
         setMealCompletionsEnabled(true);
         setDoneMeals(new Set((completionsRes.data ?? []).map((r: any) => r.meal_id)));
       }
+      // Suplementação
+      try {
+        const [alunoRes, profileRes] = await Promise.all([
+          supabase.from("alunos").select("id, treinador_id").eq("user_id", session.user.id).maybeSingle(),
+          supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
+        ]);
+        if (alunoRes.data?.id) {
+          setAlunoRecId(alunoRes.data.id);
+          if (alunoRes.data.treinador_id) setTreinadorId(alunoRes.data.treinador_id);
+          const { data: supls } = await supabase
+            .from("suplementos").select("id, nome, dosagem, instrucao").eq("aluno_id", alunoRes.data.id).order("ordem");
+          setSuplementos(supls ?? []);
+        }
+        if (profileRes.data?.nome) setAlunoNomeDieta(profileRes.data.nome);
+      } catch {}
     } catch (err: any) {
       toast({ title: "Erro ao carregar dieta", description: err.message, variant: "destructive" });
     } finally {
@@ -761,13 +996,30 @@ const Dieta = () => {
         if (error) throw error;
         const allNowDone = diet.diet_meals.map((m) => m.id).every((id) => nextDone.has(id));
         if (allNowDone && orgId) await grantXP(studentId, orgId, "diet_day");
+        if (allNowDone && treinadorId && alunoRecId && orgId) {
+          void (async () => {
+            try {
+              const { data: existing } = await supabase.from("notificacoes")
+                .select("id").eq("user_id", treinadorId).eq("aluno_id", alunoRecId)
+                .eq("tipo", "dieta_completa").gte("created_at", today).limit(1);
+              if (!existing || existing.length === 0) {
+                await supabase.from("notificacoes").insert({
+                  user_id: treinadorId, org_id: orgId, aluno_id: alunoRecId, aluno_nome: alunoNomeDieta,
+                  titulo: "Dieta concluída",
+                  mensagem: `${alunoNomeDieta ?? "Um aluno"} completou todas as refeições de hoje.`,
+                  tipo: "dieta_completa",
+                });
+              }
+            } catch {}
+          })();
+        }
       }
     } catch (err: any) {
       if (isMissingMealCompletionsTable(err)) { setMealCompletionsEnabled(false); setToggling(null); return; }
       setDoneMeals((prev) => { const n = new Set(prev); isDone ? n.add(mealId) : n.delete(mealId); return n; });
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setToggling(null); }
-  }, [studentId, doneMeals, toggling, today, diet, orgId, toast, mealCompletionsEnabled]);
+  }, [studentId, doneMeals, toggling, today, diet, orgId, toast, mealCompletionsEnabled, treinadorId, alunoRecId, alunoNomeDieta]);
 
   // ── Inline food substitutions ────────────────────────────────
 
@@ -861,6 +1113,32 @@ const Dieta = () => {
     }
   };
 
+  // ── Lista de Substituição sheet ──────────────────────────────
+
+  const openListaSheet = async (grupoId: string, porcoes: number) => {
+    setListaSheet({ grupoId, porcoes });
+    setListaSheetData(null);
+    setListaSheetLoading(true);
+    try {
+      const [grupoRes, itensRes] = await Promise.all([
+        supabase.from("lista_subst_grupos").select("numero, nome").eq("id", grupoId).maybeSingle(),
+        supabase.from("lista_subst_itens").select("id, nome, porcao, ordem").eq("grupo_id", grupoId).order("ordem"),
+      ]);
+      if (grupoRes.error) throw grupoRes.error;
+      if (!grupoRes.data) throw new Error("Grupo de substituição não encontrado");
+      if (itensRes.error) throw itensRes.error;
+      setListaSheetData({
+        numero: grupoRes.data.numero,
+        nome:   grupoRes.data.nome,
+        itens:  (itensRes.data ?? []) as ListaSubstItem[],
+      });
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar lista", description: err.message, variant: "destructive" });
+    } finally {
+      setListaSheetLoading(false);
+    }
+  };
+
   // ── Loading / empty states ───────────────────────────────────
 
   if (loading) {
@@ -912,7 +1190,7 @@ const Dieta = () => {
     const selAltId  = altSels[meal.id];
     const activeAlt = selAltId ? (mealAlts[meal.id] ?? []).find((a) => a.id === selAltId) : null;
     const mealMacros = activeAlt && activeAlt.foods !== null ? sumAltFoodMacros(activeAlt.foods) : sumMacros(mainFoods);
-    return { kcal: acc.kcal + mealMacros.kcal, prot: acc.prot + mealMacros.prot, carb: acc.carb + mealMacros.carb, gord: acc.gord + mealMacros.gord };
+    return { kcal: round1(acc.kcal + mealMacros.kcal), prot: round1(acc.prot + mealMacros.prot), carb: round1(acc.carb + mealMacros.carb), gord: round1(acc.gord + mealMacros.gord) };
   }, { kcal: 0, prot: 0, carb: 0, gord: 0 });
 
   const hasAnyMacros   = dayTotal.kcal > 0;
@@ -922,9 +1200,63 @@ const Dieta = () => {
 
   // ── Render ───────────────────────────────────────────────────
 
+  const hasObs = !!(diet.observacoes || diet.refeicao_livre);
+
   return (
     <>
+      {/* ── Observações sheet ── */}
+      {obsOpen && hasObs && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          onClick={() => setObsOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-3xl overflow-hidden"
+            style={{ backgroundColor: "#0f0f10", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-white/50" />
+                <p className="text-sm font-semibold text-white">Observações</p>
+              </div>
+              <button onClick={() => setObsOpen(false)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.07)" }}>
+                <X className="w-4 h-4 text-white/50" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+              {diet.observacoes && (
+                <div>
+                  <p className="text-[10px] text-white/35 uppercase tracking-wider mb-2">Observações Gerais</p>
+                  <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{diet.observacoes}</p>
+                </div>
+              )}
+              {diet.refeicao_livre && (
+                <div>
+                  <p className="text-[10px] text-white/35 uppercase tracking-wider mb-2">Refeição Livre</p>
+                  <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{diet.refeicao_livre}</p>
+                </div>
+              )}
+            </div>
+            <div className="h-6" />
+          </div>
+        </div>
+      )}
+
       {recipeMeal && <RecipeSheet meal={recipeMeal} onClose={() => setRecipeMeal(null)} />}
+
+      {listaSheet && (
+        <ListaSubstSheet
+          porcoes={listaSheet.porcoes}
+          loading={listaSheetLoading}
+          data={listaSheetData}
+          onClose={() => { setListaSheet(null); setListaSheetData(null); }}
+        />
+      )}
 
       {altSheet && (
         <AlternativeSelectionSheet
@@ -955,6 +1287,16 @@ const Dieta = () => {
                   {doneMealsCount}/{totalMeals}
                 </div>
               )}
+              {hasObs && (
+                <button
+                  onClick={() => setObsOpen(true)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  title="Ver observações"
+                >
+                  <FileText className="w-4 h-4 text-white/40" />
+                </button>
+              )}
               <button
                 onClick={() => navigate(`/${slug}/aluno/dieta/historico`)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
@@ -968,23 +1310,23 @@ const Dieta = () => {
 
           {/* Day macros summary */}
           {hasAnyMacros && (
-            <div className="mt-3 p-3 rounded-2xl bg-white/4 border border-white/6">
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Total do dia</p>
+            <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
+              <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Total do dia</p>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/6">
-                  <Flame className="w-3 h-3 text-white/50" />
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+                  <Flame className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs font-semibold text-foreground">{dayTotal.kcal} kcal</span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/4">
-                  <Beef className="w-3 h-3 text-white/30" />
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
+                  <Beef className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">P {dayTotal.prot}g</span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/4">
-                  <Wheat className="w-3 h-3 text-white/30" />
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
+                  <Wheat className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">C {dayTotal.carb}g</span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/4">
-                  <Droplet className="w-3 h-3 text-white/30" />
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
+                  <Droplet className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">G {dayTotal.gord}g</span>
                 </div>
               </div>
@@ -1023,12 +1365,12 @@ const Dieta = () => {
               <div key={meal.id}
                 className="rounded-2xl border overflow-hidden transition-colors duration-200"
                 style={{
-                  backgroundColor: isDone ? "rgba(var(--cp-rgb),0.05)" : "rgba(255,255,255,0.03)",
-                  borderColor:     isDone ? "rgba(var(--cp-rgb),0.2)"  : "rgba(255,255,255,0.06)",
+                  backgroundColor: isDone ? "rgba(var(--cp-rgb),0.05)" : "var(--surface-1)",
+                  borderColor:     isDone ? "rgba(var(--cp-rgb),0.25)" : "var(--border-subtle)",
                 }}
               >
                 {/* ── Meal header ── */}
-                <div className="border-b" style={{ borderColor: isDone ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.06)" }}>
+                <div className="border-b" style={{ borderColor: isDone ? "rgba(var(--cp-rgb),0.20)" : "var(--border-subtle)" }}>
                   <div className="flex items-center">
                     {/* Toggle + name row */}
                     <button onClick={() => toggleMeal(meal.id)} disabled={isToggling}
@@ -1036,7 +1378,7 @@ const Dieta = () => {
                       <div className="shrink-0">
                         {isDone
                           ? <CheckCircle2 className={`w-5 h-5 text-green-500${justDone.has(meal.id) ? " animate-pop-in" : ""}`} />
-                          : <Circle className="w-5 h-5 text-white/20" />}
+                          : <Circle className="w-5 h-5" style={{ color: "var(--text-dim)" }} />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -1101,7 +1443,7 @@ const Dieta = () => {
                       const name = f.alimentos?.nome ?? f.nome_display;
                       const qty  = `${f.quantidade}${f.unidade}`;
                       return (
-                        <div key={f.id} className={fi < arr.length - 1 ? "border-b" : ""} style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+                        <div key={f.id} className={fi < arr.length - 1 ? "border-b" : ""} style={{ borderColor: "var(--border-subtle)" }}>
                           <div className="flex items-center gap-3 px-4 py-2.5">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-baseline gap-2 flex-wrap">
@@ -1133,7 +1475,8 @@ const Dieta = () => {
                       // Parent-food based subs (already in fetched data, just hidden)
                       const childSubs  = (childFoodsMap[food.id] ?? []).sort((a, b) => a.order_index - b.order_index);
                       // Group-based subs require substitution_group_id
-                      const hasSubs    = !!food.substitution_group_id || childSubs.length > 0;
+                      // Also cover: lista_subst_grupo_id set directly on this food (edge case from DietManager)
+                      const hasSubs    = !!food.substitution_group_id || childSubs.length > 0 || !!food.lista_subst_grupo_id;
                       const isExpanded = expandedFoodId === food.id;
                       const isLastFood = fi === mainFoods.length - 1;
                       const selectedSub = selections[food.id];
@@ -1151,7 +1494,7 @@ const Dieta = () => {
                       return (
                         <div key={food.id}
                           className={!isLastFood || isExpanded ? "border-b" : ""}
-                          style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+                          style={{ borderColor: "var(--border-subtle)" }}>
 
                           <button
                             onClick={() => hasSubs ? toggleFoodExpansion(food) : undefined}
@@ -1198,9 +1541,47 @@ const Dieta = () => {
                           {/* Inline substitution panel */}
                           <div style={{ display: "grid", gridTemplateRows: isExpanded ? "1fr" : "0fr", transition: "grid-template-rows 200ms cubic-bezier(0.4, 0, 0.2, 1)" }}>
                             <div style={{ overflow: "hidden" }}>
-                              {/* 1. Parent-food based subs (read-only list) */}
+                              {/* 1. Parent-food based subs (read-only list, includes lista refs added as children) */}
                               {childSubs.length > 0 && (
-                                <ChildSubsList foods={childSubs} />
+                                <ChildSubsList
+                                  foods={childSubs}
+                                  onListaRef={openListaSheet}
+                                />
+                              )}
+
+                              {/* 1b. lista_subst_grupo_id set directly on this food (not covered by childSubs) */}
+                              {food.lista_subst_grupo_id && !childSubs.some(c => c.lista_subst_grupo_id) && (
+                                <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                                  <div
+                                    className="mx-3 my-3"
+                                    style={{ paddingLeft: "10px", borderLeft: "2px solid rgba(var(--cp-rgb), 0.2)" }}
+                                  >
+                                    <div className="flex items-center gap-1.5 mb-2">
+                                      <Shuffle className="w-3 h-3 shrink-0" style={{ color: "var(--cp-400)", opacity: 0.65 }} />
+                                      <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--cp-400)", opacity: 0.65 }}>
+                                        Pode substituir por
+                                      </span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <button
+                                        onClick={() => openListaSheet(food.lista_subst_grupo_id!, food.lista_subst_porcoes ?? 1)}
+                                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors active:scale-[0.98]"
+                                        style={{ backgroundColor: "rgba(var(--cp-rgb), 0.06)", border: "1px solid rgba(var(--cp-rgb), 0.18)" }}
+                                      >
+                                        <ListOrdered className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--cp-400)" }} />
+                                        <div className="flex-1 min-w-0">
+                                          <span className="text-sm font-medium" style={{ color: "var(--cp-300)" }}>
+                                            {(food.lista_subst_porcoes ?? 1) === 1 ? "1 porção" : `${food.lista_subst_porcoes} porções`} da lista de substituição
+                                          </span>
+                                          <p className="text-[10px] mt-0.5" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
+                                            Toque para ver as opções disponíveis
+                                          </p>
+                                        </div>
+                                        <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--cp-400)", opacity: 0.55 }} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               )}
 
                               {/* 2. Group-based subs (interactive — save today's selection) */}
@@ -1266,6 +1647,35 @@ const Dieta = () => {
             <div>
               <p className="text-sm font-semibold text-green-500">Parabéns! 🎉</p>
               <p className="text-xs text-muted-foreground">Você completou todas as refeições de hoje.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Suplementação */}
+        {suplementos.length > 0 && (
+          <div className="mx-4 mt-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Leaf className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Suplementação</p>
+            </div>
+            <div className="space-y-2">
+              {suplementos.map((s) => (
+                <div key={s.id} className="rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold" style={{ color: FG }}>{s.nome}</span>
+                    {s.dosagem && (
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+                        {s.dosagem}
+                      </span>
+                    )}
+                  </div>
+                  {s.instrucao && (
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: MUT }}>{s.instrucao}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -169,10 +169,10 @@ serve(async (req) => {
     if (cobErr) throw cobErr;
 
     // ── 7. Notificação interna para o aluno ──────────────────────────────────
-    try {
+    if (aluno.user_id) {
       const valorFmt = fmtBRL(Number(valor));
       const dateFmt  = fmtDate(vencimento);
-      await supabase.from("notificacoes").insert({
+      const { error: notifErr } = await supabase.from("notificacoes").insert({
         user_id:  aluno.user_id,
         org_id,
         titulo:   "Nova cobrança gerada",
@@ -180,9 +180,13 @@ serve(async (req) => {
         tipo:     "financeiro",
         link:     payment.invoiceUrl ?? null,
       });
-    } catch (notifErr) {
-      // Não falha a cobrança se a notificação der erro
-      console.warn("[asaas-create-charge] notificação falhou:", notifErr);
+      if (notifErr) {
+        console.error("[asaas-create-charge] notif aluno falhou:", notifErr.message);
+      } else {
+        console.log("[asaas-create-charge] notif aluno ok, user_id:", aluno.user_id);
+      }
+    } else {
+      console.warn("[asaas-create-charge] aluno sem user_id, notif ignorada. aluno_id:", aluno_id);
     }
 
     return new Response(

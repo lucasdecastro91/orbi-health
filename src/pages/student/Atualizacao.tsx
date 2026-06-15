@@ -39,6 +39,15 @@ interface FormDef {
   secoes: Secao[];
 }
 
+// ─── Slots padrão (fallback quando org não tem configuração) ──
+const DEFAULT_SLOTS = [
+  { key: "front",      label: "Frente"    },
+  { key: "side_left",  label: "Lado E."   },
+  { key: "side_right", label: "Lado D."   },
+  { key: "back",       label: "Costas"    },
+  { key: "free",       label: "Livre"     },
+];
+
 // ─── Component ────────────────────────────────────────────────
 const Atualizacao = () => {
   const { orgId } = useTenantContext();
@@ -46,12 +55,18 @@ const Atualizacao = () => {
 
   const [form,       setForm]       = useState<FormDef | null>(null);
   const [loading,    setLoading]    = useState(true);
+  const [evoSlots,   setEvoSlots]   = useState<{ key: string; label: string }[]>(DEFAULT_SLOTS);
+  // slotFiles: chave = slot_key, valor = File selecionado para aquele slot
+  const [slotFiles,  setSlotFiles]  = useState<Record<string, File | null>>({});
   const [step,       setStep]       = useState(0);       // 0 = inicial, 1..N = seções
   const [values,     setValues]     = useState<Record<string, string>>({});
   const [fileValues, setFileValues] = useState<Record<string, File[]>>({});
   const [errors,     setErrors]     = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted,  setSubmitted]  = useState(false);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [submitted,    setSubmitted]    = useState(false);
+  const [treinadorId,  setTreinadorId]  = useState<string | null>(null);
+  const [alunoRecId,   setAlunoRecId]   = useState<string | null>(null);
+  const [alunoNome,    setAlunoNome]    = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (orgId) loadForm(); }, [orgId]);
@@ -60,6 +75,27 @@ const Atualizacao = () => {
   // ── Carregar form ────────────────────────────────────────────
   const loadForm = async () => {
     try {
+      // Carrega dados do aluno para notificação
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const [alunoRes, profileRes] = await Promise.all([
+          supabase.from("alunos").select("id, treinador_id").eq("user_id", session.user.id).maybeSingle(),
+          supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
+        ]);
+        if (alunoRes.data?.treinador_id) setTreinadorId(alunoRes.data.treinador_id);
+        if (alunoRes.data?.id) setAlunoRecId(alunoRes.data.id);
+        if (profileRes.data?.nome) setAlunoNome(profileRes.data.nome);
+      }
+
+      // Carrega slots configurados pela org
+      const { data: slotsData } = await supabase
+        .from("evolution_photo_slots")
+        .select("slot_key, label, ordem")
+        .eq("org_id", orgId ?? "")
+        .order("ordem", { ascending: true });
+      if (slotsData && slotsData.length > 0) {
+        setEvoSlots(slotsData.map(s => ({ key: s.slot_key, label: s.label })));
+      }
       const { data: formData, error } = await supabase
         .from("atualizacao_forms")
         .select(`
@@ -109,7 +145,12 @@ const Atualizacao = () => {
     for (const c of currentCampos()) {
       if (!c.obrigatorio) continue;
       if (c.tipo === "file") {
-        if (!fileValues[c.id]?.length) errs[c.id] = "Obrigatório";
+        // Campo de fotos por slot: verifica se tem ao menos uma foto
+        const isPhotoSlot = c.config?.multiple || (c.config?.accept ?? "").includes("image");
+        const hasSlotPhoto = isPhotoSlot && Object.values(slotFiles).some(f => f !== null);
+        if (isPhotoSlot) {
+          if (!hasSlotPhoto) errs[c.id] = "Envie ao menos uma foto";
+        } else if (!fileValues[c.id]?.length) errs[c.id] = "Obrigatório";
       } else if (c.tipo === "checkbox") {
         const v = values[c.id];
         if (!v) errs[c.id] = "Selecione ao menos uma opção";
@@ -175,10 +216,11 @@ const Atualizacao = () => {
       });
       if (respErr) throw respErr;
 
-      // 2. Upload de arquivos
+      // 2. Upload de arquivos (campo genérico não-imagem)
       const todosArquivos: { campo_id: string; file: File }[] = [];
       for (const campo of [...form.camposIniciais, ...form.secoes.flatMap(s => s.campos)]) {
-        if (campo.tipo === "file" && fileValues[campo.id]?.length) {
+        const isPhotoSlot = campo.tipo === "file" && (campo.config?.multiple || (campo.config?.accept ?? "").includes("image"));
+        if (campo.tipo === "file" && !isPhotoSlot && fileValues[campo.id]?.length) {
           for (const file of fileValues[campo.id]) {
             todosArquivos.push({ campo_id: campo.id, file });
           }
@@ -186,19 +228,61 @@ const Atualizacao = () => {
       }
 
       for (const { campo_id, file } of todosArquivos) {
-        const ext  = file.name.split(".").pop() ?? "jpg";
         const path = `${session.user.id}/${respostaId}/${campo_id}/${Date.now()}_${file.name}`;
         const { error: upErr } = await supabase.storage
           .from("atualizacoes")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
-
         await supabase.from("atualizacao_resposta_arquivos").insert({
           resposta_id: respostaId, campo_id,
           storage_path: path, nome_original: file.name,
           mime_type: file.type, tamanho: file.size,
         });
       }
+
+      // 2b. Upload de fotos por slot — paralelo para reduzir tempo de envio
+      const EVOLUTION_BUCKET = "evolution-photos";
+      const today = new Date().toISOString().split("T")[0];
+      const campoFotoId = [...form.camposIniciais, ...form.secoes.flatMap(s => s.campos)]
+        .find(c => c.tipo === "file" && (c.config?.multiple || (c.config?.accept ?? "").includes("image")))?.id ?? "fotos";
+
+      const slotsComFoto = evoSlots.filter(slot => !!slotFiles[slot.key]);
+      await Promise.all(slotsComFoto.map(async (slot) => {
+        const file = slotFiles[slot.key]!;
+        const ext     = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+        const atuPath = `${session.user.id}/${respostaId}/${campoFotoId}/${slot.key}_${Date.now()}.${ext}`;
+        const evoPath = `${orgId}/${session.user.id}/${today}_${slot.key}.${ext}`;
+
+        // Salva no bucket de atualizações (registro original)
+        try {
+          const { error: atuErr } = await supabase.storage
+            .from("atualizacoes")
+            .upload(atuPath, file, { contentType: file.type, upsert: false });
+          if (!atuErr) {
+            await supabase.from("atualizacao_resposta_arquivos").insert({
+              resposta_id: respostaId, campo_id: campoFotoId,
+              storage_path: atuPath, nome_original: `${slot.label}.${ext}`,
+              mime_type: file.type, tamanho: file.size,
+            });
+          }
+        } catch { /* falha silenciosa por slot — não bloqueia os demais */ }
+
+        // Salva na Evolução com o slot correspondente
+        try {
+          const { error: evoUpErr } = await supabase.storage
+            .from(EVOLUTION_BUCKET)
+            .upload(evoPath, file, { upsert: true, contentType: file.type });
+          if (!evoUpErr) {
+            await supabase.from("evolution_photos").upsert({
+              student_id:   session.user.id,
+              org_id:       orgId,
+              slot:         slot.key,
+              storage_path: evoPath,
+              taken_at:     today,
+            }, { onConflict: "student_id,org_id,slot,taken_at" });
+          }
+        } catch { /* falha silenciosa por slot */ }
+      }));
 
       // 3. Inserir valores
       const todosCampos = [...form.camposIniciais, ...form.secoes.flatMap(s => s.campos)];
@@ -214,6 +298,44 @@ const Atualizacao = () => {
       if (inserts.length) {
         const { error: valErr } = await supabase.from("atualizacao_resposta_valores").insert(inserts);
         if (valErr) throw valErr;
+      }
+
+      // ── AJUSTE 3: espelha peso na tela de Evolução ──────────────
+      // (fotos já foram espelhadas no bloco 2b acima via slotFiles)
+      try {
+        const todosOsCampos = [...form.camposIniciais, ...form.secoes.flatMap(s => s.campos)];
+        const campoPeso = todosOsCampos.find(
+          c => c.tipo === "number" && c.label.toLowerCase().includes("peso")
+        );
+        if (campoPeso && values[campoPeso.id]) {
+          const pesoNum = parseFloat(values[campoPeso.id]);
+          if (!isNaN(pesoNum) && pesoNum > 0) {
+            await supabase.from("registros_evolucao").upsert({
+              student_id:    session.user.id,
+              org_id:        orgId,
+              data_registro: today,
+              peso_kg:       pesoNum,
+            }, { onConflict: "student_id,data_registro" });
+          }
+        }
+      } catch { /* falha silenciosa — não bloqueia o submit principal */ }
+      // ─────────────────────────────────────────────────────────────
+
+      // 4. Notificar treinador (silencioso — não bloqueia o submit)
+      if (treinadorId) {
+        void (async () => {
+          try {
+            await supabase.from("notificacoes").insert({
+              user_id:    treinadorId,
+              org_id:     orgId,
+              aluno_id:   alunoRecId,
+              aluno_nome: alunoNome,
+              titulo:     "Nova atualização recebida",
+              mensagem:   `${alunoNome ?? "Um aluno"} enviou uma nova atualização.`,
+              tipo:       "atualizacao",
+            });
+          } catch { /* silencioso */ }
+        })();
       }
 
       setSubmitted(true);
@@ -332,43 +454,82 @@ const Atualizacao = () => {
           </div>
         )}
 
-        {/* File */}
-        {c.tipo === "file" && (
+        {/* File — fotos por slot */}
+        {c.tipo === "file" && (c.config?.multiple || (c.config?.accept ?? "").includes("image")) && (
+          <div>
+            <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${Math.min(evoSlots.length, 5)}, 1fr)` }}>
+              {evoSlots.map(slot => {
+                const file = slotFiles[slot.key] ?? null;
+                const previewUrl = file ? URL.createObjectURL(file) : null;
+                return (
+                  <label key={slot.key} className="flex flex-col items-center gap-1.5 cursor-pointer group">
+                    <div
+                      className="w-full aspect-square rounded-xl overflow-hidden relative"
+                      style={{
+                        backgroundColor: file ? undefined : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${file ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.08)"}`,
+                      }}
+                    >
+                      {previewUrl ? (
+                        <img src={previewUrl} alt={slot.label} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Upload className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+                        </div>
+                      )}
+                      {file && (
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); setSlotFiles(v => ({ ...v, [slot.key]: null })); }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-[9px] text-white/40 font-medium text-center leading-tight">{slot.label}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) setSlotFiles(v => ({ ...v, [slot.key]: f }));
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            {err && <p className="text-xs text-red-400 mt-1">{err}</p>}
+          </div>
+        )}
+
+        {/* File — campo genérico (não-imagem) */}
+        {c.tipo === "file" && !c.config?.multiple && !(c.config?.accept ?? "").includes("image") && (
           <div>
             <label
               className="flex flex-col items-center gap-2 w-full py-5 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
               style={{
-                borderColor: err ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.12)",
-                backgroundColor: "rgba(255,255,255,0.02)",
+                borderColor: err ? "rgba(239,68,68,0.5)" : "var(--border-subtle)",
+                backgroundColor: "var(--surface-2)",
               }}
             >
               <Upload className="w-6 h-6" style={{ color: "var(--cp-400)", opacity: 0.7 }} />
-              <span className="text-sm text-white/50">
-                {c.config?.multiple ? "Toque para selecionar fotos" : "Toque para selecionar arquivo"}
-              </span>
+              <span className="text-sm" style={{ color: "var(--text-mid)" }}>Toque para selecionar arquivo</span>
               <input
                 type="file"
                 accept={c.config?.accept ?? "*"}
-                multiple={c.config?.multiple}
                 className="hidden"
                 onChange={e => handleFileChange(c.id, e.target.files)}
               />
             </label>
-
-            {/* Preview das fotos selecionadas */}
             {fileValues[c.id]?.length > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {fileValues[c.id].map((f, i) => (
                   <div key={i} className="relative group rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-                    {f.type.startsWith("image/") ? (
-                      <img
-                        src={URL.createObjectURL(f)}
-                        alt={f.name}
-                        className="w-full h-24 object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 flex items-center justify-center text-xs text-white/50 px-2 text-center">{f.name}</div>
-                    )}
+                    <div className="h-16 flex items-center justify-center text-xs text-white/50 px-2 text-center">{f.name}</div>
                     <button
                       type="button"
                       onClick={() => removeFile(c.id, i)}

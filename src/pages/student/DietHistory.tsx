@@ -107,7 +107,15 @@ const DietHistory = () => {
         .gte("date", oldest)
         .lte("date", newest);
 
-      if (error) throw error;
+      // Tabela ainda não existe no banco → trata silenciosamente
+      if (error) {
+        const missing =
+          error?.code === "PGRST205" ||
+          error?.code === "42P01" ||
+          String(error?.message ?? "").includes("meal_completions");
+        if (missing) { setDays([]); setLoading(false); return; }
+        throw error;
+      }
 
       // Group by date
       const byDate: Record<string, number> = {};

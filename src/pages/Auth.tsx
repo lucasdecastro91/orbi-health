@@ -17,7 +17,7 @@ const Auth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setLoading(true);
-        redirectUser(session.user.id);
+        redirectUser(session.user.id, session.user.user_metadata);
       }
     });
   }, []);
@@ -26,7 +26,7 @@ const Auth = () => {
    * Após autenticar, busca a org do usuário e redireciona para
    * /:slug/treinador  ou  /:slug/aluno
    */
-  const redirectUser = async (userId: string) => {
+  const redirectUser = async (userId: string, userMeta?: Record<string, any>) => {
     // ── 1. Busca perfil ──────────────────────────────────────────
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -70,14 +70,47 @@ const Auth = () => {
       return redirectUser(userId);
     }
 
-    // ── 2. Busca organização do usuário ──────────────────────────
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("role, organizations(slug)")
-      .eq("user_id", userId)
-      .maybeSingle();
+    // ── 2. Verifica se é colaborador via user_metadata ──────────────────────
+    const collabOrgSlug = userMeta?.collab_org_slug as string | undefined;
 
-    const orgSlug = (member?.organizations as any)?.slug as string | undefined;
+    if (collabOrgSlug) {
+      setLoading(false);
+      navigate(`/${collabOrgSlug}/treinador`, { replace: true });
+      return;
+    }
+
+    // ── 3. Busca organização do usuário ──────────────────────────
+    let orgSlug: string | undefined;
+
+    // Para alunos: usa a tabela 'alunos' como fonte principal do slug.
+    // É mais confiável do que organization_members porque o treinador
+    // adicionou o aluno explicitamente nessa org. Evita conflito quando
+    // o aluno possui entradas em organization_members de múltiplas orgs.
+    if (profile.tipo_usuario !== "treinador") {
+      const { data: alunoRecord } = await supabase
+        .from("alunos")
+        .select("organizations(slug)")
+        .eq("user_id", userId)
+        .eq("ativo", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      orgSlug = (alunoRecord?.organizations as any)?.slug;
+    }
+
+    // Para treinadores (e fallback para alunos sem registro ativo em 'alunos'):
+    // usa organization_members
+    if (!orgSlug) {
+     const { data: member } = await supabase
+  .from("organization_members")
+  .select("role, organizations(slug)")
+  .eq("user_id", userId)
+  .in("role", ["owner", "trainer"])
+  .order("created_at", { ascending: true })
+  .limit(1)
+  .maybeSingle();
+      orgSlug = (member?.organizations as any)?.slug as string | undefined;
+    }
 
     if (!orgSlug) {
       toast({
@@ -120,7 +153,7 @@ const Auth = () => {
       }
 
       if (data.user) {
-        await redirectUser(data.user.id);
+        await redirectUser(data.user.id, data.user.user_metadata);
       } else {
         toast({
           title: "Erro no login",

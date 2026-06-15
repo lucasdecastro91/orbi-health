@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import {
   Dumbbell, Calendar, ChevronDown, ChevronRight,
-  Play, Clock, Loader2, MessageSquare,
+  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ interface Exercise {
   video_url: string | null;
   observacoes: string | null;
   ordem: number;
+  series_detalhadas?: any;
 }
 
 interface Training {
@@ -48,6 +49,15 @@ interface Plano {
   data_fim: string | null;
 }
 
+interface Stretching {
+  id: string;
+  nome: string;
+  series: number;
+  duracao_segundos: number;
+  instrucoes: string | null;
+  video_url: string | null;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
@@ -56,6 +66,33 @@ const formatDate = (date: string) =>
   new Date(date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
 const hasVideo = (url: string | null) => !!url;
+
+/** Normalize DB tipo variants to canonical key */
+const normalizeTipo = (tipo: string): string => {
+  switch ((tipo ?? '').trim().toLowerCase()) {
+    case 'work set': case 'work': return 'trabalho';
+    case 'warm up':  case 'warmup': return 'warm-up';
+    case 'feeder set': return 'feeder';
+    default: return (tipo ?? '').trim();
+  }
+};
+
+/** Return summary string showing only work sets count × reps */
+const getWorkSetSummary = (exercise: Exercise): string => {
+  const sd = exercise.series_detalhadas;
+  if (!sd || !Array.isArray(sd) || sd.length === 0) {
+    return `${exercise.series}×${exercise.repeticoes}`;
+  }
+  const workSets = sd.filter((s: any) => normalizeTipo(s.tipo ?? '') === 'trabalho');
+  if (workSets.length === 0) {
+    return `${exercise.series}×${exercise.repeticoes}`;
+  }
+  const totalQty = workSets.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' ? s.quantidade : 1), 0);
+  const reps = workSets.map((s: any) => s.repeticoes).filter(Boolean);
+  const uniqueReps = [...new Set(reps)];
+  const repStr = uniqueReps.length === 1 ? uniqueReps[0] : uniqueReps.join('/');
+  return `${totalQty}× ${repStr}`;
+};
 
 // ─────────────────────────────────────────────────────────────
 // Sub-components
@@ -84,7 +121,7 @@ const ExerciseRow = ({
       <p className="text-sm font-medium text-foreground truncate">{exercise.nome_exercicio}</p>
       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
         <span className="text-[11px] text-muted-foreground">
-          {exercise.series}×{exercise.repeticoes}
+          {getWorkSetSummary(exercise)}
         </span>
         {exercise.descanso && (
           <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
@@ -115,27 +152,47 @@ const TrainingBlock = ({
   isOpen,
   onToggle,
   onExerciseClick,
+  completedToday,
+  onMarkComplete,
+  completing,
 }: {
   training: Training;
   isOpen: boolean;
   onToggle: () => void;
   onExerciseClick: (exId: string, weekId?: string, treinoId?: string) => void;
+  completedToday: boolean;
+  onMarkComplete: (treinoId: string) => void;
+  completing: boolean;
 }) => (
-  <div className="rounded-2xl border border-border overflow-hidden">
+  <div
+    className="rounded-2xl border overflow-hidden transition-colors"
+    style={{
+      borderColor: completedToday ? "rgba(var(--cp-rgb),0.3)" : "var(--border-subtle)",
+      backgroundColor: completedToday ? "rgba(var(--cp-rgb),0.03)" : undefined,
+    }}
+  >
     {/* Training header */}
     <button
       onClick={onToggle}
       className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/2 transition-colors text-left"
     >
-      {/* Colored dot */}
-      <span
-        className="w-2 h-2 rounded-full shrink-0"
-        style={{ backgroundColor: "var(--cp-500)" }}
-      />
+      {/* Completed indicator / dot */}
+      {completedToday
+        ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+        : <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "var(--cp-500)" }} />
+      }
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground truncate">{training.titulo_treino}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{training.dia_semana}</p>
       </div>
+      {completedToday && (
+        <span
+          className="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 mr-1"
+          style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}
+        >
+          Feito hoje
+        </span>
+      )}
       <span className="text-xs text-muted-foreground shrink-0 mr-1">
         {training.exercicios.length} ex.
       </span>
@@ -171,13 +228,29 @@ const TrainingBlock = ({
               key={ex.id}
               exercise={ex}
               index={idx}
-              onClick={() => onExerciseClick(ex.id)}
+              onClick={() => onExerciseClick(ex.id, undefined, training.id)}
             />
           ))}
         </div>
 
-        {/* Bottom spacer */}
-        <div className="h-1" />
+        {/* ── Mark complete button ── */}
+        <div className="px-4 pt-2 pb-3">
+          <button
+            onClick={() => onMarkComplete(training.id)}
+            disabled={completing || completedToday}
+            className="w-full h-10 rounded-xl text-sm font-semibold transition-all active:scale-98 disabled:opacity-60 flex items-center justify-center gap-2"
+            style={completedToday
+              ? { backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }
+              : { background: "var(--cp-gradient)", color: "#fff" }
+            }
+          >
+            {completing
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <CheckCircle2 className="w-4 h-4" />
+            }
+            {completedToday ? "Treino concluído hoje ✓" : "Marcar treino como concluído"}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -191,6 +264,9 @@ const WeekSection = ({
   openTreinos,
   onTreinoToggle,
   onExerciseClick,
+  completedTodayIds,
+  onMarkComplete,
+  completingId,
 }: {
   week: Week;
   isOpen: boolean;
@@ -198,6 +274,9 @@ const WeekSection = ({
   openTreinos: string[];
   onTreinoToggle: (id: string) => void;
   onExerciseClick: (exId: string) => void;
+  completedTodayIds: string[];
+  onMarkComplete: (treinoId: string) => void;
+  completingId: string | null;
 }) => (
   <div className="rounded-2xl border border-border overflow-hidden bg-card">
     {/* Week header */}
@@ -255,6 +334,9 @@ const WeekSection = ({
               isOpen={openTreinos.includes(treino.id)}
               onToggle={() => onTreinoToggle(treino.id)}
               onExerciseClick={onExerciseClick}
+              completedToday={completedTodayIds.includes(treino.id)}
+              onMarkComplete={onMarkComplete}
+              completing={completingId === treino.id}
             />
           ))}
         </div>
@@ -264,25 +346,185 @@ const WeekSection = ({
 );
 
 // ─────────────────────────────────────────────────────────────
+// Stretching section (student view)
+// ─────────────────────────────────────────────────────────────
+
+const getYouTubeVideoId = (url: string | null): string | null => {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([^&\s/?]+)/);
+  return m ? m[1] : null;
+};
+
+const getEmbedUrl = (videoId: string) =>
+  `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+
+const formatAlongMetrica = (s: Stretching) => {
+  if (!s.duracao_segundos) return '—';
+  if (s.duracao_segundos < 0) {
+    const r = Math.abs(s.duracao_segundos);
+    return `${r} rep${r !== 1 ? 's' : ''}`;
+  }
+  return `${s.duracao_segundos}s`;
+};
+
+const AlongamentosSection = ({ stretchings }: { stretchings: Stretching[] }) => {
+  const [open,       setOpen]       = useState(false);
+  const [videoModal, setVideoModal] = useState<{ id: string; title: string } | null>(null);
+
+  if (stretchings.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      {/* Video modal — same as ExerciseDetail */}
+      {videoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.92)", padding: "16px" }}
+          onClick={() => setVideoModal(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3"
+              style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+              <p className="text-sm font-semibold text-white truncate pr-3">{videoModal.title}</p>
+              <button onClick={() => setVideoModal(null)}
+                className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+                <X className="w-4 h-4 text-white/60" />
+              </button>
+            </div>
+            <div className="relative w-full bg-black" style={{ aspectRatio: "16 / 9" }}>
+              <iframe
+                src={getEmbedUrl(videoModal.id)}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={videoModal.title}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsible header */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl border border-border bg-card hover:bg-white/2 transition-colors text-left"
+      >
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}
+        >
+          <Wind className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-foreground">Rotina de Alongamentos</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {stretchings.length} exercício{stretchings.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <span
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mr-1"
+          style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}
+        >
+          {stretchings.length}
+        </span>
+        <ChevronDown
+          className="w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+        />
+      </button>
+
+      {/* Animated list */}
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows 280ms ease" }}>
+        <div className="overflow-hidden">
+          <div className="space-y-2 pt-1 pb-1">
+            {stretchings.map((s, idx) => {
+              const videoId = getYouTubeVideoId(s.video_url);
+              return (
+                <div key={s.id} className="rounded-2xl border border-border flex items-stretch overflow-hidden bg-card">
+                  <div className="w-1 shrink-0 self-stretch" style={{ background: "var(--cp-gradient)" }} />
+                  <div className="flex items-start gap-3 flex-1 px-4 py-3">
+                    <span
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+                      style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}
+                    >
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{s.nome}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span
+                          className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", color: "var(--cp-400)" }}
+                        >
+                          {s.series}× série{s.series !== 1 ? "s" : ""}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {formatAlongMetrica(s)}
+                        </span>
+                      </div>
+                      {s.instrucoes && (
+                        <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{s.instrucoes}</p>
+                      )}
+                    </div>
+                    {videoId && (
+                      <button
+                        onClick={() => setVideoModal({ id: videoId, title: s.nome })}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                        style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}
+                      >
+                        <Play className="w-4 h-4 ml-0.5" style={{ color: "var(--cp-500)" }} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────
 
 const Treinos = () => {
-  const { slug }         = useTenantContext();
+  const { slug, orgId }  = useTenantContext();
   const navigate         = useNavigate();
   const { toast }        = useToast();
   const [searchParams]   = useSearchParams();
 
-  const [plano,        setPlano]       = useState<Plano | null>(null);
-  const [weeks,        setWeeks]       = useState<Week[]>([]);
-  const [loading,      setLoading]     = useState(true);
-  const [openWeeks,    setOpenWeeks]   = useState<string[]>([]);
-  const [openTreinos,  setOpenTreinos] = useState<string[]>([]);
+  const [plano,          setPlano]          = useState<Plano | null>(null);
+  const [weeks,          setWeeks]          = useState<Week[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [openWeeks,      setOpenWeeks]      = useState<string[]>([]);
+  const [openTreinos,    setOpenTreinos]    = useState<string[]>([]);
+  // Stretching routine
+  const [stretchings,    setStretchings]    = useState<Stretching[]>([]);
+  // Completion tracking
+  const [alunoId,        setAlunoId]        = useState<string | null>(null);
+  const [treinadorId,    setTreinadorId]    = useState<string | null>(null);
+  const [alunoNome,      setAlunoNome]      = useState<string | null>(null);
+  const [planoId,        setPlanoId]        = useState<string | null>(null);
+  const [completedToday, setCompletedToday] = useState<string[]>([]); // treino_ids logged today
+  const [monthCount,     setMonthCount]     = useState(0);            // total logs this month
+  const [completingId,   setCompletingId]   = useState<string | null>(null);
 
   useEffect(() => {
     loadTrainingPlan();
     markPlanAsViewed();
   }, []);
+
+  // Re-load completion data whenever alunoId becomes available
+  useEffect(() => {
+    if (alunoId) loadCompletions(alunoId);
+  }, [alunoId]);
 
   // Auto-open week/training from query params (e.g., from notifications)
   useEffect(() => {
@@ -301,11 +543,16 @@ const Treinos = () => {
 
       const { data: aluno } = await supabase
         .from("alunos")
-        .select("id")
+        .select("id, treinador_id")
         .eq("user_id", session.user.id)
         .single();
 
       if (!aluno) return;
+      setAlunoId(aluno.id);
+      if (aluno.treinador_id) setTreinadorId(aluno.treinador_id);
+      const { data: profile } = await supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle();
+      if (profile?.nome) setAlunoNome(profile.nome);
+      loadStretchings(aluno.id);
 
       const { data: planoData } = await supabase
         .from("planos_treino")
@@ -316,6 +563,7 @@ const Treinos = () => {
 
       if (!planoData) { setLoading(false); return; }
       setPlano(planoData);
+      setPlanoId(planoData.id);
 
       const { data: semanasData, error: semanasError } = await supabase
         .from("semanas")
@@ -325,7 +573,7 @@ const Treinos = () => {
             id, titulo_treino, dia_semana, descricao_geral, ordem,
             exercicios (
               id, nome_exercicio, series, repeticoes,
-              descanso, video_url, observacoes, ordem
+              descanso, video_url, observacoes, ordem, series_detalhadas
             )
           )
         `)
@@ -359,6 +607,74 @@ const Treinos = () => {
     }
   };
 
+  const loadStretchings = async (aid: string) => {
+    try {
+      const { data } = await supabase
+        .from('alongamentos')
+        .select('id, nome, series, duracao_segundos, instrucoes, video_url')
+        .eq('aluno_id', aid)
+        .order('created_at', { ascending: true });
+      if (data) setStretchings(data);
+    } catch { /* fail silently */ }
+  };
+
+  const loadCompletions = async (aid: string) => {
+    try {
+      const now = new Date();
+      const firstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const today    = now.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('treino_sessoes_log')
+        .select('treino_id, data_conclusao')
+        .eq('aluno_id', aid)
+        .gte('data_conclusao', firstDay);
+      if (data) {
+        setMonthCount(data.length);
+        setCompletedToday(data.filter(r => r.data_conclusao === today).map(r => r.treino_id));
+      }
+    } catch { /* table may not exist yet — fail silently */ }
+  };
+
+  const markComplete = async (treinoId: string) => {
+    if (!alunoId || completedToday.includes(treinoId)) return;
+    setCompletingId(treinoId);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase.from('treino_sessoes_log').insert({
+        aluno_id: alunoId,
+        plano_id: planoId,
+        treino_id: treinoId,
+        data_conclusao: today,
+      });
+      if (error) throw error;
+      setCompletedToday(prev => [...prev, treinoId]);
+      setMonthCount(prev => prev + 1);
+      toast({ title: 'Treino registrado!', description: 'Continue assim 💪' });
+      if (treinadorId && alunoId && orgId) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        void (async () => {
+          try {
+            const { data: existing } = await supabase.from("notificacoes")
+              .select("id").eq("user_id", treinadorId).eq("aluno_id", alunoId)
+              .eq("tipo", "treino_completo").gte("created_at", todayStr).limit(1);
+            if (!existing || existing.length === 0) {
+              await supabase.from("notificacoes").insert({
+                user_id: treinadorId, org_id: orgId, aluno_id: alunoId, aluno_nome: alunoNome,
+                titulo: "Treino concluído",
+                mensagem: `${alunoNome ?? "Um aluno"} concluiu o treino de hoje.`,
+                tipo: "treino_completo",
+              });
+            }
+          } catch {}
+        })();
+      }
+    } catch (e: any) {
+      toast({ title: 'Erro ao registrar', description: e.message, variant: 'destructive' });
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   const markPlanAsViewed = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -384,9 +700,9 @@ const Treinos = () => {
   const toggleTreino = (id: string) =>
     setOpenTreinos(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
-  const goToExercise = (exId: string) => {
-    // Navigate to exercise detail — preserve week/treino context if available
-    navigate(`/${slug}/aluno/exercicio/${exId}`);
+  const goToExercise = (exId: string, _weekId?: string, treinoId?: string) => {
+    const params = treinoId ? `?treinoId=${treinoId}` : '';
+    navigate(`/${slug}/aluno/exercicio/${exId}${params}`);
   };
 
   // ── Loading ──────────────────────────────────────────────
@@ -458,6 +774,38 @@ const Treinos = () => {
         </div>
       </div>
 
+      {/* Monthly completion stats */}
+      {monthCount > 0 && (() => {
+        const totalSessions = weeks.reduce((n, w) => n + w.treinos.length, 0);
+        const expected = Math.max(1, totalSessions * 4);
+        const pct = Math.min(100, Math.round((monthCount / expected) * 100));
+        const monthName = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+        return (
+          <div
+            className="rounded-2xl border px-4 py-3 space-y-2"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.04)", borderColor: "rgba(var(--cp-rgb),0.2)" }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+                <span className="text-xs font-semibold text-foreground capitalize">{monthName}</span>
+              </div>
+              <span className="text-sm font-bold" style={{ color: "var(--cp-400)" }}>{pct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden bg-white/8">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${pct}%`, background: "var(--cp-gradient)" }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {monthCount} treino{monthCount !== 1 ? 's' : ''} concluído{monthCount !== 1 ? 's' : ''}
+              {' · '}meta {expected} no mês
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Plan info card */}
       <div
         className="rounded-2xl border border-border px-4 py-4"
@@ -491,6 +839,9 @@ const Treinos = () => {
         </div>
       </div>
 
+      {/* Stretching routine */}
+      <AlongamentosSection stretchings={stretchings} />
+
       {/* Weeks */}
       {weeks.length === 0 ? (
         <div
@@ -513,6 +864,9 @@ const Treinos = () => {
               openTreinos={openTreinos}
               onTreinoToggle={toggleTreino}
               onExerciseClick={goToExercise}
+              completedTodayIds={completedToday}
+              onMarkComplete={markComplete}
+              completingId={completingId}
             />
           ))}
         </div>

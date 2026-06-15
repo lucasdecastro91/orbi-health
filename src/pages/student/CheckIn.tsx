@@ -138,6 +138,8 @@ const CheckIn = () => {
   // Trainee data
   const [treinadorId, setTreinadorId] = useState<string | null>(null);
   const [orgId, setOrgId]             = useState<string | null>(null);
+  const [alunoRecId,  setAlunoRecId]  = useState<string | null>(null);
+  const [alunoNome,   setAlunoNome]   = useState<string | null>(null);
 
   useEffect(() => {
     loadContext();
@@ -148,16 +150,17 @@ const CheckIn = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
 
-      const { data: aluno } = await supabase
-        .from("alunos")
-        .select("treinador_id, org_id")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+      const [alunoRes, profileRes] = await Promise.all([
+        supabase.from("alunos").select("id, treinador_id, org_id").eq("user_id", session.user.id).maybeSingle(),
+        supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
+      ]);
 
-      if (aluno) {
-        setTreinadorId(aluno.treinador_id);
-        setOrgId(aluno.org_id);
+      if (alunoRes.data) {
+        setTreinadorId(alunoRes.data.treinador_id);
+        setOrgId(alunoRes.data.org_id);
+        setAlunoRecId(alunoRes.data.id);
       }
+      if (profileRes.data?.nome) setAlunoNome(profileRes.data.nome);
     } catch {}
   };
 
@@ -221,13 +224,19 @@ const CheckIn = () => {
         }).catch(() => { /* ignore */ });
       }
       if (treinadorId && orgId) {
-        supabase.from("notificacoes").insert({
-          user_id:  treinadorId,
-          org_id:   orgId,
-          titulo:   "Novo check-in recebido",
-          mensagem: "Um aluno enviou um novo check-in. Acesse o perfil para visualizar.",
-          tipo:     "checkin",
-        }).catch(() => { /* ignore */ });
+        void (async () => {
+          try {
+            await supabase.from("notificacoes").insert({
+              user_id:    treinadorId,
+              org_id:     orgId,
+              aluno_id:   alunoRecId,
+              aluno_nome: alunoNome,
+              titulo:     "Novo check-in recebido",
+              mensagem:   `${alunoNome ?? "Um aluno"} enviou um novo check-in. Acesse o perfil para visualizar.`,
+              tipo:       "checkin",
+            });
+          } catch { /* silencioso */ }
+        })();
       }
 
       setSubmitted(true);

@@ -1,0 +1,2 @@
+[functions.accept-collaborator-invite]
+verify_jwt = false

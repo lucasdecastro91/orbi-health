@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import {
   AlertCircle, Camera, ChevronLeft, ChevronRight, X, RotateCcw, Check,
-  Loader2, CheckCircle2, Calendar, ZoomIn, Info,
+  Loader2, CheckCircle2, Calendar, ZoomIn, Info, Timer,
 } from "lucide-react";
 
 // ─── Test definitions ─────────────────────────────────────────────────────────
@@ -18,12 +18,12 @@ interface TesteSlide {
   emoji: string;                  // placeholder until real ref images
 }
 
-const TESTES: TesteSlide[] = [
+const TESTES_DEFAULT: TesteSlide[] = [
   {
     key: "frontal",
     label: "Frontal",
     photoLabels: [""],
-    emoji: "🧍",
+    emoji: "",
     instructions: [
       "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
       "Olhar para frente em direção ao horizonte",
@@ -35,7 +35,7 @@ const TESTES: TesteSlide[] = [
     key: "costas",
     label: "Costas",
     photoLabels: [""],
-    emoji: "🚶",
+    emoji: "",
     instructions: [
       "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
       "Olhar para frente em direção ao horizonte",
@@ -47,7 +47,7 @@ const TESTES: TesteSlide[] = [
     key: "perfil",
     label: "Perfil Esquerdo e Direito",
     photoLabels: ["Perfil Esquerdo", "Perfil Direito"],
-    emoji: "🧍‍♂️",
+    emoji: "",
     instructions: [
       "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
       "Olhar para frente em direção ao horizonte",
@@ -59,7 +59,7 @@ const TESTES: TesteSlide[] = [
     key: "perfil_ombros",
     label: "Ombros em Máxima Flexão",
     photoLabels: [""],
-    emoji: "🙆",
+    emoji: "",
     instructions: [
       "Posicione a câmera de perfil",
       "Eleve os ombros em máxima flexão (braços apontando para cima)",
@@ -72,7 +72,7 @@ const TESTES: TesteSlide[] = [
     key: "unipodal",
     label: "Apoio Unipodal Esquerdo e Direito",
     photoLabels: ["Pé Esquerdo", "Pé Direito"],
-    emoji: "🦵",
+    emoji: "",
     instructions: [
       "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
       "Olhar para frente em direção ao horizonte",
@@ -84,7 +84,7 @@ const TESTES: TesteSlide[] = [
     key: "agachamento_perfil",
     label: "Agachamento de Perfil",
     photoLabels: [""],
-    emoji: "🏋️",
+    emoji: "",
     instructions: [
       "Posicione a câmera de perfil",
       "Mantenha os pés na largura dos ombros, levemente abduzidos",
@@ -97,7 +97,7 @@ const TESTES: TesteSlide[] = [
     key: "agachamento_costas",
     label: "Agachamento de Costas",
     photoLabels: [""],
-    emoji: "🏋️‍♀️",
+    emoji: "",
     instructions: [
       "Posicione a câmera atrás do indivíduo",
       "Mantenha os pés na largura dos ombros, levemente abduzidos",
@@ -110,7 +110,7 @@ const TESTES: TesteSlide[] = [
     key: "ajoelhado",
     label: "Ajoelhado de Perfil",
     photoLabels: [""],
-    emoji: "🧎",
+    emoji: "",
     instructions: [
       "Posicione a câmera de perfil",
       "Ajoelhe-se sobre um joelho (posição de ajoelhado)",
@@ -122,7 +122,7 @@ const TESTES: TesteSlide[] = [
     key: "flexao_quadril",
     label: "Flexão de Quadril em Decúbito Dorsal",
     photoLabels: [""],
-    emoji: "🛌",
+    emoji: "",
     instructions: [
       "Deite-se de costas (decúbito dorsal) com o corpo totalmente alinhado ao solo",
       "Posicione a câmera de perfil ao nível do solo",
@@ -135,7 +135,7 @@ const TESTES: TesteSlide[] = [
     key: "sentar_alcancar",
     label: "Sentar e Alcançar Adaptado",
     photoLabels: [""],
-    emoji: "🧘",
+    emoji: "",
     instructions: [
       "Posicione a câmera de perfil",
       "Sente com as pernas estendidas e juntas",
@@ -147,7 +147,7 @@ const TESTES: TesteSlide[] = [
     key: "flexao_coluna",
     label: "Flexão da Coluna",
     photoLabels: [""],
-    emoji: "🙇",
+    emoji: "",
     instructions: [
       "Posicione a câmera de perfil",
       "Em pé, com os pés levemente afastados",
@@ -158,7 +158,7 @@ const TESTES: TesteSlide[] = [
   },
 ];
 
-const TOTAL_PHOTOS = TESTES.reduce((sum, t) => sum + t.photoLabels.length, 0);
+// TOTAL_PHOTOS agora é calculado dinamicamente no componente
 
 const BUCKET = "evolution-photos";
 
@@ -229,7 +229,7 @@ const RefImage = ({
   if (idx >= srcs.length) {
     return (
       <div className="flex flex-col items-center justify-center gap-1 bg-white/3 w-full h-full">
-        <span style={{ fontSize: small ? 24 : 48 }}>{emoji}</span>
+        <Camera className={small ? "w-6 h-6 text-white/15" : "w-10 h-10 text-white/10"} />
         {!small && <p className="text-[10px] text-white/20 text-center px-2">Foto de referência</p>}
       </div>
     );
@@ -265,6 +265,13 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
   const [miniOpen,      setMiniOpen]      = useState(true);
   const [camBlocked,    setCamBlocked]    = useState(false);
   const [camRequesting, setCamRequesting] = useState(false);
+
+  // ── Timer state ────────────────────────────────────────────────
+  const [timerDuration,   setTimerDuration]   = useState(10);
+  const [timerCountdown,  setTimerCountdown]  = useState<number | null>(null);
+  const [showTimerPicker, setShowTimerPicker] = useState(false);
+  const [timerFlash,      setTimerFlash]      = useState(false);
+  const captureRef = useRef<() => void>(() => {});
 
   // Start/stop camera
   const startCam = useCallback(async (facing: "user" | "environment") => {
@@ -361,6 +368,41 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     streamRef.current?.getTracks().forEach((t) => t.stop());
   };
 
+  // Mantém captureRef apontando para a versão mais recente de capture
+  captureRef.current = capture;
+
+  // Efeito de contagem regressiva — decrementa 1s por vez
+  useEffect(() => {
+    if (timerCountdown === null) return;
+    if (timerCountdown === 0) {
+      // Tenta disparar a captura programaticamente
+      const v = videoRef.current;
+      if (v && v.videoWidth > 0 && v.videoHeight > 0) {
+        captureRef.current();
+      } else {
+        // Fallback visual: flash branco sinalizando o momento
+        setTimerFlash(true);
+        setTimeout(() => setTimerFlash(false), 400);
+      }
+      setTimerCountdown(null);
+      return;
+    }
+    const id = setTimeout(() => setTimerCountdown((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(id);
+  }, [timerCountdown]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const TIMER_OPTIONS = [3, 5, 10, 15, 20, 30] as const;
+
+  const startTimer = () => {
+    setShowTimerPicker(false);
+    setTimerCountdown(timerDuration);
+  };
+
+  const cancelTimer = () => {
+    setTimerCountdown(null);
+    setShowTimerPicker(false);
+  };
+
   const retake = () => {
     setPreview(null);
     startCam(facingMode);
@@ -383,6 +425,28 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
         <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
       )}
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* ── Timer countdown overlay ── */}
+      {timerCountdown !== null && timerCountdown > 0 && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+          <div
+            className="rounded-full flex items-center justify-center"
+            style={{
+              width: 160,
+              height: 160,
+              backgroundColor: "rgba(0,0,0,0.55)",
+              border: "3px solid rgba(255,255,255,0.75)",
+            }}
+          >
+            <span className="text-7xl font-bold text-white leading-none">{timerCountdown}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Flash visual no 0 (fallback) ── */}
+      {timerFlash && (
+        <div className="absolute inset-0 z-30 pointer-events-none" style={{ backgroundColor: "rgba(255,255,255,0.85)" }} />
+      )}
 
       {/* Camera blocked overlay */}
       {camBlocked && (
@@ -476,36 +540,110 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
       )}
 
       {/* ── Floating bottom controls ── */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center gap-10 pt-6"
+      <div className="absolute bottom-0 left-0 right-0 z-20"
         style={{
           background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
           paddingBottom: "max(40px, env(safe-area-inset-bottom, 0px) + 24px)",
         }}>
-        {!preview ? (
-          <button onClick={capture}
-            className="flex items-center justify-center rounded-full border-4 border-white"
-            style={{ width: 80, height: 80 }}>
-            <div className="w-[62px] h-[62px] rounded-full bg-white" />
-          </button>
-        ) : (
-          <>
-            <button onClick={retake}
-              className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                <RotateCcw className="w-5 h-5" />
-              </div>
-              <span className="text-[11px]">Repetir</span>
+
+        {/* Timer picker — visível apenas quando aberto e câmera ativa */}
+        {showTimerPicker && timerCountdown === null && !preview && (
+          <div className="flex flex-col items-center gap-3 px-5 pt-4 pb-2">
+            <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Selecionar tempo
+            </p>
+            <div className="flex gap-2 flex-nowrap justify-center">
+              {TIMER_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setTimerDuration(s)}
+                  className="px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    backgroundColor: timerDuration === s ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.1)",
+                    color:           timerDuration === s ? "#000" : "rgba(255,255,255,0.65)",
+                    border:          `1px solid ${timerDuration === s ? "transparent" : "rgba(255,255,255,0.15)"}`,
+                  }}
+                >
+                  {s}s
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={startTimer}
+              className="h-10 px-8 rounded-xl text-sm font-semibold text-white"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              Iniciar Timer
             </button>
-            <button onClick={confirm} className="flex flex-col items-center gap-1">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: "var(--cp-gradient)" }}>
-                <Check className="w-7 h-7 text-white" />
-              </div>
-              <span className="text-[11px] text-white/70">Usar foto</span>
-            </button>
-          </>
+          </div>
         )}
+
+        {/* Controls row */}
+        <div className="flex items-center justify-center gap-10 pt-6">
+          {!preview ? (
+            <>
+              {/* Botão de timer — adicional, não substitui nem altera o botão de captura */}
+              <button
+                type="button"
+                onClick={() => timerCountdown !== null ? cancelTimer() : setShowTimerPicker((v) => !v)}
+                className="flex flex-col items-center gap-1"
+              >
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all"
+                  style={{
+                    backgroundColor: timerCountdown !== null
+                      ? "rgba(220,60,60,0.3)"
+                      : showTimerPicker
+                        ? "rgba(255,255,255,0.2)"
+                        : "rgba(0,0,0,0.5)",
+                    border: timerCountdown !== null
+                      ? "1px solid rgba(220,60,60,0.7)"
+                      : "1px solid rgba(255,255,255,0.2)",
+                  }}
+                >
+                  {timerCountdown !== null ? (
+                    <span className="text-base font-bold text-white leading-none">{timerCountdown}</span>
+                  ) : (
+                    <Timer style={{ width: 18, height: 18, color: "rgba(255,255,255,0.7)" }} />
+                  )}
+                </div>
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {timerCountdown !== null ? "Cancelar" : `${timerDuration}s`}
+                </span>
+              </button>
+
+              {/* Botão de captura original — sem alteração */}
+              <button onClick={capture}
+                className="flex items-center justify-center rounded-full border-4 border-white"
+                style={{ width: 80, height: 80 }}>
+                <div className="w-[62px] h-[62px] rounded-full bg-white" />
+              </button>
+
+              {/* Espaçador simétrico para manter o botão de captura centralizado */}
+              <div style={{ width: 44, height: 44 }} />
+            </>
+          ) : (
+            <>
+              <button onClick={retake}
+                className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <span className="text-[11px]">Repetir</span>
+              </button>
+              <button onClick={confirm} className="flex flex-col items-center gap-1">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ background: "var(--cp-gradient)" }}>
+                  <Check className="w-7 h-7 text-white" />
+                </div>
+                <span className="text-[11px] text-white/70">Usar foto</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
     </div>
@@ -519,6 +657,13 @@ const AvaliacaoPostural = () => {
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
 
+  // Config dinâmica (carregada do banco; fallback = hardcode)
+  const [testes,     setTestes]     = useState<TesteSlide[]>(TESTES_DEFAULT);
+  const [introHtml,  setIntroHtml]  = useState<string>("");
+
+  // Derivado (total de fotos dos testes ativos)
+  const totalPhotos = testes.reduce((sum, t) => sum + t.photoLabels.length, 0);
+
   const [phase,       setPhase]       = useState<Phase>("intro");
   const [slideIndex,  setSlideIndex]  = useState(0);
   const [photoIndex,  setPhotoIndex]  = useState(0);
@@ -529,6 +674,8 @@ const AvaliacaoPostural = () => {
   const [evalId,      setEvalId]      = useState<string | null>(null);
   const [studentId,        setStudentId]        = useState<string | null>(null);
   const [alunoId,          setAlunoId]          = useState<string | null>(null);
+  const [treinadorId,      setTreinadorId]      = useState<string | null>(null);
+  const [alunoNome,        setAlunoNome]        = useState<string | null>(null);
   const [avaliacaoPendente, setAvaliacaoPendente] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [history,     setHistory]     = useState<HistoryEval[]>([]);
@@ -536,7 +683,7 @@ const AvaliacaoPostural = () => {
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [viewPhoto,   setViewPhoto]   = useState<string | null>(null);
 
-  const currentTeste = TESTES[slideIndex];
+  const currentTeste = testes[slideIndex];
 
   // Reset scroll + instructions panel when moving to a different test or entering testing phase
   useEffect(() => {
@@ -546,18 +693,49 @@ const AvaliacaoPostural = () => {
 
   // ── Auth / load ────────────────────────────────────────────────
 
+  // Auth + aluno — roda uma vez no mount (comportamento original preservado)
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
       setStudentId(session.user.id);
-      const { data: a } = await supabase.from("alunos").select("id, avaliacao_postural_pendente").eq("user_id", session.user.id).maybeSingle();
+      const [alunoRes, profileRes] = await Promise.all([
+        supabase.from("alunos").select("id, avaliacao_postural_pendente, treinador_id").eq("user_id", session.user.id).maybeSingle(),
+        supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
+      ]);
+      const a = alunoRes.data;
       if (a?.id) {
         setAlunoId(a.id);
         setAvaliacaoPendente(!!a.avaliacao_postural_pendente);
+        if (a.treinador_id) setTreinadorId(a.treinador_id);
+      }
+      if (profileRes.data?.nome) setAlunoNome(profileRes.data.nome);
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Config da avaliação — roda quando orgId fica disponível (TenantContext async)
+  const configLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!orgId || configLoadedRef.current) return;
+    configLoadedRef.current = true;
+    (async () => {
+      const { data: cfg } = await (supabase as any)
+        .from("avaliacao_postural_config")
+        .select("introducao, testes")
+        .eq("org_id", orgId)
+        .maybeSingle();
+      if (cfg?.introducao) setIntroHtml(cfg.introducao);
+      if (cfg?.testes && Array.isArray(cfg.testes) && cfg.testes.length > 0) {
+        setTestes(cfg.testes.map((t: any): TesteSlide => ({
+          key:          t.id          ?? t.key ?? crypto.randomUUID(),
+          label:        t.label       ?? "",
+          emoji:        t.emoji       ?? "",
+          photoLabels:  t.photoLabels ?? [""],
+          instructions: t.instrucoes  ?? [],
+        })));
       }
     })();
-  }, []);
+  }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Navigation helpers ─────────────────────────────────────────
 
@@ -581,7 +759,7 @@ const AvaliacaoPostural = () => {
   };
 
   const nextSlide = () => {
-    if (slideIndex < TESTES.length - 1) {
+    if (slideIndex < testes.length - 1) {
       setSlideIndex((i) => i + 1);
       setPhotoIndex(0);
     } else {
@@ -651,6 +829,23 @@ const AvaliacaoPostural = () => {
       if (alunoId) {
         await supabase.from("alunos").update({ avaliacao_postural_pendente: false }).eq("id", alunoId);
         setAvaliacaoPendente(false);
+      }
+
+      // 5. Notify coach (best-effort)
+      if (treinadorId && orgId) {
+        void (async () => {
+          try {
+            await supabase.from("notificacoes").insert({
+              user_id:    treinadorId,
+              org_id:     orgId,
+              aluno_id:   alunoId,
+              aluno_nome: alunoNome,
+              titulo:     "Avaliação postural concluída",
+              mensagem:   `${alunoNome ?? "Um aluno"} concluiu a avaliação postural. Acesse o perfil para visualizar.`,
+              tipo:       "avaliacao",
+            });
+          } catch { /* silencioso */ }
+        })();
       }
 
       setPhase("done");
@@ -746,7 +941,7 @@ const AvaliacaoPostural = () => {
             <BackBtn onClick={() => navigate(`/${slug}/aluno/perfil`)} />
             <div>
               <h1 className="text-lg font-bold text-white">Avaliação Postural e Funcional</h1>
-              <p className="text-xs text-white/40">{TESTES.length} testes • {TOTAL_PHOTOS} fotos</p>
+              <p className="text-xs text-white/40">{testes.length} testes • {totalPhotos} fotos</p>
             </div>
           </div>
 
@@ -762,38 +957,54 @@ const AvaliacaoPostural = () => {
               </div>
             )}
 
-            {/* Aviso */}
-            <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
-              <p className="text-xs text-yellow-400/80 leading-relaxed">{INSTRUCOES_GERAIS.aviso}</p>
-            </div>
-
-            {/* Vestuário */}
-            <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Vestuário</p>
-              {INSTRUCOES_GERAIS.vestuario.map((t, i) => (
-                <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
-              ))}
-            </div>
-
-            {/* Observações */}
-            <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Observações gerais</p>
-              {INSTRUCOES_GERAIS.observacoes.map((t, i) => (
-                <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
-              ))}
-            </div>
-
-            {/* Enquadramento */}
-            <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2 font-semibold">Enquadramento</p>
-              <p className="text-xs text-white/65 leading-relaxed">{INSTRUCOES_GERAIS.enquadramento}</p>
-            </div>
+            {/* Instruções: customizadas pelo treinador ou fallback hardcoded */}
+            {introHtml ? (
+              <>
+                <style>{`
+                  .postural-intro b, .postural-intro strong { color: rgba(255,255,255,0.95); font-weight:700; }
+                  .postural-intro i, .postural-intro em { font-style: italic; }
+                  .postural-intro u { text-decoration: underline; }
+                  .postural-intro a { color: var(--cp-400); }
+                  .postural-intro p, .postural-intro div { margin-bottom: 0.5rem; }
+                `}</style>
+                <div
+                  className="postural-intro rounded-2xl p-4 bg-white/3 border border-white/8 text-xs text-white/70 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: introHtml }}
+                />
+              </>
+            ) : (
+              <>
+                {/* Aviso */}
+                <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
+                  <p className="text-xs text-yellow-400/80 leading-relaxed">{INSTRUCOES_GERAIS.aviso}</p>
+                </div>
+                {/* Vestuário */}
+                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Vestuário</p>
+                  {INSTRUCOES_GERAIS.vestuario.map((t, i) => (
+                    <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
+                  ))}
+                </div>
+                {/* Observações */}
+                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Observações gerais</p>
+                  {INSTRUCOES_GERAIS.observacoes.map((t, i) => (
+                    <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
+                  ))}
+                </div>
+                {/* Enquadramento */}
+                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2 font-semibold">Enquadramento</p>
+                  <p className="text-xs text-white/65 leading-relaxed">{INSTRUCOES_GERAIS.enquadramento}</p>
+                </div>
+              </>
+            )}
 
             {/* Test overview pills */}
             <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
               <p className="text-[10px] text-white/40 uppercase tracking-wider mb-3 font-semibold">Testes do protocolo</p>
               <div className="flex flex-wrap gap-1.5">
-                {TESTES.map((t, i) => (
+                {testes.map((t, i) => (
                   <span key={t.key} className="text-[11px] px-2 py-1 rounded-lg text-white/50 bg-white/5">
                     {i + 1}. {t.label}
                   </span>
@@ -828,7 +1039,7 @@ const AvaliacaoPostural = () => {
   // ── TESTING ─────────────────────────────────────────────────
   if (phase === "testing") {
     const teste = currentTeste;
-    const progress = ((slideIndex) / TESTES.length) * 100;
+    const progress = ((slideIndex) / testes.length) * 100;
     return (
       <>
         {CameraEl}
@@ -840,8 +1051,8 @@ const AvaliacaoPostural = () => {
             <BackBtn onClick={prevSlide} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs text-white/40">Teste {slideIndex + 1} de {TESTES.length}</p>
-                <p className="text-xs text-white/40">{totalCaptured}/{TOTAL_PHOTOS} fotos</p>
+                <p className="text-xs text-white/40">Teste {slideIndex + 1} de {testes.length}</p>
+                <p className="text-xs text-white/40">{totalCaptured}/{totalPhotos} fotos</p>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden bg-white/8">
                 <div className="h-full rounded-full transition-all duration-500"
@@ -959,7 +1170,7 @@ const AvaliacaoPostural = () => {
                 style={allCapturedForSlide ? { background: "var(--cp-gradient)" } : undefined}>
                 {allCapturedForSlide ? (
                   <>
-                    {slideIndex < TESTES.length - 1 ? (
+                    {slideIndex < testes.length - 1 ? (
                       <><ChevronRight className="w-4 h-4" />Próximo teste</>
                     ) : (
                       <><Check className="w-4 h-4" />Revisar e enviar</>
@@ -991,7 +1202,7 @@ const AvaliacaoPostural = () => {
           </div>
 
           <div className="px-4 space-y-4">
-            {TESTES.map((teste, si) => {
+            {testes.map((teste, si) => {
               const hasFotos = teste.photoLabels.some((_, pi) => captures[captureKey(teste.key, pi)]);
               return (
                 <div key={teste.key} className="rounded-2xl overflow-hidden border"
@@ -1150,7 +1361,7 @@ const AvaliacaoPostural = () => {
 
                   {expanded && (
                     <div className="px-4 pb-4 border-t border-white/5 pt-3">
-                      {TESTES.map((teste) => {
+                      {testes.map((teste) => {
                         const fotos = ev.fotos.filter((f) => f.test_key === teste.key);
                         if (fotos.length === 0) return null;
                         return (

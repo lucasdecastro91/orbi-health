@@ -149,6 +149,63 @@ function initCTATracking() {
   });
 }
 
+/* --- Pricing toggle (mensal / anual + por alunos) --- */
+function initPricingToggle() {
+  const toggle     = document.getElementById('billing-toggle');
+  const labelMonth = document.getElementById('toggle-monthly-label');
+  const labelYear  = document.getElementById('toggle-annual-label');
+  if (!toggle) return;
+
+  // Estado global
+  let isAnnual = false;
+  const tierState = { motion: '50', pro: '50' };
+
+  function updatePrices() {
+    const billing = isAnnual ? 'annual' : 'monthly';
+    const period  = isAnnual ? '/ano'   : '/mês';
+
+    // Motion
+    const motionEl     = document.querySelector('[data-motion-price]');
+    const motionPeriod = document.querySelector('[data-motion-period]');
+    if (motionEl) {
+      const key = `data-${billing}-${tierState.motion === '50' ? '50' : 'unlimited'}`;
+      motionEl.textContent     = motionEl.getAttribute(key);
+      motionPeriod.textContent = period;
+    }
+
+    // Pro
+    const proEl     = document.querySelector('[data-pro-price]');
+    const proPeriod = document.querySelector('[data-pro-period]');
+    if (proEl) {
+      const key = `data-${billing}-${tierState.pro === '50' ? '50' : 'unlimited'}`;
+      proEl.textContent     = proEl.getAttribute(key);
+      proPeriod.textContent = period;
+    }
+  }
+
+  // Toggle global mensal / anual
+  toggle.addEventListener('click', () => {
+    isAnnual = !isAnnual;
+    toggle.setAttribute('aria-checked', isAnnual ? 'true' : 'false');
+    labelMonth.classList.toggle('pricing-toggle__label--active', !isAnnual);
+    labelYear.classList.toggle('pricing-toggle__label--active',  isAnnual);
+    updatePrices();
+  });
+
+  // Toggles internos por alunos
+  document.querySelectorAll('.plan-tier-toggle').forEach(wrap => {
+    const plan = wrap.getAttribute('data-plan');
+    wrap.querySelectorAll('.plan-tier-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wrap.querySelectorAll('.plan-tier-btn').forEach(b => b.classList.remove('plan-tier-btn--active'));
+        btn.classList.add('plan-tier-btn--active');
+        tierState[plan] = btn.getAttribute('data-tier');
+        updatePrices();
+      });
+    });
+  });
+}
+
 /* --- Init --- */
 document.addEventListener('DOMContentLoaded', () => {
   captureAndPersistUTMs();
@@ -158,4 +215,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollReveal();
   initCounters();
   initCTATracking();
+  initPricingToggle();
 });

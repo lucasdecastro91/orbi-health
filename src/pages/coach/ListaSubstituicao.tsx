@@ -292,7 +292,7 @@ const ListaSubstituicao = () => {
       {/* Add group */}
       <div
         className="rounded-2xl border p-4 mb-5"
-        style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}
       >
         <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
           Novo Grupo
@@ -341,8 +341,8 @@ const ListaSubstituicao = () => {
                 key={grupo.id}
                 className="rounded-2xl border overflow-hidden"
                 style={{
-                  backgroundColor: isOpen ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.02)",
-                  borderColor: isOpen ? "rgba(var(--cp-rgb),0.2)" : "rgba(255,255,255,0.07)",
+                  backgroundColor: isOpen ? "var(--surface-2)" : "var(--surface-1)",
+                  borderColor: isOpen ? "rgba(var(--cp-rgb),0.2)" : "var(--border-subtle)",
                 }}
               >
                 {/* Group header */}
@@ -351,8 +351,8 @@ const ListaSubstituicao = () => {
                   <div
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0"
                     style={{
-                      background: isOpen ? "var(--cp-gradient)" : "rgba(255,255,255,0.07)",
-                      color: isOpen ? "#fff" : "rgba(255,255,255,0.45)",
+                      background: isOpen ? "var(--cp-gradient)" : "var(--tag-inactive-bg)",
+                      color: isOpen ? "var(--cp-text)" : "var(--tag-inactive-color)",
                     }}
                   >
                     {grupo.numero}
@@ -392,7 +392,7 @@ const ListaSubstituicao = () => {
                   <button
                     onClick={() => toggleGroup(grupo.id)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                    style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
+                    style={{ backgroundColor: "var(--ui-inactive-bg)", color: "var(--ui-inactive-color)" }}
                   >
                     <ChevronDown
                       className="w-3.5 h-3.5 transition-transform duration-200"
@@ -403,7 +403,7 @@ const ListaSubstituicao = () => {
 
                 {/* Expanded content */}
                 {isOpen && (
-                  <div className="px-4 pb-4 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                  <div className="px-4 pb-4 border-t" style={{ borderColor: "var(--border-dim)" }}>
 
                     {/* Items list */}
                     <div className="mt-3 space-y-1.5">
@@ -429,7 +429,7 @@ const ListaSubstituicao = () => {
                     </div>
 
                     {/* Add item form */}
-                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border-dim)" }}>
                       <div className="flex gap-2 items-center">
                         <Input
                           value={form.nome}
@@ -508,7 +508,7 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
   return (
     <div
       className="flex items-center gap-2 px-2.5 py-2 rounded-xl group"
-      style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+      style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-dim)" }}
     >
       {/* Dot */}
       <div

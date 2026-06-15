@@ -21,7 +21,7 @@ interface Registro {
   created_at: string;
 }
 
-type Slot = "front" | "side_left" | "side_right" | "back" | "free";
+type Slot = string; // pode ser valor fixo ou chave customizada
 
 interface EvoPhoto {
   id: string;
@@ -35,7 +35,7 @@ interface EvoPhoto {
 // Constants
 // ─────────────────────────────────────────────────────────────
 
-const SLOTS: { key: Slot; label: string }[] = [
+const DEFAULT_SLOTS: { key: Slot; label: string }[] = [
   { key: "front",      label: "Frente"    },
   { key: "side_left",  label: "Lado E."   },
   { key: "side_right", label: "Lado D."   },
@@ -64,8 +64,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // ─────────────────────────────────────────────────────────────
 
 const Lightbox = ({
-  photos, index, onClose, onNav,
-}: { photos: EvoPhoto[]; index: number; onClose: () => void; onNav: (delta: number) => void }) => {
+  photos, index, onClose, onNav, slots,
+}: { photos: EvoPhoto[]; index: number; onClose: () => void; onNav: (delta: number) => void; slots: { key: string; label: string }[] }) => {
   const photo = photos[index];
   return (
     <div
@@ -80,7 +80,7 @@ const Lightbox = ({
           className="w-full rounded-2xl object-contain max-h-[75vh]"
         />
         <div className="flex items-center justify-between mt-3">
-          <p className="text-sm text-white/50">{SLOTS.find((s) => s.key === photo.slot)?.label} — {format(parseISO(photo.taken_at), "dd/MM/yyyy")}</p>
+          <p className="text-sm text-white/50">{slots.find((s) => s.key === photo.slot)?.label} — {format(parseISO(photo.taken_at), "dd/MM/yyyy")}</p>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
             <X className="w-4 h-4 text-white/70" />
           </button>
@@ -112,6 +112,122 @@ const Lightbox = ({
 };
 
 // ─────────────────────────────────────────────────────────────
+// Before/after photo comparator
+// ─────────────────────────────────────────────────────────────
+
+const EvolucaoCompareModal = ({
+  photos, slots, onClose,
+}: {
+  photos: EvoPhoto[];
+  slots: { key: string; label: string }[];
+  onClose: () => void;
+}) => {
+  const availableSlots = slots.filter(s => photos.some(p => p.slot === s.key));
+  const [selectedSlot, setSelectedSlot] = useState(availableSlots[0]?.key ?? "");
+  const [dateA, setDateA] = useState("");
+  const [dateB, setDateB] = useState("");
+  const [sliderPos, setSliderPos] = useState(50);
+
+  const slotPhotos = photos.filter(p => p.slot === selectedSlot);
+  const availDates = [...new Set(slotPhotos.map(p => p.taken_at))].sort((a, b) => b.localeCompare(a));
+
+  useEffect(() => {
+    if (availDates.length >= 2) {
+      setDateA(availDates[availDates.length - 1]);
+      setDateB(availDates[0]);
+    } else {
+      setDateA(availDates[0] ?? "");
+      setDateB("");
+    }
+    setSliderPos(50);
+  }, [selectedSlot]);
+
+  const photoA = slotPhotos.find(p => p.taken_at === dateA);
+  const photoB = slotPhotos.find(p => p.taken_at === dateB);
+  const canCompare = !!photoA && !!photoB && dateA !== dateB;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.88)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl flex flex-col" style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "92vh" }} onClick={e => e.stopPropagation()}>
+        {/* Cabeçalho fixo */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+          <p className="text-sm font-semibold text-white/80">Comparar Fotos</p>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+            <X className="w-4 h-4 text-white/50" />
+          </button>
+        </div>
+        {/* Conteúdo */}
+        <div className="p-4 space-y-4">
+          {/* Seletor de ângulo */}
+          <div>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">Ângulo</p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableSlots.map(s => (
+                <button key={s.key} onClick={() => setSelectedSlot(s.key)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "rgba(255,255,255,0.06)",
+                    color: selectedSlot === s.key ? "var(--cp-400)" : "rgba(255,255,255,0.5)",
+                    border: `1px solid ${selectedSlot === s.key ? "rgba(var(--cp-rgb),0.35)" : "transparent"}`,
+                  }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Seletores de data */}
+          {availDates.length < 2 ? (
+            <p className="text-xs text-white/30 text-center py-2">Apenas 1 data disponível para este ângulo.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {([["Antes", dateA, setDateA, dateB], ["Depois", dateB, setDateB, dateA]] as const).map(([label, val, set, other]) => (
+                <div key={String(label)}>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5">{label}</p>
+                  <select value={val} onChange={e => { (set as (v: string) => void)(e.target.value); setSliderPos(50); }}
+                    className="w-full h-9 rounded-xl text-xs px-2 outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>
+                    {availDates.map(d => (
+                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "#1a1a1d" }}>
+                        {format(parseISO(d), "dd/MM/yyyy")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Slider — altura = espaço restante da viewport após header + controles */}
+          {canCompare && (
+            <div>
+              <div className="relative overflow-hidden rounded-xl select-none" style={{ height: "calc(92vh - 260px)", backgroundColor: "#0a0a0b" }}>
+                <img src={photoB!.url} className="absolute inset-0 w-full h-full object-cover" alt="depois" draggable={false} />
+                <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}>
+                  <img src={photoA!.url} className="w-full h-full object-cover" alt="antes" draggable={false} />
+                </div>
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>ANTES</div>
+                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>DEPOIS</div>
+                <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}>
+                  <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2" style={{ backgroundColor: "rgba(255,255,255,0.85)" }} />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: "white" }}>
+                    <ChevronLeft className="w-3 h-3 text-black" />
+                    <ChevronRight className="w-3 h-3 text-black" />
+                  </div>
+                </div>
+                <input type="range" min="0" max="100" value={sliderPos}
+                  onChange={e => setSliderPos(Number(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-10"
+                  style={{ margin: 0, padding: 0 }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center mt-2">Arraste para comparar</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────────────────────
 
@@ -128,12 +244,17 @@ const Evolucao = () => {
   const [data,       setData]       = useState(format(new Date(), "yyyy-MM-dd"));
 
   // Photo state
-  const [photos,      setPhotos]      = useState<EvoPhoto[]>([]);
-  const [uploading,   setUploading]   = useState<Slot | null>(null);
-  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
-  const [studentId,   setStudentId]   = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadingSlot = useRef<Slot | null>(null);
+  const [photos,        setPhotos]        = useState<EvoPhoto[]>([]);
+  const [uploading,     setUploading]     = useState<Slot | null>(null);
+  const [lightboxIdx,   setLightboxIdx]   = useState<number | null>(null);
+  const [studentId,     setStudentId]     = useState<string | null>(null);
+  const [slots,         setSlots]         = useState<{ key: Slot; label: string }[]>(DEFAULT_SLOTS);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [compareOpen,   setCompareOpen]   = useState(false);
+  const fileInputRef        = useRef<HTMLInputElement>(null);
+  const fileInputGalleryRef = useRef<HTMLInputElement>(null);
+  const uploadingSlot       = useRef<Slot | null>(null);
+  const [photoPickerSlot,   setPhotoPickerSlot] = useState<Slot | null>(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -145,6 +266,16 @@ const Evolucao = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       setStudentId(session.user.id);
+
+      // Carrega slots configurados pela org (ou usa padrão)
+      const { data: slotsData } = await supabase
+        .from("evolution_photo_slots")
+        .select("slot_key, label, ordem")
+        .eq("org_id", orgId ?? "")
+        .order("ordem", { ascending: true });
+      if (slotsData && slotsData.length > 0) {
+        setSlots(slotsData.map(s => ({ key: s.slot_key, label: s.label })));
+      }
 
       const [weightRes, photoRes] = await Promise.all([
         supabase
@@ -162,12 +293,78 @@ const Evolucao = () => {
       if (weightRes.error) throw weightRes.error;
       setRegistros(weightRes.data as Registro[]);
 
-      if (!photoRes.error && photoRes.data) {
-        const withUrls: EvoPhoto[] = (photoRes.data as any[]).map((p) => ({
-          ...p,
-          url: supabase.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl,
-        }));
-        setPhotos(withUrls);
+      // Fotos do bucket público (evolution_photos) — fonte primária
+      const primaryPhotos: EvoPhoto[] = photoRes.error ? [] : (photoRes.data as any[]).map((p) => ({
+        ...p,
+        url: supabase.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl,
+      }));
+
+      // Chaves já cobertas pelas fotos primárias (date_slot)
+      const primaryKeys = new Set(primaryPhotos.map(p => `${p.taken_at}_${p.slot}`));
+
+      // Fotos legadas via JOIN + batch createSignedUrls (evita rate limit)
+      const legacyPhotos: EvoPhoto[] = [];
+      try {
+        const { data: respostas } = await supabase
+          .from("atualizacao_respostas")
+          .select(`
+            id, submitted_at,
+            atualizacao_resposta_arquivos (id, storage_path, mime_type)
+          `)
+          .eq("student_id", session.user.id)
+          .order("submitted_at", { ascending: false });
+
+        if (respostas) {
+          const toBRDate = (iso: string) =>
+            new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
+
+          const candidates: { id: string; storage_path: string; slotKey: string; date: string }[] = [];
+          for (const resp of respostas as any[]) {
+            const submittedAt: string = resp.submitted_at;
+            if (!submittedAt) continue;
+            const date = toBRDate(submittedAt);
+            const arquivos: any[] = resp.atualizacao_resposta_arquivos ?? [];
+            for (const arq of arquivos) {
+              if (!arq.storage_path || !arq.mime_type?.startsWith("image/")) continue;
+              const parts    = arq.storage_path.split("/");
+              const filename = parts[parts.length - 1];
+              const slotKey  = filename.replace(/_\d+\.\w+$/, "");
+              if (slotKey === filename) continue;
+              const key = `${date}_${slotKey}`;
+              if (primaryKeys.has(key)) continue;
+              candidates.push({ id: arq.id, storage_path: arq.storage_path, slotKey, date });
+            }
+          }
+
+          if (candidates.length > 0) {
+            const { data: signedList } = await supabase.storage
+              .from("atualizacoes")
+              .createSignedUrls(candidates.map(c => c.storage_path), 86400);
+
+            if (signedList) {
+              for (let i = 0; i < candidates.length; i++) {
+                const signed = signedList[i];
+                if (!signed?.signedUrl) continue;
+                const c = candidates[i];
+                legacyPhotos.push({
+                  id:           `legacy_${c.id}`,
+                  slot:         c.slotKey,
+                  storage_path: c.storage_path,
+                  taken_at:     c.date,
+                  url:          signed.signedUrl,
+                });
+              }
+            }
+          }
+        }
+      } catch { /* falha silenciosa no fallback */ }
+
+      const allPhotos = [...primaryPhotos, ...legacyPhotos];
+      setPhotos(allPhotos);
+      // Expande automaticamente a data mais recente
+      if (allPhotos.length > 0) {
+        const latestDate = allPhotos.reduce((acc, p) => p.taken_at > acc ? p.taken_at : acc, allPhotos[0].taken_at);
+        setExpandedDates(new Set([latestDate]));
       }
     } catch (err: any) {
       toast({ title: "Erro ao carregar dados", description: err.message, variant: "destructive" });
@@ -218,8 +415,19 @@ const Evolucao = () => {
   // ── Photo upload ──────────────────────────────────────────
 
   const triggerUpload = (slot: Slot) => {
+    setPhotoPickerSlot(slot);
+  };
+
+  const pickSource = (source: "camera" | "gallery") => {
+    const slot = photoPickerSlot;
+    if (!slot) return;
     uploadingSlot.current = slot;
-    fileInputRef.current?.click();
+    setPhotoPickerSlot(null);
+    if (source === "camera") {
+      fileInputRef.current?.click();
+    } else {
+      fileInputGalleryRef.current?.click();
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,7 +524,7 @@ const Evolucao = () => {
 
   return (
     <>
-      {/* Hidden file input */}
+      {/* Hidden file inputs: câmera forçada e galeria livre */}
       <input
         ref={fileInputRef}
         type="file"
@@ -325,14 +533,71 @@ const Evolucao = () => {
         className="hidden"
         onChange={handleFileChange}
       />
+      <input
+        ref={fileInputGalleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Bottom-sheet de escolha de fonte de foto */}
+      {photoPickerSlot !== null && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+          onClick={() => setPhotoPickerSlot(null)}
+        >
+          <div
+            className="w-full max-w-[390px] rounded-t-2xl"
+            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-9 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+            </div>
+            <p className="text-xs text-white/40 uppercase tracking-wider text-center py-2">
+              {slots.find(s => s.key === photoPickerSlot)?.label}
+            </p>
+            <div className="px-4 space-y-2" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+              <button
+                onClick={() => pickSource("camera")}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/85 transition-colors"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+              >
+                <Camera className="w-5 h-5 text-white/50" />
+                Tirar foto com câmera
+              </button>
+              <button
+                onClick={() => pickSource("gallery")}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/85 transition-colors"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+              >
+                <ImagePlus className="w-5 h-5 text-white/50" />
+                Escolher da galeria
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightboxIdx !== null && (
         <Lightbox
           photos={allPhotosFlat}
           index={lightboxIdx}
+          slots={slots}
           onClose={() => setLightboxIdx(null)}
           onNav={(delta) => setLightboxIdx((i) => Math.min(Math.max(0, (i ?? 0) + delta), allPhotosFlat.length - 1))}
+        />
+      )}
+
+      {/* Compare modal */}
+      {compareOpen && (
+        <EvolucaoCompareModal
+          photos={allPhotosFlat}
+          slots={slots}
+          onClose={() => setCompareOpen(false)}
         />
       )}
 
@@ -396,7 +661,7 @@ const Evolucao = () => {
         <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Registrar peso</p>
           <form onSubmit={handleSave} className="flex gap-3 items-end">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <label className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Peso (kg)</label>
               <div className="relative">
                 <Weight className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-50 pointer-events-none" />
@@ -408,7 +673,7 @@ const Evolucao = () => {
                 />
               </div>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <label className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Data</label>
               <input
                 type="date" value={data} onChange={(e) => setData(e.target.value)}
@@ -417,7 +682,7 @@ const Evolucao = () => {
             </div>
             <button
               type="submit" disabled={saving || !peso}
-              className="h-11 px-4 rounded-xl text-primary-foreground text-sm font-semibold flex items-center gap-2 shrink-0 disabled:opacity-50"
+              className="h-11 w-11 rounded-xl text-primary-foreground flex items-center justify-center shrink-0 disabled:opacity-50"
               style={{ background: "var(--cp-gradient)" }}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -432,9 +697,9 @@ const Evolucao = () => {
             <Camera className="w-4 h-4 text-muted-foreground opacity-40" />
           </div>
 
-          {/* 5 slot grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {SLOTS.map(({ key, label }) => {
+          {/* Slot grid — quantidade dinâmica conforme configuração da org */}
+          <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${Math.min(slots.length, 5)}, 1fr)` }}>
+            {slots.map(({ key, label }) => {
               const latest = latestBySlot[key];
               const isUp   = uploading === key;
 
@@ -482,46 +747,71 @@ const Evolucao = () => {
           </div>
         </div>
 
-        {/* Photo gallery by date */}
+        {/* Photo gallery by date — collapsible */}
         {sortedDates.length > 0 && (
-          <div className="space-y-4">
-            {sortedDates.map((date) => (
-              <div key={date}>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">
-                  {format(parseISO(date), "dd 'de' MMMM yyyy", { locale: ptBR })}
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {byDate[date].map((photo) => {
-                    const flatIdx = allPhotosFlat.indexOf(photo);
-                    return (
-                      <div key={photo.id} className="relative rounded-xl overflow-hidden aspect-square group">
-                        <button
-                          onClick={() => setLightboxIdx(flatIdx)}
-                          className="w-full h-full"
-                        >
-                          <img src={photo.url} alt={photo.slot} className="w-full h-full object-cover" />
-                          <div
-                            className="absolute bottom-0 left-0 right-0 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}
-                          >
-                            <p className="text-[10px] text-white/80 font-medium">
-                              {SLOTS.find((s) => s.key === photo.slot)?.label}
-                            </p>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => deletePhoto(photo)}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-                        >
-                          <X className="w-3 h-3 text-white/70" />
-                        </button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Histórico de fotos</p>
+              {sortedDates.length >= 2 && (
+                <button
+                  onClick={() => setCompareOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }}>
+                  <Camera className="w-3 h-3" /> Comparar
+                </button>
+              )}
+            </div>
+            {sortedDates.map((date) => {
+              const isExpanded = expandedDates.has(date);
+              return (
+                <div key={date} className="rounded-xl overflow-hidden border border-white/8">
+                  <button
+                    onClick={() => setExpandedDates(prev => {
+                      const next = new Set(prev);
+                      if (next.has(date)) next.delete(date); else next.add(date);
+                      return next;
+                    })}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-white/3 transition-colors"
+                    style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+                      {format(parseISO(date), "dd 'de' MMMM yyyy", { locale: ptBR })}
+                    </p>
+                    {isExpanded
+                      ? <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground rotate-90 shrink-0" />
+                      : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground -rotate-90 shrink-0" />}
+                  </button>
+                  {isExpanded && (
+                    <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "rgba(255,255,255,0.01)" }}>
+                      <div className="grid grid-cols-3 gap-2">
+                        {byDate[date].map((photo) => {
+                          const flatIdx = allPhotosFlat.indexOf(photo);
+                          return (
+                            <div key={photo.id} className="relative rounded-xl overflow-hidden aspect-square group">
+                              <button onClick={() => setLightboxIdx(flatIdx)} className="w-full h-full">
+                                <img src={photo.url} alt={photo.slot} className="w-full h-full object-cover" />
+                                <div
+                                  className="absolute bottom-0 left-0 right-0 px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  style={{ background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
+                                  <p className="text-[10px] text-white/80 font-medium">
+                                    {slots.find((s) => s.key === photo.slot)?.label}
+                                  </p>
+                                </div>
+                              </button>
+                              <button
+                                onClick={() => deletePhoto(photo)}
+                                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                                <X className="w-3 h-3 text-white/70" />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

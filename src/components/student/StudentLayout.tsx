@@ -1,23 +1,27 @@
+import React from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Home, Dumbbell, Utensils,
+  Home, Dumbbell, Utensils, Activity,
   MessageSquare, Calendar, TrendingUp, User, LogOut, Trophy,
-  MoreHorizontal, X,
+  MoreHorizontal, X, ClipboardList, ScanLine,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import NotificationBell from "@/components/NotificationBell";
 
 const StudentLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { slug, org, isGetShapeOrg } = useTenantContext();
+  const { hasDiet, hasTraining } = usePlanFeatures();
   const base = `/${slug}/aluno`;
 
-  const [userName,    setUserName]    = useState("");
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [menuOpen,    setMenuOpen]    = useState(false);
+  const [userName,         setUserName]         = useState("");
+  const [unreadCount,      setUnreadCount]      = useState(0);
+  const [menuOpen,         setMenuOpen]         = useState(false);
+  const [avaliacaoPendente, setAvaliacaoPendente] = useState(false);
 
   // Fecha o menu ao navegar via hardware back / location change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -35,16 +39,26 @@ const StudentLayout = () => {
       .single();
     if (profile) setUserName(profile.nome);
 
-    // First-login redirect: if student has no anamnese, redirect to fill it
+    // First-login redirect: if student has no anamnese (and not dispensed), redirect to fill it
     if (!location.pathname.includes("/anamnese")) {
-      const { data: existing } = await supabase
-        .from("anamneses")
-        .select("id")
-        .eq("student_id", session.user.id)
+      const { data: alunoData } = await supabase
+        .from("alunos")
+        .select("anamnese_dispensada, avaliacao_postural_pendente")
+        .eq("user_id", session.user.id)
         .maybeSingle();
-      if (!existing) {
-        navigate(`/${slug}/aluno/anamnese`);
-        return;
+
+      if (alunoData?.avaliacao_postural_pendente) setAvaliacaoPendente(true);
+
+      if (!alunoData?.anamnese_dispensada) {
+        const { data: existing } = await supabase
+          .from("anamneses")
+          .select("id")
+          .eq("student_id", session.user.id)
+          .maybeSingle();
+        if (!existing) {
+          navigate(`/${slug}/aluno/anamnese`);
+          return;
+        }
       }
     }
 
@@ -82,20 +96,23 @@ const StudentLayout = () => {
 
   // ── Navegação ─────────────────────────────────────────────────
 
-  /** 4 itens que ficam sempre na barra inferior */
+  /** Itens que ficam na barra inferior — filtrados pelo plano da org */
   const primaryItems = [
-    { path: base,                label: "Início",  icon: Home     },
-    { path: `${base}/treinos`,   label: "Treinos", icon: Dumbbell },
-    { path: `${base}/dieta`,     label: "Dieta",   icon: Utensils },
-  ] as const;
+    { path: base,              label: "Início",  icon: Home     },
+    ...(hasTraining ? [{ path: `${base}/treinos`, label: "Treinos", icon: Dumbbell }] : []),
+    { path: `${base}/cardio`,  label: "Cardio",  icon: Activity },
+    ...(hasDiet     ? [{ path: `${base}/dieta`,   label: "Dieta",   icon: Utensils }] : []),
+  ] as { path: string; label: string; icon: React.ElementType }[];
 
   /** Itens agrupados no Menu */
   const secondaryItems = [
-    { path: `${base}/mensagens`, label: "Mensagens", icon: MessageSquare, badge: unreadCount },
-    { path: `${base}/agenda`,    label: "Agenda",    icon: Calendar,      badge: 0 },
-    { path: `${base}/evolucao`,  label: "Evolução",  icon: TrendingUp,    badge: 0 },
-    { path: `${base}/ranking`,   label: "Ranking",   icon: Trophy,        badge: 0 },
-    { path: `${base}/perfil`,    label: "Perfil",    icon: User,          badge: 0 },
+    { path: `${base}/mensagens`,          label: "Mensagens",   icon: MessageSquare, badge: unreadCount },
+    { path: `${base}/agenda`,             label: "Agenda",      icon: Calendar,      badge: 0 },
+    { path: `${base}/atualizacao`,        label: "Atualização", icon: ClipboardList, badge: 0 },
+    { path: `${base}/evolucao`,           label: "Evolução",    icon: TrendingUp,    badge: 0 },
+    { path: `${base}/avaliacao-postural`, label: "Avaliação",   icon: ScanLine,      badge: avaliacaoPendente ? 1 : 0 },
+    { path: `${base}/ranking`,            label: "Ranking",     icon: Trophy,        badge: 0 },
+    { path: `${base}/perfil`,             label: "Perfil",      icon: User,          badge: 0 },
   ] as const;
 
   const isGetShape = isGetShapeOrg;
@@ -115,7 +132,7 @@ const StudentLayout = () => {
   // ─────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0d0d0d" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "hsl(var(--background))" }}>
 
       {/* ── Frame mobile 390px ─────────────────────────────────── */}
       <div
@@ -126,13 +143,14 @@ const StudentLayout = () => {
         <header
           className="sticky top-0 z-10 backdrop-blur-sm"
           style={{
-            backgroundColor: "rgba(9,9,11,0.9)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            // GetShape logo is light-on-dark → always keep header dark regardless of theme
+            backgroundColor: isGetShape ? "rgba(9,9,11,0.96)" : "var(--header-bg)",
+            borderBottom: `1px solid ${isGetShape ? "rgba(255,255,255,0.06)" : "var(--header-border)"}`,
           }}
         >
           <div className="flex items-center justify-between px-4 py-1">
             <div className="flex items-center gap-3">
-              {isGetShape ? (
+              {isGetShape && !org?.logo_url ? (
                 <img
                   src="/logo-gs.png"
                   alt="Get Shape Training"

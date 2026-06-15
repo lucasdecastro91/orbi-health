@@ -98,7 +98,7 @@ const EmptyState = ({ children }: { children: React.ReactNode }) => (
 );
 
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "var(--surface-2)" }}>
+  <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
     <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
     <p className="text-sm font-medium text-foreground leading-snug">{value}</p>
   </div>
@@ -158,17 +158,40 @@ const StudentDashboard = () => {
 
       setProximaAtualizacao(aluno.form_atualizacao_ultima_data);
       setAvaliacaoPendente(!!aluno.avaliacao_postural_pendente);
-      // Usa a coluna na tabela alunos (que o coach consegue atualizar sem bloqueio de RLS)
-      setAnamnese_pendente(!!aluno.anamnese_pendente);
 
-      // Busca mensagem de boas-vindas da anamnese (se existir)
-      if (aluno.anamnese_pendente && orgId) {
-        const { data: tpl } = await (supabase as any)
-          .from("anamnese_templates")
-          .select("introducao")
-          .eq("org_id", orgId)
+      // Verifica se a anamnese já foi preenchida (registro na tabela anamneses)
+      // independentemente do flag anamnese_pendente (que pode estar desatualizado).
+      // Se dispensada pelo treinador, nunca exibe o aviso.
+      if (aluno.anamnese_pendente && !aluno.anamnese_dispensada) {
+        const { data: anamneseRecord } = await supabase
+          .from("anamneses")
+          .select("id, pendente")
+          .eq("student_id", session.user.id)
           .maybeSingle();
-        if (tpl?.introducao) setIntroAnamnese(tpl.introducao);
+
+        if (anamneseRecord) {
+          if (anamneseRecord.pendente) {
+            // Nova anamnese solicitada pelo treinador/colaborador — exibe o aviso
+            setAnamnese_pendente(true);
+          } else {
+            // Anamnese já preenchida e sem nova solicitação — esconde o aviso
+            setAnamnese_pendente(false);
+            void (supabase as any).from("alunos").update({ anamnese_pendente: false }).eq("id", aluno.id);
+          }
+        } else {
+          setAnamnese_pendente(true);
+          // Busca mensagem de boas-vindas da anamnese (se existir)
+          if (orgId) {
+            const { data: tpl } = await (supabase as any)
+              .from("anamnese_templates")
+              .select("introducao")
+              .eq("org_id", orgId)
+              .maybeSingle();
+            if (tpl?.introducao) setIntroAnamnese(tpl.introducao);
+          }
+        }
+      } else {
+        setAnamnese_pendente(false);
       }
 
       const { data: planoData } = await supabase
@@ -291,7 +314,7 @@ const StudentDashboard = () => {
           {[
             { label: "Treino", icon: Dumbbell, path: `${base}/treinos`, active: !!plano },
             { label: "Dieta", icon: Utensils, path: `${base}/dieta`, active: !!dieta },
-            { label: "Check-in", icon: ClipboardList, path: `${base}/check-in`, active: true },
+            { label: "Atualização", icon: ClipboardList, path: `${base}/atualizacao`, active: true },
           ].map((item) => (
             <button
               key={item.label}
@@ -316,7 +339,7 @@ const StudentDashboard = () => {
         {anamnese_pendente && !anamneseDismissed && (
           <div
             className="rounded-2xl border overflow-hidden"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.3)" }}
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.10)", borderColor: "rgba(var(--cp-rgb),0.30)" }}
           >
             {/* Faixa de destaque no topo */}
             <div className="h-1 w-full" style={{ background: "var(--cp-gradient)" }} />
@@ -340,7 +363,7 @@ const StudentDashboard = () => {
                 <>
                   {/* Estilos para o HTML do editor */}
                   <style>{`
-                    .dash-intro b, .dash-intro strong { color: rgba(255,255,255,0.95); font-weight: 700; }
+                    .dash-intro b, .dash-intro strong { color: var(--text-high); font-weight: 700; }
                     .dash-intro i, .dash-intro em { font-style: italic; }
                     .dash-intro u { text-decoration: underline; }
                     .dash-intro a { color: var(--cp-400); }
@@ -349,12 +372,12 @@ const StudentDashboard = () => {
                   `}</style>
                   <div
                     className="dash-intro text-xs leading-relaxed max-h-48 overflow-y-auto pr-1"
-                    style={{ color: "rgba(255,255,255,0.6)" }}
+                    style={{ color: "var(--text-mid)" }}
                     dangerouslySetInnerHTML={{ __html: introAnamnese }}
                   />
                 </>
               ) : (
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text-mid)" }}>
                   Para darmos início à estruturação do seu plano, preencha sua ficha de anamnese. Leva poucos minutos e é essencial para personalizar todo o seu material.
                 </p>
               )}
@@ -373,7 +396,7 @@ const StudentDashboard = () => {
                   type="button"
                   onClick={() => setAnamneseDismissed(true)}
                   className="h-11 px-4 rounded-xl text-sm font-medium transition-colors"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)" }}
+                  style={{ backgroundColor: "var(--surface-2)", color: "var(--text-dim)", border: "1px solid var(--border-subtle)" }}
                 >
                   Lembrar depois
                 </button>
@@ -388,7 +411,7 @@ const StudentDashboard = () => {
             type="button"
             onClick={() => navigate(`${base}/avaliacao-postural`)}
             className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.07)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
           >
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
               <ScanLine className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
@@ -472,7 +495,7 @@ const StudentDashboard = () => {
               <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.22)" }}>
                 <CalendarDays className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
                 <p className="text-sm font-medium" style={{ color: "var(--cp-300)" }}>
-                  Próxima atualização: {format(new Date(proximaAtualizacao), "dd/MM/yyyy")}
+                  Próxima atualização: {(() => { const [y,m,d] = proximaAtualizacao.split("-").map(Number); return format(new Date(y, m-1, d), "dd/MM/yyyy"); })()}
                 </p>
               </div>
             )}

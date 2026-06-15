@@ -17,6 +17,27 @@
     <link rel="icon" href="/logos/orbi-logo-icon.svg" type="image/svg+xml">
     <link rel="shortcut icon" href="/logos/orbi-logo-icon.svg">
     <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicon dinâmico: roda antes do React, sem flash -->
+    <script>
+      (function () {
+        try {
+          var segs = window.location.pathname.split('/').filter(Boolean);
+          var isGS = segs.indexOf('getshape') !== -1;
+          if (isGS) {
+            document.querySelectorAll('link[rel~="icon"]').forEach(function (el) {
+              el.parentNode && el.parentNode.removeChild(el);
+            });
+            var lnk = document.createElement('link');
+            lnk.rel  = 'icon';
+            lnk.type = 'image/png';
+            lnk.href = '/favicon-gs.png';
+            document.head.appendChild(lnk);
+            document.title = 'Get Shape Training';
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png">
 

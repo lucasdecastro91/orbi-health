@@ -31,6 +31,8 @@ const MensagensAluno = () => {
   const [myId,        setMyId]        = useState<string | null>(null);
   const [treinadorId, setTreinadorId] = useState<string | null>(null);
   const [treinadorNome, setTreinadorNome] = useState("Treinador");
+  const [alunoNome,   setAlunoNome]   = useState<string | null>(null);
+  const [alunoRecId,  setAlunoRecId]  = useState<string | null>(null);
   const [mensagens,   setMensagens]   = useState<Mensagem[]>([]);
   const [input,       setInput]       = useState("");
   const [sending,     setSending]     = useState(false);
@@ -47,15 +49,17 @@ const MensagensAluno = () => {
 
       setMyId(session.user.id);
 
-      // Busca treinador do aluno
-      const { data: aluno } = await supabase
-        .from("alunos")
-        .select("treinador_id, profiles!alunos_treinador_id_fkey(nome)")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+      // Busca treinador do aluno e perfil do aluno
+      const [alunoRes, profileRes] = await Promise.all([
+        supabase.from("alunos").select("id, treinador_id, profiles!alunos_treinador_id_fkey(nome)").eq("user_id", session.user.id).maybeSingle(),
+        supabase.from("profiles").select("nome").eq("id", session.user.id).maybeSingle(),
+      ]);
+      const aluno = alunoRes.data;
+      if (profileRes.data?.nome) setAlunoNome(profileRes.data.nome);
 
       if (aluno?.treinador_id) {
         setTreinadorId(aluno.treinador_id);
+        if (aluno.id) setAlunoRecId(aluno.id);
         setTreinadorNome((aluno as any).profiles?.nome ?? "Treinador");
         await loadMessages(session.user.id, aluno.treinador_id);
       } else {
@@ -139,6 +143,24 @@ const MensagensAluno = () => {
 
       if (error) throw error;
       setMensagens((prev) => prev.map((m) => m.id === optimistic.id ? data as Mensagem : m));
+      if (treinadorId && alunoRecId && orgId) {
+        void (async () => {
+          try {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            const { data: existing } = await supabase.from("notificacoes")
+              .select("id").eq("user_id", treinadorId).eq("aluno_id", alunoRecId)
+              .eq("tipo", "mensagem").gte("created_at", oneHourAgo).limit(1);
+            if (!existing || existing.length === 0) {
+              await supabase.from("notificacoes").insert({
+                user_id: treinadorId, org_id: orgId, aluno_id: alunoRecId, aluno_nome: alunoNome,
+                titulo: "Nova mensagem",
+                mensagem: `${alunoNome ?? "Um aluno"} enviou uma mensagem.`,
+                tipo: "mensagem",
+              });
+            }
+          } catch {}
+        })();
+      }
     } catch (err: any) {
       setMensagens((prev) => prev.filter((m) => m.id !== optimistic.id));
       setInput(text);

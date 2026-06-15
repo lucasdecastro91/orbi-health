@@ -47,9 +47,10 @@ const PAGE_SIZE = 25;
 
 // ── Helpers ────────────────────────────────────────────────────
 const fonteBadge = (a: Alimento) => {
-  if (a.fonte === "taco")   return { label: "TACO",   bg: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" };
-  if (a.org_id)             return { label: "Minha",  bg: "rgba(99,102,241,0.12)", color: "#a5b4fc" };
-  return                           { label: "Global", bg: "rgba(34,197,94,0.12)",  color: "#86efac" };
+  if (a.status === "pendente") return { label: "Revisão", bg: "rgba(234,179,8,0.12)",  color: "#fbbf24" };
+  if (a.fonte === "taco")      return { label: "TACO",    bg: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" };
+  if (a.org_id)                return { label: "Minha",   bg: "rgba(99,102,241,0.12)", color: "#a5b4fc" };
+  return                              { label: "Global",  bg: "rgba(34,197,94,0.12)",  color: "#86efac" };
 };
 
 const fmt = (v: number | null, suffix = "g") =>
@@ -86,7 +87,7 @@ const NutritionDetailModal = ({
 
   useEffect(() => {
     (async () => {
-      const { data: row } = await (supabase as any)
+      const { data: row, error } = await (supabase as any)
         .from("alimentos")
         .select(
           "id,nome,porcao_descricao,porcao_gramas,kcal,proteina_g,carb_g,gordura_g,fibra_g," +
@@ -96,6 +97,7 @@ const NutritionDetailModal = ({
         )
         .eq("id", alimentoId)
         .maybeSingle();
+      if (error) console.error("[NutritionDetailModal] erro ao carregar alimento:", error);
       setData(row ?? null);
       setLoading(false);
     })();
@@ -264,7 +266,7 @@ const FoodModal = ({ open, mode, initial, onClose, orgId, onSaved }: FoodModalPr
       let error: any;
       if (mode === "add") {
         const res = await supabase.from("alimentos").insert({
-          ...payload, fonte: "org", org_id: orgId, status: "aprovado",
+          ...payload, fonte: "org", org_id: orgId, status: "pendente",
         });
         error = res.error;
       } else {
@@ -273,7 +275,10 @@ const FoodModal = ({ open, mode, initial, onClose, orgId, onSaved }: FoodModalPr
       }
       if (error) throw error;
 
-      toast({ title: mode === "add" ? "Alimento criado!" : "Alimento atualizado!" });
+      toast({
+        title: mode === "add" ? "Alimento enviado para revisão!" : "Alimento atualizado!",
+        description: mode === "add" ? "Ficará disponível na sua org até ser aprovado para o banco global." : undefined,
+      });
       onSaved();
       onClose();
     } catch (err: any) {
@@ -404,13 +409,25 @@ const BancoAlimentos = () => {
       let q = supabase
         .from("alimentos")
         .select("id,nome,porcao_descricao,porcao_gramas,kcal,proteina_g,carb_g,gordura_g,fibra_g,fonte,org_id,status", { count: "exact" })
-        .eq("status", "aprovado")
         .order("nome")
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (debouncedSearch.trim()) q = q.ilike("nome", `%${debouncedSearch.trim()}%`);
-      if (fonte === "global") q = q.is("org_id", null);
-      else if (fonte === "org" && orgId) q = q.eq("org_id", orgId);
+
+      if (fonte === "org" && orgId) {
+        // Minha org: aprovados E pendentes da própria org
+        q = q.eq("org_id", orgId).in("status", ["aprovado", "pendente"]);
+      } else if (fonte === "global") {
+        // Global: apenas aprovados sem org
+        q = q.eq("status", "aprovado").is("org_id", null);
+      } else {
+        // Todos: aprovados globais + aprovados/pendentes da própria org
+        if (orgId) {
+          q = q.or(`status.eq.aprovado,and(status.eq.pendente,org_id.eq.${orgId})`);
+        } else {
+          q = q.eq("status", "aprovado");
+        }
+      }
 
       const { data, count, error } = await q;
       if (error) throw error;

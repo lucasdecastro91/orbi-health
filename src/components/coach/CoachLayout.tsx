@@ -1,14 +1,17 @@
-﻿import { useState, useEffect, useLayoutEffect } from "react";
+﻿import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users, BookOpen, FileText, Settings, LogOut, ShieldCheck,
   Apple, Database, ChevronDown, Calendar, MessageSquare,
   AlertCircle, Crown, Bell, ListOrdered, ClipboardList, ClipboardCheck, Package,
-  LayoutDashboard, ScanLine, Target, Wallet,
+  LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
+import { useToast } from "@/hooks/use-toast";
 import NotificationBell from "@/components/NotificationBell";
 
 const SUPERADMIN_EMAIL = "lucas.melo1991@gmail.com";
@@ -61,6 +64,9 @@ const CoachLayout = () => {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { slug, org, orgId, isGetShapeOrg } = useTenantContext();
+  const { hasDiet, hasTraining, planType }  = usePlanFeatures();
+  const { isCollaborator, can }             = useCollaboratorPermissions();
+  const { toast }                           = useToast();
   const base = `/${slug}/treinador`;
 
   useEffect(() => { loadProfile(); }, []);
@@ -186,11 +192,11 @@ const CoachLayout = () => {
 
   // Mobile bottom-nav items (flat, no sub-items)
   const menuItems = [
-    { icon: LayoutDashboard, label: "Resumo",    path: base,                       badge: 0 },
-    { icon: Users,           label: "Clientes",  path: `${base}/clientes`,         badge: 0 },
-    { icon: MessageSquare,   label: "Mensagens", path: `${base}/mensagens`,        badge: unreadCount },
-    { icon: Apple,           label: "Alimentos", path: `${base}/alimentos`,        badge: 0 },
-    { icon: Settings,        label: "Config.",   path: `${base}/configuracoes`,    badge: 0 },
+    { icon: LayoutDashboard, label: "Resumo",   path: base,                    badge: 0 },
+    ...(can("treino",         "clientes"      ) ? [{ icon: Users,         label: "Clientes",  path: `${base}/clientes`,      badge: 0           }] : []),
+    ...(can("gestao",         "mensagens"     ) ? [{ icon: MessageSquare, label: "Mensagens", path: `${base}/mensagens`,     badge: unreadCount }] : []),
+    ...(hasDiet && can("nutricao", "alimentos") ? [{ icon: Apple,         label: "Alimentos", path: `${base}/alimentos`,     badge: 0           }] : []),
+    ...(can("administracao",  "configuracoes" ) ? [{ icon: Settings,      label: "Config.",   path: `${base}/configuracoes`, badge: 0           }] : []),
   ];
 
   // Sidebar items (desktop) — split into groups to allow expandable sections in between
@@ -200,17 +206,19 @@ const CoachLayout = () => {
   ];
 
   const midItems = [
-    { icon: Calendar,      label: "Agenda",                   path: `${base}/agenda`,     badge: 0,          exact: false },
-    { icon: MessageSquare, label: "Mensagens",                path: `${base}/mensagens`,  badge: unreadCount, exact: false },
-    { icon: Target,        label: "Leads / CRM",             path: `${base}/leads`,       badge: 0,          exact: false },
-    { icon: Wallet,        label: "Financeiro",              path: `${base}/financeiro`,  badge: 0,          exact: false },
-    { icon: Package,       label: "Produtos / Planos",        path: `${base}/produtos`,   badge: 0,          exact: false },
-    { icon: BookOpen,      label: "Biblioteca de Exercícios", path: `${base}/biblioteca`, badge: 0,          exact: false },
-    { icon: FileText,      label: "Modelos de Treino",        path: `${base}/modelos`,    badge: 0,          exact: false },
+    { icon: Calendar,      label: "Agenda",                  path: `${base}/agenda`,    badge: 0,           exact: false, permCat: "treino" as const,  permKey: "agenda"            },
+    { icon: MessageSquare, label: "Mensagens",               path: `${base}/mensagens`, badge: unreadCount,  exact: false, permCat: "gestao" as const,  permKey: "mensagens"         },
+    { icon: Target,        label: "Leads / CRM",            path: `${base}/leads`,      badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "leads_crm"         },
+    { icon: Wallet,        label: "Financeiro",             path: `${base}/financeiro`, badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "financeiro"        },
+    { icon: Package,       label: "Produtos / Planos",       path: `${base}/produtos`,  badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "produtos_planos"   },
+    ...(hasTraining ? [
+      { icon: BookOpen, label: "Biblioteca de Exercícios",  path: `${base}/biblioteca`, badge: 0, exact: false, permCat: "treino" as const, permKey: "biblioteca_exercicios" },
+      { icon: FileText, label: "Modelos de Treino",         path: `${base}/modelos`,    badge: 0, exact: false, permCat: "treino" as const, permKey: "modelos_treino"        },
+    ] : []),
   ];
 
   const bottomItems = [
-    { icon: Bell, label: "Notificações", path: `${base}/notificacoes`, badge: 0, exact: false },
+    { icon: Bell, label: "Notificações", path: `${base}/notificacoes`, badge: 0, exact: false, permCat: "gestao" as const, permKey: "notificacoes" },
   ];
 
   // Meus Clientes sub-items
@@ -235,7 +243,23 @@ const CoachLayout = () => {
     { icon: ClipboardCheck, label: "Anamnese",                path: `${base}/anamnese-builder`       },
     { icon: ScanLine,      label: "Avaliação Postural",        path: `${base}/postural-eval-builder`  },
     { icon: ClipboardList, label: "Formulário de Atualização", path: `${base}/formulario`            },
+    // Colaboradores: só visível para owners (não colaboradores)
+    ...(!isCollaborator ? [{ icon: Users2, label: "Colaboradores", path: `${base}/colaboradores` }] : []),
   ];
+
+  // ── Helpers de permissão ───────────────────────────────────────
+  // showLocked: colaborador sem permissão em org Pro → mostra com cadeado
+  // hideItem:   colaborador sem permissão em org Motion → oculta item
+  const showLocked = useCallback((cat: Parameters<typeof can>[0], key: string) =>
+    isCollaborator && !can(cat, key) && planType !== "motion",
+  [isCollaborator, can, planType]);
+
+  const hideItem = useCallback((cat: Parameters<typeof can>[0], key: string) =>
+    isCollaborator && !can(cat, key) && planType === "motion",
+  [isCollaborator, can, planType]);
+
+  const notifyNoAccess = () =>
+    toast({ title: "Acesso restrito", description: "Você não tem acesso a esta seção. Solicite ao administrador." });
 
   const isActive = (path: string, exact = false) =>
     exact || path === base
@@ -254,7 +278,8 @@ const CoachLayout = () => {
     location.pathname.includes("/formulario") ||
     location.pathname.includes("/alterar-senha") ||
     location.pathname.includes("/anamnese-builder") ||
-    location.pathname.includes("/postural-eval-builder");
+    location.pathname.includes("/postural-eval-builder") ||
+    location.pathname.includes("/colaboradores");
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,19 +292,11 @@ const CoachLayout = () => {
         className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 flex items-center justify-between px-4 backdrop-blur-sm"
         style={{ backgroundColor: S.bg, borderBottom: `1px solid ${S.border}` }}
       >
-        {isSuperAdmin ? (
-          <img
-            src="/logo-gs.png"
-            alt="Get Shape Training"
-            className="h-[40px] w-auto object-contain"
-          />
-        ) : (
-          <img
-            src={org?.logo_url ?? "/logos/orbi-logo-horizontal-dark.svg"}
-            alt={org?.name ?? "ORBI Pro"}
-            className="h-9 w-auto object-contain"
-          />
-        )}
+        <img
+          src={org?.logo_url ?? (isSuperAdmin ? "/logo-gs.png" : "/logos/orbi-logo-horizontal-dark.svg")}
+          alt={org?.name ?? (isSuperAdmin ? "Get Shape Training" : "ORBI Pro")}
+          className="h-9 w-auto object-contain"
+        />
         <div className="flex items-center gap-2">
           <NotificationBell role="coach" />
           <button
@@ -339,19 +356,11 @@ const CoachLayout = () => {
           className="px-6 pt-6 pb-5 flex items-center justify-between"
           style={{ borderBottom: `1px solid ${S.border}` }}
         >
-          {isSuperAdmin ? (
-            <img
-              src="/logo-gs.png"
-              alt="Get Shape Training"
-              className="h-[52px] w-auto object-contain"
-            />
-          ) : (
-            <img
-              src={org?.logo_url ?? "/logos/orbi-logo-horizontal-dark.svg"}
-              alt={org?.name ?? "ORBI Pro"}
-              className="w-[120px] h-auto object-contain"
-            />
-          )}
+          <img
+            src={org?.logo_url ?? (isSuperAdmin ? "/logo-gs.png" : "/logos/orbi-logo-horizontal-dark.svg")}
+            alt={org?.name ?? (isSuperAdmin ? "Get Shape Training" : "ORBI Pro")}
+            className="h-10 w-auto max-w-[160px] object-contain"
+          />
           <NotificationBell role="coach" />
         </div>
 
@@ -416,7 +425,15 @@ const CoachLayout = () => {
           })}
 
           {/* ── Meus Clientes (expandable section) ── */}
-          <div>
+          {hideItem("treino", "clientes") ? null : showLocked("treino", "clientes") ? (
+            <button type="button" className="w-full text-left" onClick={notifyNoAccess}>
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left">Meus Clientes</span>
+                <Lock className="w-3.5 h-3.5 opacity-40" />
+              </div>
+            </button>
+          ) : <div>
             <button
               onClick={() => setClientesOpen((v) => !v)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -471,32 +488,37 @@ const CoachLayout = () => {
                 })}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* ── Mid items: Agenda, Mensagens, Produtos, Biblioteca, Modelos ── */}
           {midItems.map((item) => {
-            const active = isActive(item.path, item.exact);
-            return (
-              <Link key={item.path} to={item.path}>
-                <div
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-                  style={
-                    active
-                      ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+            if (hideItem(item.permCat, item.permKey)) return null;
+            const locked = showLocked(item.permCat, item.permKey);
+            const active = !locked && isActive(item.path, item.exact);
+            const inner = (
+              <div
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                style={
+                  active
+                    ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                    : locked
+                      ? { color: "rgba(255,255,255,0.3)" }
                       : { color: S.textMuted }
-                  }
-                  onMouseEnter={(e) => {
-                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
-                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textMuted;
-                  }}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge > 0 && (
+                }
+                onMouseEnter={(e) => {
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                }}
+                onMouseLeave={(e) => {
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.color = S.textMuted;
+                }}
+              >
+                <item.icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {locked
+                  ? <Lock className="w-3.5 h-3.5 opacity-40 shrink-0" />
+                  : item.badge > 0 && (
                     <span
                       className="min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center px-1"
                       style={{ backgroundColor: active ? "rgba(255,255,255,0.25)" : "hsl(0 70% 55%)", color: "#fff" }}
@@ -504,13 +526,23 @@ const CoachLayout = () => {
                       {item.badge > 99 ? "99+" : item.badge}
                     </span>
                   )}
-                </div>
-              </Link>
+              </div>
             );
+            return locked
+              ? <button key={item.path} type="button" className="w-full text-left" onClick={notifyNoAccess}>{inner}</button>
+              : <Link key={item.path} to={item.path}>{inner}</Link>;
           })}
 
-          {/* ── Alimentos (expandable section) ── */}
-          <div>
+          {/* ── Alimentos (expandable section) — visível só quando hasDiet ── */}
+          {hasDiet && (hideItem("nutricao", "alimentos") ? null : showLocked("nutricao", "alimentos") ? (
+            <button type="button" className="w-full text-left" onClick={notifyNoAccess}>
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <Apple className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left">Alimentos</span>
+                <Lock className="w-3.5 h-3.5 opacity-40" />
+              </div>
+            </button>
+          ) : <div>
             <button
               onClick={() => setAlimentosOpen((v) => !v)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -559,38 +591,52 @@ const CoachLayout = () => {
                 })}
               </div>
             )}
-          </div>
+          </div>)}
 
           {/* ── Bottom items: Notificações ── */}
           {bottomItems.map((item) => {
-            const active = isActive(item.path, item.exact);
-            return (
-              <Link key={item.path} to={item.path}>
-                <div
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-                  style={
-                    active
-                      ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+            if (hideItem(item.permCat, item.permKey)) return null;
+            const locked = showLocked(item.permCat, item.permKey);
+            const active = !locked && isActive(item.path, item.exact);
+            const inner = (
+              <div
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                style={
+                  active
+                    ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                    : locked
+                      ? { color: "rgba(255,255,255,0.3)" }
                       : { color: S.textMuted }
-                  }
-                  onMouseEnter={(e) => {
-                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
-                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                    if (!active) (e.currentTarget as HTMLElement).style.color = S.textMuted;
-                  }}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                </div>
-              </Link>
+                }
+                onMouseEnter={(e) => {
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                }}
+                onMouseLeave={(e) => {
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                  if (!active && !locked) (e.currentTarget as HTMLElement).style.color = S.textMuted;
+                }}
+              >
+                <item.icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {locked && <Lock className="w-3.5 h-3.5 opacity-40 shrink-0" />}
+              </div>
             );
+            return locked
+              ? <button key={item.path} type="button" className="w-full text-left" onClick={notifyNoAccess}>{inner}</button>
+              : <Link key={item.path} to={item.path}>{inner}</Link>;
           })}
 
           {/* ── Configurações (expandable section) ── */}
-          <div>
+          {hideItem("administracao", "configuracoes") ? null : showLocked("administracao", "configuracoes") ? (
+            <button type="button" className="w-full text-left" onClick={notifyNoAccess}>
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <Settings className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left">Configurações</span>
+                <Lock className="w-3.5 h-3.5 opacity-40" />
+              </div>
+            </button>
+          ) : <div>
             <button
               onClick={() => setConfigOpen((v) => !v)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
@@ -639,7 +685,7 @@ const CoachLayout = () => {
                 })}
               </div>
             )}
-          </div>
+          </div>}
 
         </nav>
 

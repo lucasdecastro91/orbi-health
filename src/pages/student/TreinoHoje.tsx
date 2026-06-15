@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import {
   ArrowLeft, CheckCircle, Loader2, Timer, Play, Pause,
-  SkipForward, Dumbbell, X, Trophy,
+  SkipForward, Dumbbell, X, Trophy, TrendingUp,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -31,6 +31,8 @@ interface Exercicio {
   ordem: number;
   carga_base: string | null;
   series_detalhadas: SerieDetalhe[] | null;
+  exercicio_base_id: string | null;
+  grupo_muscular_principal?: string | null;
 }
 
 interface Treino {
@@ -307,6 +309,10 @@ const TreinoHoje = () => {
   // Saved cargas per exercise: { [exercicioId]: "80kg" }
   const [cargasBase, setCargasBase] = useState<Record<string, string>>({});
 
+  // Inline carga editing in card header
+  const [editingCargaId,    setEditingCargaId]    = useState<string | null>(null);
+  const [editingCargaValue, setEditingCargaValue] = useState("");
+
   // Brief "just completed" set — drives pop-in animation on check icon
   const [justDoneEx, setJustDoneEx] = useState<Set<string>>(new Set());
 
@@ -348,7 +354,7 @@ const TreinoHoje = () => {
       const { data: treinoData } = await supabase
         .from("treinos")
         .select(`id, titulo_treino, descricao_geral, dia_semana,
-          exercicios (id, nome_exercicio, series, repeticoes, descanso, observacoes, video_url, ordem, carga_base, series_detalhadas)`)
+          exercicios (id, nome_exercicio, series, repeticoes, descanso, observacoes, video_url, ordem, carga_base, series_detalhadas, exercicio_base_id, exercicios_base(grupo_muscular_principal))`)
         .eq("semana_id", semana.id)
         .order("ordem", { ascending: true })
         .limit(1).single();
@@ -387,7 +393,12 @@ const TreinoHoje = () => {
                 }));
               })();
 
-          return { ...ex, series_detalhadas: effectiveSd };
+          const grupoMuscular = (ex.exercicios_base as any)?.grupo_muscular_principal ?? null;
+          return {
+            ...ex,
+            series_detalhadas: effectiveSd,
+            grupo_muscular_principal: grupoMuscular,
+          };
         });
 
         const treino = { ...treinoData, exercicios: sortedExs } as Treino;
@@ -430,7 +441,7 @@ const TreinoHoje = () => {
       return next;
     });
 
-    // Detect exercise completion for pop-in animation
+    // Detect exercise completion for pop-in animation + historico_carga save
     const ex = treino?.exercicios.find((e) => e.id === exId);
     if (ex) {
       const prevDone = completedSets[exId]?.size ?? 0;
@@ -440,6 +451,17 @@ const TreinoHoje = () => {
           () => setJustDoneEx((prev) => { const n = new Set(prev); n.delete(exId); return n; }),
           550,
         );
+        // Silently log to historico_carga when all sets are done
+        const cargaAtual = cargasBase[exId];
+        if (alunoId && cargaAtual) {
+          supabase.from("historico_carga").insert({
+            exercicio_id: exId,
+            aluno_id: alunoId,
+            carga: cargaAtual,
+          }).then(({ error }) => {
+            if (error) console.warn("[historico_carga]", error.message);
+          });
+        }
       }
     }
 
@@ -461,6 +483,23 @@ const TreinoHoje = () => {
       }
       return next;
     });
+  };
+
+  const handleSaveCargaTreino = async (exId: string) => {
+    const novaCarga = editingCargaValue.trim();
+    if (!novaCarga || !alunoId) { setEditingCargaId(null); return; }
+    const now = new Date().toISOString();
+    setCargasBase((prev) => ({ ...prev, [exId]: novaCarga }));
+    setEditingCargaId(null);
+    await Promise.all([
+      supabase.from("exercicios_carga").upsert(
+        { exercicio_id: exId, aluno_id: alunoId, carga: novaCarga, data_registro: now },
+        { onConflict: "exercicio_id,aluno_id" },
+      ),
+      supabase.from("historico_carga").insert(
+        { exercicio_id: exId, aluno_id: alunoId, carga: novaCarga, data_registro: now },
+      ),
+    ]).catch((err) => console.warn("[saveCargaTreino]", err));
   };
 
   // ── Totals ────────────────────────────────────────────────────────
@@ -730,6 +769,40 @@ const TreinoHoje = () => {
                   )}
                 </div>
 
+                {/* ── Carga inline editor ── */}
+                <div className="px-4 pb-2">
+                  {editingCargaId === ex.id ? (
+                    <div className="flex gap-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        inputMode="decimal"
+                        value={editingCargaValue}
+                        onChange={(e) => setEditingCargaValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveCargaTreino(ex.id);
+                          if (e.key === "Escape") setEditingCargaId(null);
+                        }}
+                        placeholder="Ex: 40kg"
+                        className="flex-1 h-8 rounded-xl px-3 text-sm outline-none"
+                        style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "hsl(var(--foreground))" }}
+                      />
+                      <button onClick={() => handleSaveCargaTreino(ex.id)} className="h-8 px-3 rounded-xl text-xs font-semibold" style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}>OK</button>
+                      <button onClick={() => setEditingCargaId(null)} className="h-8 px-2.5 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingCargaId(ex.id); setEditingCargaValue(cargasBase[ex.id] ?? ""); }}
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>Carga:</span>
+                      <span className="font-semibold" style={{ color: cargasBase[ex.id] ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.2)" }}>
+                        {cargasBase[ex.id] ?? "— toque para registrar"}
+                      </span>
+                    </button>
+                  )}
+                </div>
+
                 {/* ── Separator ── */}
                 <div
                   className="mx-4 h-px"
@@ -905,11 +978,96 @@ const TreinoHoje = () => {
                     </div>
                   </a>
                 )}
+
+                {/* ── Ver evolução de carga ── */}
+                <button
+                  onClick={() => navigate(`/${slug}/aluno/exercicio/${ex.id}`)}
+                  className="mx-3 mb-3 flex items-center gap-1.5 text-xs"
+                  style={{ color: "rgba(255,255,255,0.25)" }}
+                >
+                  <TrendingUp className="w-3 h-3" />
+                  Ver evolução de carga
+                </button>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          VOLUME RESUMO — Resumo do volume por grupamento muscular
+      ══════════════════════════════════════════════════════════════ */}
+      {treino && (() => {
+        // Build volume map: grupo → total series × reps
+        const parseRepsNum = (r: string): number => {
+          if (!r) return 0;
+          const clean = r.trim().replace(/\s*x\s*/i, '');
+          if (clean.includes('-')) {
+            const parts = clean.split('-').map(Number);
+            return parts.every(n => !isNaN(n)) ? Math.round((parts[0] + parts[1]) / 2) : 0;
+          }
+          const n = parseFloat(clean);
+          return isNaN(n) ? 0 : n;
+        };
+
+        const volumeMap: Record<string, number> = {};
+        treino.exercicios.forEach(ex => {
+          const grupo = ex.grupo_muscular_principal;
+          if (!grupo) return;
+          let vol = 0;
+          if (ex.series_detalhadas && ex.series_detalhadas.length > 0) {
+            vol = ex.series_detalhadas.reduce((acc, s) => acc + parseRepsNum(s.repeticoes), 0);
+          } else {
+            const sets = parseInt(ex.series) || 0;
+            const reps = parseRepsNum(ex.repeticoes);
+            vol = sets * reps;
+          }
+          volumeMap[grupo] = (volumeMap[grupo] || 0) + vol;
+        });
+
+        const entries = Object.entries(volumeMap).sort((a, b) => b[1] - a[1]);
+        if (entries.length === 0) return null;
+
+        const maxVol = entries[0][1];
+
+        return (
+          <div className="max-w-lg mx-auto px-4 pb-4">
+            <div
+              className="rounded-2xl border p-4"
+              style={{ borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)" }}
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.35)" }}>
+                Volume do treino
+              </p>
+              <div className="space-y-2">
+                {entries.map(([grupo, vol]) => (
+                  <div key={grupo} className="flex items-center gap-2.5">
+                    <span className="text-xs w-24 shrink-0 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>
+                      {grupo}
+                    </span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.round((vol / maxVol) * 100)}%`,
+                          background: "var(--cp-gradient, linear-gradient(135deg, #f59e0b, #d97706))",
+                          opacity: 0.5 + 0.5 * (vol / maxVol),
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs w-8 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      {vol}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs mt-2.5" style={{ color: "rgba(255,255,255,0.2)" }}>
+                Volume = séries × repetições por grupamento
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ══════════════════════════════════════════════════════════════
           FIXED BOTTOM BAR

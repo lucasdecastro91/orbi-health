@@ -9,7 +9,7 @@
  */
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_EMAIL     = "ORBI Pro <noreply@orbipro.com.br>";
+const FROM_EMAIL     = "ORBI Pro <noreply@orbihealth.com.br>";
 
 const cors = {
   "Access-Control-Allow-Origin":  "*",
@@ -106,6 +106,76 @@ function boasVindasTemplate(nome: string, email: string, senha: string, orgName:
   };
 }
 
+function conviteColaboradorTemplate(
+  name: string, orgName: string, coachName: string,
+  role: string, inviteUrl: string,
+) {
+  return {
+    subject: `Você foi convidado para colaborar no ${orgName}`,
+    html: `
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Convite de colaboração — ${orgName}</title>
+  <style type="text/css">
+    @media only screen and (max-width: 600px) {
+      .email-wrapper { background-color: #000000 !important; }
+      .email-card    { background-color: #1a1a1a !important; }
+      .header-cell   { background-color: #111111 !important; }
+      * { color: inherit !important; }
+    }
+  </style>
+</head>
+<body bgcolor="#000000" style="margin:0;padding:0;background:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table class="email-wrapper" width="100%" cellpadding="0" cellspacing="0" style="background:#000000;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table class="email-card" width="100%" style="max-width:480px;background:#111113;border-radius:16px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+          <tr>
+            <td class="header-cell" style="background:#111111;padding:20px 24px;border-bottom:2px solid #f59e0b;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">ORBI Pro</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#a0a0a0;">${orgName}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#fff;">
+                Olá, ${name}! 👋
+              </h1>
+              <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;">
+                <strong style="color:#fff;">${coachName}</strong> te convidou para colaborar na plataforma
+                <strong style="color:#fff;">${orgName}</strong> como <strong style="color:hsl(42,95%,65%);">${role}</strong>.
+              </p>
+              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;">
+                Clique no botão abaixo para criar sua senha e começar a usar o painel.
+              </p>
+              <a href="${inviteUrl}"
+                style="display:block;text-align:center;background:linear-gradient(135deg,hsl(42,95%,58%),hsl(35,92%,44%));color:#000;font-weight:700;font-size:14px;text-decoration:none;padding:14px 24px;border-radius:12px;margin-bottom:24px;">
+                Aceitar convite →
+              </a>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;text-align:center;">
+                Este link expira em 24 horas. Se você não esperava este convite, ignore este e-mail.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);text-align:center;">
+                Este e-mail foi enviado automaticamente. Não responda a esta mensagem.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
 // ── Handler ────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -129,6 +199,14 @@ Deno.serve(async (req) => {
         return json({ error: "Missing fields: nome, email, senha, orgName, appUrl" }, 400);
       }
       const tpl = boasVindasTemplate(nome, email, senha, orgName, appUrl);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "convite_colaborador") {
+      const { name, orgName, coachName, role, inviteUrl } = data;
+      if (!name || !orgName || !coachName || !role || !inviteUrl) {
+        return json({ error: "Missing fields: name, orgName, coachName, role, inviteUrl" }, 400);
+      }
+      const tpl = conviteColaboradorTemplate(name, orgName, coachName, role, inviteUrl);
       subject = tpl.subject;
       html    = tpl.html;
     } else {

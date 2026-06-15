@@ -4,7 +4,7 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, GripVertical,
-  Save, ClipboardList, Loader2, Check,
+  Save, ClipboardList, Loader2, Check, Lock, Camera, Settings2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -33,14 +33,22 @@ interface SecaoEdit {
   campos:   CampoEdit[];
 }
 
-const TIPO_LABELS: Record<TipoCampo, string> = {
+// "file" foi removido do menu — fotos são gerenciadas pelos slots da Evolução
+const TIPO_LABELS: Record<Exclude<TipoCampo, "file">, string> = {
   text:     "Texto curto",
   textarea: "Texto longo",
   number:   "Número",
   radio:    "Múltipla escolha (única)",
   checkbox: "Múltipla escolha (múltipla)",
-  file:     "Upload de arquivo",
 };
+
+const DEFAULT_EVO_SLOTS = [
+  { key: "front",      label: "Frente"  },
+  { key: "side_left",  label: "Lado E." },
+  { key: "side_right", label: "Lado D." },
+  { key: "back",       label: "Costas"  },
+  { key: "free",       label: "Livre"   },
+];
 
 const uid = () => crypto.randomUUID();
 
@@ -65,6 +73,7 @@ const FormBuilder = () => {
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [formId,   setFormId]   = useState<string | null>(null);
+  const [evoSlots, setEvoSlots] = useState<{ key: string; label: string }[]>(DEFAULT_EVO_SLOTS);
 
   // Form meta
   const [titulo,     setTitulo]     = useState("Atualização");
@@ -84,6 +93,16 @@ const FormBuilder = () => {
   // ── Load ──────────────────────────────────────────────────────
   const loadForm = async () => {
     try {
+      // Carrega slots configurados pela org (fallback nos padrões)
+      const { data: slotsData } = await supabase
+        .from("evolution_photo_slots")
+        .select("slot_key, label, ordem")
+        .eq("org_id", orgId ?? "")
+        .order("ordem", { ascending: true });
+      if (slotsData && slotsData.length > 0) {
+        setEvoSlots(slotsData.map(s => ({ key: s.slot_key, label: s.label })));
+      }
+
       const { data } = await supabase
         .from("atualizacao_forms")
         .select(`
@@ -322,16 +341,26 @@ const FormBuilder = () => {
           />
           {/* Tipo + Obrigatório */}
           <div className="flex items-center gap-2">
-            <select
-              value={c.tipo}
-              onChange={e => onUpdate({ tipo: e.target.value as TipoCampo, opcoes: [] })}
-              className="flex-1 h-8 rounded-lg border border-white/10 text-xs px-2 outline-none"
-              style={{ backgroundColor: "var(--section-card-bg)", color: "hsl(var(--foreground))", borderColor: "var(--section-card-border)" }}
-            >
-              {(Object.entries(TIPO_LABELS) as [TipoCampo, string][]).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
+            {c.tipo === "file" ? (
+              /* campo de foto: tipo bloqueado — não editável */
+              <div
+                className="flex-1 h-8 rounded-lg border border-white/10 px-2 flex items-center gap-1.5 text-xs text-white/30"
+                style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+              >
+                <Lock className="w-3 h-3" /> Fotos de Evolução
+              </div>
+            ) : (
+              <select
+                value={c.tipo}
+                onChange={e => onUpdate({ tipo: e.target.value as TipoCampo, opcoes: [] })}
+                className="flex-1 h-8 rounded-lg border border-white/10 text-xs px-2 outline-none"
+                style={{ backgroundColor: "var(--section-card-bg)", color: "hsl(var(--foreground))", borderColor: "var(--section-card-border)" }}
+              >
+                {(Object.entries(TIPO_LABELS) as [Exclude<TipoCampo,"file">, string][]).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            )}
             <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer shrink-0">
               <input
                 type="checkbox"
@@ -343,11 +372,11 @@ const FormBuilder = () => {
             </label>
           </div>
         </div>
-        {/* Ações */}
+        {/* Ações — bloqueadas para campos de foto (gerenciados pela Evolução) */}
         <div className="flex flex-col gap-1 shrink-0">
-          <button onClick={() => onMove(-1)} disabled={idx === 0} className="p-1 rounded text-white/30 hover:text-white/70 disabled:opacity-20"><ChevronUp className="w-3.5 h-3.5" /></button>
-          <button onClick={() => onMove(1)} disabled={idx === total - 1} className="p-1 rounded text-white/30 hover:text-white/70 disabled:opacity-20"><ChevronDown className="w-3.5 h-3.5" /></button>
-          <button onClick={onRemove} className="p-1 rounded text-red-400/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => onMove(-1)} disabled={idx === 0 || c.tipo === "file"} className="p-1 rounded text-white/30 hover:text-white/70 disabled:opacity-20"><ChevronUp className="w-3.5 h-3.5" /></button>
+          <button onClick={() => onMove(1)} disabled={idx === total - 1 || c.tipo === "file"} className="p-1 rounded text-white/30 hover:text-white/70 disabled:opacity-20"><ChevronDown className="w-3.5 h-3.5" /></button>
+          <button onClick={onRemove} disabled={c.tipo === "file"} className="p-1 rounded text-red-400/50 hover:text-red-400 disabled:opacity-20 disabled:cursor-not-allowed"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
@@ -367,20 +396,32 @@ const FormBuilder = () => {
         </div>
       )}
 
-      {/* Config de arquivo */}
+      {/* Fotos por slot — campo gerenciado automaticamente */}
       {c.tipo === "file" && (
-        <div className="pl-6 space-y-2">
-          <label className="flex items-center gap-2 text-xs text-white/60 cursor-pointer">
-            <input type="checkbox" checked={c.configMultiple} onChange={e => onUpdate({ configMultiple: e.target.checked })} className="accent-amber-500" />
-            Permitir múltiplos arquivos
-          </label>
-          <input
-            type="text"
-            value={c.configAccept}
-            onChange={e => onUpdate({ configAccept: e.target.value })}
-            placeholder="Tipos aceitos (ex: image/*, .pdf)"
-            className="w-full h-8 rounded-lg bg-white/5 border border-white/10 px-2 text-xs text-white placeholder:text-white/30 outline-none"
-          />
+        <div
+          className="ml-6 rounded-xl p-3 space-y-2"
+          style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div className="flex items-center gap-2">
+            <Camera className="w-3.5 h-3.5 text-white/30" />
+            <p className="text-xs font-semibold text-white/50">Fotos de Evolução — slots ativos</p>
+            <Lock className="w-3 h-3 text-white/20 ml-auto" />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {evoSlots.map(s => (
+              <span
+                key={s.key}
+                className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+                style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}
+              >
+                {s.label}
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] text-white/25 flex items-center gap-1">
+            <Settings2 className="w-3 h-3" />
+            Para alterar os slots, acesse Configurações → Slots de Fotos
+          </p>
         </div>
       )}
 

@@ -39,6 +39,8 @@ import NotificationsManager  from "./pages/coach/NotificationsManager";
 import ListaSubstituicao      from "./pages/coach/ListaSubstituicao";
 import FormBuilder            from "./pages/coach/FormBuilder";
 import AtualizacoesCoach      from "./pages/coach/AtualizacoesCoach";
+import Colaboradores          from "./pages/coach/Colaboradores";
+import ConviteAccept          from "./pages/ConviteAccept";
 import AnamneseBuilder        from "./pages/coach/AnamneseBuilder";
 import PosturalEvalBuilder    from "./pages/coach/PosturalEvalBuilder";
 import Leads                  from "./pages/coach/Leads";
@@ -100,8 +102,9 @@ function applyFavicon(href: string, type = "image/x-icon") {
 const GET_SHAPE_EMAIL = "lucas.melo1991@gmail.com";
 
 const App = () => {
-  const [isLoading,     setIsLoading]     = useState(true);
+  const [isLoading,      setIsLoading]      = useState(true);
   const [isGetShapeUser, setIsGetShapeUser] = useState(false);
+  const [splashIconUrl,  setSplashIconUrl]  = useState<string | null>(null);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -143,7 +146,7 @@ const App = () => {
         if (pathSlug && !knownPublicPaths.includes(pathSlug)) {
           const { data: orgData } = await supabase
             .from("organizations")
-            .select("id, slug, is_gs_brand")
+            .select("id, slug, is_gs_brand, icon_url")
             .eq("slug", pathSlug)
             .eq("active", true)
             .maybeSingle();
@@ -153,8 +156,12 @@ const App = () => {
             localStorage.setItem("gs_org_slug", orgData.slug);
             localStorage.setItem("gs_brand",    "1");
             setIsGetShapeUser(true);
+            setSplashIconUrl((orgData as { icon_url?: string | null }).icon_url ?? null);
             document.title = "Get Shape";
             applyFavicon("/favicon-gs.png", "image/png");
+          } else if (orgData) {
+            // Org não-GS: armazena icon_url para o splash
+            setSplashIconUrl((orgData as { icon_url?: string | null }).icon_url ?? null);
           }
         }
       } finally {
@@ -166,7 +173,7 @@ const App = () => {
     checkSession();
   }, []);
 
-  if (isLoading) return <SplashScreen isGetShape={isGetShapeUser} />;
+  if (isLoading) return <SplashScreen isGetShape={isGetShapeUser} iconUrl={splashIconUrl} />;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -185,6 +192,7 @@ const App = () => {
             <Route path="/auth-legacy"     element={<Auth />} />
             <Route path="/cadastro" element={<Signup />} />
             <Route path="/assinar"  element={<PlanSelection />} />
+            <Route path="/convite/:token" element={<ConviteAccept />} />
 
             {/* ── Rotas com contexto de org (/:slug/*) ── */}
             <Route path="/:slug" element={<OrgWrapper />}>
@@ -214,6 +222,7 @@ const App = () => {
                 <Route path="postural-eval-builder"   element={<PosturalEvalBuilder />} />
                 <Route path="leads"                   element={<Leads />} />
                 <Route path="financeiro"             element={<Financeiro />} />
+                <Route path="colaboradores"         element={<Colaboradores />} />
               </Route>
 
               {/* Student routes — com layout */}
@@ -223,7 +232,7 @@ const App = () => {
                 <Route path="dieta"            element={<Dieta />} />
                 <Route path="dieta/historico" element={<DietHistory />} />
                 <Route path="ranking"         element={<Ranking />} />
-                <Route path="check-in"         element={<CheckIn />} />
+                {/* check-in desativado — substituído por Atualização */}
                 <Route path="atualizacao"      element={<Atualizacao />} />
                 <Route path="feedbacks"        element={<Feedbacks />} />
                 <Route path="perfil"           element={<Profile />} />
