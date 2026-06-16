@@ -393,30 +393,30 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     const vh = v.videoHeight;
     if (!vw || !vh) return;
 
-    // iOS can deliver landscape raw pixels even when the phone is in portrait.
-    // Use window.innerHeight/Width (always the viewport) instead of v.clientHeight/Width
-    // because on some iOS/Safari versions clientWidth/Height returns the video's intrinsic
-    // pixel size (e.g. 1280×720) instead of the rendered CSS size, making the check wrong.
-    const displayedPortrait = window.innerHeight > window.innerWidth;
-    const rawLandscape      = vw > vh;
+    // iOS Safari bug: ctx.drawImage(video) with active transforms can silently produce
+    // a blank or untransformed frame. Workaround: capture raw pixels to a temp canvas
+    // first (no transforms), then rotate the temp canvas onto the output canvas.
+    const tmp = document.createElement("canvas");
+    tmp.width  = vw;
+    tmp.height = vh;
+    tmp.getContext("2d")!.drawImage(v, 0, 0);
 
-    if (displayedPortrait && rawLandscape) {
-      c.width  = vh;
-      c.height = vw;
+    if (vw > vh) {
+      // Landscape raw pixels on a portrait device — rotate 90° CW to produce portrait output.
+      c.width  = vh;   // portrait width  = landscape height
+      c.height = vw;   // portrait height = landscape width
+      ctx.save();
       ctx.translate(vh / 2, vw / 2);
       ctx.rotate(Math.PI / 2);
-      ctx.drawImage(v, -vw / 2, -vh / 2);
+      ctx.drawImage(tmp, -vw / 2, -vh / 2);
+      ctx.restore();
+      setDebugRes(`rotated 90° CW → ${vh}×${vw}`);
     } else {
-      // Replicate CSS object-cover: capture only the visible region of the video.
-      // IMPORTANT: always use window.innerWidth/innerHeight, NOT v.clientWidth/clientHeight.
-      // On some iOS/Safari versions clientWidth/clientHeight return the video's intrinsic
-      // pixel size instead of the rendered CSS size, which breaks the crop calculation.
+      // Portrait video — no rotation needed; replicate object-cover crop.
       const dispW = window.innerWidth;
       const dispH = window.innerHeight;
-
       const videoAspect   = vw / vh;
       const displayAspect = dispW / dispH;
-
       let sx = 0, sy = 0, sw = vw, sh = vh;
       if (videoAspect > displayAspect) {
         sw = Math.round(vh * displayAspect);
@@ -425,15 +425,13 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
         sh = Math.round(vw / displayAspect);
         sy = Math.round((vh - sh) / 2);
       }
-
-      sw = Math.min(sw, vw);
-      sh = Math.min(sh, vh);
+      sw = Math.min(sw, vw); sh = Math.min(sh, vh);
       sx = Math.max(0, Math.min(sx, vw - sw));
       sy = Math.max(0, Math.min(sy, vh - sh));
-
       c.width  = sw;
       c.height = sh;
-      ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
+      ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      setDebugRes(`crop ${sw}×${sh}`);
     }
 
     const url = c.toDataURL("image/jpeg", 0.88);
