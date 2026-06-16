@@ -265,6 +265,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
   const [miniOpen,      setMiniOpen]      = useState(true);
   const [camBlocked,    setCamBlocked]    = useState(false);
   const [camRequesting, setCamRequesting] = useState(false);
+  const [debugRes,      setDebugRes]      = useState<string | null>(null); // DIAGNÓSTICO TEMPORÁRIO — remover depois
 
   // ── Timer state ────────────────────────────────────────────────
   const [timerDuration,   setTimerDuration]   = useState(10);
@@ -279,10 +280,70 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     setCamBlocked(false);
     setCamRequesting(true);
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1920 } },
-        audio: false,
-      });
+      let s: MediaStream | null = null;
+
+      // Tenta selecionar explicitamente a lente principal (evita telephoto/ultra-wide
+      // que alguns navegadores escolhem por engano ao usar apenas facingMode).
+      try {
+        const devices     = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter((d) => d.kind === "videoinput");
+        if (videoInputs.length > 0) {
+          const wantedKw = facing === "environment"
+            ? ["back", "traseira", "rear", "wide angle", "principal"]
+            : ["front", "frontal", "user", "selfie"];
+          const avoidKw  = ["telephoto", "tele", "ultra wide", "ultra-wide", "ultrawide", "zoom"];
+
+          const safe    = videoInputs.filter((d) => !avoidKw.some((kw) => d.label.toLowerCase().includes(kw)));
+          const matched = safe.find((d) => wantedKw.some((kw) => d.label.toLowerCase().includes(kw)));
+          const chosen  = matched ?? safe[0] ?? videoInputs[0];
+
+          if (chosen?.deviceId) {
+            try {
+              s = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: { exact: chosen.deviceId },
+                  width:    { min: 480, ideal: 720, max: 1080 },
+                  height:   { min: 854, ideal: 1280, max: 1920 },
+                },
+                audio: false,
+              });
+            } catch {
+              s = null;
+            }
+          }
+        }
+      } catch {
+        s = null;
+      }
+
+      // Fallback 1: facingMode + width/height com "min" forçando proporção retrato
+      // (altura bem maior que largura), caso a seleção por deviceId não esteja
+      // disponível ou tenha falhado. "min" é uma exigência forte — impede a câmera
+      // de cair num modo paisagem de baixa resolução.
+      if (!s) {
+        try {
+          s = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: facing,
+              width:      { min: 480, ideal: 720, max: 1080 },
+              height:     { min: 854, ideal: 1280, max: 1920 },
+            },
+            audio: false,
+          });
+        } catch {
+          s = null;
+        }
+      }
+
+      // Fallback 2: apenas facingMode, sem nenhuma exigência de proporção — garante
+      // que a câmera sempre abre, mesmo que nenhum dos passos acima seja suportado.
+      if (!s) {
+        s = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing },
+          audio: false,
+        });
+      }
+
       streamRef.current = s;
       if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.play(); }
     } catch (err: any) {
@@ -332,36 +393,48 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     const vh = v.videoHeight;
     if (!vw || !vh) return;
 
-    // Replicate CSS object-cover: capture only the visible region of the video.
-    // IMPORTANT: always use window.innerWidth/innerHeight, NOT v.clientWidth/clientHeight.
-    // On some iOS/Safari versions clientWidth/clientHeight return the video's intrinsic
-    // pixel size instead of the rendered CSS size, which breaks the crop calculation.
-    const dispW = window.innerWidth;
-    const dispH = window.innerHeight;
+    // iOS can deliver landscape raw pixels even when the phone is in portrait.
+    // Use window.innerHeight/Width (always the viewport) instead of v.clientHeight/Width
+    // because on some iOS/Safari versions clientWidth/Height returns the video's intrinsic
+    // pixel size (e.g. 1280×720) instead of the rendered CSS size, making the check wrong.
+    const displayedPortrait = window.innerHeight > window.innerWidth;
+    const rawLandscape      = vw > vh;
 
-    const videoAspect   = vw / vh;
-    const displayAspect = dispW / dispH;
+    if (displayedPortrait && rawLandscape) {
+      c.width  = vh;
+      c.height = vw;
+      ctx.translate(vh / 2, vw / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(v, -vw / 2, -vh / 2);
+    } else {
+      // Replicate CSS object-cover: capture only the visible region of the video.
+      // IMPORTANT: always use window.innerWidth/innerHeight, NOT v.clientWidth/clientHeight.
+      // On some iOS/Safari versions clientWidth/clientHeight return the video's intrinsic
+      // pixel size instead of the rendered CSS size, which breaks the crop calculation.
+      const dispW = window.innerWidth;
+      const dispH = window.innerHeight;
 
-    let sx = 0, sy = 0, sw = vw, sh = vh;
-    if (videoAspect > displayAspect) {
-      // Video relatively wider than viewport → crop left and right
-      sw = Math.round(vh * displayAspect);
-      sx = Math.round((vw - sw) / 2);
-    } else if (videoAspect < displayAspect) {
-      // Video relatively taller than viewport → crop top and bottom
-      sh = Math.round(vw / displayAspect);
-      sy = Math.round((vh - sh) / 2);
+      const videoAspect   = vw / vh;
+      const displayAspect = dispW / dispH;
+
+      let sx = 0, sy = 0, sw = vw, sh = vh;
+      if (videoAspect > displayAspect) {
+        sw = Math.round(vh * displayAspect);
+        sx = Math.round((vw - sw) / 2);
+      } else if (videoAspect < displayAspect) {
+        sh = Math.round(vw / displayAspect);
+        sy = Math.round((vh - sh) / 2);
+      }
+
+      sw = Math.min(sw, vw);
+      sh = Math.min(sh, vh);
+      sx = Math.max(0, Math.min(sx, vw - sw));
+      sy = Math.max(0, Math.min(sy, vh - sh));
+
+      c.width  = sw;
+      c.height = sh;
+      ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
     }
-
-    // Safety clamp — prevents invalid drawImage calls
-    sw = Math.min(sw, vw);
-    sh = Math.min(sh, vh);
-    sx = Math.max(0, Math.min(sx, vw - sw));
-    sy = Math.max(0, Math.min(sy, vh - sh));
-
-    c.width  = sw;
-    c.height = sh;
-    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
 
     const url = c.toDataURL("image/jpeg", 0.88);
     setPreview(url);
@@ -420,9 +493,26 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
 
       {/* Video / preview — true fullscreen background */}
       {!preview ? (
-        <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            setDebugRes(`${v.videoWidth}x${v.videoHeight} (tela: ${window.innerWidth}x${window.innerHeight})`);
+          }}
+        />
       ) : (
         <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      )}
+
+      {/* DIAGNÓSTICO TEMPORÁRIO — remover depois de identificar a causa do zoom */}
+      {debugRes && (
+        <div className="absolute top-2 left-2 z-50 px-2 py-1 rounded bg-black/70 text-[11px] text-yellow-300 font-mono">
+          {debugRes}
+        </div>
       )}
       <canvas ref={canvasRef} className="hidden" />
 
