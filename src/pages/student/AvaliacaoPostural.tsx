@@ -407,10 +407,10 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
       c.height = vw;   // portrait height = landscape width
       ctx.save();
       ctx.translate(vh / 2, vw / 2);
-      ctx.rotate(Math.PI / 2);
+      ctx.rotate(-Math.PI / 2);
       ctx.drawImage(tmp, -vw / 2, -vh / 2);
       ctx.restore();
-      setDebugRes(`rotated 90° CW → ${vh}×${vw}`);
+      setDebugRes(`rotated 90° CCW → ${vh}×${vw}`);
     } else {
       // Portrait video — no rotation needed; replicate object-cover crop.
       const dispW = window.innerWidth;
