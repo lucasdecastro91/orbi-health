@@ -206,6 +206,26 @@ function initPricingToggle() {
   });
 }
 
+/* --- Carrossel app do aluno --- */
+function carouselScroll(dir) {
+  const el = document.getElementById('carousel-aluno');
+  if (!el) return;
+  el.scrollBy({ left: dir * 300, behavior: 'smooth' });
+}
+
+/* --- Scroll reveal para .reveal-img --- */
+function initRevealImg() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal-img').forEach(el => observer.observe(el));
+}
+
 /* --- Init --- */
 document.addEventListener('DOMContentLoaded', () => {
   captureAndPersistUTMs();
@@ -216,4 +236,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initCounters();
   initCTATracking();
   initPricingToggle();
+  initRevealImg();
 });
