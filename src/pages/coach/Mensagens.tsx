@@ -209,180 +209,6 @@ const Mensagens = () => {
 
   const totalUnread = Object.values(unreadMap).reduce((s, n) => s + n, 0);
 
-  // ── Render conversation list ──────────────────────────────────────
-  const ConvList = () => (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-4 border-b border-white/6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar aluno..."
-            className="w-full h-9 rounded-xl bg-white/5 border border-white/8 pl-9 pr-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {filteredAlunos.length === 0 ? (
-          <p className="text-center text-white/30 text-sm py-8">Nenhum aluno encontrado</p>
-        ) : (
-          filteredAlunos.map((aluno) => {
-            const unread = unreadMap[aluno.user_id] ?? 0;
-            const isSel  = selected?.user_id === aluno.user_id;
-            const initials = aluno.profiles.nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
-
-            return (
-              <button
-                key={aluno.user_id}
-                onClick={() => selectAluno(aluno)}
-                className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
-                style={{ backgroundColor: isSel ? "rgba(var(--cp-rgb),0.08)" : undefined }}
-                onMouseEnter={(e) => { if (!isSel) (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.03)"; }}
-                onMouseLeave={(e) => { if (!isSel) (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
-              >
-                {/* Avatar */}
-                <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shrink-0"
-                  style={{
-                    background: isSel
-                      ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))"
-                      : "rgba(120,120,128,0.18)",
-                    color: isSel ? "#fff" : "var(--muted-foreground)",
-                  }}
-                >
-                  {initials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate text-foreground" style={isSel ? { color: "var(--cp-400)" } : undefined}>
-                    {aluno.profiles.nome}
-                  </p>
-                  <p className="text-xs text-foreground/30 truncate">
-                    {unread > 0 ? `${unread} mensagem${unread > 1 ? "ns" : ""} nova${unread > 1 ? "s" : ""}` : "Toque para conversar"}
-                  </p>
-                </div>
-                {unread > 0 && (
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                    style={{ background: "var(--cp-gradient)" }}
-                  >
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
-              </button>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-
-  // ── Render chat area ──────────────────────────────────────────────
-  const ChatArea = () => {
-    if (!selected) {
-      return (
-        <div className="hidden lg:flex flex-1 items-center justify-center flex-col gap-3 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
-            <MessageSquare className="w-7 h-7 text-green-500/40" />
-          </div>
-          <p className="text-white/40 text-sm">Selecione um aluno para conversar</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Chat header */}
-        <div className="flex items-center gap-3 px-5 py-4"
-          style={{ backgroundColor: "var(--surface-1)", borderBottom: "1px solid var(--border-subtle)" }}>
-          <button
-            onClick={() => { setMobileChat(false); setSelected(null); }}
-            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-            style={{ background: "var(--cp-gradient)" }}
-          >
-            {selected.profiles.nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{selected.profiles.nome}</p>
-            <p className="text-xs text-foreground/40">Aluno</p>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-          {loadingMsgs ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-white/30">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Carregando...</span>
-            </div>
-          ) : mensagens.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-              <MessageSquare className="w-8 h-8 text-white/15" />
-              <p className="text-white/30 text-sm">Nenhuma mensagem ainda.</p>
-              <p className="text-white/20 text-xs">Envie uma mensagem para começar a conversa.</p>
-            </div>
-          ) : (
-            mensagens.map((msg) => {
-              const isMe = msg.remetente_id === myId;
-              return (
-                <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className="max-w-[75%] rounded-2xl px-4 py-2.5"
-                    style={{
-                      background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "rgba(255,255,255,0.07)",
-                      borderBottomRightRadius: isMe ? "6px" : undefined,
-                      borderBottomLeftRadius:  isMe ? undefined : "6px",
-                    }}
-                  >
-                    <p className="text-sm leading-relaxed" style={{ color: "#fff" }}>
-                      {msg.conteudo}
-                    </p>
-                    <p className="text-[10px] mt-1" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)" }}>
-                      {formatMsgTime(msg.created_at)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div className="px-4 py-3 border-t border-white/6">
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Escreva uma mensagem..."
-              rows={1}
-              className="flex-1 rounded-2xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors resize-none max-h-28 overflow-y-auto"
-              style={{ minHeight: "44px" }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || sending}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40 transition-all"
-              style={{ background: "var(--cp-gradient)" }}
-            >
-              {sending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
-            </button>
-          </div>
-          <p className="text-[11px] text-white/20 mt-1.5 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="h-[calc(100vh-0px)] lg:h-[calc(100vh-0px)] flex flex-col">
       {/* Page header (visible on desktop) */}
@@ -402,12 +228,173 @@ const Mensagens = () => {
           className={`${mobileChat ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-72 border-r border-white/6 shrink-0`}
           style={{ backgroundColor: "rgba(255,255,255,0.01)" }}
         >
-          <ConvList />
+          {/* ── Conversation list ── */}
+          <div className="flex flex-col h-full">
+            <div className="px-4 py-4 border-b border-white/6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar aluno..."
+                  className="w-full h-9 rounded-xl bg-white/5 border border-white/8 pl-9 pr-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {filteredAlunos.length === 0 ? (
+                <p className="text-center text-white/30 text-sm py-8">Nenhum aluno encontrado</p>
+              ) : (
+                filteredAlunos.map((aluno) => {
+                  const unread = unreadMap[aluno.user_id] ?? 0;
+                  const isSel  = selected?.user_id === aluno.user_id;
+                  const initials = aluno.profiles.nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+
+                  return (
+                    <button
+                      key={aluno.user_id}
+                      onClick={() => selectAluno(aluno)}
+                      className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
+                      style={{ backgroundColor: isSel ? "rgba(var(--cp-rgb),0.08)" : undefined }}
+                      onMouseEnter={(e) => { if (!isSel) (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.03)"; }}
+                      onMouseLeave={(e) => { if (!isSel) (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shrink-0"
+                        style={{
+                          background: isSel
+                            ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))"
+                            : "rgba(120,120,128,0.18)",
+                          color: isSel ? "#fff" : "var(--muted-foreground)",
+                        }}
+                      >
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate text-foreground" style={isSel ? { color: "var(--cp-400)" } : undefined}>
+                          {aluno.profiles.nome}
+                        </p>
+                        <p className="text-xs text-foreground/30 truncate">
+                          {unread > 0 ? `${unread} mensagem${unread > 1 ? "ns" : ""} nova${unread > 1 ? "s" : ""}` : "Toque para conversar"}
+                        </p>
+                      </div>
+                      {unread > 0 && (
+                        <span
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                          style={{ background: "var(--cp-gradient)" }}
+                        >
+                          {unread > 9 ? "9+" : unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Chat area — hidden on mobile when list is shown */}
         <div className={`${!mobileChat ? "hidden lg:flex" : "flex"} flex-1 overflow-hidden`}>
-          <ChatArea />
+          {/* ── Chat area ── */}
+          {!selected ? (
+            <div className="hidden lg:flex flex-1 items-center justify-center flex-col gap-3 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
+                <MessageSquare className="w-7 h-7 text-green-500/40" />
+              </div>
+              <p className="text-white/40 text-sm">Selecione um aluno para conversar</p>
+            </div>
+          ) : (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              {/* Chat header */}
+              <div className="flex items-center gap-3 px-5 py-4"
+                style={{ backgroundColor: "var(--surface-1)", borderBottom: "1px solid var(--border-subtle)" }}>
+                <button
+                  onClick={() => { setMobileChat(false); setSelected(null); }}
+                  className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
+                  style={{ background: "var(--cp-gradient)" }}
+                >
+                  {selected.profiles.nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{selected.profiles.nome}</p>
+                  <p className="text-xs text-foreground/40">Aluno</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+                {loadingMsgs ? (
+                  <div className="flex items-center justify-center py-12 gap-2 text-white/30">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Carregando...</span>
+                  </div>
+                ) : mensagens.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                    <MessageSquare className="w-8 h-8 text-white/15" />
+                    <p className="text-white/30 text-sm">Nenhuma mensagem ainda.</p>
+                    <p className="text-white/20 text-xs">Envie uma mensagem para começar a conversa.</p>
+                  </div>
+                ) : (
+                  mensagens.map((msg) => {
+                    const isMe = msg.remetente_id === myId;
+                    return (
+                      <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className="max-w-[75%] rounded-2xl px-4 py-2.5"
+                          style={{
+                            background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "rgba(255,255,255,0.07)",
+                            borderBottomRightRadius: isMe ? "6px" : undefined,
+                            borderBottomLeftRadius:  isMe ? undefined : "6px",
+                          }}
+                        >
+                          <p className="text-sm leading-relaxed" style={{ color: "#fff" }}>
+                            {msg.conteudo}
+                          </p>
+                          <p className="text-[10px] mt-1" style={{ color: isMe ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)" }}>
+                            {formatMsgTime(msg.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={bottomRef} />
+              </div>
+
+              {/* Input */}
+              <div className="px-4 py-3 border-t border-white/6">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Escreva uma mensagem..."
+                    rows={1}
+                    className="flex-1 rounded-2xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors resize-none max-h-28 overflow-y-auto"
+                    style={{ minHeight: "44px" }}
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || sending}
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40 transition-all"
+                    style={{ background: "var(--cp-gradient)" }}
+                  >
+                    {sending ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-white/20 mt-1.5 ml-1">Enter para enviar · Shift+Enter para nova linha</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
