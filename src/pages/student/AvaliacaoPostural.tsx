@@ -280,70 +280,10 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     setCamBlocked(false);
     setCamRequesting(true);
     try {
-      let s: MediaStream | null = null;
-
-      // Tenta selecionar explicitamente a lente principal (evita telephoto/ultra-wide
-      // que alguns navegadores escolhem por engano ao usar apenas facingMode).
-      try {
-        const devices     = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter((d) => d.kind === "videoinput");
-        if (videoInputs.length > 0) {
-          const wantedKw = facing === "environment"
-            ? ["back", "traseira", "rear", "wide angle", "principal"]
-            : ["front", "frontal", "user", "selfie"];
-          const avoidKw  = ["telephoto", "tele", "ultra wide", "ultra-wide", "ultrawide", "zoom"];
-
-          const safe    = videoInputs.filter((d) => !avoidKw.some((kw) => d.label.toLowerCase().includes(kw)));
-          const matched = safe.find((d) => wantedKw.some((kw) => d.label.toLowerCase().includes(kw)));
-          const chosen  = matched ?? safe[0] ?? videoInputs[0];
-
-          if (chosen?.deviceId) {
-            try {
-              s = await navigator.mediaDevices.getUserMedia({
-                video: {
-                  deviceId: { exact: chosen.deviceId },
-                  width:    { min: 480, ideal: 720, max: 1080 },
-                  height:   { min: 854, ideal: 1280, max: 1920 },
-                },
-                audio: false,
-              });
-            } catch {
-              s = null;
-            }
-          }
-        }
-      } catch {
-        s = null;
-      }
-
-      // Fallback 1: facingMode + width/height com "min" forçando proporção retrato
-      // (altura bem maior que largura), caso a seleção por deviceId não esteja
-      // disponível ou tenha falhado. "min" é uma exigência forte — impede a câmera
-      // de cair num modo paisagem de baixa resolução.
-      if (!s) {
-        try {
-          s = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: facing,
-              width:      { min: 480, ideal: 720, max: 1080 },
-              height:     { min: 854, ideal: 1280, max: 1920 },
-            },
-            audio: false,
-          });
-        } catch {
-          s = null;
-        }
-      }
-
-      // Fallback 2: apenas facingMode, sem nenhuma exigência de proporção — garante
-      // que a câmera sempre abre, mesmo que nenhum dos passos acima seja suportado.
-      if (!s) {
-        s = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing },
-          audio: false,
-        });
-      }
-
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1920 } },
+        audio: false,
+      });
       streamRef.current = s;
       if (videoRef.current) { videoRef.current.srcObject = s; videoRef.current.play(); }
     } catch (err: any) {
@@ -399,18 +339,26 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     const tmp = document.createElement("canvas");
     tmp.width  = vw;
     tmp.height = vh;
-    tmp.getContext("2d")!.drawImage(v, 0, 0);
+    const tmpCtx = tmp.getContext("2d")!;
+    tmpCtx.drawImage(v, 0, 0);
+
+    // DEBUG: colored corner markers — RED=top-left, GREEN=top-right, BLUE=bottom-left, YELLOW=bottom-right (of raw frame)
+    const M = 80;
+    tmpCtx.fillStyle = "red";    tmpCtx.fillRect(0,      0,      M, M);
+    tmpCtx.fillStyle = "lime";   tmpCtx.fillRect(vw - M, 0,      M, M);
+    tmpCtx.fillStyle = "blue";   tmpCtx.fillRect(0,      vh - M, M, M);
+    tmpCtx.fillStyle = "yellow"; tmpCtx.fillRect(vw - M, vh - M, M, M);
 
     if (vw > vh) {
-      // Landscape raw pixels on a portrait device — rotate 90° CW to produce portrait output.
-      c.width  = vh;   // portrait width  = landscape height
-      c.height = vw;   // portrait height = landscape width
+      // Landscape raw pixels — rotate 90° CW: translate(width,0) + rotate(+90°)
+      c.width  = vh;
+      c.height = vw;
       ctx.save();
-      ctx.translate(vh / 2, vw / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.drawImage(tmp, -vw / 2, -vh / 2);
+      ctx.translate(vh, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(tmp, 0, 0);
       ctx.restore();
-      setDebugRes(`rotated 90° CCW → ${vh}×${vw}`);
+      setDebugRes(`CW → ${vh}×${vw} raw:${vw}×${vh}`);
     } else {
       // Portrait video — no rotation needed; replicate object-cover crop.
       const dispW = window.innerWidth;
