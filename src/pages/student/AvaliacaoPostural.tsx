@@ -265,7 +265,6 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
   const [miniOpen,      setMiniOpen]      = useState(true);
   const [camBlocked,    setCamBlocked]    = useState(false);
   const [camRequesting, setCamRequesting] = useState(false);
-  const [debugRes,      setDebugRes]      = useState<string | null>(null); // DIAGNÓSTICO TEMPORÁRIO — remover depois
 
   // ── Timer state ────────────────────────────────────────────────
   const [timerDuration,   setTimerDuration]   = useState(10);
@@ -366,7 +365,6 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     c.width  = sw;
     c.height = sh;
     ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
-    setDebugRes(`crop ${sw}×${sh} from ${vw}×${vh}`);
 
     const url = c.toDataURL("image/jpeg", 0.88);
     setPreview(url);
@@ -431,21 +429,12 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           playsInline
           muted
           className="absolute inset-0 w-full h-full object-cover"
-          onLoadedMetadata={(e) => {
-            const v = e.currentTarget;
-            setDebugRes(`${v.videoWidth}x${v.videoHeight} (tela: ${window.innerWidth}x${window.innerHeight})`);
-          }}
         />
       ) : (
         <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
       )}
 
-      {/* DIAGNÓSTICO TEMPORÁRIO — remover depois de identificar a causa do zoom */}
-      {debugRes && (
-        <div className="absolute top-2 left-2 z-50 px-2 py-1 rounded bg-black/70 text-[11px] text-yellow-300 font-mono">
-          {debugRes}
-        </div>
-      )}
+
       <canvas ref={canvasRef} className="hidden" />
 
       {/* ── Timer countdown overlay ── */}
