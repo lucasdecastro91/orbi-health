@@ -469,20 +469,34 @@ ul { list-style: none; }
 
 /* Mobile responsivo */
 @media (max-width: 768px) {
+  /* Permite que mockups e badges saiam da hero-section sem criar scroll horizontal */
+  .hero-section { overflow: visible; }
+  body { overflow-x: hidden; }
+
   .hero-inner { padding: 0 24px; gap: 3rem; }
-  .hero-mockup-container { height: 500px; }
+  .hero-mockup-container { height: 520px; overflow: visible; }
   .iphone-frame { width: 200px; border-radius: 36px; }
+
+  /* Telas laterais: próximas ao centro e visíveis */
   .hero-phone-left {
-    left: calc(50% - 180px);
-    transform: translateY(-50%) rotateY(14deg) translateX(-10px) translateZ(-80px) scale(0.78);
+    left: calc(50% - 168px);
+    transform: translateY(-50%) rotateY(12deg) translateZ(-60px) scale(0.75);
   }
   .hero-phone-right {
-    right: calc(50% - 180px);
-    transform: translateY(-50%) rotateY(-14deg) translateX(10px) translateZ(-80px) scale(0.78);
+    right: calc(50% - 168px);
+    transform: translateY(-50%) rotateY(-12deg) translateZ(-60px) scale(0.75);
   }
   .hero-phone-left img,
-  .hero-phone-right img { width: 120px; border-radius: 24px; }
-  .hero-badge { font-size: .7rem; padding: .5rem .75rem; }
+  .hero-phone-right img { width: 115px; border-radius: 24px; }
+
+  /* Badges: reposicionar para caber na viewport (~390px).
+     Phone center = 200px, badge offset máximo = 195px - 100px (meia-largura) = 95px
+     Usando ~70-75px fica com ~20px de margem em cada lado */
+  .hero-badge { font-size: .65rem; padding: .4rem .65rem; }
+  .float-1 { left: -72px !important; }
+  .float-2 { left: -72px !important; }
+  .float-3 { right: -68px !important; }
+  .float-4 { right: -60px !important; }
 }
 
 /* ============================================================
