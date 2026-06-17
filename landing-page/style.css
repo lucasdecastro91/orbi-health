@@ -394,13 +394,13 @@ ul { list-style: none; }
 
 .iphone-dynamic-island {
   position: absolute;
-  top: 12px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 120px;
-  height: 34px;
+  width: 88px;
+  height: 22px;
   background: #000;
-  border-radius: 20px;
+  border-radius: 12px;
   z-index: 20;
   pointer-events: none;
 }
@@ -413,19 +413,19 @@ ul { list-style: none; }
   z-index: 1;
 }
 .hero-phone-left {
-  left: calc(50% - 340px);
-  transform: translateY(-50%) rotateY(22deg) translateX(-40px) translateZ(-120px) scale(0.88);
+  left: calc(50% - 240px);
+  transform: translateY(-50%) rotateY(18deg) translateX(-20px) translateZ(-100px) scale(0.84);
   transform-style: preserve-3d;
 }
 .hero-phone-right {
-  right: calc(50% - 340px);
-  transform: translateY(-50%) rotateY(-22deg) translateX(40px) translateZ(-120px) scale(0.88);
+  right: calc(50% - 240px);
+  transform: translateY(-50%) rotateY(-18deg) translateX(20px) translateZ(-100px) scale(0.84);
   transform-style: preserve-3d;
 }
 .hero-phone-left img,
 .hero-phone-right img {
-  width: 210px;
-  border-radius: 36px;
+  width: 170px;
+  border-radius: 32px;
   filter: blur(1.5px) brightness(0.38);
   display: block;
 }
@@ -471,8 +471,17 @@ ul { list-style: none; }
 @media (max-width: 768px) {
   .hero-inner { padding: 0 24px; gap: 3rem; }
   .hero-mockup-container { height: 500px; }
-  .iphone-frame { width: 220px; }
-  .hero-phone-left, .hero-phone-right { display: none; }
+  .iphone-frame { width: 200px; border-radius: 36px; }
+  .hero-phone-left {
+    left: calc(50% - 180px);
+    transform: translateY(-50%) rotateY(14deg) translateX(-10px) translateZ(-80px) scale(0.78);
+  }
+  .hero-phone-right {
+    right: calc(50% - 180px);
+    transform: translateY(-50%) rotateY(-14deg) translateX(10px) translateZ(-80px) scale(0.78);
+  }
+  .hero-phone-left img,
+  .hero-phone-right img { width: 120px; border-radius: 24px; }
   .hero-badge { font-size: .7rem; padding: .5rem .75rem; }
 }
 
@@ -481,7 +490,7 @@ ul { list-style: none; }
    ============================================================ */
 .products {
   padding: 5rem 0;
-  background: var(--bg-surface);
+  background: transparent;
 }
 @media (min-width: 768px) { .products { padding: 7rem 0; } }
 
@@ -566,7 +575,7 @@ ul { list-style: none; }
    ============================================================ */
 .how-it-works {
   padding: 5rem 0;
-  background: var(--bg);
+  background: transparent;
 }
 @media (min-width: 768px) { .how-it-works { padding: 7rem 0; } }
 
@@ -626,7 +635,7 @@ ul { list-style: none; }
    ============================================================ */
 .why-orbi {
   padding: 5rem 0;
-  background: var(--bg-surface);
+  background: transparent;
 }
 @media (min-width: 768px) { .why-orbi { padding: 7rem 0; } }
 
@@ -709,7 +718,7 @@ ul { list-style: none; }
    ============================================================ */
 .differentials {
   padding: 5rem 0;
-  background: var(--bg);
+  background: transparent;
 }
 @media (min-width: 768px) { .differentials { padding: 7rem 0; } }
 
@@ -760,7 +769,7 @@ ul { list-style: none; }
    ============================================================ */
 .pricing {
   padding: 5rem 0;
-  background: var(--bg-surface);
+  background: transparent;
 }
 @media (min-width: 768px) { .pricing { padding: 7rem 0; } }
 
@@ -1027,7 +1036,7 @@ ul { list-style: none; }
    FOOTER
    ============================================================ */
 .footer {
-  background: #0d0d0d;
+  background: transparent;
   padding-top: 3.5rem;
   border-top: 1px solid var(--border);
 }
@@ -1106,7 +1115,7 @@ ul { list-style: none; }
    ============================================================ */
 .painel-treinador {
   padding: 5rem 0;
-  background: var(--bg);
+  background: transparent;
 }
 @media (min-width: 768px) { .painel-treinador { padding: 7rem 0; } }
 
@@ -1129,7 +1138,7 @@ ul { list-style: none; }
    ============================================================ */
 .app-aluno {
   padding: 5rem 0;
-  background: #080808;
+  background: transparent;
 }
 @media (min-width: 768px) { .app-aluno { padding: 7rem 0; } }
 
