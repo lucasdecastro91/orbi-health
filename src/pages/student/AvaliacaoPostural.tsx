@@ -342,45 +342,31 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     const tmpCtx = tmp.getContext("2d")!;
     tmpCtx.drawImage(v, 0, 0);
 
-    // DEBUG: colored corner markers — RED=top-left, GREEN=top-right, BLUE=bottom-left, YELLOW=bottom-right (of raw frame)
-    const M = 80;
-    tmpCtx.fillStyle = "red";    tmpCtx.fillRect(0,      0,      M, M);
-    tmpCtx.fillStyle = "lime";   tmpCtx.fillRect(vw - M, 0,      M, M);
-    tmpCtx.fillStyle = "blue";   tmpCtx.fillRect(0,      vh - M, M, M);
-    tmpCtx.fillStyle = "yellow"; tmpCtx.fillRect(vw - M, vh - M, M, M);
+    // iOS Safari delivers landscape pixels (e.g. 1920×1280) even when phone is portrait.
+    // The live preview uses CSS object-cover which auto-crops the center strip to portrait.
+    // Capture must replicate that same center crop — never rotate.
+    const dispW = window.innerWidth;
+    const dispH = window.innerHeight;
+    const targetAspect = dispW / dispH; // portrait phone ~0.558
+    const frameAspect  = vw / vh;
 
-    if (vw > vh) {
-      // Landscape raw pixels — rotate 90° CW: translate(width,0) + rotate(+90°)
-      c.width  = vh;
-      c.height = vw;
-      ctx.save();
-      ctx.translate(vh, 0);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(tmp, 0, 0);
-      ctx.restore();
-      setDebugRes(`CW → ${vh}×${vw} raw:${vw}×${vh}`);
-    } else {
-      // Portrait video — no rotation needed; replicate object-cover crop.
-      const dispW = window.innerWidth;
-      const dispH = window.innerHeight;
-      const videoAspect   = vw / vh;
-      const displayAspect = dispW / dispH;
-      let sx = 0, sy = 0, sw = vw, sh = vh;
-      if (videoAspect > displayAspect) {
-        sw = Math.round(vh * displayAspect);
-        sx = Math.round((vw - sw) / 2);
-      } else if (videoAspect < displayAspect) {
-        sh = Math.round(vw / displayAspect);
-        sy = Math.round((vh - sh) / 2);
-      }
-      sw = Math.min(sw, vw); sh = Math.min(sh, vh);
-      sx = Math.max(0, Math.min(sx, vw - sw));
-      sy = Math.max(0, Math.min(sy, vh - sh));
-      c.width  = sw;
-      c.height = sh;
-      ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
-      setDebugRes(`crop ${sw}×${sh}`);
+    let sx = 0, sy = 0, sw = vw, sh = vh;
+    if (frameAspect > targetAspect) {
+      // Frame wider than screen — crop sides (typical iOS landscape→portrait case)
+      sw = Math.round(vh * targetAspect);
+      sx = Math.round((vw - sw) / 2);
+    } else if (frameAspect < targetAspect) {
+      // Frame taller than screen — crop top/bottom
+      sh = Math.round(vw / targetAspect);
+      sy = Math.round((vh - sh) / 2);
     }
+    sw = Math.min(sw, vw); sh = Math.min(sh, vh);
+    sx = Math.max(0, Math.min(sx, vw - sw));
+    sy = Math.max(0, Math.min(sy, vh - sh));
+    c.width  = sw;
+    c.height = sh;
+    ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
+    setDebugRes(`crop ${sw}×${sh} from ${vw}×${vh}`);
 
     const url = c.toDataURL("image/jpeg", 0.88);
     setPreview(url);
