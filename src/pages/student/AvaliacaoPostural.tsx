@@ -281,7 +281,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     setCamRequesting(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 1920 } },
+        video: { facingMode: facing },
         audio: false,
       });
       streamRef.current = s;
