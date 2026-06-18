@@ -34,6 +34,18 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- Evita duplicata: não insere se já existe notificação desta resposta
+  IF EXISTS (
+    SELECT 1 FROM public.notificacoes
+    WHERE user_id  = v_treinador_id
+      AND aluno_id = v_aluno_id
+      AND tipo     = 'atualizacao'
+      AND mensagem LIKE '%enviou uma atualização%'
+      AND created_at >= NOW() - INTERVAL '1 minute'
+  ) THEN
+    RETURN NEW;
+  END IF;
+
   INSERT INTO public.notificacoes (
     user_id,
     org_id,
