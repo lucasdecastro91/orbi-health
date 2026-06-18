@@ -4473,27 +4473,7 @@ const AvalFisicaViewer = ({
             </div>
           </div>
 
-          {/* Metabolismo */}
-          <div>
-            <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2 font-semibold">Metabolismo & InBody</p>
-            <div className="grid grid-cols-2 gap-3">
-              {([
-                ["taxa_metabolica_basal", "Taxa Metab. Basal (kcal)"],
-                ["gordura_visceral",      "Gordura Visceral"],
-                ["pontuacao_inbody",      "Pontuação InBody"],
-              ] as const).map(([field, label]) => (
-                <div key={field}>
-                  <label className={lbl}>{label}</label>
-                  <input
-                    type="number" min="0"
-                    value={(form as any)[field]}
-                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className={inp}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+
 
           {/* Dinamometria */}
           <div>
@@ -4643,9 +4623,6 @@ const AvalFisicaViewer = ({
                           ["% Gordura",     fmtN(item.percentual_gordura,"%")],
                           ["Massa Gorda",   fmtN(item.massa_gordura_kg,  " kg")],
                           ["IMC",           fmtN(item.imc)],
-                          ["TMB",           fmtN(item.taxa_metabolica_basal, " kcal")],
-                          ["Gord. Visceral",fmtN(item.gordura_visceral)],
-                          ["InBody Score",  fmtN(item.pontuacao_inbody)],
                         ] as [string, string][]).filter(([, v]) => v !== "—").map(([l, v]) => (
                           <div key={l} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
                             <p className="text-[10px] text-white/35 uppercase tracking-wider">{l}</p>
