@@ -259,53 +259,65 @@
 
         <!-- Diagrama radial -->
         <div class="pain-diagram" data-reveal>
-          <!-- Linhas SVG animadas -->
-          <svg class="pain-lines" viewBox="0 0 1100 540" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-            <!-- Esquerda: linhas indo do centro aos nós -->
-            <line x1="550" y1="270" x2="114" y2="97"  stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
-            <line x1="550" y1="270" x2="80"  y2="270" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
-            <line x1="550" y1="270" x2="114" y2="443" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
-            <!-- Direita -->
-            <line x1="550" y1="270" x2="986"  y2="97"  stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
-            <line x1="550" y1="270" x2="1020" y2="270" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
-            <line x1="550" y1="270" x2="986"  y2="443" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+          <!-- Linhas SVG — esquerda entra, direita sai -->
+          <svg class="pain-lines" viewBox="0 0 1100 580" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+            <!-- Esquerda: problemas entrando no orbe (animação inward) -->
+            <line x1="550" y1="290" x2="114" y2="72"  stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
+            <line x1="550" y1="290" x2="80"  y2="193" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
+            <line x1="550" y1="290" x2="80"  y2="387" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
+            <line x1="550" y1="290" x2="114" y2="508" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
+            <!-- Direita: soluções saindo do orbe (animação outward) -->
+            <line x1="550" y1="290" x2="986"  y2="72"  stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
+            <line x1="550" y1="290" x2="1020" y2="193" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
+            <line x1="550" y1="290" x2="1020" y2="387" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
+            <line x1="550" y1="290" x2="986"  y2="508" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
           </svg>
 
-          <!-- Orbe central -->
+          <!-- Orbe central com anéis pulsantes -->
           <div class="pain-orb">
-            <svg width="52" height="52" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <div class="pain-orb__ring pain-orb__ring--1"></div>
+            <div class="pain-orb__ring pain-orb__ring--2"></div>
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
               <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
               <circle cx="46.1" cy="17.9" r="4.5" fill="#16a34a"/>
               <circle cx="32" cy="32" r="2" fill="#16a34a"/>
             </svg>
           </div>
 
-          <!-- Nós à esquerda -->
-          <div class="pain-node pain-node--tl">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <!-- Nós esquerda — problemas (vermelho) -->
+          <div class="pain-node pain-node--problem pain-node--l1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>WhatsApp</span>
           </div>
-          <div class="pain-node pain-node--ml">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <div class="pain-node pain-node--problem pain-node--l2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span>PDF / E-mail</span>
           </div>
-          <div class="pain-node pain-node--bl">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <div class="pain-node pain-node--problem pain-node--l3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             <span>Planilha</span>
           </div>
-
-          <!-- Nós à direita -->
-          <div class="pain-node pain-node--tr">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <div class="pain-node pain-node--problem pain-node--l4">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z"/></svg>
             <span>Google Drive</span>
           </div>
-          <div class="pain-node pain-node--mr">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            <span>Link de pagamento</span>
+
+          <!-- Nós direita — soluções (verde) -->
+          <div class="pain-node pain-node--solution pain-node--r1">
+            <span>App com sua marca</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
           </div>
-          <div class="pain-node pain-node--br">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
-            <span>App genérico</span>
+          <div class="pain-node pain-node--solution pain-node--r2">
+            <span>Cobrança automática</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="pain-node pain-node--solution pain-node--r3">
+            <span>Dashboard completo</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div class="pain-node pain-node--solution pain-node--r4">
+            <span>Treino com vídeo</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
           </div>
         </div>
 

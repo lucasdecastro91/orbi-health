@@ -1164,13 +1164,13 @@ ul { list-style: none; }
   height: 100%;
 }
 
-.pain-line {
-  stroke-dasharray: 6 5;
-  animation: dash-move 1.8s linear infinite;
-}
-@keyframes dash-move {
-  to { stroke-dashoffset: -22; }
-}
+.pain-line { stroke-dasharray: 6 5; }
+/* Problemas entram no orbe */
+.pain-line--in  { animation: dash-in  1.6s linear infinite; }
+/* Soluções saem do orbe */
+.pain-line--out { animation: dash-out 1.6s linear infinite; }
+@keyframes dash-in  { to { stroke-dashoffset:  22; } }
+@keyframes dash-out { to { stroke-dashoffset: -22; } }
 
 /* Orbe central */
 .pain-orb {
@@ -1178,46 +1178,80 @@ ul { list-style: none; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 130px;
-  height: 130px;
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
   background: radial-gradient(circle, #0d2818 0%, #051a0d 60%, #020d05 100%);
-  border: 1.5px solid rgba(22,163,74,0.4);
-  box-shadow: 0 0 80px rgba(22,163,74,0.3), 0 0 160px rgba(22,163,74,0.12);
+  border: 1.5px solid rgba(22,163,74,0.5);
+  box-shadow: 0 0 80px rgba(22,163,74,0.35), 0 0 160px rgba(22,163,74,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
 }
 
+/* Anéis pulsantes */
+.pain-orb__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(22,163,74,0.25);
+  pointer-events: none;
+}
+.pain-orb__ring--1 {
+  width: 220px; height: 220px;
+  animation: orb-pulse 2.4s ease-out infinite;
+}
+.pain-orb__ring--2 {
+  width: 290px; height: 290px;
+  animation: orb-pulse 2.4s ease-out infinite 0.8s;
+}
+@keyframes orb-pulse {
+  0%   { opacity: .6; transform: scale(.7); }
+  100% { opacity: 0;  transform: scale(1);  }
+}
+
 /* Nós — base */
+.pain-orb__ring { pointer-events: none; }
 .pain-node {
   position: absolute;
   display: flex;
   align-items: center;
   gap: .55rem;
-  background: #111;
-  border: 1px solid #1f1f1f;
   border-radius: 10px;
   padding: .55rem 1rem;
   font-size: .85rem;
   font-weight: 500;
-  color: #9ca3af;
   white-space: nowrap;
   z-index: 2;
   transform: translateY(-50%);
 }
-.pain-node svg { color: #4b5563; flex-shrink: 0; }
 
-/* Nós esquerda — alinhados pela borda esquerda */
-.pain-node--tl { top: 17.9%; left: 4%;  }
-.pain-node--ml { top: 50%;   left: 0%;  }
-.pain-node--bl { top: 82%;   left: 4%;  }
+/* Problemas — vermelho/cinza */
+.pain-node--problem {
+  background: #130a0a;
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #9ca3af;
+}
+.pain-node--problem svg { color: rgba(239,68,68,0.5); flex-shrink: 0; }
 
-/* Nós direita — alinhados pela borda direita, texto inverte para crescer à esquerda */
-.pain-node--tr { top: 17.9%; left: auto; right: 4%;  flex-direction: row-reverse; }
-.pain-node--mr { top: 50%;   left: auto; right: 0%;  flex-direction: row-reverse; }
-.pain-node--br { top: 82%;   left: auto; right: 4%;  flex-direction: row-reverse; }
+/* Soluções — verde */
+.pain-node--solution {
+  background: #052010;
+  border: 1px solid rgba(22,163,74,0.4);
+  color: #d1fae5;
+}
+.pain-node--solution svg { color: #16a34a; flex-shrink: 0; }
+
+/* Posições: 4 nós por lado, espaçados em 12%/37%/63%/88% da altura (580px) */
+.pain-node--l1 { top: 12.4%; left: 4%;  }
+.pain-node--l2 { top: 33.3%; left: 0%;  }
+.pain-node--l3 { top: 66.7%; left: 0%;  }
+.pain-node--l4 { top: 87.6%; left: 4%;  }
+
+.pain-node--r1 { top: 12.4%; left: auto; right: 4%;  }
+.pain-node--r2 { top: 33.3%; left: auto; right: 0%;  }
+.pain-node--r3 { top: 66.7%; left: auto; right: 0%;  }
+.pain-node--r4 { top: 87.6%; left: auto; right: 4%;  }
 
 /* ===== CARD DE COMPARAÇÃO ===== */
 .pain-compare {
