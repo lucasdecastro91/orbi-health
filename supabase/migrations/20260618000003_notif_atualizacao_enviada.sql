@@ -14,7 +14,7 @@ DECLARE
 BEGIN
   -- Busca dados do aluno pelo student_id (auth.users UUID) e org_id da resposta
   SELECT
-    a.nome,
+    p.nome,
     a.treinador_id,
     a.org_id,
     a.id
@@ -24,6 +24,7 @@ BEGIN
     v_org_id,
     v_aluno_id
   FROM public.alunos a
+  JOIN public.profiles p ON p.id = a.user_id
   WHERE a.user_id = NEW.student_id
     AND a.org_id  = NEW.org_id
   LIMIT 1;
