@@ -1110,13 +1110,13 @@ ul { list-style: none; }
    SEÇÃO DOR / PROBLEMA
    ============================================================ */
 .pain-section {
-  padding: 7rem 0 6rem;
+  padding: 5rem 0 4rem;
   position: relative;
 }
 
 .pain-header {
   text-align: center;
-  margin-bottom: 3.5rem;
+  margin-bottom: 1rem;
 }
 
 .pain-title {

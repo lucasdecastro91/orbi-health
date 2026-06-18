@@ -259,18 +259,30 @@
 
         <!-- Diagrama radial -->
         <div class="pain-diagram" data-reveal>
-          <!-- Linhas SVG — esquerda entra, direita sai -->
+          <!-- Linhas SVG — bezier com gradient stroke -->
           <svg class="pain-lines" viewBox="0 0 1100 580" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-            <!-- Esquerda: problemas entrando no orbe (animação inward) -->
-            <line x1="550" y1="290" x2="114" y2="72"  stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
-            <line x1="550" y1="290" x2="80"  y2="193" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
-            <line x1="550" y1="290" x2="80"  y2="387" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
-            <line x1="550" y1="290" x2="114" y2="508" stroke="#ef4444" stroke-opacity="0.45" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--in"/>
-            <!-- Direita: soluções saindo do orbe (animação outward) -->
-            <line x1="550" y1="290" x2="986"  y2="72"  stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
-            <line x1="550" y1="290" x2="1020" y2="193" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
-            <line x1="550" y1="290" x2="1020" y2="387" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
-            <line x1="550" y1="290" x2="986"  y2="508" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line pain-line--out"/>
+            <defs>
+              <!-- Gradientes esquerda: vermelho no nó → transparente no centro -->
+              <linearGradient id="lg-l1" x1="114" y1="72"  x2="550" y2="290" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+              <linearGradient id="lg-l2" x1="80"  y1="193" x2="550" y2="290" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+              <linearGradient id="lg-l3" x1="80"  y1="387" x2="550" y2="290" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+              <linearGradient id="lg-l4" x1="114" y1="508" x2="550" y2="290" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+              <!-- Gradientes direita: transparente no centro → verde no nó -->
+              <linearGradient id="lg-r1" x1="550" y1="290" x2="986"  y2="72"  gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#16a34a" stop-opacity="0"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0.7"/></linearGradient>
+              <linearGradient id="lg-r2" x1="550" y1="290" x2="1020" y2="193" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#16a34a" stop-opacity="0"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0.7"/></linearGradient>
+              <linearGradient id="lg-r3" x1="550" y1="290" x2="1020" y2="387" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#16a34a" stop-opacity="0"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0.7"/></linearGradient>
+              <linearGradient id="lg-r4" x1="550" y1="290" x2="986"  y2="508" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#16a34a" stop-opacity="0"/><stop offset="100%" stop-color="#16a34a" stop-opacity="0.7"/></linearGradient>
+            </defs>
+            <!-- Esquerda: curvas bezier entrando -->
+            <path d="M 550 290 Q 332 230 114 72"  stroke="url(#lg-l1)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--in"/>
+            <path d="M 550 290 Q 315 268 80 193"  stroke="url(#lg-l2)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--in"/>
+            <path d="M 550 290 Q 315 312 80 387"  stroke="url(#lg-l3)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--in"/>
+            <path d="M 550 290 Q 332 350 114 508" stroke="url(#lg-l4)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--in"/>
+            <!-- Direita: curvas bezier saindo -->
+            <path d="M 550 290 Q 768 230 986 72"   stroke="url(#lg-r1)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--out"/>
+            <path d="M 550 290 Q 785 268 1020 193" stroke="url(#lg-r2)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--out"/>
+            <path d="M 550 290 Q 785 312 1020 387" stroke="url(#lg-r3)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--out"/>
+            <path d="M 550 290 Q 768 350 986 508"  stroke="url(#lg-r4)" stroke-width="1.5" stroke-dasharray="6 5" fill="none" class="pain-line pain-line--out"/>
           </svg>
 
           <!-- Orbe central com anéis pulsantes -->
