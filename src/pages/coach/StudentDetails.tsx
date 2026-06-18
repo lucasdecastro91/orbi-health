@@ -23,7 +23,7 @@ interface StudentData {
   profiles: { nome: string };
 }
 
-type TabKey = "treinos" | "dieta" | "checkins" | "evolucao" | "anamnese" | "atualizacao" | "feedbacks" | "alongamentos" | "cardio" | "postural" | "plano";
+type TabKey = "treinos" | "dieta" | "checkins" | "evolucao" | "anamnese" | "atualizacao" | "feedbacks" | "alongamentos" | "cardio" | "postural" | "plano" | "anotacoes" | "aval_fisica";
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "treinos",      label: "Treinos",      icon: Dumbbell       },
@@ -32,11 +32,13 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "alongamentos", label: "Alongamentos", icon: TrendingUp     },
   { key: "cardio",       label: "Cardio",       icon: Calendar       },
   { key: "postural",     label: "Avaliação",    icon: ScanLine       },
+  { key: "aval_fisica",  label: "Aval. Física", icon: BarChart2      },
   { key: "checkins",     label: "Check-ins",    icon: ClipboardList  },
   { key: "evolucao",     label: "Evolução",     icon: TrendingUp     },
   { key: "anamnese",     label: "Anamnese",     icon: ClipboardCheck },
   { key: "atualizacao",  label: "Atualização",  icon: ClipboardList  },
   { key: "feedbacks",    label: "Feedbacks",    icon: MessageSquare  },
+  { key: "anotacoes",    label: "Anotações",    icon: NotebookPen    },
 ];
 
 // ── Photo slot constants ───────────────────────────────────────────
@@ -4093,7 +4095,599 @@ const StudentDetails = () => {
 
         {activeTab === "postural" && <PosturalViewer studentUserId={student.user_id} alunoId={student.id} />}
 
+        {activeTab === "anotacoes" && (
+          <AnotacoesViewer alunoId={student.id} orgId={orgId} coachId={coachId} />
+        )}
+
+        {activeTab === "aval_fisica" && (
+          <AvalFisicaViewer alunoId={student.id} orgId={orgId} studentUserId={student.user_id} />
+        )}
+
       </div>
+    </div>
+  );
+};
+
+// ── Anotações Viewer ──────────────────────────────────────────────
+interface Anotacao {
+  id: string;
+  texto: string;
+  created_at: string;
+}
+
+const AnotacoesViewer = ({
+  alunoId,
+  orgId,
+  coachId,
+}: {
+  alunoId: string;
+  orgId: string | null;
+  coachId: string | null;
+}) => {
+  const { toast }   = useToast();
+  const [items,     setItems]     = useState<Anotacao[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [texto,     setTexto]     = useState("");
+  const [saving,    setSaving]    = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId,  setConfirmId]  = useState<string | null>(null);
+
+  useEffect(() => { load(); }, [alunoId]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("anotacoes_aluno")
+        .select("id, texto, created_at")
+        .eq("aluno_id", alunoId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setItems(data ?? []);
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar anotações", description: err.message, variant: "destructive" });
+    } finally { setLoading(false); }
+  };
+
+  const handleSave = async () => {
+    const t = texto.trim();
+    if (!t || !orgId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("anotacoes_aluno").insert({
+        org_id:       orgId,
+        aluno_id:     alunoId,
+        treinador_id: coachId,
+        texto:        t,
+      });
+      if (error) throw error;
+      setTexto("");
+      toast({ title: "Anotação salva!" });
+      await load();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const { error } = await supabase.from("anotacoes_aluno").delete().eq("id", id);
+      if (error) throw error;
+      setItems((prev) => prev.filter((a) => a.id !== id));
+      setConfirmId(null);
+      toast({ title: "Anotação excluída." });
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally { setDeletingId(null); }
+  };
+
+  const fmtDate = (iso: string) =>
+    format(parseISO(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+  return (
+    <div className="space-y-5">
+      {/* Nova anotação */}
+      <div className="rounded-2xl border border-white/8 p-4 space-y-3" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Nova anotação</p>
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Escreva uma anotação sobre este aluno..."
+          rows={4}
+          className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors resize-none"
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving || !texto.trim()}
+          className="h-10 px-5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-40 transition-all"
+          style={{ background: "var(--cp-gradient)" }}
+        >
+          {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Salvar anotação
+        </button>
+      </div>
+
+      {/* Histórico */}
+      <div>
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Histórico de anotações</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-10 gap-2 text-white/25">
+            <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border border-white/8 py-12 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <NotebookPen className="w-8 h-8 text-white/10 mx-auto mb-2" />
+            <p className="text-white/30 text-sm">Nenhuma anotação registrada ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {items.map((a) => (
+              <div key={a.id} className="rounded-2xl border border-white/8 px-4 py-3.5" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap flex-1">{a.texto}</p>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {confirmId === a.id ? (
+                      <>
+                        <span className="text-xs text-white/40 mr-1">Excluir?</span>
+                        <button
+                          onClick={() => handleDelete(a.id)}
+                          disabled={deletingId === a.id}
+                          className="text-xs px-2 h-7 rounded-lg font-semibold"
+                          style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}
+                        >
+                          {deletingId === a.id ? "..." : "Sim"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(null)}
+                          className="text-xs px-2 h-7 rounded-lg font-semibold"
+                          style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+                        >
+                          Não
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmId(a.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-white/25 mt-2">{fmtDate(a.created_at)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Avaliação Física Viewer ───────────────────────────────────────
+interface AvalFisica {
+  id: string;
+  data_avaliacao: string;
+  peso: number | null;
+  massa_muscular_kg: number | null;
+  percentual_gordura: number | null;
+  massa_gordura_kg: number | null;
+  imc: number | null;
+  taxa_metabolica_basal: number | null;
+  gordura_visceral: number | null;
+  pontuacao_inbody: number | null;
+  dinamometria_dorsal: number | null;
+  dinamometria_escapular: number | null;
+  dinamometria_manual: number | null;
+  foto_url: string | null;
+  observacoes: string | null;
+  created_at: string;
+}
+
+const AVAL_FISICA_BUCKET = "evolution-photos";
+
+const emptyAvalForm = () => ({
+  data_avaliacao:        format(new Date(), "yyyy-MM-dd"),
+  peso:                  "",
+  massa_muscular_kg:     "",
+  percentual_gordura:    "",
+  massa_gordura_kg:      "",
+  imc:                   "",
+  taxa_metabolica_basal: "",
+  gordura_visceral:      "",
+  pontuacao_inbody:      "",
+  dinamometria_dorsal:   "",
+  dinamometria_escapular:"",
+  dinamometria_manual:   "",
+  observacoes:           "",
+});
+
+const AvalFisicaViewer = ({
+  alunoId,
+  orgId,
+  studentUserId,
+}: {
+  alunoId: string;
+  orgId: string | null;
+  studentUserId: string;
+}) => {
+  const { toast }   = useToast();
+  const [items,     setItems]     = useState<AvalFisica[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [showForm,  setShowForm]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [form,      setForm]      = useState(emptyAvalForm());
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId,  setConfirmId]  = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { load(); }, [alunoId]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("avaliacoes_fisicas")
+        .select("*")
+        .eq("aluno_id", alunoId)
+        .order("data_avaliacao", { ascending: false });
+      if (error) throw error;
+      setItems(data ?? []);
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar avaliações", description: err.message, variant: "destructive" });
+    } finally { setLoading(false); }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    if (!orgId) return;
+    setSaving(true);
+    try {
+      let foto_url: string | null = null;
+
+      if (photoFile) {
+        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const path = `${orgId}/${studentUserId}/aval-fisica_${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from(AVAL_FISICA_BUCKET)
+          .upload(path, photoFile, { upsert: false });
+        if (upErr) throw upErr;
+        foto_url = supabase.storage.from(AVAL_FISICA_BUCKET).getPublicUrl(path).data.publicUrl;
+      }
+
+      const numOrNull = (v: string) => v.trim() === "" ? null : Number(v);
+
+      const { error } = await supabase.from("avaliacoes_fisicas").insert({
+        org_id:                orgId,
+        aluno_id:              alunoId,
+        data_avaliacao:        form.data_avaliacao,
+        peso:                  numOrNull(form.peso),
+        massa_muscular_kg:     numOrNull(form.massa_muscular_kg),
+        percentual_gordura:    numOrNull(form.percentual_gordura),
+        massa_gordura_kg:      numOrNull(form.massa_gordura_kg),
+        imc:                   numOrNull(form.imc),
+        taxa_metabolica_basal: numOrNull(form.taxa_metabolica_basal),
+        gordura_visceral:      numOrNull(form.gordura_visceral),
+        pontuacao_inbody:      numOrNull(form.pontuacao_inbody),
+        dinamometria_dorsal:   numOrNull(form.dinamometria_dorsal),
+        dinamometria_escapular:numOrNull(form.dinamometria_escapular),
+        dinamometria_manual:   numOrNull(form.dinamometria_manual),
+        foto_url,
+        observacoes:           form.observacoes.trim() || null,
+      });
+      if (error) throw error;
+
+      toast({ title: "Avaliação registrada!" });
+      setForm(emptyAvalForm());
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setShowForm(false);
+      await load();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item: AvalFisica) => {
+    setDeletingId(item.id);
+    try {
+      if (item.foto_url) {
+        const url  = new URL(item.foto_url);
+        const path = url.pathname.split(`/${AVAL_FISICA_BUCKET}/`)[1];
+        if (path) await supabase.storage.from(AVAL_FISICA_BUCKET).remove([path]);
+      }
+      const { error } = await supabase.from("avaliacoes_fisicas").delete().eq("id", item.id);
+      if (error) throw error;
+      setItems((prev) => prev.filter((a) => a.id !== item.id));
+      setConfirmId(null);
+      if (expandedId === item.id) setExpandedId(null);
+      toast({ title: "Avaliação excluída." });
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally { setDeletingId(null); }
+  };
+
+  const inp  = "w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/40 transition-colors";
+  const lbl  = "text-[11px] text-white/40 uppercase tracking-wider mb-1.5 block";
+  const fmtN = (v: number | null, unit = "") => v != null ? `${v}${unit}` : "—";
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Avaliações Físicas</p>
+        <button
+          onClick={() => { setShowForm((v) => !v); if (showForm) { setForm(emptyAvalForm()); setPhotoFile(null); setPhotoPreview(null); } }}
+          className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
+          style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+        >
+          <Plus className="w-3.5 h-3.5" />{showForm ? "Cancelar" : "Nova avaliação"}
+        </button>
+      </div>
+
+      {/* Formulário */}
+      {showForm && (
+        <div className="rounded-2xl border border-white/8 p-5 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Nova Avaliação Física</p>
+
+          {/* Data */}
+          <div>
+            <label className={lbl}>Data da avaliação *</label>
+            <input type="date" value={form.data_avaliacao} onChange={(e) => setForm((f) => ({ ...f, data_avaliacao: e.target.value }))} className={inp} />
+          </div>
+
+          {/* Composição corporal */}
+          <div>
+            <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2 font-semibold">Composição Corporal</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ["peso",               "Peso (kg)",           "0.1"],
+                ["massa_muscular_kg",  "Massa Muscular (kg)", "0.1"],
+                ["percentual_gordura", "% Gordura",           "0.1"],
+                ["massa_gordura_kg",   "Massa Gorda (kg)",    "0.1"],
+                ["imc",                "IMC",                 "0.1"],
+              ] as const).map(([field, label, step]) => (
+                <div key={field}>
+                  <label className={lbl}>{label}</label>
+                  <input
+                    type="number" step={step} min="0"
+                    value={(form as any)[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className={inp}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Metabolismo */}
+          <div>
+            <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2 font-semibold">Metabolismo & InBody</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ["taxa_metabolica_basal", "Taxa Metab. Basal (kcal)"],
+                ["gordura_visceral",      "Gordura Visceral"],
+                ["pontuacao_inbody",      "Pontuação InBody"],
+              ] as const).map(([field, label]) => (
+                <div key={field}>
+                  <label className={lbl}>{label}</label>
+                  <input
+                    type="number" min="0"
+                    value={(form as any)[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className={inp}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dinamometria */}
+          <div>
+            <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2 font-semibold">Dinamometria</p>
+            <div className="grid grid-cols-3 gap-3">
+              {([
+                ["dinamometria_dorsal",    "Dorsal"],
+                ["dinamometria_escapular", "Escapular"],
+                ["dinamometria_manual",    "Manual"],
+              ] as const).map(([field, label]) => (
+                <div key={field}>
+                  <label className={lbl}>{label}</label>
+                  <input
+                    type="number" min="0"
+                    value={(form as any)[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className={inp}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Foto */}
+          <div>
+            <label className={lbl}>Foto do resultado <span className="normal-case text-white/20">(opcional)</span></label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 cursor-pointer transition-colors hover:border-white/30 py-6"
+              style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+            >
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="max-h-48 rounded-lg object-contain" />
+              ) : (
+                <>
+                  <Camera className="w-6 h-6 text-white/20" />
+                  <span className="text-xs text-white/30">Clique para selecionar</span>
+                </>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+          </div>
+
+          {/* Observações */}
+          <div>
+            <label className={lbl}>Observações <span className="normal-case text-white/20">(opcional)</span></label>
+            <textarea
+              rows={3}
+              value={form.observacoes}
+              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
+              placeholder="Observações sobre a avaliação..."
+              className={inp + " h-auto py-2.5 resize-none"}
+            />
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.data_avaliacao}
+            className="h-10 px-5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-40"
+            style={{ background: "var(--cp-gradient)" }}
+          >
+            {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Salvar avaliação
+          </button>
+        </div>
+      )}
+
+      {/* Histórico */}
+      {loading ? (
+        <div className="flex items-center justify-center py-10 gap-2 text-white/25">
+          <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-white/8 py-12 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <BarChart2 className="w-8 h-8 text-white/10 mx-auto mb-2" />
+          <p className="text-white/30 text-sm">Nenhuma avaliação física registrada ainda.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => {
+            const isOpen = expandedId === item.id;
+            const dateLabel = format(parseISO(item.data_avaliacao), "dd 'de' MMMM yyyy", { locale: ptBR });
+            return (
+              <div key={item.id} className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                {/* Card header */}
+                <div className="flex items-center">
+                  <button
+                    onClick={() => setExpandedId(isOpen ? null : item.id)}
+                    className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white/80">{dateLabel}</p>
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {item.peso            != null && <span className="text-xs text-white/40">{item.peso} kg</span>}
+                        {item.percentual_gordura != null && <span className="text-xs text-white/40">{item.percentual_gordura}% gord.</span>}
+                        {item.massa_muscular_kg  != null && <span className="text-xs text-white/40">{item.massa_muscular_kg} kg musc.</span>}
+                        {item.imc               != null && <span className="text-xs text-white/40">IMC {item.imc}</span>}
+                      </div>
+                    </div>
+                    {isOpen
+                      ? <ChevronUp   className="w-4 h-4 text-white/30 shrink-0" />
+                      : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
+                  </button>
+                  {/* Delete */}
+                  <div className="flex items-center gap-1 pr-3">
+                    {confirmId === item.id ? (
+                      <>
+                        <span className="text-xs text-white/40 mr-1">Excluir?</span>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingId === item.id}
+                          className="text-xs px-2 h-7 rounded-lg font-semibold"
+                          style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}
+                        >
+                          {deletingId === item.id ? "..." : "Sim"}
+                        </button>
+                        <button onClick={() => setConfirmId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>Não</button>
+                      </>
+                    ) : (
+                      <button onClick={() => setConfirmId(item.id)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                {isOpen && (
+                  <div className="border-t px-4 py-4 space-y-5" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                    {/* Foto */}
+                    {item.foto_url && (
+                      <div>
+                        <p className="text-[11px] text-white/35 uppercase tracking-wider mb-2">Foto do resultado</p>
+                        <a href={item.foto_url} target="_blank" rel="noreferrer">
+                          <img src={item.foto_url} alt="" className="max-h-64 rounded-xl object-contain border border-white/8 hover:opacity-90 transition-opacity" />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Métricas */}
+                    <div>
+                      <p className="text-[11px] text-white/35 uppercase tracking-wider mb-3">Composição corporal</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {([
+                          ["Peso",          fmtN(item.peso,              " kg")],
+                          ["Massa Muscular",fmtN(item.massa_muscular_kg, " kg")],
+                          ["% Gordura",     fmtN(item.percentual_gordura,"%")],
+                          ["Massa Gorda",   fmtN(item.massa_gordura_kg,  " kg")],
+                          ["IMC",           fmtN(item.imc)],
+                          ["TMB",           fmtN(item.taxa_metabolica_basal, " kcal")],
+                          ["Gord. Visceral",fmtN(item.gordura_visceral)],
+                          ["InBody Score",  fmtN(item.pontuacao_inbody)],
+                        ] as [string, string][]).filter(([, v]) => v !== "—").map(([l, v]) => (
+                          <div key={l} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                            <p className="text-[10px] text-white/35 uppercase tracking-wider">{l}</p>
+                            <p className="text-sm font-bold text-white/80 mt-0.5">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Dinamometria */}
+                    {(item.dinamometria_dorsal != null || item.dinamometria_escapular != null || item.dinamometria_manual != null) && (
+                      <div>
+                        <p className="text-[11px] text-white/35 uppercase tracking-wider mb-3">Dinamometria</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {([
+                            ["Dorsal",    item.dinamometria_dorsal],
+                            ["Escapular", item.dinamometria_escapular],
+                            ["Manual",    item.dinamometria_manual],
+                          ] as [string, number | null][]).map(([l, v]) => (
+                            <div key={l} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
+                              <p className="text-[10px] text-white/35 uppercase tracking-wider">{l}</p>
+                              <p className="text-sm font-bold text-white/80 mt-0.5">{fmtN(v)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Observações */}
+                    {item.observacoes && (
+                      <div>
+                        <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1.5">Observações</p>
+                        <p className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap">{item.observacoes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
