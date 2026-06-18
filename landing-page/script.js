@@ -230,7 +230,7 @@ function initRevealImg() {
 function initPainTypewriter() {
   const el = document.getElementById('pain-typewriter');
   if (!el) return;
-  const words = ['PDF no WhatsApp.', 'planilha do Google.', 'link de pagamento avulso.', 'app genérico sem marca.'];
+  const words = ['PDF no WhatsApp.', 'planilha do Excel.', 'link de pagamento avulso.'];
   let wi = 0;
 
   el.textContent = words[0];
