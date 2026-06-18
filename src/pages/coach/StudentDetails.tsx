@@ -31,7 +31,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "plano",        label: "Plano",        icon: CreditCard     },
   { key: "alongamentos", label: "Alongamentos", icon: TrendingUp     },
   { key: "cardio",       label: "Cardio",       icon: Calendar       },
-  { key: "postural",     label: "Avaliação",    icon: ScanLine       },
+  { key: "postural",     label: "Aval. Postural", icon: ScanLine       },
   { key: "aval_fisica",  label: "Aval. Física", icon: BarChart2      },
   { key: "checkins",     label: "Check-ins",    icon: ClipboardList  },
   { key: "evolucao",     label: "Evolução",     icon: TrendingUp     },
