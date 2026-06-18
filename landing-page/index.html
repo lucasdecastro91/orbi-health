@@ -178,91 +178,178 @@
   <main>
 
     <!-- ===== HERO ===== -->
-    <section class="hero" id="hero" aria-labelledby="hero-title">
-      <!-- Grid sutil no fundo -->
-      <div class="hero__grid" aria-hidden="true"></div>
+    <section class="hero-section" id="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
 
-      <div class="container hero__inner">
-
-        <div class="hero__content" data-reveal>
-          <span class="hero__label">Feito por um profissional de saúde, para profissionais de saúde</span>
-
-          <h1 class="hero__title" id="hero-title">
-            Ainda manda treino<br>
-            por PDF e cobra<br>
-            mandando link de<br>
-            pagamento pelo<br>
-            <span class="hero__title-highlight">WhatsApp?</span>
+        <!-- Coluna esquerda: textos -->
+        <div class="hero-text" data-reveal>
+          <span class="hero-tag">Feito por um profissional de saúde, para profissionais de saúde</span>
+          <h1 class="hero-headline" id="hero-title">
+            Ainda manda treino<br>por PDF e cobra<br>pelo <span class="hero-highlight">WhatsApp?</span>
           </h1>
-
-          <p class="hero__subtitle">
-            Chega de WhatsApp e planilha. Tenha seu app com sua marca em minutos.
+          <p class="hero-sub">
+            Chega de planilha e link de pagamento. Tenha seu app com sua marca em minutos.
           </p>
-
-          <div class="hero__actions">
-            <a href="https://app.orbihealth.com.br/cadastro"
-               class="btn btn--primary btn--lg"
-               data-cta="lead">
-              Começar grátis
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </a>
-            <a href="#solucoes" class="btn btn--outline-white btn--lg">
-              Ver soluções
-            </a>
+          <div class="hero-ctas">
+            <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
+            <a href="#solucoes" class="btn btn--outline-white btn--lg">Ver soluções</a>
           </div>
+          <p class="hero-footnote">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Grátis, sem cartão &middot; cancele quando quiser
+          </p>
         </div>
 
-        <!-- Hero visual 3D -->
-        <div class="hero__visual" data-reveal aria-hidden="true">
-          <div class="hero3d-wrap">
+        <!-- Coluna direita: mockup 3D -->
+        <div class="hero-mockup-container" aria-hidden="true">
 
-            <!-- Badge superior esquerdo -->
-            <div class="hero-badge green float-1 hero-badge--tl">
+          <!-- Tela esquerda (fundo) -->
+          <div class="hero-phone hero-phone-left">
+            <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (2).jpeg" alt="">
+          </div>
+
+          <!-- Celular central com frame iPhone -->
+          <div class="hero-phone hero-phone-center">
+            <div class="iphone-frame">
+              <div class="iphone-dynamic-island" aria-hidden="true"></div>
+              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg" alt="App ORBI Health">
+            </div>
+
+            <!-- Badges flutuantes -->
+            <div class="hero-badge green float-1" style="top:10%;left:-168px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               Treino enviado
             </div>
-
-            <!-- Badge superior direito -->
-            <div class="hero-badge green float-3 hero-badge--tr">
+            <div class="hero-badge float-2" style="bottom:26%;left:-175px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span style="color:#16a34a;font-weight:700;">R$ 2.400,00</span>&nbsp;&middot; plano semestral
+            </div>
+            <div class="hero-badge green float-3" style="top:16%;right:-178px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
               Novo aluno cadastrado
             </div>
-
-            <!-- Badge inferior esquerdo -->
-            <div class="hero-badge float-2 hero-badge--bl">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span style="color:#16a34a;font-weight:700;">R$ 2.400,00</span>&nbsp;· plano semestral
-            </div>
-
-            <!-- Badge inferior direito -->
-            <div class="hero-badge float-4 hero-badge--br">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <div class="hero-badge float-4" style="bottom:20%;right:-163px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
               Pagamento recebido
             </div>
-
-            <!-- Celular esquerdo (fundo) -->
-            <div class="hero3d-phone hero3d-phone--left">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (2).jpeg"
-                   alt="Tela de treinos">
-            </div>
-
-            <!-- Celular central (destaque) -->
-            <div class="hero3d-phone hero3d-phone--center">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg"
-                   alt="App ORBI Health">
-            </div>
-
-            <!-- Celular direito (fundo) -->
-            <div class="hero3d-phone hero3d-phone--right">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38.jpeg"
-                   alt="Tela de dieta">
-            </div>
-
-            <!-- Glow verde embaixo -->
-            <div class="hero3d-glow" aria-hidden="true"></div>
           </div>
+
+          <!-- Tela direita (fundo) -->
+          <div class="hero-phone hero-phone-right">
+            <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38.jpeg" alt="">
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DOR / PROBLEMA ===== -->
+    <section class="pain-section" id="problema" aria-labelledby="pain-title">
+      <div class="container">
+
+        <!-- Cabeçalho com typewriter -->
+        <div class="pain-header" data-reveal>
+          <span class="section-tag">O problema</span>
+          <h2 class="pain-title" id="pain-title">
+            Você nunca vai conseguir cobrar mais caro<br>
+            enviando <span class="pain-typewriter" id="pain-typewriter"></span><span class="pain-cursor">|</span>
+          </h2>
+          <p class="pain-subtitle">A ferramenta que você usa define o valor que o mercado enxerga em você.</p>
+        </div>
+
+        <!-- Diagrama radial -->
+        <div class="pain-diagram" data-reveal>
+          <!-- Linhas SVG animadas -->
+          <svg class="pain-lines" viewBox="0 0 900 420" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+            <!-- Esquerda -->
+            <line x1="450" y1="210" x2="130" y2="100" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+            <line x1="450" y1="210" x2="60"  y2="210" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+            <line x1="450" y1="210" x2="130" y2="320" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+            <!-- Direita -->
+            <line x1="450" y1="210" x2="770" y2="100" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+            <line x1="450" y1="210" x2="840" y2="210" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+            <line x1="450" y1="210" x2="770" y2="320" stroke="#16a34a" stroke-width="1" stroke-dasharray="6 5" class="pain-line"/>
+          </svg>
+
+          <!-- Orbe central -->
+          <div class="pain-orb">
+            <svg width="52" height="52" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+              <circle cx="46.1" cy="17.9" r="4.5" fill="#16a34a"/>
+              <circle cx="32" cy="32" r="2" fill="#16a34a"/>
+            </svg>
+          </div>
+
+          <!-- Nós à esquerda -->
+          <div class="pain-node pain-node--tl">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>WhatsApp</span>
+          </div>
+          <div class="pain-node pain-node--ml">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>PDF / E-mail</span>
+          </div>
+          <div class="pain-node pain-node--bl">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <span>Planilha</span>
+          </div>
+
+          <!-- Nós à direita -->
+          <div class="pain-node pain-node--tr">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span>Google Drive</span>
+          </div>
+          <div class="pain-node pain-node--mr">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Link de pagamento</span>
+          </div>
+          <div class="pain-node pain-node--br">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+            <span>App genérico</span>
+          </div>
+        </div>
+
+        <!-- Card de comparação -->
+        <div class="pain-compare" data-reveal>
+          <div class="pain-compare__inner">
+
+            <div class="pain-col pain-col--before">
+              <div class="pain-col__header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Sem a ORBI
+              </div>
+              <ul class="pain-list">
+                <li>Treino enviado por PDF no WhatsApp</li>
+                <li>Cobrança manual por PIX ou link avulso</li>
+                <li>Evolução acompanhada por print no chat</li>
+                <li>App genérico sem a sua identidade</li>
+                <li>Sem dados, sem métricas, sem visão</li>
+                <li>Parece prestador de serviço, não empresa</li>
+              </ul>
+            </div>
+
+            <div class="pain-divider">
+              <span>vs</span>
+            </div>
+
+            <div class="pain-col pain-col--after">
+              <div class="pain-col__header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Com a ORBI
+              </div>
+              <ul class="pain-list">
+                <li>Treino prescrito direto no app, com vídeo</li>
+                <li>Cobrança recorrente automática e integrada</li>
+                <li>Evolução com gráficos, fotos e check-ins</li>
+                <li><strong>Seu app, sua marca, sua identidade visual</strong></li>
+                <li>Dashboard completo com métricas reais</li>
+                <li>Parece empresa. Cobra como empresa.</li>
+              </ul>
+            </div>
+
+          </div>
+          <p class="pain-compare__cta-text">Seu app. Sua marca. Em minutos.</p>
+          <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
         </div>
 
       </div>

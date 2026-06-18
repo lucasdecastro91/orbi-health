@@ -1107,6 +1107,223 @@ ul { list-style: none; }
 }
 
 /* ============================================================
+   SEÇÃO DOR / PROBLEMA
+   ============================================================ */
+.pain-section {
+  padding: 7rem 0 6rem;
+  position: relative;
+}
+
+.pain-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.pain-title {
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -.02em;
+  margin-bottom: 1rem;
+}
+
+.pain-subtitle {
+  font-size: 1.125rem;
+  color: #9ca3af;
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Typewriter */
+.pain-typewriter {
+  color: #16a34a;
+  font-style: italic;
+}
+.pain-cursor {
+  color: #16a34a;
+  font-weight: 300;
+  animation: blink .8s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ===== DIAGRAMA RADIAL ===== */
+.pain-diagram {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 420px;
+  margin: 0 auto 4rem;
+}
+
+.pain-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pain-line {
+  stroke-dasharray: 6 5;
+  animation: dash-move 1.8s linear infinite;
+}
+@keyframes dash-move {
+  to { stroke-dashoffset: -22; }
+}
+
+/* Orbe central */
+.pain-orb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0d2818 0%, #051a0d 60%, #020d05 100%);
+  border: 1.5px solid rgba(22,163,74,0.4);
+  box-shadow: 0 0 60px rgba(22,163,74,0.25), 0 0 120px rgba(22,163,74,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Nós */
+.pain-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: #111;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  padding: .5rem .85rem;
+  font-size: .8rem;
+  font-weight: 500;
+  color: #9ca3af;
+  white-space: nowrap;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+}
+.pain-node svg { color: #4b5563; flex-shrink: 0; }
+
+/* Posições — baseadas no viewBox 900×420, convertidas em % */
+.pain-node--tl { top: calc(100px/420*100%); left: calc(130px/900*100%); }
+.pain-node--ml { top: 50%;                  left: calc(60px/900*100%);  }
+.pain-node--bl { top: calc(320px/420*100%); left: calc(130px/900*100%); }
+.pain-node--tr { top: calc(100px/420*100%); left: calc(770px/900*100%); }
+.pain-node--mr { top: 50%;                  left: calc(840px/900*100%); }
+.pain-node--br { top: calc(320px/420*100%); left: calc(770px/900*100%); }
+
+/* ===== CARD DE COMPARAÇÃO ===== */
+.pain-compare {
+  max-width: 860px;
+  margin: 0 auto;
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  border-radius: 20px;
+  padding: 2.5rem 2.5rem 2rem;
+  text-align: center;
+}
+
+.pain-compare__inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+
+/* Colunas */
+.pain-col__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  font-size: .875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #1f1f1f;
+}
+.pain-col--before .pain-col__header { color: #6b7280; }
+.pain-col--after  .pain-col__header { color: #4ade80; }
+
+.pain-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  text-align: left;
+}
+.pain-list li {
+  font-size: .9rem;
+  line-height: 1.5;
+  padding-left: 1.5rem;
+  position: relative;
+}
+.pain-col--before .pain-list li { color: #6b7280; }
+.pain-col--before .pain-list li::before {
+  content: '×';
+  position: absolute;
+  left: 0;
+  color: #4b5563;
+  font-weight: 700;
+}
+.pain-col--after .pain-list li { color: #d1fae5; }
+.pain-col--after .pain-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #16a34a;
+  font-weight: 700;
+}
+.pain-col--after .pain-list li strong { color: #4ade80; }
+
+/* Divisor VS */
+.pain-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  padding-top: 2.5rem;
+}
+.pain-divider span {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #374151;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: #111;
+  border: 1px solid #1f1f1f;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pain-compare__cta-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1.25rem;
+  letter-spacing: -.01em;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .pain-diagram { display: none; }
+  .pain-compare__inner { grid-template-columns: 1fr; }
+  .pain-divider { padding: 1rem 0; }
+  .pain-compare { padding: 1.75rem 1.25rem 1.5rem; }
+}
+
+/* ============================================================
    SCREENSHOT CARDS — seção Por que a ORBI
    ============================================================ */
 .screenshot-mobile-card {
