@@ -1178,12 +1178,12 @@ ul { list-style: none; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 160px;
-  height: 160px;
+  width: 240px;
+  height: 240px;
   border-radius: 50%;
   background: radial-gradient(circle, #0d2818 0%, #051a0d 60%, #020d05 100%);
   border: 1.5px solid rgba(22,163,74,0.5);
-  box-shadow: 0 0 80px rgba(22,163,74,0.35), 0 0 160px rgba(22,163,74,0.15);
+  box-shadow: 0 0 100px rgba(22,163,74,0.4), 0 0 200px rgba(22,163,74,0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1194,15 +1194,15 @@ ul { list-style: none; }
 .pain-orb__ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(22,163,74,0.25);
+  border: 1px solid rgba(22,163,74,0.22);
   pointer-events: none;
 }
 .pain-orb__ring--1 {
-  width: 220px; height: 220px;
+  width: 320px; height: 320px;
   animation: orb-pulse 2.4s ease-out infinite;
 }
 .pain-orb__ring--2 {
-  width: 290px; height: 290px;
+  width: 410px; height: 410px;
   animation: orb-pulse 2.4s ease-out infinite 0.8s;
 }
 @keyframes orb-pulse {
