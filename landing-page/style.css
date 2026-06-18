@@ -1136,17 +1136,30 @@ ul { list-style: none; }
   line-height: 1.6;
 }
 
-/* Typewriter */
+/* Slide-up word rotator */
 .pain-typewriter {
+  display: inline-block;
   color: #16a34a;
   font-style: italic;
+  overflow: hidden;
+  vertical-align: bottom;
 }
-.pain-cursor {
-  color: #16a34a;
-  font-weight: 300;
-  animation: blink .8s step-end infinite;
+
+.word-enter {
+  animation: word-slide-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.word-exit {
+  animation: word-slide-out 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes word-slide-in {
+  from { opacity: 0; transform: translateY(60%); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+@keyframes word-slide-out {
+  from { opacity: 1; transform: translateY(0);    }
+  to   { opacity: 0; transform: translateY(-60%); }
+}
 
 /* ===== DIAGRAMA RADIAL ===== */
 .pain-diagram {

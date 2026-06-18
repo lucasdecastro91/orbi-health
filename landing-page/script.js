@@ -226,26 +226,32 @@ function initRevealImg() {
   document.querySelectorAll('.reveal-img').forEach(el => observer.observe(el));
 }
 
-/* --- Typewriter seção dor --- */
+/* --- Slide-up word rotator seção dor --- */
 function initPainTypewriter() {
   const el = document.getElementById('pain-typewriter');
   if (!el) return;
   const words = ['PDF no WhatsApp.', 'planilha do Google.', 'link de pagamento avulso.', 'app genérico sem marca.'];
-  let wi = 0, ci = 0, deleting = false;
-  const speed = { type: 60, delete: 35, pause: 1800 };
+  let wi = 0;
 
-  function tick() {
-    const word = words[wi];
-    if (!deleting) {
-      el.textContent = word.slice(0, ++ci);
-      if (ci === word.length) { deleting = true; setTimeout(tick, speed.pause); return; }
-    } else {
-      el.textContent = word.slice(0, --ci);
-      if (ci === 0) { deleting = false; wi = (wi + 1) % words.length; }
-    }
-    setTimeout(tick, deleting ? speed.delete : speed.type);
+  el.textContent = words[0];
+  el.style.animation = 'none';
+
+  function next() {
+    /* Sai: sobe e desaparece */
+    el.classList.remove('word-enter');
+    el.classList.add('word-exit');
+
+    setTimeout(() => {
+      wi = (wi + 1) % words.length;
+      el.textContent = words[wi];
+      el.classList.remove('word-exit');
+      /* Entra: vem de baixo e aparece */
+      el.classList.add('word-enter');
+    }, 350);
   }
-  tick();
+
+  el.classList.add('word-enter');
+  setInterval(next, 2600);
 }
 
 /* --- Init --- */
