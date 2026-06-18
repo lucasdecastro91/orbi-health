@@ -1137,28 +1137,32 @@ ul { list-style: none; }
 }
 
 /* Slide-up word rotator */
+.pain-word-wrap {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* linha extra embaixo para não cortar descendentes */
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
 .pain-typewriter {
   display: inline-block;
   color: #16a34a;
   font-style: italic;
-  overflow: hidden;
-  vertical-align: bottom;
 }
-
 .word-enter {
-  animation: word-slide-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: word-slide-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .word-exit {
-  animation: word-slide-out 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  animation: word-slide-out 0.32s cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
-
 @keyframes word-slide-in {
-  from { opacity: 0; transform: translateY(60%); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
 @keyframes word-slide-out {
-  from { opacity: 1; transform: translateY(0);    }
-  to   { opacity: 0; transform: translateY(-60%); }
+  from { opacity: 1; transform: translateY(0);     }
+  to   { opacity: 0; transform: translateY(-100%); }
 }
 
 /* ===== DIAGRAMA RADIAL ===== */

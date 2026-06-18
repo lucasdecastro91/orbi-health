@@ -234,24 +234,26 @@ function initPainTypewriter() {
   let wi = 0;
 
   el.textContent = words[0];
-  el.style.animation = 'none';
+
+  /* força o browser a reconhecer a classe antes de animar */
+  void el.offsetWidth;
+  el.classList.add('word-enter');
 
   function next() {
-    /* Sai: sobe e desaparece */
     el.classList.remove('word-enter');
+    void el.offsetWidth;
     el.classList.add('word-exit');
 
     setTimeout(() => {
       wi = (wi + 1) % words.length;
       el.textContent = words[wi];
       el.classList.remove('word-exit');
-      /* Entra: vem de baixo e aparece */
+      void el.offsetWidth; /* reflow obrigatório para resetar a animação */
       el.classList.add('word-enter');
-    }, 350);
+    }, 340);
   }
 
-  el.classList.add('word-enter');
-  setInterval(next, 2600);
+  setInterval(next, 2800);
 }
 
 /* --- Init --- */
