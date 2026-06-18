@@ -1152,8 +1152,8 @@ ul { list-style: none; }
 .pain-diagram {
   position: relative;
   width: 100%;
-  max-width: 900px;
-  height: 420px;
+  max-width: 1100px;
+  height: 540px;
   margin: 0 auto 4rem;
 }
 
@@ -1178,44 +1178,46 @@ ul { list-style: none; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 110px;
-  height: 110px;
+  width: 130px;
+  height: 130px;
   border-radius: 50%;
   background: radial-gradient(circle, #0d2818 0%, #051a0d 60%, #020d05 100%);
   border: 1.5px solid rgba(22,163,74,0.4);
-  box-shadow: 0 0 60px rgba(22,163,74,0.25), 0 0 120px rgba(22,163,74,0.1);
+  box-shadow: 0 0 80px rgba(22,163,74,0.3), 0 0 160px rgba(22,163,74,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
 }
 
-/* Nós */
+/* Nós — base */
 .pain-node {
   position: absolute;
   display: flex;
   align-items: center;
-  gap: .5rem;
+  gap: .55rem;
   background: #111;
   border: 1px solid #1f1f1f;
   border-radius: 10px;
-  padding: .5rem .85rem;
-  font-size: .8rem;
+  padding: .55rem 1rem;
+  font-size: .85rem;
   font-weight: 500;
   color: #9ca3af;
   white-space: nowrap;
   z-index: 2;
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
 }
 .pain-node svg { color: #4b5563; flex-shrink: 0; }
 
-/* Posições — baseadas no viewBox 900×420, convertidas em % */
-.pain-node--tl { top: calc(100px/420*100%); left: calc(130px/900*100%); }
-.pain-node--ml { top: 50%;                  left: calc(60px/900*100%);  }
-.pain-node--bl { top: calc(320px/420*100%); left: calc(130px/900*100%); }
-.pain-node--tr { top: calc(100px/420*100%); left: calc(770px/900*100%); }
-.pain-node--mr { top: 50%;                  left: calc(840px/900*100%); }
-.pain-node--br { top: calc(320px/420*100%); left: calc(770px/900*100%); }
+/* Nós esquerda — alinhados pela borda esquerda */
+.pain-node--tl { top: 17.9%; left: 4%;  }
+.pain-node--ml { top: 50%;   left: 0%;  }
+.pain-node--bl { top: 82%;   left: 4%;  }
+
+/* Nós direita — alinhados pela borda direita, texto inverte para crescer à esquerda */
+.pain-node--tr { top: 17.9%; left: auto; right: 4%;  flex-direction: row-reverse; }
+.pain-node--mr { top: 50%;   left: auto; right: 0%;  flex-direction: row-reverse; }
+.pain-node--br { top: 82%;   left: auto; right: 4%;  flex-direction: row-reverse; }
 
 /* ===== CARD DE COMPARAÇÃO ===== */
 .pain-compare {
