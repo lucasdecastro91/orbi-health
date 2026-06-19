@@ -321,23 +321,6 @@ const Atualizacao = () => {
       } catch { /* falha silenciosa — não bloqueia o submit principal */ }
       // ─────────────────────────────────────────────────────────────
 
-      // 4. Notificar treinador (silencioso — não bloqueia o submit)
-      if (treinadorId) {
-        void (async () => {
-          try {
-            await supabase.from("notificacoes").insert({
-              user_id:    treinadorId,
-              org_id:     orgId,
-              aluno_id:   alunoRecId,
-              aluno_nome: alunoNome,
-              titulo:     "Nova atualização recebida",
-              mensagem:   `${alunoNome ?? "Um aluno"} enviou uma nova atualização.`,
-              tipo:       "atualizacao",
-            });
-          } catch { /* silencioso */ }
-        })();
-      }
-
       setSubmitted(true);
     } catch (e: any) {
       toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
