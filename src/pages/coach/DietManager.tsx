@@ -1570,6 +1570,15 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
   const [loadingDiet, setLoadingDiet] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // All diets selector
+  const [allDiets, setAllDiets] = useState<{ id: string; title: string; is_active: boolean; created_at: string }[]>([]);
+  const [selectedDietId, setSelectedDietId] = useState<string | null>(null);
+  const [viewingDiet, setViewingDiet] = useState<ActiveDiet | null>(null);
+  const [loadingViewing, setLoadingViewing] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const [deletingDietId, setDeletingDietId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const [form, setForm] = useState<DietForm>(emptyForm());
 
   // Meal edit modal
@@ -1600,7 +1609,81 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
   const [calcActivity, setCalcActivity] = useState('1.55');
   const [calcResult, setCalcResult] = useState<{ tmb: number; get: number } | null>(null);
 
-  useEffect(() => { loadActiveDiet(); loadStudentWeight(); }, [studentId]);
+  useEffect(() => { loadActiveDiet(); loadAllDiets(); loadStudentWeight(); }, [studentId]);
+
+  const loadAllDiets = async () => {
+    try {
+      const { data } = await supabase
+        .from("diets")
+        .select("id, title, is_active, created_at")
+        .eq("student_id", studentUserId)
+        .order("created_at", { ascending: false });
+      setAllDiets(data ?? []);
+    } catch {}
+  };
+
+  const handleSelectDiet = async (dietId: string) => {
+    setSelectedDietId(dietId);
+    const active = allDiets.find((d) => d.id === dietId);
+    if (active?.is_active) {
+      setViewingDiet(null);
+      return;
+    }
+    setLoadingViewing(true);
+    try {
+      const diet = await loadDietById(dietId);
+      setViewingDiet(diet);
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar dieta", description: err.message, variant: "destructive" });
+    } finally { setLoadingViewing(false); }
+  };
+
+  const handleReactivate = async (dietId: string) => {
+    setReactivating(true);
+    try {
+      await supabase.from("diets").update({ is_active: false }).eq("student_id", studentUserId);
+      await supabase.from("diets").update({ is_active: true }).eq("id", dietId);
+      await loadActiveDiet();
+      await loadAllDiets();
+      setSelectedDietId(dietId);
+      setViewingDiet(null);
+      toast({ title: "Dieta reativada!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao reativar", description: err.message, variant: "destructive" });
+    } finally { setReactivating(false); }
+  };
+
+  const handleDeleteDiet = async (dietId: string) => {
+    setDeletingDietId(dietId);
+    try {
+      const { error } = await supabase.from("diets").delete().eq("id", dietId);
+      if (error) throw error;
+      const wasActive = allDiets.find((d) => d.id === dietId)?.is_active;
+      await loadAllDiets();
+      if (wasActive) await loadActiveDiet();
+      setConfirmDeleteId(null);
+      setSelectedDietId(null);
+      setViewingDiet(null);
+      toast({ title: "Dieta excluída." });
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    } finally { setDeletingDietId(null); }
+  };
+
+  const duplicateDietById = (diet: ActiveDiet) => {
+    const base = dietToForm(diet);
+    setForm({
+      ...base,
+      title: `${base.title} (cópia)`,
+      meals: base.meals.map((m) => ({
+        ...m,
+        _key: crypto.randomUUID(),
+        dbId: undefined,
+        foods: m.foods.map((f) => ({ ...f, _key: crypto.randomUUID() })),
+      })),
+    });
+    setView("form");
+  };
 
   const loadStudentWeight = async () => {
     try {
@@ -1621,18 +1704,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
 
   const duplicateDiet = () => {
     if (!activeDiet) return;
-    const base = dietToForm(activeDiet);
-    setForm({
-      ...base,
-      title: `${base.title} (cópia)`,
-      meals: base.meals.map((m) => ({
-        ...m,
-        _key: crypto.randomUUID(),
-        dbId: undefined,
-        foods: m.foods.map((f) => ({ ...f, _key: crypto.randomUUID() })),
-      })),
-    });
-    setView("form");
+    duplicateDietById(activeDiet);
   };
 
   const calcGet = () => {
@@ -1893,6 +1965,10 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
         } catch {}
       })();
 
+      await loadActiveDiet();
+      await loadAllDiets();
+      setSelectedDietId(null);
+      setViewingDiet(null);
       setView("summary");
     } catch (err: any) {
       toast({ title: "Erro ao salvar dieta", description: err.message, variant: "destructive" });
@@ -2001,8 +2077,168 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
           </label>
         </div>
 
-        {activeDiet ? (
+        {/* Diet selector */}
+        {allDiets.length > 1 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-white/40 uppercase tracking-wider shrink-0">Dietas:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {allDiets.map((d) => {
+                const isSelected = selectedDietId ? selectedDietId === d.id : d.is_active;
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => handleSelectDiet(d.id)}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+                      isSelected
+                        ? "border-green-600/50 bg-green-600/15 text-green-400"
+                        : "border-white/10 bg-white/3 text-white/50 hover:text-white/80 hover:border-white/20"
+                    }`}
+                  >
+                    {d.title}
+                    {d.is_active && <span className="ml-1.5 text-[9px] opacity-70">ativa</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Viewing an inactive diet (readonly) */}
+        {(() => {
+          const isViewingInactive = selectedDietId && !allDiets.find((d) => d.id === selectedDietId)?.is_active;
+          if (!isViewingInactive) return null;
+          if (loadingViewing) return (
+            <div className="flex items-center justify-center py-10 gap-2 text-white/25">
+              <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
+            </div>
+          );
+          if (!viewingDiet) return null;
+          const vMacros = viewingDiet.diet_meals.length > 0
+            ? totalMacros(viewingDiet.diet_meals.map((m) => ({
+                _key: m.id, name: m.name, time_suggestion: m.time_suggestion ?? "",
+                notes: m.notes ?? "", observacoes_receita: m.observacoes_receita ?? "",
+                modo_preparo: m.modo_preparo ?? "", order_index: m.order_index,
+                foods: m.diet_meal_foods.map((f) => ({
+                  _key: f.id, alimento_id: f.alimento_id ?? null, alimento: f.alimentos ?? null,
+                  nome_display: f.lista_subst_grupo_id ? "" : (f.alimentos?.nome ?? f.name ?? ""),
+                  quantidade: f.quantidade?.toString() ?? "100", unidade: f.unidade ?? "g",
+                  order_index: f.order_index, substitution_group_id: null,
+                  parent_key: f.parent_food_id ?? null,
+                  lista_subst_grupo_id: f.lista_subst_grupo_id ?? null,
+                  lista_subst_porcoes: f.lista_subst_porcoes?.toString() ?? "1",
+                })),
+              })))
+            : ZERO;
+          return (
+            <div className="space-y-3">
+              {/* Header readonly */}
+              <div className="rounded-lg border border-white/8 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                <div className="px-4 py-3 border-b border-white/6 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-white/80 text-sm truncate">{viewingDiet.title}</p>
+                      <span className="text-[10px] bg-white/8 text-white/40 px-2 py-0.5 rounded-full font-medium shrink-0">inativa</span>
+                    </div>
+                  </div>
+                  {vMacros.kcal > 0 && (
+                    <div className="flex items-center gap-3 text-[11px] shrink-0">
+                      <span className="text-white/60 font-semibold">{vMacros.kcal} kcal</span>
+                      <span className="text-white/35">C {vMacros.carb}g</span>
+                      <span className="text-white/35">P {vMacros.prot}g</span>
+                      <span className="text-white/35">G {vMacros.gord}g</span>
+                    </div>
+                  )}
+                </div>
+                <div className="divide-y divide-white/5">
+                  {[...viewingDiet.diet_meals].sort((a, b) => a.order_index - b.order_index).map((meal) => {
+                    const visibleFoods = meal.diet_meal_foods
+                      .filter((f) => !f.parent_food_id && !f.lista_subst_grupo_id)
+                      .sort((a, b) => a.order_index - b.order_index);
+                    return (
+                      <div key={meal.id} className="px-4 py-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          {meal.time_suggestion && <span className="text-xs text-white/35 font-mono">{meal.time_suggestion}</span>}
+                          <p className="text-sm text-white/75 font-medium">{meal.name}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          {visibleFoods.map((f) => (
+                            <div key={f.id} className="flex items-baseline gap-2 text-xs">
+                              <span className="text-white/20">•</span>
+                              <span className="text-white/50">{f.alimentos?.nome ?? f.name}</span>
+                              {f.quantidade && <span className="text-white/25">{f.quantidade}{f.unidade ?? "g"}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Actions for inactive diet */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => handleReactivate(viewingDiet.id)}
+                  disabled={reactivating}
+                  className="flex items-center gap-1.5 text-xs font-semibold h-8 px-3 rounded-lg transition-colors disabled:opacity-40"
+                  style={{ backgroundColor: "rgba(34,197,94,0.12)", color: "#4ade80" }}
+                >
+                  {reactivating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Reativar esta dieta
+                </button>
+                <button
+                  onClick={() => duplicateDietById(viewingDiet)}
+                  className="flex items-center gap-1.5 text-xs font-semibold h-8 px-3 rounded-lg transition-colors"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}
+                >
+                  <Copy className="w-3.5 h-3.5" />Duplicar como base
+                </button>
+                {confirmDeleteId === viewingDiet.id ? (
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <span className="text-xs text-white/40">Excluir?</span>
+                    <button
+                      onClick={() => handleDeleteDiet(viewingDiet.id)}
+                      disabled={deletingDietId === viewingDiet.id}
+                      className="text-xs px-2 h-7 rounded-lg font-semibold disabled:opacity-40"
+                      style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}
+                    >
+                      {deletingDietId === viewingDiet.id ? "..." : "Sim"}
+                    </button>
+                    <button onClick={() => setConfirmDeleteId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>Não</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(viewingDiet.id)}
+                    className="flex items-center gap-1.5 text-xs font-semibold h-8 px-3 rounded-lg transition-colors ml-auto"
+                    style={{ backgroundColor: "rgba(239,68,68,0.08)", color: "rgba(248,113,113,0.7)" }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />Apagar dieta
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Show active diet only when not viewing an inactive one */}
+        {(selectedDietId === null || allDiets.find((d) => d.id === selectedDietId)?.is_active) && activeDiet ? (
           <>
+            {/* Delete active diet */}
+            <div className="flex justify-end">
+              {confirmDeleteId === activeDiet.id ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-white/40">Excluir dieta ativa?</span>
+                  <button onClick={() => handleDeleteDiet(activeDiet.id)} disabled={deletingDietId === activeDiet.id} className="text-xs px-2 h-7 rounded-lg font-semibold disabled:opacity-40" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                    {deletingDietId === activeDiet.id ? "..." : "Sim"}
+                  </button>
+                  <button onClick={() => setConfirmDeleteId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>Não</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDeleteId(activeDiet.id)} className="flex items-center gap-1.5 text-xs h-7 px-2 rounded-lg transition-colors" style={{ color: "rgba(248,113,113,0.5)" }}>
+                  <Trash2 className="w-3 h-3" />Apagar dieta
+                </button>
+              )}
+            </div>
+
             {/* Diet header */}
             <div className="rounded-lg border border-border bg-card overflow-hidden dark:border-white/8 dark:bg-white/3">
               <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 dark:border-white/6">
@@ -2140,12 +2376,12 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
               </div>
             )}
           </>
-        ) : (
+        ) : (selectedDietId === null || allDiets.find((d) => d.id === selectedDietId)?.is_active) ? (
           <div className="rounded-lg border border-dashed border-border py-10 text-center dark:border-white/10">
             <p className="text-muted-foreground text-sm mb-1 dark:text-white/30">Nenhuma dieta ativa</p>
             <p className="text-muted-foreground/80 text-xs dark:text-white/20">Crie uma nova dieta ou importe via PDF</p>
           </div>
-        )}
+        ) : null}
 
         {/* Substituições são gerenciadas direto na edição de cada refeição */}
 
