@@ -1598,6 +1598,7 @@ const DietDropdown = ({ diets, selectedId, onSelect }: DietDropdownProps) => {
           className="absolute left-0 top-10 z-50 min-w-[260px] rounded-xl border border-white/10 shadow-2xl overflow-hidden"
           style={{ backgroundColor: "#0f0f0f" }}
         >
+          <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
           {diets.map((d) => (
             <button
               key={d.id}
@@ -1613,6 +1614,7 @@ const DietDropdown = ({ diets, selectedId, onSelect }: DietDropdownProps) => {
               {d.is_active && <span className="text-[9px] bg-green-600/20 text-green-500 px-1.5 py-0.5 rounded-full font-medium shrink-0">ativa</span>}
             </button>
           ))}
+          </div>
         </div>
       )}
     </div>
@@ -2134,21 +2136,19 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
               {pdfLoading ? "Processando..." : "Importar PDF"}
             </Button>
           </label>
+          {allDiets.length > 1 && (() => {
+            const currentDiet = selectedDietId
+              ? allDiets.find((d) => d.id === selectedDietId)
+              : allDiets.find((d) => d.is_active) ?? allDiets[0];
+            return (
+              <DietDropdown
+                diets={allDiets}
+                selectedId={currentDiet?.id ?? null}
+                onSelect={handleSelectDiet}
+              />
+            );
+          })()}
         </div>
-
-        {/* Diet selector dropdown */}
-        {allDiets.length > 1 && (() => {
-          const currentDiet = selectedDietId
-            ? allDiets.find((d) => d.id === selectedDietId)
-            : allDiets.find((d) => d.is_active) ?? allDiets[0];
-          return (
-            <DietDropdown
-              diets={allDiets}
-              selectedId={currentDiet?.id ?? null}
-              onSelect={handleSelectDiet}
-            />
-          );
-        })()}
 
         {/* Viewing an inactive diet (readonly) */}
         {(() => {
