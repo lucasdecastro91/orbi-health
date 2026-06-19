@@ -1560,6 +1560,65 @@ const TMB_PROTOCOLS: Record<string, TmbProtocol> = {
   },
 };
 
+// ─── DietDropdown ─────────────────────────────────────────────────────────────
+
+interface DietDropdownProps {
+  diets: { id: string; title: string; is_active: boolean; created_at: string }[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}
+
+const DietDropdown = ({ diets, selectedId, onSelect }: DietDropdownProps) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const selected = diets.find((d) => d.id === selectedId);
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 h-8 px-3 rounded-xl border border-white/10 text-xs font-medium text-white/70 hover:text-white hover:border-white/20 transition-colors"
+        style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+      >
+        <span className="max-w-[180px] truncate">{selected?.title ?? "Selecionar dieta"}</span>
+        {selected?.is_active && <span className="text-[9px] bg-green-600/20 text-green-500 px-1.5 py-0.5 rounded-full font-medium shrink-0">ativa</span>}
+        <ChevronDown className="w-3.5 h-3.5 text-white/30 shrink-0" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-10 z-50 min-w-[260px] rounded-xl border border-white/10 shadow-2xl overflow-hidden"
+          style={{ backgroundColor: "#0f0f0f" }}
+        >
+          {diets.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => { onSelect(d.id); setOpen(false); }}
+              className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors border-b border-white/5 last:border-0 ${
+                d.id === selectedId ? "bg-white/6" : "hover:bg-white/4"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className={`text-xs font-medium truncate ${d.id === selectedId ? "text-white" : "text-white/65"}`}>{d.title}</p>
+                <p className="text-[10px] text-white/30 mt-0.5">{fmtDate(d.created_at)}</p>
+              </div>
+              {d.is_active && <span className="text-[9px] bg-green-600/20 text-green-500 px-1.5 py-0.5 rounded-full font-medium shrink-0">ativa</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
@@ -2077,31 +2136,19 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
           </label>
         </div>
 
-        {/* Diet selector */}
-        {allDiets.length > 1 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] text-white/40 uppercase tracking-wider shrink-0">Dietas:</span>
-            <div className="flex flex-wrap gap-1.5">
-              {allDiets.map((d) => {
-                const isSelected = selectedDietId ? selectedDietId === d.id : d.is_active;
-                return (
-                  <button
-                    key={d.id}
-                    onClick={() => handleSelectDiet(d.id)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                      isSelected
-                        ? "border-green-600/50 bg-green-600/15 text-green-400"
-                        : "border-white/10 bg-white/3 text-white/50 hover:text-white/80 hover:border-white/20"
-                    }`}
-                  >
-                    {d.title}
-                    {d.is_active && <span className="ml-1.5 text-[9px] opacity-70">ativa</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Diet selector dropdown */}
+        {allDiets.length > 1 && (() => {
+          const currentDiet = selectedDietId
+            ? allDiets.find((d) => d.id === selectedDietId)
+            : allDiets.find((d) => d.is_active) ?? allDiets[0];
+          return (
+            <DietDropdown
+              diets={allDiets}
+              selectedId={currentDiet?.id ?? null}
+              onSelect={handleSelectDiet}
+            />
+          );
+        })()}
 
         {/* Viewing an inactive diet (readonly) */}
         {(() => {
