@@ -1273,7 +1273,7 @@ ul { list-style: none; }
 /* ===== CARD DE COMPARAÇÃO ===== */
 .pain-compare {
   max-width: 1100px;
-  margin: 0 auto;
+  margin: 4rem auto 0;
   background: #0a0f0a;
   border: 1px solid rgba(22, 163, 74, 0.25);
   border-radius: 24px;
