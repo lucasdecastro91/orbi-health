@@ -1300,6 +1300,7 @@ ul { list-style: none; }
 
 .pain-col--after {
   padding-left: 2.5rem;
+  padding-bottom: 2rem;
   background: rgba(22, 163, 74, 0.04);
   border-radius: 14px;
 }
