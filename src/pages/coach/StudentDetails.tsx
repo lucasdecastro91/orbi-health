@@ -4281,6 +4281,8 @@ interface AvalFisica {
   dinamometria_dorsal: number | null;
   dinamometria_escapular: number | null;
   dinamometria_manual: number | null;
+  dinamometria_manual_esq: number | null;
+  dinamometria_manual_dir: number | null;
   foto_url: string | null;
   observacoes: string | null;
   created_at: string;
@@ -4289,19 +4291,20 @@ interface AvalFisica {
 const AVAL_FISICA_BUCKET = "evolution-photos";
 
 const emptyAvalForm = () => ({
-  data_avaliacao:        format(new Date(), "yyyy-MM-dd"),
-  peso:                  "",
-  massa_muscular_kg:     "",
-  percentual_gordura:    "",
-  massa_gordura_kg:      "",
-  imc:                   "",
-  taxa_metabolica_basal: "",
-  gordura_visceral:      "",
-  pontuacao_inbody:      "",
-  dinamometria_dorsal:   "",
-  dinamometria_escapular:"",
-  dinamometria_manual:   "",
-  observacoes:           "",
+  data_avaliacao:          format(new Date(), "yyyy-MM-dd"),
+  peso:                    "",
+  massa_muscular_kg:       "",
+  percentual_gordura:      "",
+  massa_gordura_kg:        "",
+  imc:                     "",
+  taxa_metabolica_basal:   "",
+  gordura_visceral:        "",
+  pontuacao_inbody:        "",
+  dinamometria_dorsal:     "",
+  dinamometria_escapular:  "",
+  dinamometria_manual_esq: "",
+  dinamometria_manual_dir: "",
+  observacoes:             "",
 });
 
 const AvalFisicaViewer = ({
@@ -4321,6 +4324,8 @@ const AvalFisicaViewer = ({
   const [form,      setForm]      = useState(emptyAvalForm());
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [editingId,  setEditingId]  = useState<string | null>(null);
+  const [editingExistingFotoUrl, setEditingExistingFotoUrl] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId,  setConfirmId]  = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -4343,6 +4348,31 @@ const AvalFisicaViewer = ({
     } finally { setLoading(false); }
   };
 
+  const handleEdit = (item: AvalFisica) => {
+    setForm({
+      data_avaliacao:          item.data_avaliacao,
+      peso:                    item.peso?.toString() ?? "",
+      massa_muscular_kg:       item.massa_muscular_kg?.toString() ?? "",
+      percentual_gordura:      item.percentual_gordura?.toString() ?? "",
+      massa_gordura_kg:        item.massa_gordura_kg?.toString() ?? "",
+      imc:                     item.imc?.toString() ?? "",
+      taxa_metabolica_basal:   item.taxa_metabolica_basal?.toString() ?? "",
+      gordura_visceral:        item.gordura_visceral?.toString() ?? "",
+      pontuacao_inbody:        item.pontuacao_inbody?.toString() ?? "",
+      dinamometria_dorsal:     item.dinamometria_dorsal?.toString() ?? "",
+      dinamometria_escapular:  item.dinamometria_escapular?.toString() ?? "",
+      dinamometria_manual_esq: item.dinamometria_manual_esq?.toString() ?? "",
+      dinamometria_manual_dir: item.dinamometria_manual_dir?.toString() ?? "",
+      observacoes:             item.observacoes ?? "",
+    });
+    setEditingId(item.id);
+    setEditingExistingFotoUrl(item.foto_url);
+    setPhotoFile(null);
+    setPhotoPreview(item.foto_url);
+    setShowForm(true);
+    setExpandedId(null);
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -4356,7 +4386,9 @@ const AvalFisicaViewer = ({
     if (!orgId) return;
     setSaving(true);
     try {
-      let foto_url: string | null = null;
+      const numOrNull = (v: string) => v.trim() === "" ? null : Number(v);
+
+      let foto_url: string | null = editingId ? editingExistingFotoUrl : null;
 
       if (photoFile) {
         const ext  = photoFile.name.split(".").pop() ?? "jpg";
@@ -4368,32 +4400,39 @@ const AvalFisicaViewer = ({
         foto_url = supabase.storage.from(AVAL_FISICA_BUCKET).getPublicUrl(path).data.publicUrl;
       }
 
-      const numOrNull = (v: string) => v.trim() === "" ? null : Number(v);
-
-      const { error } = await supabase.from("avaliacoes_fisicas").insert({
-        org_id:                orgId,
-        aluno_id:              alunoId,
-        data_avaliacao:        form.data_avaliacao,
-        peso:                  numOrNull(form.peso),
-        massa_muscular_kg:     numOrNull(form.massa_muscular_kg),
-        percentual_gordura:    numOrNull(form.percentual_gordura),
-        massa_gordura_kg:      numOrNull(form.massa_gordura_kg),
-        imc:                   numOrNull(form.imc),
-        taxa_metabolica_basal: numOrNull(form.taxa_metabolica_basal),
-        gordura_visceral:      numOrNull(form.gordura_visceral),
-        pontuacao_inbody:      numOrNull(form.pontuacao_inbody),
-        dinamometria_dorsal:   numOrNull(form.dinamometria_dorsal),
-        dinamometria_escapular:numOrNull(form.dinamometria_escapular),
-        dinamometria_manual:   numOrNull(form.dinamometria_manual),
+      const payload = {
+        data_avaliacao:          form.data_avaliacao,
+        peso:                    numOrNull(form.peso),
+        massa_muscular_kg:       numOrNull(form.massa_muscular_kg),
+        percentual_gordura:      numOrNull(form.percentual_gordura),
+        massa_gordura_kg:        numOrNull(form.massa_gordura_kg),
+        imc:                     numOrNull(form.imc),
+        taxa_metabolica_basal:   numOrNull(form.taxa_metabolica_basal),
+        gordura_visceral:        numOrNull(form.gordura_visceral),
+        pontuacao_inbody:        numOrNull(form.pontuacao_inbody),
+        dinamometria_dorsal:     numOrNull(form.dinamometria_dorsal),
+        dinamometria_escapular:  numOrNull(form.dinamometria_escapular),
+        dinamometria_manual_esq: numOrNull(form.dinamometria_manual_esq),
+        dinamometria_manual_dir: numOrNull(form.dinamometria_manual_dir),
         foto_url,
-        observacoes:           form.observacoes.trim() || null,
-      });
-      if (error) throw error;
+        observacoes:             form.observacoes.trim() || null,
+      };
 
-      toast({ title: "Avaliação registrada!" });
+      if (editingId) {
+        const { error } = await supabase.from("avaliacoes_fisicas").update(payload).eq("id", editingId);
+        if (error) throw error;
+        toast({ title: "Avaliação atualizada!" });
+      } else {
+        const { error } = await supabase.from("avaliacoes_fisicas").insert({ org_id: orgId, aluno_id: alunoId, ...payload });
+        if (error) throw error;
+        toast({ title: "Avaliação registrada!" });
+      }
+
       setForm(emptyAvalForm());
       setPhotoFile(null);
       setPhotoPreview(null);
+      setEditingId(null);
+      setEditingExistingFotoUrl(null);
       setShowForm(false);
       await load();
     } catch (err: any) {
@@ -4430,7 +4469,13 @@ const AvalFisicaViewer = ({
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Avaliações Físicas</p>
         <button
-          onClick={() => { setShowForm((v) => !v); if (showForm) { setForm(emptyAvalForm()); setPhotoFile(null); setPhotoPreview(null); } }}
+          onClick={() => {
+            if (showForm) {
+              setForm(emptyAvalForm()); setPhotoFile(null); setPhotoPreview(null);
+              setEditingId(null); setEditingExistingFotoUrl(null);
+            }
+            setShowForm((v) => !v);
+          }}
           className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors"
           style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
         >
@@ -4441,7 +4486,7 @@ const AvalFisicaViewer = ({
       {/* Formulário */}
       {showForm && (
         <div className="rounded-2xl border border-white/8 p-5 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Nova Avaliação Física</p>
+          <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">{editingId ? "Editar Avaliação Física" : "Nova Avaliação Física"}</p>
 
           {/* Data */}
           <div>
@@ -4478,11 +4523,12 @@ const AvalFisicaViewer = ({
           {/* Dinamometria */}
           <div>
             <p className="text-[11px] text-white/30 uppercase tracking-wider mb-2 font-semibold">Dinamometria</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {([
-                ["dinamometria_dorsal",    "Dorsal"],
-                ["dinamometria_escapular", "Escapular"],
-                ["dinamometria_manual",    "Manual"],
+                ["dinamometria_dorsal",     "Dorsal"],
+                ["dinamometria_escapular",  "Escapular"],
+                ["dinamometria_manual_esq", "Manual Esquerdo"],
+                ["dinamometria_manual_dir", "Manual Direito"],
               ] as const).map(([field, label]) => (
                 <div key={field}>
                   <label className={lbl}>{label}</label>
@@ -4536,7 +4582,7 @@ const AvalFisicaViewer = ({
             style={{ background: "var(--cp-gradient)" }}
           >
             {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar avaliação
+            {editingId ? "Salvar alterações" : "Salvar avaliação"}
           </button>
         </div>
       )}
@@ -4577,7 +4623,7 @@ const AvalFisicaViewer = ({
                       ? <ChevronUp   className="w-4 h-4 text-white/30 shrink-0" />
                       : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />}
                   </button>
-                  {/* Delete */}
+                  {/* Edit & Delete */}
                   <div className="flex items-center gap-1 pr-3">
                     {confirmId === item.id ? (
                       <>
@@ -4593,9 +4639,14 @@ const AvalFisicaViewer = ({
                         <button onClick={() => setConfirmId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>Não</button>
                       </>
                     ) : (
-                      <button onClick={() => setConfirmId(item.id)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <>
+                        <button onClick={() => handleEdit(item)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setConfirmId(item.id)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -4633,15 +4684,16 @@ const AvalFisicaViewer = ({
                     </div>
 
                     {/* Dinamometria */}
-                    {(item.dinamometria_dorsal != null || item.dinamometria_escapular != null || item.dinamometria_manual != null) && (
+                    {(item.dinamometria_dorsal != null || item.dinamometria_escapular != null || item.dinamometria_manual_esq != null || item.dinamometria_manual_dir != null || item.dinamometria_manual != null) && (
                       <div>
                         <p className="text-[11px] text-white/35 uppercase tracking-wider mb-3">Dinamometria</p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           {([
-                            ["Dorsal",    item.dinamometria_dorsal],
-                            ["Escapular", item.dinamometria_escapular],
-                            ["Manual",    item.dinamometria_manual],
-                          ] as [string, number | null][]).map(([l, v]) => (
+                            ["Dorsal",           item.dinamometria_dorsal],
+                            ["Escapular",        item.dinamometria_escapular],
+                            ["Manual Esquerdo",  item.dinamometria_manual_esq ?? item.dinamometria_manual],
+                            ["Manual Direito",   item.dinamometria_manual_dir],
+                          ] as [string, number | null][]).filter(([, v]) => v != null).map(([l, v]) => (
                             <div key={l} className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "rgba(255,255,255,0.04)" }}>
                               <p className="text-[10px] text-white/35 uppercase tracking-wider">{l}</p>
                               <p className="text-sm font-bold text-white/80 mt-0.5">{fmtN(v)}</p>
