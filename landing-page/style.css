@@ -1300,10 +1300,11 @@ ul { list-style: none; }
   align-items: center;
   justify-content: center;
   gap: .5rem;
-  font-size: .875rem;
-  font-weight: 700;
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   padding-bottom: 1rem;
   margin-bottom: 1.25rem;
 }
