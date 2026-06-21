@@ -1303,8 +1303,7 @@ ul { list-style: none; }
   font-family: 'Inter Tight', 'Inter', sans-serif;
   font-size: 1.25rem;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0;
   padding-bottom: 1rem;
   margin-bottom: 1.25rem;
 }
