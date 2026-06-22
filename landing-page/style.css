@@ -1464,25 +1464,13 @@ ul { list-style: none; }
 .app-aluno__inner {
   display: flex;
   flex-direction: column;
-  gap: 3rem;
-  align-items: flex-start;
-}
-@media (min-width: 1024px) {
-  .app-aluno__inner {
-    flex-direction: row;
-    gap: 4rem;
-    align-items: center;
-  }
+  gap: 2.5rem;
+  align-items: center;
 }
 
 .app-aluno__content {
-  flex: 1;
-  min-width: 0;
-}
-@media (min-width: 1024px) {
-  .app-aluno__content {
-    max-width: 500px;
-  }
+  width: 100%;
+  text-align: center;
 }
 
 .app-aluno__carousel {
@@ -1495,46 +1483,37 @@ ul { list-style: none; }
 
 .carousel-spotlight {
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 600px;
+  width: 100%;
+  max-width: 320px;
+  height: 480px;
+  margin: 0 auto;
   overflow: hidden;
-  border-radius: 28px;
-}
-.carousel-spotlight::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 350px 400px at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.7) 100%);
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 28px;
+  border-radius: 24px;
 }
 
 .app-aluno__carousel-track {
-  position: absolute;
-  width: 100%;
   display: flex;
-  gap: 0;
-  overflow-x: hidden;
-  justify-content: center;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .carousel__item {
   flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  scroll-snap-align: center;
+  overflow: hidden;
 }
 .carousel__img {
-  height: 550px;
-  width: auto;
-  border-radius: 24px;
+  width: 100%;
+  height: auto;
   border: none;
   display: block;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.1);
+  flex-shrink: 0;
+  /* a centralização + overflow hidden do item cropa header e footer */
 }
 
 .app-aluno__controls {
@@ -1588,63 +1567,6 @@ ul { list-style: none; }
 .app-aluno__arrow:hover {
   background: rgba(22, 163, 74, 0.25);
   border-color: rgba(22, 163, 74, 0.4);
-}
-
-.carousel-wrap { position: relative; }
-
-.carousel {
-  display: flex;
-  gap: 1.5rem;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding-bottom: .5rem;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.carousel::-webkit-scrollbar { display: none; }
-
-.carousel__item {
-  scroll-snap-align: center;
-  flex-shrink: 0;
-  text-align: center;
-}
-.carousel__img {
-  height: 500px;
-  width: auto;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  display: block;
-  margin: 0 auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-}
-.carousel__label {
-  margin-top: .75rem;
-  font-size: .875rem;
-  color: var(--text-muted);
-}
-
-.carousel__controls {
-  display: flex;
-  justify-content: center;
-  gap: .75rem;
-  margin-top: 2rem;
-}
-.carousel__btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: border-color var(--ease), background var(--ease);
-}
-.carousel__btn:hover {
-  border-color: var(--green);
-  background: rgba(22,163,74,0.08);
 }
 
 /* ============================================================

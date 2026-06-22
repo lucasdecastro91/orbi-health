@@ -206,27 +206,42 @@ function initPricingToggle() {
   });
 }
 
-/* --- Carrossel app do aluno --- */
+/* --- Carrossel app do aluno (baseado em índice + transform) --- */
+let carouselIndex = 0;
+
 function carouselScroll(dir) {
-  const el = document.getElementById('carousel-aluno');
-  if (!el) return;
-  const itemWidth = el.querySelector('.carousel__item')?.offsetWidth || 300;
-  el.scrollBy({ left: dir * itemWidth, behavior: 'smooth' });
-  setTimeout(updateCarouselDots, 50);
+  const track = document.getElementById('carousel-aluno');
+  if (!track) return;
+  const total = track.querySelectorAll('.carousel__item').length;
+  carouselIndex = (carouselIndex + dir + total) % total;
+  applyCarousel();
 }
 
-function updateCarouselDots() {
-  const carousel = document.getElementById('carousel-aluno');
+function carouselGoTo(idx) {
+  carouselIndex = idx;
+  applyCarousel();
+}
+
+function applyCarousel() {
+  const track = document.getElementById('carousel-aluno');
   const dotsContainer = document.getElementById('carousel-dots');
-  if (!carousel || !dotsContainer) return;
+  if (!track) return;
 
-  const dots = dotsContainer.querySelectorAll('.app-aluno__dot');
-  const itemWidth = carousel.querySelector('.carousel__item')?.offsetWidth || 1;
-  const scrollLeft = carousel.scrollLeft || 0;
-  const currentIndex = Math.round(scrollLeft / itemWidth);
+  track.style.transform = `translateX(-${carouselIndex * 100}%)`;
 
-  dots.forEach((dot, idx) => {
-    dot.classList.toggle('app-aluno__dot--active', idx === currentIndex);
+  if (dotsContainer) {
+    const dots = dotsContainer.querySelectorAll('.app-aluno__dot');
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle('app-aluno__dot--active', idx === carouselIndex);
+    });
+  }
+}
+
+function initCarouselDots() {
+  const dotsContainer = document.getElementById('carousel-dots');
+  if (!dotsContainer) return;
+  dotsContainer.querySelectorAll('.app-aluno__dot').forEach((dot, idx) => {
+    dot.addEventListener('click', () => carouselGoTo(idx));
   });
 }
 
@@ -285,4 +300,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initPricingToggle();
   initRevealImg();
   initPainTypewriter();
+  initCarouselDots();
 });
