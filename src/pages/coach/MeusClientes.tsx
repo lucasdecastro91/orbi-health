@@ -378,7 +378,7 @@ const MeusClientes = () => {
                           <Power className="h-4 w-4 mr-2" />{aluno.ativo ? "Desativar" : "Ativar"}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-red-400 hover:text-red-300 focus:text-red-300 rounded-lg cursor-pointer"
-                          onClick={() => { setDeletingAlunoId(aluno.id); setDeleteDialogOpen(true); }}>
+                          onClick={(e) => { e.stopPropagation(); setDeletingAlunoId(aluno.id); setDeleteDialogOpen(true); }}>
                           <Trash2 className="h-4 w-4 mr-2" />Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
