@@ -210,7 +210,24 @@ function initPricingToggle() {
 function carouselScroll(dir) {
   const el = document.getElementById('carousel-aluno');
   if (!el) return;
-  el.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  const itemWidth = el.querySelector('.carousel__item')?.offsetWidth || 300;
+  el.scrollBy({ left: dir * itemWidth, behavior: 'smooth' });
+  setTimeout(updateCarouselDots, 50);
+}
+
+function updateCarouselDots() {
+  const carousel = document.getElementById('carousel-aluno');
+  const dotsContainer = document.getElementById('carousel-dots');
+  if (!carousel || !dotsContainer) return;
+
+  const dots = dotsContainer.querySelectorAll('.app-aluno__dot');
+  const itemWidth = carousel.querySelector('.carousel__item')?.offsetWidth || 1;
+  const scrollLeft = carousel.scrollLeft || 0;
+  const currentIndex = Math.round(scrollLeft / itemWidth);
+
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle('app-aluno__dot--active', idx === currentIndex);
+  });
 }
 
 /* --- Scroll reveal para .reveal-img --- */

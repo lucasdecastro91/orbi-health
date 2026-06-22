@@ -1461,6 +1461,135 @@ ul { list-style: none; }
 }
 @media (min-width: 768px) { .app-aluno { padding: 7rem 0; } }
 
+.app-aluno__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  align-items: flex-start;
+}
+@media (min-width: 1024px) {
+  .app-aluno__inner {
+    flex-direction: row;
+    gap: 4rem;
+    align-items: center;
+  }
+}
+
+.app-aluno__content {
+  flex: 1;
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .app-aluno__content {
+    max-width: 500px;
+  }
+}
+
+.app-aluno__carousel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.carousel-spotlight {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 600px;
+  overflow: hidden;
+  border-radius: 28px;
+}
+.carousel-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 350px 400px at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 28px;
+}
+
+.app-aluno__carousel-track {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  gap: 0;
+  overflow-x: hidden;
+  justify-content: center;
+}
+
+.carousel__item {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  scroll-snap-align: center;
+}
+.carousel__img {
+  height: 550px;
+  width: auto;
+  border-radius: 24px;
+  border: none;
+  display: block;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.1);
+}
+
+.app-aluno__controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.app-aluno__dots {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+.app-aluno__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+.app-aluno__dot:hover {
+  background: rgba(255,255,255,0.5);
+}
+.app-aluno__dot--active {
+  background: #16a34a;
+  width: 24px;
+  border-radius: 4px;
+}
+
+.app-aluno__arrows {
+  display: flex;
+  gap: 0.75rem;
+}
+.app-aluno__arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+.app-aluno__arrow:hover {
+  background: rgba(22, 163, 74, 0.25);
+  border-color: rgba(22, 163, 74, 0.4);
+}
+
 .carousel-wrap { position: relative; }
 
 .carousel {

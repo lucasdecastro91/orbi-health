@@ -468,46 +468,59 @@
     <!-- ===== APP DO ALUNO ===== -->
     <section id="app-aluno" class="app-aluno" aria-labelledby="app-aluno-title">
       <div class="container">
-        <div class="section-header" data-reveal>
-          <span class="section-tag">App do Aluno</span>
-          <h2 class="section-title" id="app-aluno-title">Tudo que seu aluno precisa, num único app</h2>
-          <p class="section-subtitle">Treino com vídeo, dieta com substituições, cardio prescrito e evolução de carga — direto no celular, com a sua marca.</p>
-        </div>
-        <div class="carousel-wrap" data-reveal>
-          <div id="carousel-aluno" class="carousel" role="region" aria-label="Telas do app do aluno">
-            <div class="carousel__item">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg"
-                   alt="Início" class="carousel__img">
-              <p class="carousel__label">Início</p>
-            </div>
-            <div class="carousel__item">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (2).jpeg"
-                   alt="Treinos" class="carousel__img">
-              <p class="carousel__label">Treinos</p>
-            </div>
-            <div class="carousel__item">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38.jpeg"
-                   alt="Dieta" class="carousel__img">
-              <p class="carousel__label">Dieta</p>
-            </div>
-            <div class="carousel__item">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (3).jpeg"
-                   alt="Cardio" class="carousel__img">
-              <p class="carousel__label">Cardio</p>
-            </div>
-            <div class="carousel__item">
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37.jpeg"
-                   alt="Evolução de Carga" class="carousel__img">
-              <p class="carousel__label">Evolução de Carga</p>
-            </div>
+        <div class="app-aluno__inner">
+          <!-- Texto esquerda -->
+          <div class="app-aluno__content" data-reveal>
+            <span class="section-tag">App do Aluno</span>
+            <h2 class="section-title" id="app-aluno-title">Tudo que seu aluno precisa, num único app</h2>
+            <p class="section-subtitle">Treino com vídeo, dieta com substituições, cardio prescrito e evolução de carga — direto no celular, com a sua marca.</p>
           </div>
-          <div class="carousel__controls">
-            <button class="carousel__btn" onclick="carouselScroll(-1)" aria-label="Anterior">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button class="carousel__btn" onclick="carouselScroll(1)" aria-label="Próximo">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+
+          <!-- Carrossel direita com spotlight -->
+          <div class="app-aluno__carousel" data-reveal>
+            <div class="carousel-spotlight">
+              <div id="carousel-aluno" class="carousel app-aluno__carousel-track" role="region" aria-label="Telas do app do aluno">
+                <div class="carousel__item">
+                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg"
+                       alt="Início" class="carousel__img">
+                </div>
+                <div class="carousel__item">
+                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (2).jpeg"
+                       alt="Treinos" class="carousel__img">
+                </div>
+                <div class="carousel__item">
+                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38.jpeg"
+                       alt="Dieta" class="carousel__img">
+                </div>
+                <div class="carousel__item">
+                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (3).jpeg"
+                       alt="Cardio" class="carousel__img">
+                </div>
+                <div class="carousel__item">
+                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37.jpeg"
+                       alt="Evolução de Carga" class="carousel__img">
+                </div>
+              </div>
+            </div>
+
+            <!-- Controles: setas + dots -->
+            <div class="app-aluno__controls">
+              <div class="app-aluno__dots" id="carousel-dots">
+                <button class="app-aluno__dot app-aluno__dot--active" aria-label="Tela 1"></button>
+                <button class="app-aluno__dot" aria-label="Tela 2"></button>
+                <button class="app-aluno__dot" aria-label="Tela 3"></button>
+                <button class="app-aluno__dot" aria-label="Tela 4"></button>
+                <button class="app-aluno__dot" aria-label="Tela 5"></button>
+              </div>
+              <div class="app-aluno__arrows">
+                <button class="app-aluno__arrow" onclick="carouselScroll(-1)" aria-label="Anterior">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="app-aluno__arrow" onclick="carouselScroll(1)" aria-label="Próximo">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
