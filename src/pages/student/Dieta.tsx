@@ -1312,7 +1312,7 @@ const Dieta = () => {
           {hasAnyMacros && (
             <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
               <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Total do dia</p>
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1 flex-wrap">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
                   <Flame className="w-3 h-3 text-muted-foreground" />
                   <span className="text-xs font-semibold text-foreground">{dayTotal.kcal} kcal</span>
