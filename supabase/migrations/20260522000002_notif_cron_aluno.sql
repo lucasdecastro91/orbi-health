@@ -136,12 +136,20 @@ BEGIN
     END IF;
     -- Aluno (evento 4)
     IF NOT rec.aluno_notificado_vencida THEN
-      INSERT INTO public.notificacoes (user_id, org_id, titulo, mensagem, tipo)
-      VALUES (rec.aluno_user_id, rec.org_id,
-        'Plano vencido',
-        'Seu plano ' || rec.descricao
-          || ' venceu em ' || TO_CHAR(rec.data_vencimento, 'DD/MM/YYYY'),
-        'financeiro');
+      IF NOT EXISTS (
+        SELECT 1 FROM public.notificacoes
+        WHERE user_id = rec.aluno_user_id
+          AND tipo = 'financeiro'
+          AND titulo = 'Plano vencido'
+          AND created_at > NOW() - INTERVAL '1 hour'
+      ) THEN
+        INSERT INTO public.notificacoes (user_id, org_id, titulo, mensagem, tipo)
+        VALUES (rec.aluno_user_id, rec.org_id,
+          'Plano vencido',
+          'Seu plano ' || rec.descricao
+            || ' venceu em ' || TO_CHAR(rec.data_vencimento, 'DD/MM/YYYY'),
+          'financeiro');
+      END IF;
       UPDATE public.cobrancas SET aluno_notificado_vencida = true WHERE id = rec.id;
     END IF;
   END LOOP;
