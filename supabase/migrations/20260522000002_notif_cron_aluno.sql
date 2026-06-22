@@ -117,12 +117,21 @@ BEGIN
   LOOP
     -- Treinador (evento 7)
     IF NOT rec.trainer_notificado_vencida THEN
-      INSERT INTO public.notificacoes (user_id, org_id, aluno_id, aluno_nome, titulo, mensagem, tipo)
-      VALUES (rec.treinador_id, rec.org_id, rec.aluno_id, rec.aluno_nome,
-        'Cobrança vencida',
-        'Cobrança de ' || rec.aluno_nome
-          || ' venceu em ' || TO_CHAR(rec.data_vencimento, 'DD/MM/YYYY'),
-        'financeiro');
+      IF NOT EXISTS (
+        SELECT 1 FROM public.notificacoes
+        WHERE user_id = rec.treinador_id
+          AND aluno_id = rec.aluno_id
+          AND tipo = 'financeiro'
+          AND titulo = 'Cobrança vencida'
+          AND created_at > NOW() - INTERVAL '1 hour'
+      ) THEN
+        INSERT INTO public.notificacoes (user_id, org_id, aluno_id, aluno_nome, titulo, mensagem, tipo)
+        VALUES (rec.treinador_id, rec.org_id, rec.aluno_id, rec.aluno_nome,
+          'Cobrança vencida',
+          'Cobrança de ' || rec.aluno_nome
+            || ' venceu em ' || TO_CHAR(rec.data_vencimento, 'DD/MM/YYYY'),
+          'financeiro');
+      END IF;
       UPDATE public.cobrancas SET trainer_notificado_vencida = true WHERE id = rec.id;
     END IF;
     -- Aluno (evento 4)
