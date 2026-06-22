@@ -1548,7 +1548,7 @@ ul { list-style: none; }
    GUARANTEE SECTION
    ============================================================ */
 .guarantee {
-  padding: 5rem 0 4rem;
+  padding: 3.5rem 0 2.5rem;
 }
 .guarantee__card {
   max-width: 900px;
