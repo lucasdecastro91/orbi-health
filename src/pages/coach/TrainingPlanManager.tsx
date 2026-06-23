@@ -624,19 +624,28 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
 
         if (exercisesError) throw exercisesError;
 
-        // 6. Duplicar exercícios com a NOVA zona de repetições
+        // 6. Duplicar exercícios com a NOVA zona de repetições (só Work Sets)
         if (exercises && exercises.length > 0) {
-          const newExercises = exercises.map((ex) => ({
-            treino_id: newTraining.id,
-            nome_exercicio: ex.nome_exercicio,
-            series: ex.series,
-            repeticoes: customZonaReps,
-            descanso: ex.descanso,
-            video_url: ex.video_url,
-            observacoes: ex.observacoes,
-            ordem: ex.ordem,
-            exercicio_base_id: ex.exercicio_base_id,
-          }));
+          const newExercises = exercises.map((ex) => {
+            const seriesDetalhadas = ex.series_detalhadas
+              ? ex.series_detalhadas.map((s: any) =>
+                  s.tipo === "trabalho" ? { ...s, repeticoes: customZonaReps } : s
+                )
+              : null;
+            return {
+              treino_id: newTraining.id,
+              nome_exercicio: ex.nome_exercicio,
+              series: ex.series,
+              repeticoes: customZonaReps,
+              descanso: ex.descanso,
+              video_url: ex.video_url,
+              observacoes: ex.observacoes,
+              ordem: ex.ordem,
+              exercicio_base_id: ex.exercicio_base_id,
+              carga_base: ex.carga_base ?? null,
+              series_detalhadas: seriesDetalhadas,
+            };
+          });
 
           const { error: insertExError } = await supabase
             .from("exercicios")
