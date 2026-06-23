@@ -3721,7 +3721,7 @@ const StudentDetails = () => {
 
           {/* Voltar */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(`/${slug}/treinador/clientes`)}
             className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors shrink-0"
             style={{ color: "rgba(255,255,255,0.5)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
