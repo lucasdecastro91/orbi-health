@@ -30,3 +30,4 @@ dist-ssr
 .env.*.local
 .claude/settings.local.json
 supabase/.temp/
+.claude/
