@@ -347,7 +347,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
 
               {/* Nome + badge de fonte */}
               <div className="flex items-center gap-2">
-                <p className="text-sm text-foreground font-medium group-hover:text-green-500 transition-colors leading-tight">
+                <p className="text-sm text-white font-medium group-hover:text-green-500 transition-colors leading-tight">
                   {a.nome}
                 </p>
                 {a.source && (
@@ -645,22 +645,15 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
       const mainFoods = m.foods.filter((f) => !f.parent_key);
       const idx = mainFoods.findIndex((f) => f._key === fkey);
       if (idx <= 0) return m;
-      // Swap the two main foods (and their subs) in the foods array
-      const aKey = mainFoods[idx - 1]._key;
-      const bKey = mainFoods[idx]._key;
-      const aGroup = m.foods.filter((f) => f._key === aKey || f.parent_key === aKey);
-      const bGroup = m.foods.filter((f) => f._key === bKey || f.parent_key === bKey);
-      const rest   = m.foods.filter((f) => f._key !== aKey && f.parent_key !== aKey && f._key !== bKey && f.parent_key !== bKey);
-      // Find insertion point
-      const aIdx = m.foods.findIndex((f) => f._key === aKey);
-      const foods = [...m.foods];
-      // Rebuild: before a, then b group, then a group, then rest after b
+      // Swap the two main foods in the array
+      [mainFoods[idx - 1], mainFoods[idx]] = [mainFoods[idx], mainFoods[idx - 1]];
+      // Rebuild full foods list: main foods + their subs
       const newFoods: FoodRow[] = [];
-      let i = 0;
-      while (i < foods.length && foods[i]._key !== aKey && foods[i].parent_key !== aKey) { newFoods.push(foods[i]); i++; }
-      newFoods.push(...bGroup, ...aGroup);
-      i += aGroup.length + bGroup.length;
-      while (i < foods.length) { newFoods.push(foods[i]); i++; }
+      for (const main of mainFoods) {
+        newFoods.push(main);
+        const subs = m.foods.filter((f) => f.parent_key === main._key);
+        newFoods.push(...subs);
+      }
       return { ...m, foods: newFoods };
     });
 
@@ -669,17 +662,15 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
       const mainFoods = m.foods.filter((f) => !f.parent_key);
       const idx = mainFoods.findIndex((f) => f._key === fkey);
       if (idx >= mainFoods.length - 1) return m;
-      const aKey = mainFoods[idx]._key;
-      const bKey = mainFoods[idx + 1]._key;
-      const aGroup = m.foods.filter((f) => f._key === aKey || f.parent_key === aKey);
-      const bGroup = m.foods.filter((f) => f._key === bKey || f.parent_key === bKey);
-      const foods = [...m.foods];
+      // Swap the two main foods in the array
+      [mainFoods[idx], mainFoods[idx + 1]] = [mainFoods[idx + 1], mainFoods[idx]];
+      // Rebuild full foods list: main foods + their subs
       const newFoods: FoodRow[] = [];
-      let i = 0;
-      while (i < foods.length && foods[i]._key !== aKey && foods[i].parent_key !== aKey) { newFoods.push(foods[i]); i++; }
-      newFoods.push(...bGroup, ...aGroup);
-      i += aGroup.length + bGroup.length;
-      while (i < foods.length) { newFoods.push(foods[i]); i++; }
+      for (const main of mainFoods) {
+        newFoods.push(main);
+        const subs = m.foods.filter((f) => f.parent_key === main._key);
+        newFoods.push(...subs);
+      }
       return { ...m, foods: newFoods };
     });
 

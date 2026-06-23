@@ -1467,10 +1467,24 @@ ul { list-style: none; }
   gap: 2.5rem;
   align-items: center;
 }
+@media (min-width: 1024px) {
+  .app-aluno__inner {
+    flex-direction: row;
+    gap: 4rem;
+    align-items: center;
+  }
+}
 
 .app-aluno__content {
+  flex: 0 1 500px;
+  min-width: 0;
   width: 100%;
   text-align: center;
+}
+@media (min-width: 1024px) {
+  .app-aluno__content {
+    text-align: left;
+  }
 }
 
 .app-aluno__carousel {
@@ -1497,19 +1511,26 @@ ul { list-style: none; }
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 340px 380px at 50% 50%, transparent 0%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.28) 100%);
+  background: rgba(0, 0, 0, 0.30);
   pointer-events: none;
   z-index: 2;
   border-radius: 28px;
 }
 
+.phone-wrap {
+  position: relative;
+  width: 300px;
+  background: #000;
+  border-radius: 32px;
+}
 .app-aluno__phone {
   position: relative;
   width: 300px;
-  height: 523px;
+  height: 505px;
   overflow: hidden;
   border-radius: 32px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+  background: #000;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   z-index: 1;
 }
 
@@ -1529,13 +1550,12 @@ ul { list-style: none; }
 }
 .carousel__img {
   position: absolute;
-  top: -48px;
+  top: -49px;
   left: 0;
   width: 100%;
   height: auto;
   border: none;
   display: block;
-  /* top negativo cropa o header exatamente na linha divisória */
 }
 
 .app-aluno__controls {
