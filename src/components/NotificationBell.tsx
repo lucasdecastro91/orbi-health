@@ -24,15 +24,18 @@ interface Notificacao {
 
 // Lucide icon per notification type
 const TIPO_ICON: Record<string, React.ElementType> = {
-  checkin:    ClipboardList,
-  anamnese:   ClipboardCheck,
-  avaliacao:  ScanLine,
-  treino:     Dumbbell,
-  dieta:      Utensils,
-  mensagem:   MessageSquare,
-  alerta:     AlertTriangle,
-  info:       Info,
-  financeiro: CreditCard,
+  checkin:                        ClipboardList,
+  anamnese:                       ClipboardCheck,
+  avaliacao:                      ScanLine,
+  treino:                         Dumbbell,
+  dieta:                          Utensils,
+  mensagem:                       MessageSquare,
+  alerta:                         AlertTriangle,
+  info:                           Info,
+  financeiro:                     CreditCard,
+  update_reminder:                ClipboardList,
+  update_reminder_overdue:        ClipboardList,
+  update_reminder_overdue_trainer: ClipboardList,
 };
 
 interface NotificationBellProps {

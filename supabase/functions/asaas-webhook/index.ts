@@ -147,13 +147,23 @@ serve(async (req) => {
               .from("alunos").select("user_id").eq("id", cobOverdue.aluno_id).maybeSingle();
             if (alunoOverdue?.user_id) {
               const dueFmt = (cobOverdue.data_vencimento as string)?.split("-").reverse().join("/") ?? "";
-              await supabase.from("notificacoes").insert({
-                user_id:  alunoOverdue.user_id,
-                org_id:   cobOverdue.org_id,
-                titulo:   "Pagamento em atraso",
-                mensagem: `${cobOverdue.descricao} venceu em ${dueFmt}. Regularize para manter seu acesso.`,
-                tipo:     "financeiro",
-              });
+              const { data: existing } = await supabase
+                .from("notificacoes")
+                .select("id")
+                .eq("user_id", alunoOverdue.user_id)
+                .eq("titulo", "Pagamento em atraso")
+                .eq("tipo", "financeiro")
+                .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+                .maybeSingle();
+              if (!existing) {
+                await supabase.from("notificacoes").insert({
+                  user_id:  alunoOverdue.user_id,
+                  org_id:   cobOverdue.org_id,
+                  titulo:   "Pagamento em atraso",
+                  mensagem: `${cobOverdue.descricao} venceu em ${dueFmt}. Regularize para manter seu acesso.`,
+                  tipo:     "financeiro",
+                });
+              }
             }
           }
         } catch (_) { /* não bloqueia o fluxo principal */ }

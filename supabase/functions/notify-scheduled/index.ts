@@ -352,13 +352,13 @@ async function handleUpdateReminder() {
       let title = "";
       let body  = "";
       if (diff === 2) {
-        title = "📋 Lembrete de atualização";
+        title = "Lembrete de atualização";
         body  = `Sua atualização vence em 2 dias (${dueFmt}). Não esqueça de enviar!`;
       } else if (diff === 1) {
-        title = "📋 Lembrete de atualização";
+        title = "Lembrete de atualização";
         body  = "Amanhã é o prazo da sua atualização! Não esqueça de enviar!";
       } else {
-        title = "📋 Atualização — hoje é o dia!";
+        title = "Atualização — hoje é o dia!";
         body  = "Hoje é o dia da sua atualização! Clique para enviar agora.";
       }
 
@@ -388,7 +388,7 @@ async function handleUpdateReminder() {
       if (!loggedAluno) {
         if (!await isDND(userId)) {
           const dueFmt = `${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}`;
-          const titleA = "⚠️ Atualização em atraso";
+          const titleA = "Atualização em atraso";
           const bodyA  = `Sua atualização venceu em ${dueFmt}. Envie o quanto antes para que seu plano seja ajustado.`;
           const subsA  = await getSubscriptions(userId);
           for (const sub of subsA) {
@@ -423,7 +423,7 @@ async function handleUpdateReminder() {
             .maybeSingle();
           const alunoNome = (profile?.nome as string) ?? "Um aluno";
           const dueFmt = `${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}`;
-          const titleT = "⚠️ Aluno sem atualização";
+          const titleT = "Aluno sem atualização";
           const bodyT  = `${alunoNome} não enviou a atualização que venceu em ${dueFmt}.`;
           const subsT  = await getSubscriptions(trainerId);
           for (const sub of subsT) {
