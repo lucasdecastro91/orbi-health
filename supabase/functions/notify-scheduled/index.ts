@@ -367,6 +367,11 @@ async function handleUpdateReminder() {
         await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title, body, tag });
       }
       await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "update_reminder", title, body, tag });
+      // Sino do app
+      await supabase.from("notificacoes").insert({
+        user_id: userId, org_id: orgId,
+        titulo: title, mensagem: body, tipo: "update_reminder", lida: false,
+      });
 
     } else if (diff < 0 && !jaEnviou) {
       // Pós-vencimento e aluno não enviou
@@ -390,6 +395,11 @@ async function handleUpdateReminder() {
             await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title: titleA, body: bodyA, tag: tagAluno });
           }
           await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "update_reminder_overdue", title: titleA, body: bodyA, tag: tagAluno });
+          // Sino do app — aluno
+          await supabase.from("notificacoes").insert({
+            user_id: userId, org_id: orgId,
+            titulo: titleA, mensagem: bodyA, tipo: "update_reminder_overdue", lida: false,
+          });
         }
       }
 
@@ -420,6 +430,11 @@ async function handleUpdateReminder() {
             await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title: titleT, body: bodyT, tag: tagTrainer });
           }
           await logNotification({ recipient_id: trainerId, org_id: orgId, notification_type: "update_reminder_overdue_trainer", title: titleT, body: bodyT, tag: tagTrainer });
+          // Sino do app — treinador
+          await supabase.from("notificacoes").insert({
+            user_id: trainerId, org_id: orgId, aluno_id: aluno.id,
+            titulo: titleT, mensagem: bodyT, tipo: "update_reminder_overdue_trainer", lida: false,
+          });
         }
       }
     }
