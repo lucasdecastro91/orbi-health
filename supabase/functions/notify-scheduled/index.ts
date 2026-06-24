@@ -299,6 +299,133 @@ async function handleMotivational() {
   }
 }
 
+// ── Update reminder ───────────────────────────────────────────────────────
+
+async function handleUpdateReminder() {
+  const today = brazilToday();
+
+  // Busca todos os alunos com data de próxima atualização definida
+  const { data: alunos } = await supabase
+    .from("alunos")
+    .select("id, user_id, org_id, treinador_id, form_atualizacao_ultima_data")
+    .not("form_atualizacao_ultima_data", "is", null)
+    .not("user_id", "is", null);
+
+  if (!alunos?.length) return;
+
+  for (const aluno of alunos) {
+    const dueDate = aluno.form_atualizacao_ultima_data as string;
+    const userId  = aluno.user_id as string;
+    const orgId   = aluno.org_id  as string;
+
+    // Calcula diferença em dias (negativo = já venceu)
+    const due  = new Date(dueDate);
+    const now  = new Date(today);
+    const diff = Math.round((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Checa se aluno já enviou atualização a partir da data agendada
+    const { data: resposta } = await supabase
+      .from("atualizacao_respostas")
+      .select("id")
+      .eq("student_id", userId)
+      .gte("created_at", dueDate)
+      .maybeSingle();
+    const jaEnviou = Boolean(resposta);
+
+    if (diff === 2 || diff === 1 || diff === 0) {
+      // Não notifica se já enviou
+      if (jaEnviou) continue;
+
+      // Checa se já foi enviada essa notificação hoje para esse aluno
+      const tag = `update_reminder_${diff}d_${dueDate}`;
+      const { data: logged } = await supabase
+        .from("notification_logs")
+        .select("id")
+        .eq("recipient_id", userId)
+        .eq("tag", tag)
+        .maybeSingle();
+      if (logged) continue;
+
+      if (await isDND(userId)) continue;
+
+      const dueFmt = `${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}`;
+      let title = "";
+      let body  = "";
+      if (diff === 2) {
+        title = "📋 Lembrete de atualização";
+        body  = `Sua atualização vence em 2 dias (${dueFmt}). Não esqueça de enviar!`;
+      } else if (diff === 1) {
+        title = "📋 Lembrete de atualização";
+        body  = "Amanhã é o prazo da sua atualização! Não esqueça de enviar!";
+      } else {
+        title = "📋 Atualização — hoje é o dia!";
+        body  = "Hoje é o dia da sua atualização! Clique para enviar agora.";
+      }
+
+      const subs = await getSubscriptions(userId);
+      for (const sub of subs) {
+        await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title, body, tag });
+      }
+      await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "update_reminder", title, body, tag });
+
+    } else if (diff < 0 && !jaEnviou) {
+      // Pós-vencimento e aluno não enviou
+
+      // Notificação diária para o aluno
+      const tagAluno = `update_reminder_overdue_aluno_${today}_${dueDate}`;
+      const { data: loggedAluno } = await supabase
+        .from("notification_logs")
+        .select("id")
+        .eq("recipient_id", userId)
+        .eq("tag", tagAluno)
+        .maybeSingle();
+
+      if (!loggedAluno) {
+        if (!await isDND(userId)) {
+          const dueFmt = `${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}`;
+          const titleA = "⚠️ Atualização em atraso";
+          const bodyA  = `Sua atualização venceu em ${dueFmt}. Envie o quanto antes para que seu plano seja ajustado.`;
+          const subsA  = await getSubscriptions(userId);
+          for (const sub of subsA) {
+            await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title: titleA, body: bodyA, tag: tagAluno });
+          }
+          await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "update_reminder_overdue", title: titleA, body: bodyA, tag: tagAluno });
+        }
+      }
+
+      // Notificação única para o treinador (1x apenas)
+      const trainerId = aluno.treinador_id as string | null;
+      if (trainerId) {
+        const tagTrainer = `update_reminder_overdue_trainer_${trainerId}_${userId}_${dueDate}`;
+        const { data: loggedTrainer } = await supabase
+          .from("notification_logs")
+          .select("id")
+          .eq("recipient_id", trainerId)
+          .eq("tag", tagTrainer)
+          .maybeSingle();
+
+        if (!loggedTrainer) {
+          // Busca nome do aluno
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nome")
+            .eq("id", userId)
+            .maybeSingle();
+          const alunoNome = (profile?.nome as string) ?? "Um aluno";
+          const dueFmt = `${String(due.getDate()).padStart(2,"0")}/${String(due.getMonth()+1).padStart(2,"0")}`;
+          const titleT = "⚠️ Aluno sem atualização";
+          const bodyT  = `${alunoNome} não enviou a atualização que venceu em ${dueFmt}.`;
+          const subsT  = await getSubscriptions(trainerId);
+          for (const sub of subsT) {
+            await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, { title: titleT, body: bodyT, tag: tagTrainer });
+          }
+          await logNotification({ recipient_id: trainerId, org_id: orgId, notification_type: "update_reminder_overdue_trainer", title: titleT, body: bodyT, tag: tagTrainer });
+        }
+      }
+    }
+  }
+}
+
 // ── Servidor ──────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -306,10 +433,11 @@ serve(async (req) => {
 
   try {
     switch (type) {
-      case "meals":        await handleMeals();        break;
-      case "hydration":    await handleHydration();    break;
-      case "workout":      await handleWorkout();      break;
-      case "motivational": await handleMotivational(); break;
+      case "meals":           await handleMeals();          break;
+      case "hydration":       await handleHydration();      break;
+      case "workout":         await handleWorkout();         break;
+      case "motivational":    await handleMotivational();    break;
+      case "update_reminder": await handleUpdateReminder();  break;
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400 });
     }
