@@ -249,10 +249,10 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
   const [dropPos, setDropPos] = useState<React.CSSProperties>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
 
   // Position dropdown relative to the input (viewport coords via getBoundingClientRect).
-  // Works correctly because the custom modal wrapper has no CSS transform.
   useEffect(() => {
     if (!open || !inputRef.current) return;
     const rect = inputRef.current.getBoundingClientRect();
@@ -270,11 +270,12 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
     });
   }, [open]);
 
-  // Close on click outside the container (dropdown is inline inside containerRef,
-  // so clicks within the dropdown return contains()=true and don't close it).
+  // Close on click outside — check both the input container AND the portal dropdown.
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+      const inContainer = containerRef.current?.contains(e.target as Node) ?? false;
+      const inDropdown  = dropdownRef.current?.contains(e.target as Node) ?? false;
+      if (!inContainer && !inDropdown) setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -304,12 +305,8 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
   const isSelected = !!food.alimento_id;
 
   const dropdownContent = (
-    // position:fixed from dropPos (calculated against viewport). No portal needed because
-    // the custom modal wrapper has no CSS transform — fixed children position to viewport.
-    // stopPropagation on pointer events prevents any ancestor handler from closing the dropdown.
     <div
-      onMouseDown={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
+      ref={dropdownRef}
       className="bg-zinc-950 border border-white/12 rounded-xl shadow-2xl overflow-hidden"
       style={dropPos}
     >
