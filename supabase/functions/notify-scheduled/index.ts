@@ -328,7 +328,7 @@ async function handleUpdateReminder() {
       .from("atualizacao_respostas")
       .select("id")
       .eq("student_id", userId)
-      .gte("created_at", dueDate)
+      .gte("submitted_at", dueDate)
       .maybeSingle();
     const jaEnviou = Boolean(resposta);
 
