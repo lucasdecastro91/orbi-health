@@ -249,7 +249,6 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
   const [dropPos, setDropPos] = useState<React.CSSProperties>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
 
   // Position dropdown via viewport coords — portal escapes any CSS transform ancestor.
@@ -269,17 +268,6 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
       maxHeight: maxH,
     });
   }, [open]);
-
-  // Close on click outside — checks both the input container and the portal dropdown.
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      const inContainer = containerRef.current?.contains(e.target as Node) ?? false;
-      const inDropdown  = dropdownRef.current?.contains(e.target as Node) ?? false;
-      if (!inContainer && !inDropdown) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
 
   const search = useCallback((query: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -305,11 +293,13 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
   const isSelected = !!food.alimento_id;
 
   const dropdownContent = (
-    <div
-      ref={dropdownRef}
-      className="bg-zinc-950 border border-white/12 rounded-xl shadow-2xl overflow-hidden"
-      style={dropPos}
-    >
+    <>
+      {/* Backdrop — captures clicks outside without blocking interaction below */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 9998 }} onClick={() => setOpen(false)} />
+      <div
+        className="bg-zinc-950 border border-white/12 rounded-xl shadow-2xl overflow-hidden"
+        style={dropPos}
+      >
       {/* Loading */}
       {loading && (
         <div className="flex items-center gap-2 px-4 py-3 text-white/40 text-xs">
@@ -399,6 +389,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
         </div>
       )}
     </div>
+    </>
   );
 
   return (
