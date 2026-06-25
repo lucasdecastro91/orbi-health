@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,10 +249,10 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
   const [dropPos, setDropPos] = useState<React.CSSProperties>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
 
-  // Position dropdown relative to the input (viewport coords via getBoundingClientRect).
-  // Works correctly because the alternatives DialogContent uses margin:auto centering (no CSS transform).
+  // Position dropdown via viewport coords — portal escapes any CSS transform ancestor.
   useEffect(() => {
     if (!open || !inputRef.current) return;
     const rect = inputRef.current.getBoundingClientRect();
@@ -269,10 +270,12 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
     });
   }, [open]);
 
-  // Close on click outside the container.
+  // Close on click outside — checks both the input container and the portal dropdown.
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+      const inContainer = containerRef.current?.contains(e.target as Node) ?? false;
+      const inDropdown  = dropdownRef.current?.contains(e.target as Node) ?? false;
+      if (!inContainer && !inDropdown) setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -321,7 +324,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
             Nenhum resultado para <span className="text-white/70 font-medium">"{food.nome_display}"</span>
           </p>
           <button type="button"
-            onMouseDown={(e) => { e.preventDefault(); onAddNew(food.nome_display); setOpen(false); }}
+            onClick={() => { onAddNew(food.nome_display); setOpen(false); }}
             className="flex items-center gap-2 text-sm text-green-500 hover:text-green-400 transition-colors font-medium">
             <Plus className="w-4 h-4" />
             Criar "{food.nome_display}" no banco de alimentos
@@ -337,7 +340,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
         >
           {results.map((a) => (
             <button key={a.id} type="button"
-              onMouseDown={(e) => { e.preventDefault(); onSelect(a); setOpen(false); }}
+              onClick={() => { onSelect(a); setOpen(false); }}
               className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 group">
 
               {/* Nome + badge de fonte */}
@@ -419,7 +422,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
         )}
       </div>
 
-      {open && dropdownContent}
+      {open && createPortal(dropdownContent, document.body)}
     </div>
   );
 };
@@ -1158,7 +1161,6 @@ const AlternativesModal = ({ open, mealDbId, mealName, mainMacros, orgId, onClos
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="bg-zinc-950 border-white/10 text-white rounded-xl max-w-[720px] w-full p-0 overflow-hidden [&>button]:hidden"
-        style={{ transform: "none", top: 0, left: 0, right: 0, bottom: 0, margin: "auto", height: "fit-content" }}
         onEscapeKeyDown={onClose}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
