@@ -539,19 +539,21 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
   const isMainSelected = !selectedAltId;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <>
+      {/* Backdrop */}
       <div
-        className="w-full max-w-lg rounded-t-3xl flex flex-col"
+        className="fixed inset-0 z-50"
+        style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
+        onClick={onClose}
+      />
+      {/* Sheet panel — fixed to bottom, independent of any flex parent */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl flex flex-col"
         style={{
           backgroundColor: "#0f0f10",
           border: "1px solid rgba(255,255,255,0.08)",
           borderBottom: "none",
-          maxHeight: "90vh",
-          overflow: "hidden",
+          maxHeight: "85vh",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -573,10 +575,10 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
           </button>
         </div>
 
-        {/* Options */}
+        {/* Options — scrollable */}
         <div
           className="px-4 pt-4 pb-8 space-y-2.5"
-          style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          style={{ overflowY: "scroll", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {loading ? (
             <div className="flex justify-center py-10">
@@ -612,9 +614,9 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
             </>
           )}
         </div>
-        <div style={{ height: "env(safe-area-inset-bottom, 12px)" }} />
+        <div style={{ height: "env(safe-area-inset-bottom, 12px)", flexShrink: 0 }} />
       </div>
-    </div>
+    </>
   );
 };
 
