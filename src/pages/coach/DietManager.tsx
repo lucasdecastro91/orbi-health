@@ -330,7 +330,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
         >
           {results.map((a) => (
             <button key={a.id} type="button"
-              onClick={() => { onSelect(a); setOpen(false); }}
+              onMouseDown={(e) => { e.preventDefault(); onSelect(a); setOpen(false); }}
               className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 group">
 
               {/* Nome + badge de fonte */}
