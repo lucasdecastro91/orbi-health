@@ -1148,14 +1148,21 @@ const AlternativesModal = ({ open, mealDbId, mealName, mainMacros, orgId, onClos
     } finally { setSaving(false); }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent
-        className="bg-zinc-950 border-white/10 text-white rounded-xl max-w-[720px] w-full p-0 overflow-hidden [&>button]:hidden"
-        onEscapeKeyDown={onClose}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-      >
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/80" onClick={onClose} />
+      {/* Panel */}
+      <div className="relative z-10 bg-zinc-950 border border-white/10 text-white rounded-xl max-w-[720px] w-full p-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between gap-3">
           <div>
@@ -1165,12 +1172,10 @@ const AlternativesModal = ({ open, mealDbId, mealName, mainMacros, orgId, onClos
             </h2>
             <p className="text-xs text-white/40 mt-0.5">Para: {mealName}</p>
           </div>
-          <DialogClose asChild>
-            <button type="button" onClick={onClose}
-              className="flex items-center justify-center w-7 h-7 rounded-md text-white/40 hover:text-white hover:bg-white/8 transition-colors shrink-0">
-              <X className="w-4 h-4" />
-            </button>
-          </DialogClose>
+          <button type="button" onClick={onClose}
+            className="flex items-center justify-center w-7 h-7 rounded-md text-white/40 hover:text-white hover:bg-white/8 transition-colors shrink-0">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <div
@@ -1314,8 +1319,9 @@ const AlternativesModal = ({ open, mealDbId, mealName, mainMacros, orgId, onClos
               : <><Check className="w-4 h-4 mr-1.5" />Salvar Alternativas</>}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body
   );
 };
 
