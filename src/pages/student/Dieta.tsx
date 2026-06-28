@@ -550,7 +550,8 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
           backgroundColor: "#0f0f10",
           border: "1px solid rgba(255,255,255,0.08)",
           borderBottom: "none",
-
+          maxHeight: "90vh",
+          overflow: "hidden",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -575,7 +576,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
         {/* Options */}
         <div
           className="px-4 pt-4 pb-8 space-y-2.5"
-          style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)", WebkitOverflowScrolling: "touch", border: "3px solid red" } as React.CSSProperties}
+          style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {loading ? (
             <div className="flex justify-center py-10">
