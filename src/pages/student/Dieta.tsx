@@ -573,7 +573,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
         </div>
 
         {/* Options */}
-        <div className="overflow-y-auto flex-1 px-4 pt-4 pb-8 space-y-2.5">
+        <div className="overflow-y-auto flex-1 min-h-0 px-4 pt-4 pb-8 space-y-2.5">
           {loading ? (
             <div className="flex justify-center py-10">
               <div className="w-5 h-5 rounded-full border-2 animate-spin"
