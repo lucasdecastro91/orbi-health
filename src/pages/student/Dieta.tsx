@@ -542,18 +542,19 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[200]"
+        className="fixed inset-0 z-40"
         style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
         onClick={onClose}
       />
-      {/* Sheet panel — fixed to bottom, independent of any flex parent */}
+      {/* Sheet panel — sits above main content, below bottom nav */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-[200] rounded-t-3xl flex flex-col"
+        className="fixed left-0 right-0 z-40 rounded-t-3xl flex flex-col"
         style={{
+          bottom: 64,
           backgroundColor: "#0f0f10",
           border: "1px solid rgba(255,255,255,0.08)",
           borderBottom: "none",
-          maxHeight: "85vh",
+          maxHeight: "calc(100vh - 64px - 60px)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
