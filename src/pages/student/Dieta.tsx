@@ -550,7 +550,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
           backgroundColor: "#0f0f10",
           border: "1px solid rgba(255,255,255,0.08)",
           borderBottom: "none",
-          maxHeight: "90vh",
+          maxHeight: "92dvh",
         }}
         onClick={(e) => e.stopPropagation()}
       >
