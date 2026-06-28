@@ -578,7 +578,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
 
         {/* Options — scrollable */}
         <div
-          className="px-4 pt-4 pb-8 space-y-2.5"
+          className="px-4 py-4 space-y-2.5"
           style={{ overflowY: "scroll", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
           {loading ? (
