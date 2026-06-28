@@ -575,7 +575,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
         {/* Options */}
         <div
           className="px-4 pt-4 pb-8 space-y-2.5"
-          style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          style={{ overflowY: "auto", maxHeight: "calc(90vh - 120px)", WebkitOverflowScrolling: "touch", border: "3px solid red" } as React.CSSProperties}
         >
           {loading ? (
             <div className="flex justify-center py-10">
