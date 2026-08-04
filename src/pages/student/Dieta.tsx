@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { grantXP } from "@/lib/xp";
+import { evaluateAndUpdateStreak } from "@/lib/streaks";
 import {
   Clock, Utensils, Flame, Beef, Wheat, Droplet,
-  CheckCircle2, Circle, X, RefreshCw, ChevronRight, History,
+  CheckCircle2, Circle, X, RefreshCw, ChevronRight, ChevronDown, History,
   BookOpen, ChefHat, Shuffle, ListOrdered, Leaf, FileText,
 } from "lucide-react";
 
@@ -794,6 +795,14 @@ const Dieta = () => {
   const [toggling, setToggling]     = useState<string | null>(null);
   const [justDone, setJustDone]     = useState<Set<string>>(new Set()); // drives pop-in animation
   const [mealCompletionsEnabled, setMealCompletionsEnabled] = useState(true);
+  const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set()); // cards colapsados por padrão
+
+  const toggleMealExpand = (id: string) =>
+    setExpandedMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
 
   // Food-level substitutions
   const [expandedFoodId, setExpandedFoodId] = useState<string | null>(null);
@@ -1002,7 +1011,10 @@ const Dieta = () => {
         const { error } = await supabase.from("meal_completions").upsert({ student_id: studentId, meal_id: mealId, date: today }, { onConflict: "student_id,meal_id,date" });
         if (error) throw error;
         const allNowDone = diet.diet_meals.map((m) => m.id).every((id) => nextDone.has(id));
-        if (allNowDone && orgId) await grantXP(studentId, orgId, "diet_day");
+        if (allNowDone && orgId) {
+          await grantXP(studentId, orgId, "diet_day");
+          void evaluateAndUpdateStreak(studentId, orgId);
+        }
         if (allNowDone && treinadorId && alunoRecId && orgId) {
           void (async () => {
             try {
@@ -1281,14 +1293,18 @@ const Dieta = () => {
         {/* ── Page header ── */}
         <div className="px-4 pt-6 pb-4">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{diet.title}</h1>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Utensils className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
+              <h1 className="text-xl font-bold text-foreground tracking-tight">{diet.title}</h1>
+            </div>
 
             <div className="flex items-center gap-2 shrink-0">
               {totalMeals > 0 && (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
                   style={{
-                    backgroundColor: allDone ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.06)",
-                    color: allDone ? "var(--cp-400)" : MUT,
+                    backgroundColor: allDone ? "rgba(var(--cp-rgb),0.15)" : "rgba(var(--cp-rgb),0.06)",
+                    border: "1px solid rgba(var(--cp-rgb),0.25)",
+                    color: "var(--cp-400)",
                   }}>
                   {allDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Utensils className="w-3.5 h-3.5" />}
                   {doneMealsCount}/{totalMeals}
@@ -1298,43 +1314,43 @@ const Dieta = () => {
                 <button
                   onClick={() => setObsOpen(true)}
                   className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.25)" }}
                   title="Ver observações"
                 >
-                  <FileText className="w-4 h-4 text-white/40" />
+                  <FileText className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
                 </button>
               )}
               <button
                 onClick={() => navigate(`/${slug}/aluno/dieta/historico`)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.25)" }}
                 title="Ver histórico"
               >
-                <History className="w-4 h-4 text-white/40" />
+                <History className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
               </button>
             </div>
           </div>
 
           {/* Day macros summary */}
           {hasAnyMacros && (
-            <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
+            <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}>
               <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Total do dia</p>
               <div className="flex items-center gap-1">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
-                  <Flame className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs font-semibold text-foreground">{dayTotal.kcal} kcal</span>
+                  <Flame className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
+                  <span className="text-sm font-bold text-foreground">{dayTotal.kcal} kcal</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
-                  <Beef className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">P {dayTotal.prot}g</span>
+                  <Beef className="w-3 h-3" style={{ color: "var(--cp-400)" }} />
+                  <span className="text-xs font-medium text-foreground/70">P {dayTotal.prot}g</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
-                  <Wheat className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">C {dayTotal.carb}g</span>
+                  <Wheat className="w-3 h-3" style={{ color: "var(--cp-400)" }} />
+                  <span className="text-xs font-medium text-foreground/70">C {dayTotal.carb}g</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)" }}>
-                  <Droplet className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">G {dayTotal.gord}g</span>
+                  <Droplet className="w-3 h-3" style={{ color: "var(--cp-400)" }} />
+                  <span className="text-xs font-medium text-foreground/70">G {dayTotal.gord}g</span>
                 </div>
               </div>
             </div>
@@ -1355,6 +1371,7 @@ const Dieta = () => {
             const isDone      = doneMeals.has(meal.id);
             const isToggling  = toggling === meal.id;
             const hasRecipe   = !!(meal.observacoes_receita || meal.modo_preparo);
+            const isMealExpanded = expandedMeals.has(meal.id);
 
             // Meal alternatives
             const mealAltList     = mealAlts[meal.id] ?? [];
@@ -1372,21 +1389,28 @@ const Dieta = () => {
               <div key={meal.id}
                 className="rounded-2xl border overflow-hidden transition-colors duration-200"
                 style={{
-                  backgroundColor: isDone ? "rgba(var(--cp-rgb),0.05)" : "var(--surface-1)",
-                  borderColor:     isDone ? "rgba(var(--cp-rgb),0.25)" : "var(--border-subtle)",
+                  backgroundColor: isDone ? "rgba(var(--cp-rgb),0.05)" : "var(--dash-card-bg)",
+                  borderColor:     isDone ? "rgba(var(--cp-rgb),0.25)" : "var(--dash-card-border)",
+                  boxShadow:       isDone ? undefined : "var(--dash-card-shadow)",
                 }}
               >
                 {/* ── Meal header ── */}
                 <div className="border-b" style={{ borderColor: isDone ? "rgba(var(--cp-rgb),0.20)" : "var(--border-subtle)" }}>
                   <div className="flex items-center">
-                    {/* Toggle + name row */}
+                    {/* Marcar refeição como feita — alvo de toque separado do de expandir */}
                     <button onClick={() => toggleMeal(meal.id)} disabled={isToggling}
-                      className="flex-1 px-4 py-3 flex items-center gap-3 text-left disabled:opacity-70 transition-colors active:bg-white/5">
+                      className="pl-4 pr-1 py-3 flex items-center justify-center disabled:opacity-70 transition-colors active:bg-white/5"
+                      title={isDone ? "Desmarcar refeição" : "Marcar refeição como feita"}>
                       <div className="shrink-0">
                         {isDone
                           ? <CheckCircle2 className={`w-5 h-5 text-green-500${justDone.has(meal.id) ? " animate-pop-in" : ""}`} />
                           : <Circle className="w-5 h-5" style={{ color: "var(--text-dim)" }} />}
                       </div>
+                    </button>
+
+                    {/* Toggle + name row */}
+                    <button onClick={() => toggleMealExpand(meal.id)}
+                      className="flex-1 pl-2 pr-4 py-3 flex items-center gap-3 text-left transition-colors active:bg-white/5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -1422,6 +1446,8 @@ const Dieta = () => {
                           )}
                         </div>
                       </div>
+                      <ChevronDown className="w-4 h-4 shrink-0 transition-transform duration-200"
+                        style={{ transform: isMealExpanded ? "rotate(180deg)" : "rotate(0deg)", color: MUT }} />
                     </button>
 
                     {hasRecipe && (
@@ -1435,6 +1461,9 @@ const Dieta = () => {
                   </div>
                 </div>
 
+                {/* ── Conteúdo colapsável: lista de alimentos, notas e alternativas ── */}
+                <div style={{ display: "grid", gridTemplateRows: isMealExpanded ? "1fr" : "0fr", transition: "grid-template-rows 220ms ease" }}>
+                <div style={{ overflow: "hidden" }}>
                 {/* ── Food list ── */}
                 {altFoodsLoading ? (
                   <div className="py-5 flex justify-center">
@@ -1641,6 +1670,8 @@ const Dieta = () => {
                     </button>
                   </div>
                 )}
+                </div>
+                </div>
               </div>
             );
           })}
@@ -1650,10 +1681,10 @@ const Dieta = () => {
         {allDone && totalMeals > 0 && (
           <div className="mx-4 mt-4 rounded-2xl p-4 flex items-center gap-3"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}>
-            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "var(--cp-400)" }} />
             <div>
-              <p className="text-sm font-semibold text-green-500">Parabéns! 🎉</p>
-              <p className="text-xs text-muted-foreground">Você completou todas as refeições de hoje.</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--cp-400)" }}>Dieta do dia concluída</p>
+              <p className="text-xs text-muted-foreground">Você completou todas as refeições de hoje. Parabéns!</p>
             </div>
           </div>
         )}
@@ -1668,7 +1699,7 @@ const Dieta = () => {
             <div className="space-y-2">
               {suplementos.map((s) => (
                 <div key={s.id} className="rounded-2xl px-4 py-3"
-                  style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  style={{ backgroundColor: "var(--dash-card-bg)", border: "1px solid var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold" style={{ color: FG }}>{s.nome}</span>
                     {s.dosagem && (

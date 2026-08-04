@@ -1,13 +1,19 @@
 ﻿import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Video, Library, ChevronUp, ChevronDown, Copy, Bookmark } from "lucide-react";
+import {
+  Plus, Pencil, Trash2, Video, Library, ChevronUp, ChevronDown, Copy, Bookmark, Link2,
+  GripVertical, GripHorizontal, Search, X, Wand2, MoreVertical,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors,
+  PointerSensor, TouchSensor, pointerWithin, type DragEndEvent, type DragStartEvent,
+} from "@dnd-kit/core";
 import {
   Dialog,
   DialogContent,
@@ -27,24 +33,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTenantContext } from "@/contexts/TenantContext";
 
@@ -68,6 +67,8 @@ interface Week {
   semana_fim: number;
   zona_reps: string | null;
   observacoes: string | null;
+  data_inicio: string | null;
+  data_fim: string | null;
 }
 
 interface Training {
@@ -128,6 +129,7 @@ interface Exercise {
   exercicio_base_id: string | null;
   carga_base?: string | null;
   series_detalhadas?: SerieDetalhe[] | null;
+  conjugado_com_proximo?: boolean;
 }
 
 interface ExerciseBase {
@@ -137,6 +139,13 @@ interface ExerciseBase {
   descricao: string | null;
   grupo_muscular_principal: string | null;
   grupo_muscular_secundario: string | null;
+}
+
+/** Técnica de série personalizada, salva na biblioteca da org */
+interface CustomTipo {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 const GRUPOS_MUSCULARES = [
@@ -171,6 +180,12 @@ const notifyTreinoAtualizado = (studentUserId: string, orgId: string) => {
           tipo: "treino_atualizado",
         });
       }
+    } catch {}
+    // Push real (chega mesmo com o app fechado) — sino acima é só o registro in-app.
+    try {
+      await supabase.functions.invoke("notify-trainer-action", {
+        body: { type: "workout_updated", student_id: studentUserId, org_id: orgId },
+      });
     } catch {}
   })();
 };
@@ -231,6 +246,7 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
 
         if (error) throw error;
         toast({ title: "Plano atualizado com sucesso!" });
+        // Edição de plano existente não notifica — só planos genuinamente novos.
       } else {
         const { error } = await supabase
           .from("planos_treino")
@@ -242,26 +258,7 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
 
         if (error) throw error;
         toast({ title: "Plano criado com sucesso!" });
-      }
-
-      if (studentUserId && orgId) {
-        void (async () => {
-          try {
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-            const { data: existing } = await supabase.from("notificacoes")
-              .select("id").eq("user_id", studentUserId)
-              .eq("tipo", "treino_atualizado").gte("created_at", oneHourAgo).limit(1);
-            if (!existing || existing.length === 0) {
-              await supabase.from("notificacoes").insert({
-                user_id: studentUserId,
-                org_id: orgId,
-                titulo: "Treino atualizado",
-                mensagem: "Seu plano de treino foi atualizado. Clique em \"Ver treinos\" e confira.",
-                tipo: "treino_atualizado",
-              });
-            }
-          } catch {}
-        })();
+        if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
       }
 
       setDialogOpen(false);
@@ -325,46 +322,18 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
           Nenhum plano de treino criado ainda
         </p>
       ) : (
-        <Accordion type="single" collapsible className="space-y-2">
+        <Accordion type="single" collapsible className="space-y-2" defaultValue={plans[0]?.id}>
           {plans.map((plan) => (
-            <AccordionItem key={plan.id} value={plan.id} className="border rounded-lg px-4">
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center justify-between w-full pr-4">
-                  <div className="text-left">
-                    <p className="font-semibold">{plan.nome_plano}</p>
-                    <p className="text-sm text-muted-foreground">{plan.objetivo}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {plan.ativo && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                        Ativo
-                      </span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDialog(plan);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingPlanId(plan.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </AccordionTrigger>
+            <AccordionItem key={plan.id} value={plan.id} className="border-0">
+              <AccordionTrigger className="sr-only" />
               <AccordionContent>
-                <PlanDetails planId={plan.id} studentUserId={studentUserId ?? undefined} />
+                <PlanDetails
+                  planId={plan.id}
+                  plan={plan}
+                  studentUserId={studentUserId ?? undefined}
+                  onEditPlan={() => openDialog(plan)}
+                  onDeletePlan={() => setDeletingPlanId(plan.id)}
+                />
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -446,7 +415,9 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   );
 };
 
-const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?: string }) => {
+const PlanDetails = ({ planId, plan, studentUserId, onEditPlan, onDeletePlan }: {
+  planId: string; plan: Plan; studentUserId?: string; onEditPlan: () => void; onDeletePlan: () => void;
+}) => {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -494,6 +465,8 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
         semana_fim: semanaFim,
         zona_reps: formData.get("zona_reps") as string,
         observacoes: formData.get("observacoes") as string,
+        data_inicio: formData.get("data_inicio") as string || null,
+        data_fim: formData.get("data_fim") as string || null,
       };
 
       if (editingWeek) {
@@ -504,6 +477,7 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
 
         if (error) throw error;
         toast({ title: "Bloco atualizado!" });
+        // Edição de bloco existente não notifica — só blocos genuinamente novos.
       } else {
         const { error } = await supabase.from("semanas").insert({
           ...weekData,
@@ -512,9 +486,8 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
 
         if (error) throw error;
         toast({ title: "Bloco criado!" });
+        if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
       }
-
-      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
 
       setDialogOpen(false);
       setEditingWeek(null);
@@ -678,6 +651,33 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
 
   return (
     <div className="space-y-4 pt-4">
+      {/* Card do plano — nível 1 da escala de elevação. max-w própria porque o
+          container da aba usa a largura toda (pro kanban); texto de objetivo
+          esticado fica ilegível. */}
+      <div
+        className="rounded-2xl p-4 space-y-3 max-w-5xl"
+        style={{
+          backgroundColor: LVL_PLAN_BG,
+          border: `1px solid ${ELEV_BORDER}`,
+          boxShadow: SHADOW_HERO,
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold truncate">{plan.nome_plano}</h3>
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{plan.objetivo || 'Sem objetivo definido'}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" variant="ghost" onClick={onEditPlan} title="Editar plano">
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onDeletePlan} title="Excluir plano">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
         <h4 className="font-semibold">Blocos de Semanas</h4>
         <Button size="sm" variant="outline" onClick={() => openDialog()}>
@@ -691,7 +691,16 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
       ) : (
         <Accordion type="single" collapsible className="space-y-2">
           {weeks.map((week) => (
-            <AccordionItem key={week.id} value={week.id} className="border rounded-lg px-4">
+            <AccordionItem
+              key={week.id}
+              value={week.id}
+              className="rounded-lg px-4 border-0"
+              style={{
+                backgroundColor: LVL_BLOCK_BG,
+                border: `1px solid ${ELEV_BORDER_SOFT}`,
+                boxShadow: SHADOW_CARD,
+              }}
+            >
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="text-left">
@@ -771,6 +780,26 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
                   type="number"
                   defaultValue={editingWeek?.semana_fim}
                   required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="data_inicio">Data Início (opcional)</Label>
+                <Input
+                  id="data_inicio"
+                  name="data_inicio"
+                  type="date"
+                  defaultValue={editingWeek?.data_inicio || ""}
+                />
+              </div>
+              <div>
+                <Label htmlFor="data_fim">Data Fim (opcional)</Label>
+                <Input
+                  id="data_fim"
+                  name="data_fim"
+                  type="date"
+                  defaultValue={editingWeek?.data_fim || ""}
                 />
               </div>
             </div>
@@ -865,35 +894,209 @@ const PlanDetails = ({ planId, studentUserId }: { planId: string; studentUserId?
 
 const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?: string }) => {
   const [trainings, setTrainings] = useState<Training[]>([]);
+  // Exercícios de TODAS as sessões do bloco, indexados por treino_id. Vêm na
+  // mesma query aninhada de `treinos` — antes cada coluna buscava os seus, o que
+  // gerava 1 requisição por coluna simultaneamente e estourava o
+  // statement_timeout de 8s do role `authenticated`. Ver seção 15 do CLAUDE.md.
+  const [exercisesByTraining, setExercisesByTraining] = useState<Record<string, Exercise[]>>({});
+  // Biblioteca e técnicas da org: dependem só de orgId, então são buscadas uma
+  // vez aqui e repassadas — antes eram refeitas identicamente em cada coluna.
+  const [exercisesBase, setExercisesBase] = useState<ExerciseBase[]>([]);
+  const [customTipos, setCustomTipos] = useState<{ id: string; name: string; description: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
   const [deletingTrainingId, setDeletingTrainingId] = useState<string | null>(null);
+  // Incrementado a cada recarga: entra na `key` das colunas pra que elas
+  // remontem com os exercícios novos vindos por prop (substitui o antigo
+  // refreshTokens por treino, que forçava refetch individual).
+  const [dataVersion, setDataVersion] = useState(0);
+  /** O que está sendo arrastado agora — alimenta o DragOverlay */
+  const [dragging, setDragging] = useState<
+    { type: "exercise"; exercise: Exercise } | { type: "column"; training: Training } | null
+  >(null);
   const { toast } = useToast();
   const { orgId } = useTenantContext();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current as { type?: string; trainingId: string } | undefined;
+    if (!data) return;
+    if (data.type === "column") {
+      const training = trainings.find((t) => t.id === data.trainingId);
+      if (training) setDragging({ type: "column", training });
+      return;
+    }
+    const id = String(event.active.id);
+    const exercise = (exercisesByTraining[data.trainingId] ?? []).find((e) => e.id === id);
+    if (exercise) setDragging({ type: "exercise", exercise });
+  };
+
+  /** Reordena as sessões (colunas). Otimista na UI, grava em série. */
+  const reorderTrainings = async (fromTrainingId: string, toTrainingId: string) => {
+    const fromIdx = trainings.findIndex((t) => t.id === fromTrainingId);
+    const toIdx = trainings.findIndex((t) => t.id === toTrainingId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+    const anterior = trainings;
+    const next = [...trainings];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+
+    setTrainings(next);
+    try {
+      // Em série e só o que mudou — mesmo motivo do handleDragEnd: updates
+      // paralelos na mesma tabela disputam lock e já causaram timeout aqui.
+      for (let i = 0; i < next.length; i++) {
+        if (anterior[i]?.id === next[i].id && next[i].ordem === i) continue;
+        const { error } = await supabase.from("treinos").update({ ordem: i }).eq("id", next[i].id);
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      toast({ title: "Erro ao reordenar sessões", description: error.message, variant: "destructive" });
+      loadTrainings(); // reverte pro que está no banco
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setDragging(null); // antes dos returns: o overlay precisa sumir em qualquer saída
+    const { active, over } = event;
+    if (!over) return;
+    const activeData = active.data.current as { type?: string; trainingId: string } | undefined;
+    const overData = over.data.current as { type?: string; trainingId: string; exerciseId?: string } | undefined;
+    if (!activeData || !overData) return;
+
+    // Arrastando uma coluna inteira → reordena sessões. Soltar em qualquer ponto
+    // da coluna destino (header ou lista de exercícios) conta como destino.
+    if (activeData.type === "column") {
+      if (activeData.trainingId !== overData.trainingId) {
+        await reorderTrainings(activeData.trainingId, overData.trainingId);
+      }
+      return;
+    }
+
+    const exerciseId = String(active.id);
+    const sourceTrainingId = activeData.trainingId;
+    const destTrainingId = overData.trainingId;
+    if (sourceTrainingId === destTrainingId && overData.exerciseId === exerciseId) return;
+
+    // ── 1. Reordena em memória e mostra na hora (otimista) ──────────────────
+    // A ordem de destino sai do estado local, que já tem todos os exercícios do
+    // bloco pela query aninhada — não precisa de um SELECT antes de gravar.
+    const source = [...(exercisesByTraining[sourceTrainingId] ?? [])];
+    const dest = sourceTrainingId === destTrainingId
+      ? source
+      : [...(exercisesByTraining[destTrainingId] ?? [])];
+
+    const movedIdx = source.findIndex((e) => e.id === exerciseId);
+    if (movedIdx === -1) return;
+    const [moved] = source.splice(movedIdx, 1);
+
+    const overIdx = overData.exerciseId ? dest.findIndex((e) => e.id === overData.exerciseId) : -1;
+    dest.splice(overIdx === -1 ? dest.length : overIdx, 0, moved);
+
+    const next: Record<string, Exercise[]> = {
+      ...exercisesByTraining,
+      [destTrainingId]: dest.map((e, i) => ({ ...e, ordem: i })),
+    };
+    if (sourceTrainingId !== destTrainingId) {
+      next[sourceTrainingId] = source.map((e, i) => ({ ...e, ordem: i }));
+    }
+    setExercisesByTraining(next);
+    setDataVersion((v) => v + 1);
+
+    // ── 2. Persiste numa única chamada ───────────────────────────────────────
+    // `reordenar_exercicios` faz UM update em massa, atômico (migration
+    // 20260730000001). Qualquer UPDATE nesta tabela custa ~160ms, então os N
+    // updates individuais que existiam aqui somavam 1s+ e, pior, gravavam
+    // PARCIALMENTE quando um deles estourava o statement_timeout — a coluna
+    // ficava meio reordenada. Medido: 8 linhas em 26ms por esta via.
+    try {
+      const rows = next[destTrainingId].map((e, i) => ({
+        id: e.id, treino_id: destTrainingId, ordem: i,
+      }));
+      if (sourceTrainingId !== destTrainingId) {
+        next[sourceTrainingId].forEach((e, i) =>
+          rows.push({ id: e.id, treino_id: sourceTrainingId, ordem: i })
+        );
+      }
+
+      const { error } = await supabase.rpc("reordenar_exercicios", { p_rows: rows });
+      if (error) throw error;
+    } catch (error: any) {
+      toast({ title: "Erro ao mover exercício", description: error.message, variant: "destructive" });
+      await loadTrainings(); // volta pro que está gravado
+    }
+  };
 
   useEffect(() => {
     loadTrainings();
   }, [weekId]);
 
-  const loadTrainings = async () => {
+  // Biblioteca da org — buscada uma vez por bloco, não por coluna
+  useEffect(() => {
+    if (!orgId) return;
+    void (async () => {
+      const [baseRes, tiposRes] = await Promise.all([
+        supabase.from("exercicios_base").select("*").eq("org_id", orgId).order("nome"),
+        supabase.from("custom_techniques").select("id, name, description").eq("org_id", orgId).order("name"),
+      ]);
+      if (baseRes.error) console.error("Erro ao carregar biblioteca:", baseRes.error);
+      else setExercisesBase(baseRes.data || []);
+      if (tiposRes.error) console.error("Erro ao carregar técnicas:", tiposRes.error);
+      else setCustomTipos(tiposRes.data || []);
+    })();
+  }, [orgId]);
+
+  /** Uma query aninhada traz as sessões do bloco E todos os seus exercícios.
+   *  Substitui o padrão anterior de 1 requisição por coluna.
+   *
+   *  Tem uma retentativa: o `statement_timeout` que aparecia aqui é transitório
+   *  (contenção momentânea da instância, não custo da query — ela mede 122ms
+   *  para um plano inteiro), então repetir uma vez resolve em vez de deixar a
+   *  coluna quebrada na tela. */
+  const loadTrainings = async (tentativa = 1) => {
     try {
       const { data, error } = await supabase
         .from("treinos")
-        .select("*")
+        .select("*, exercicios(*)")
         .eq("semana_id", weekId)
         .order("ordem");
 
       if (error) throw error;
-      setTrainings(data || []);
+
+      const rows = (data ?? []) as any[];
+      const byTraining: Record<string, Exercise[]> = {};
+      const plainTrainings: Training[] = rows.map((row) => {
+        const { exercicios, ...training } = row;
+        // Ordenado no cliente de propósito: ordenar tabela aninhada pelo
+        // PostgREST depende da sintaxe de referencedTable e falha em silêncio se
+        // estiver errada. A lista é pequena, o custo é irrelevante.
+        byTraining[row.id] = ((exercicios ?? []) as Exercise[])
+          .slice()
+          .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+        return training as Training;
+      });
+
+      setTrainings(plainTrainings);
+      setExercisesByTraining(byTraining);
+      setDataVersion((v) => v + 1);
+      setLoading(false);
     } catch (error: any) {
+      if (tentativa === 1) {
+        await new Promise((r) => setTimeout(r, 700));
+        return loadTrainings(2);
+      }
+      setLoading(false);
       toast({
         title: "Erro ao carregar treinos",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -926,8 +1129,7 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
         if (error) throw error;
         toast({ title: "Treino adicionado!" });
       }
-
-      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
+      // Sessões (treinos) dentro de um bloco não notificam — só bloco/plano novos.
 
       setDialogOpen(false);
       setEditingTraining(null);
@@ -969,39 +1171,8 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
     setDialogOpen(true);
   };
 
-  const handleMoveTraining = async (trainingId: string, direction: "up" | "down") => {
-    const currentIndex = trainings.findIndex((t) => t.id === trainingId);
-    if (currentIndex === -1) return;
-    
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= trainings.length) return;
-
-    const currentTraining = trainings[currentIndex];
-    const targetTraining = trainings[targetIndex];
-
-    try {
-      // Trocar os valores de ordem
-      await supabase
-        .from("treinos")
-        .update({ ordem: targetTraining.ordem })
-        .eq("id", currentTraining.id);
-
-      await supabase
-        .from("treinos")
-        .update({ ordem: currentTraining.ordem })
-        .eq("id", targetTraining.id);
-
-      toast({ title: "Ordem atualizada!" });
-      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
-      loadTrainings(); // Recarregar lista
-    } catch (error: any) {
-      toast({
-        title: "Erro ao reordenar",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
+  // handleMoveTraining (setas ↑/↓) foi substituído por arrastar a coluna na
+  // horizontal — ver reorderTrainings + TrainingColumn.
 
   const handleDuplicateTraining = async (training: Training) => {
     try {
@@ -1071,91 +1242,102 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
     <div className="space-y-4 pt-4">
       <div className="flex justify-between items-center">
         <h5 className="font-semibold text-sm">Treinos</h5>
-        <Button size="sm" variant="outline" onClick={() => openDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Treino
-        </Button>
+        {trainings.length > 0 && (
+          <p className="text-xs text-muted-foreground">Arraste os exercícios pra reordenar ou mover entre treinos</p>
+        )}
       </div>
 
       {trainings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum treino adicionado</p>
+        <div className="border border-dashed rounded-lg p-6 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">Nenhum treino adicionado</p>
+          <Button size="sm" variant="outline" onClick={() => openDialog()}>
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Treino
+          </Button>
+        </div>
       ) : (
-        <Accordion type="single" collapsible className="space-y-2">
-          {trainings.map((training) => (
-            <AccordionItem
-              key={training.id}
-              value={training.id}
-              className="border rounded-lg px-4"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setDragging(null)}
+        >
+          <div className="flex gap-2.5 overflow-x-auto pb-2">
+            {trainings.map((training) => (
+              <TrainingColumn
+                key={training.id}
+                training={training}
+                onDuplicate={() => handleDuplicateTraining(training)}
+                onEdit={() => openDialog(training)}
+                onDelete={() => setDeletingTrainingId(training.id)}
+              >
+                <TrainingExercises
+                  key={`${training.id}:${dataVersion}`}
+                  trainingId={training.id}
+                  studentUserId={studentUserId}
+                  initialExercises={exercisesByTraining[training.id] ?? []}
+                  exercisesBase={exercisesBase}
+                  customTipos={customTipos}
+                  onCustomTiposChange={setCustomTipos}
+                  onExercisesChanged={loadTrainings}
+                />
+              </TrainingColumn>
+            ))}
+            <button
+              onClick={() => openDialog()}
+              style={{
+                width: '150px',
+                minWidth: '150px',
+                minHeight: '88px',
+              }}
+              className="shrink-0 border border-dashed rounded-lg flex flex-col items-center justify-center gap-1 text-sm text-muted-foreground hover:bg-muted/30 transition-colors"
             >
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center justify-between w-full pr-4">
-                  <div className="text-left">
-                    <p className="font-medium">{training.titulo_treino}</p>
-                    <p className="text-sm text-muted-foreground">{training.dia_semana}</p>
-                  </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMoveTraining(training.id, "up");
-                    }}
-                    disabled={trainings.indexOf(training) === 0}
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMoveTraining(training.id, "down");
-                    }}
-                    disabled={trainings.indexOf(training) === trainings.length - 1}
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicateTraining(training);
-                    }}
-                    title="Duplicar treino"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDialog(training);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingTrainingId(training.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <TrainingExercises trainingId={training.id} studentUserId={studentUserId} />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+              <Plus className="h-4 w-4" />
+              Criar treino
+            </button>
+          </div>
+
+          {/* O card que acompanha o cursor. Vive num portal, fora do container
+              com overflow-x-auto — por isso não é cortado ao atravessar de uma
+              coluna pra outra, que era o que travava o arraste. */}
+          <DragOverlay dropAnimation={null}>
+            {dragging?.type === "exercise" ? (
+              <div
+                className="rounded-lg p-2 text-card-foreground pointer-events-none"
+                style={{
+                  width: `${COLUMN_WIDTH - 20}px`,
+                  backgroundColor: EXERCISE_CARD_BG,
+                  border: "1px solid var(--cp-500)",
+                  boxShadow: "0 0 0 1px rgba(var(--cp-rgb), 0.5), 0 14px 34px rgba(0,0,0,0.6)",
+                  cursor: "grabbing",
+                }}
+              >
+                <p className="font-medium text-[13px] leading-tight truncate">
+                  {dragging.exercise.nome_exercicio}
+                </p>
+              </div>
+            ) : dragging?.type === "column" ? (
+              <div
+                className="rounded-lg p-2.5 pointer-events-none"
+                style={{
+                  width: `${COLUMN_WIDTH}px`,
+                  backgroundColor: EXERCISE_CARD_BG,
+                  border: "1px solid var(--cp-500)",
+                  boxShadow: "0 0 0 1px rgba(var(--cp-rgb), 0.5), 0 14px 34px rgba(0,0,0,0.6)",
+                  cursor: "grabbing",
+                }}
+              >
+                <p className="font-medium text-[13px] leading-tight truncate">
+                  {dragging.training.titulo_treino}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {dragging.training.dia_semana}
+                </p>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -1223,43 +1405,388 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
 };
 
 
-const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; studentUserId?: string }) => {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [exercisesBase, setExercisesBase] = useState<ExerciseBase[]>([]);
-  const [loading, setLoading] = useState(true);
+// ── Escala de elevação ───────────────────────────────────────────────────────
+// A aba tem 4 níveis de aninhamento (plano → bloco → sessão → exercício) e antes
+// eles não seguiam nenhuma ordem: o plano era o mais apagado (`bg-white/3`)
+// mesmo sendo o container mais externo, e sessão e exercício usavam exatamente o
+// mesmo tom — um dentro do outro, indistinguíveis.
+//
+// Aqui a regra é: quanto mais interno, mais claro e mais "próximo". Os valores
+// #141417 / #1b1c21 e as sombras vêm do Dashboard (`CARD_BG`/`CARD_BG_2`/
+// `CARD_SHADOW`/`HERO_SHADOW`, Dashboard.tsx:63-67) — é o sistema visual que já
+// existe no projeto, não um padrão novo.
+const ELEV_BORDER      = "rgba(255,255,255,0.09)";
+const ELEV_BORDER_SOFT = "rgba(255,255,255,0.06)";
+
+const SHADOW_HERO = "0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.3)";
+const SHADOW_CARD = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
+const SHADOW_ITEM = "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
+
+/** Nível 1 — plano/macrociclo. O mais externo e o mais escuro: funciona como o
+ *  "chão" da tela, e a sombra ampla é o que o separa do fundo da página. */
+const LVL_PLAN_BG = "#0f0f12";
+/** Nível 2 — bloco de semanas */
+const LVL_BLOCK_BG = "#121216";
+/** Nível 3 — coluna de sessão */
+const LVL_SESSION_BG = "#141417";
+/** Nível 4 — exercício e bloco de série: o mais interno, logo o mais claro */
+const LVL_ITEM_BG = "#1b1c21";
+
+// Aliases mantidos pra não trocar nome em todo uso já existente da coluna/linha
+const EXERCISE_CARD_BG = LVL_ITEM_BG;
+const EXERCISE_CARD_BORDER = ELEV_BORDER;
+const EXERCISE_CARD_SHADOW = SHADOW_ITEM;
+
+/** Campo (input/select/textarea/botão) dentro do dialog de exercício.
+ *
+ *  O padrão do shadcn é `bg-background` (`0 0% 4%`), mais ESCURO que o `bg-card`
+ *  (`0 0% 8%`) que o contém — cada campo virava um poço preto dentro do card.
+ *
+ *  A correção NÃO é clarear o fundo: é usar a MESMA cor da superfície e criar o
+ *  relevo com sombra, que é como os cards de exercício se destacam da coluna no
+ *  kanban. Três camadas: luz na borda de cima (`inset` claro), sombra projetada
+ *  embaixo e uma sombra interna na base. Tokens e valores relativos, nunca hex,
+ *  pra acompanhar o light mode. */
+const FIELD_CLS =
+  "bg-card border-white/[0.08] shadow-[0_2px_6px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.2)] focus-visible:border-white/20";
+
+// Largura da coluna de sessão. Ajustada pra caber ~5 sessões numa tela wide sem
+// scroll — foi o que o treinador considerou funcional (equivalente ao zoom 67%
+// da versão anterior de 380px). Reduzir daqui pra baixo começa a truncar nome
+// de exercício longo cedo demais.
+const COLUMN_WIDTH = 272;
+
+// ── Coluna de sessão — arrastável na horizontal pra reordenar as sessões.
+// Definida no nível do módulo (não inline) pra não remontar a cada render do
+// pai, o que derrubaria o drag em andamento e o foco de inputs internos. ──
+const TrainingColumn = ({
+  training, onDuplicate, onEdit, onDelete, children,
+}: {
+  training: Training;
+  onDuplicate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) => {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `column:${training.id}`,
+    data: { type: "column", trainingId: training.id },
+  });
+  // IMPORTANTE: o droppable cobre só o HEADER, nunca a coluna inteira. Um
+  // droppable do tamanho da coluna competiria com os `row:<id>` de cada
+  // exercício sob `pointerWithin` — o dnd-kit escolheria a coluna, e soltar um
+  // exercício "acima do outro" acabaria jogando ele no fim da lista.
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `colhead:${training.id}`,
+    data: { type: "column", trainingId: training.id },
+  });
+
+  return (
+    <div
+      ref={setDragRef}
+      className="shrink-0 rounded-lg p-2.5"
+      style={{
+        width: `${COLUMN_WIDTH}px`,
+        minWidth: `${COLUMN_WIDTH}px`,
+        borderWidth: "1px",
+        borderStyle: "solid",
+        // Nível 3: mais escuro que os exercícios que ela contém
+        backgroundColor: LVL_SESSION_BG,
+        borderColor: isOver ? "var(--cp-500)" : ELEV_BORDER,
+        boxShadow: SHADOW_CARD,
+        // Sem transform aqui: quem segue o cursor é o DragOverlay, imune ao
+        // clipping do container com overflow-x-auto.
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      <div ref={setDropRef} className="flex items-start justify-between gap-1 mb-2">
+        <button
+          {...attributes} {...listeners}
+          title="Arrastar pra reordenar as sessões"
+          className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/40 hover:text-muted-foreground"
+        >
+          <GripHorizontal className="h-3.5 w-3.5" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-[13px] leading-tight truncate">{training.titulo_treino}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{training.dia_semana}</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Ações da sessão">
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicate}>
+              <Copy className="h-4 w-4 mr-2" />
+              Duplicar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {children}
+    </div>
+  );
+};
+
+// ── Draggable exercise row — drag handle only starts the drag, so tapping the
+// action buttons doesn't fight the pointer sensor. The row is also a drop
+// target (`row:<id>`) so WeekDetails.handleDragEnd can insert before it. ──
+const ExerciseRow = ({
+  exercise, trainingId, isLast, isUnconfigured, isSelected, onToggleConjugado, onEdit, onDelete, onToggleSelect,
+}: {
+  exercise: Exercise;
+  trainingId: string;
+  isLast: boolean;
+  isUnconfigured: boolean;
+  isSelected: boolean;
+  onToggleConjugado: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleSelect: () => void;
+}) => {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: exercise.id,
+    data: { type: "exercise", trainingId },
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `row:${exercise.id}`,
+    data: { type: "exercise", trainingId, exerciseId: exercise.id },
+  });
+  const setRefs = (node: HTMLElement | null) => { setDragRef(node); setDropRef(node); };
+  // Nada de `transform` aqui: o card que segue o cursor é o DragOverlay, que
+  // renderiza fora do container com `overflow-x-auto`. Aplicar transform no
+  // próprio nó fazia o card ser cortado ao sair da coluna — era isso que dava a
+  // sensação de arraste travado. Aqui só marcamos o lugar de origem.
+  const style: React.CSSProperties = isDragging ? { opacity: 0.35 } : {};
+
+  const sd = exercise.series_detalhadas as SerieDetalhe[] | null | undefined;
+  const hasSd = sd && sd.length > 0;
+  const count = hasSd
+    ? sd.reduce((sum, s) => sum + (s.quantidade ?? 1), 0)
+    : parseInt(exercise.series) || 0;
+  // 'Work'/'Feed' em vez de 'Work Set'/'Feeder': aparecem em quase todo exercício,
+  // e a forma curta é o que permite o resumo caber numa linha na coluna de 272px.
+  // Técnicas avançadas ficam com o nome inteiro — são raras, e o nowrap por grupo
+  // garante que a quebra caia entre grupos, nunca separando o "3×" do rótulo.
+  const tipoLabels: Record<string, string> = {
+    'warm-up': 'W-up', 'feeder': 'Feed', 'trabalho': 'Work',
+    'drop-set': 'Drop', 'cluster': 'Cluster',
+    'rest-pause': 'Rest Pause', 'muscle-round': 'Muscle Rnd',
+  };
+  // normalizeTipo agrupa variações legadas ('Work Set', 'work') na chave canônica
+  const tipoCounts = hasSd
+    ? sd.reduce<Record<string, number>>((acc, s) => {
+        const t = normalizeTipo(s.tipo);
+        acc[t] = (acc[t] || 0) + (s.quantidade ?? 1); return acc;
+      }, {})
+    : null;
+  const tipoParts = tipoCounts
+    ? Object.entries(tipoCounts).map(([t, n]) => `${n}× ${tipoLabels[t] ?? t}`)
+    : [];
+
+  /** Reps exibidas no card: as dos work sets, que são a série que define o
+   *  estímulo (warm-up/feeder têm reps próprias, mas secundárias). Se o
+   *  exercício não tiver nenhum work set — só técnica avançada, por exemplo —
+   *  cai pra todos os blocos em vez de não mostrar nada. */
+  const repsResumo = (() => {
+    if (!hasSd) return exercise.repeticoes?.trim() || null;
+    const distintos = (arr: SerieDetalhe[]) =>
+      Array.from(new Set(arr.map((s) => (s.repeticoes ?? '').trim()).filter(Boolean)));
+    let vals = distintos(sd.filter((s) => normalizeTipo(s.tipo) === 'trabalho'));
+    if (vals.length === 0) vals = distintos(sd);
+    if (vals.length === 0) return null;
+    if (vals.length === 1) return vals[0];
+    // Blocos de trabalho com zonas diferentes → mostra a faixa que engloba todas
+    const nums = vals.flatMap((v) => (v.match(/\d+/g) ?? []).map(Number));
+    if (nums.length === 0) return vals[0];
+    const min = Math.min(...nums), max = Math.max(...nums);
+    return min === max ? String(min) : `${min}-${max}`;
+  })();
+
+  return (
+    <div
+      ref={setRefs}
+      style={{
+        ...style,
+        backgroundColor: EXERCISE_CARD_BG,
+        // --cp-500 é a cor primária da org (var real; --cp-color não existe)
+        borderColor: isSelected ? 'var(--cp-500)' : EXERCISE_CARD_BORDER,
+        borderWidth: isSelected ? '2px' : '1px',
+        borderStyle: 'solid',
+        boxShadow: isSelected
+          ? '0 0 0 1px rgba(var(--cp-rgb), 0.5), 0 0 14px rgba(var(--cp-rgb), 0.35), 0 10px 28px rgba(0,0,0,0.45)'
+          : EXERCISE_CARD_SHADOW,
+        // Barra na cor primária no topo do card sob o cursor: mostra que o item
+        // arrastado vai ser inserido ANTES dele. Sem isso não havia nenhuma
+        // pista visual de onde o exercício ia cair.
+        borderTop: isOver ? '3px solid var(--cp-500)' : undefined,
+      }}
+      className={`rounded-lg text-card-foreground transition-all`}
+      data-over={isOver || undefined}
+    >
+      <div className="p-2">
+        <div className="flex items-start gap-1.5">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="mt-0.5 shrink-0 h-4 w-4"
+            aria-label="Selecionar exercício"
+          />
+          <button
+            {...attributes} {...listeners}
+            title="Arrastar"
+            className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/40 hover:text-muted-foreground"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+          <div className="space-y-0.5 flex-1 min-w-0">
+            <p className="font-medium text-[13px] leading-tight truncate">{exercise.nome_exercicio}</p>
+            {isUnconfigured ? (
+              <span className="text-[11px] font-medium text-amber-600">Configurar séries</span>
+            ) : (
+              <>
+                {/* Linha 1 — o essencial: total de séries + reps do work set */}
+                <div className="flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+                  <span className="font-semibold whitespace-nowrap">
+                    {count} {count === 1 ? 'série' : 'séries'}
+                  </span>
+                  {repsResumo && <span className="whitespace-nowrap">· {repsResumo} reps</span>}
+                  {exercise.carga_base && (
+                    <span className="opacity-70 whitespace-nowrap">· base {exercise.carga_base}</span>
+                  )}
+                </div>
+                {/* Linha 2 — composição por tipo de série, hierarquia mais baixa.
+                    Cada grupo é um span nowrap: a quebra só pode cair entre
+                    grupos, nunca separando o "3×" do seu rótulo. */}
+                {tipoParts.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-1 text-[10px] text-muted-foreground opacity-60">
+                    {tipoParts.map((p, i) => (
+                      <span key={p} className="whitespace-nowrap">
+                        {i > 0 && <span className="mr-1 opacity-50">·</span>}
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {exercise.video_url && (
+              <div className="flex items-center gap-1 text-[11px] text-primary opacity-80">
+                <Video className="h-2.5 w-2.5" />
+                <span>Vídeo</span>
+              </div>
+            )}
+            {exercise.conjugado_com_proximo && (
+              <div className="flex items-center gap-1 text-[11px] text-primary opacity-80">
+                <Link2 className="h-2.5 w-2.5" />
+                <span>Conjugado com o próximo</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button
+              size="icon" variant={exercise.conjugado_com_proximo ? "default" : "ghost"} className="h-6 w-6"
+              onClick={onToggleConjugado} disabled={isLast}
+              title="Vincular com o próximo exercício (bi-set/tri-set, sem descanso entre eles)"
+            >
+              <Link2 className="h-3 w-3" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-6 w-6" title="Ações">
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TrainingExercises = ({
+  trainingId, studentUserId, initialExercises, exercisesBase, customTipos, onCustomTiposChange, onExercisesChanged,
+}: {
+  trainingId: string;
+  studentUserId?: string;
+  /** Exercícios já vindos da query aninhada do bloco — o componente não busca
+   *  os seus no mount, só recarrega depois de uma mutação própria. */
+  initialExercises: Exercise[];
+  exercisesBase: ExerciseBase[];
+  customTipos: CustomTipo[];
+  onCustomTiposChange: React.Dispatch<React.SetStateAction<CustomTipo[]>>;
+  /** Avisa o bloco que a LISTA de exercícios mudou, pra ele recarregar (1 query
+   *  aninhada). Obrigatório: o `handleDragStart`/`handleDragEnd` vivem no pai e
+   *  leem `exercisesByTraining` — se o pai não recarregar, um exercício criado
+   *  depois da carga inicial não existe pra ele e o arraste simplesmente não sai
+   *  do lugar. */
+  onExercisesChanged: () => void | Promise<void>;
+}) => {
+  const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
-  const [selectedBase, setSelectedBase] = useState<ExerciseBase | null>(null);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
-  const [comboOpen, setComboOpen] = useState(false);
   const [detailedSeries, setDetailedSeries] = useState<SerieDetalhe[]>([]);
   const [cargaBase, setCargaBase] = useState('');
   const [descansoEx, setDescansoEx] = useState('');
-  const [customTipos, setCustomTipos] = useState<{ id: string; name: string; description: string | null }[]>([]);
   // IDs de blocos de série que expandiram as Técnicas Avançadas no seletor
   const [showAdvancedFor, setShowAdvancedFor] = useState<Set<string>>(new Set());
   const [showDescFor, setShowDescFor] = useState<Set<string>>(new Set());
+  // ── Seleção múltipla de exercícios ─────────────────────────────────
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
+  // ── Adicionar exercícios (seleção múltipla da biblioteca) ──────────
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSearch, setBulkSearch] = useState('');
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  // Exercícios adicionados em lote ainda sem séries/reps/descanso configurados
+  /** "Ainda não configurado" é **derivado**, não guardado em estado: exercício
+   *  inserido em lote entra com `series: ""`, e qualquer um salvo pelo editor sai
+   *  com `series` = soma das quantidades. Derivar faz a marcação sobreviver ao
+   *  remount do bloco e a um F5 — como estado local ela se perdia nos dois casos. */
+  const isUnconfigured = (e: Exercise) =>
+    !e.series?.trim() || parseInt(e.series) === 0;
+  const [defaultSeries, setDefaultSeries] = useState('3');
+  const [defaultReps, setDefaultReps] = useState('12');
+  const [defaultDescanso, setDefaultDescanso] = useState('60');
   const { toast } = useToast();
   const { orgId, org } = useTenantContext();
+
+  // Torna a coluna inteira um alvo de drop (pra soltar num espaço vazio /
+  // abaixo de todos os itens conta como "vai pro fim da lista").
+  const { setNodeRef: setColumnDropRef, isOver: isColumnOver } = useDroppable({
+    id: `col:${trainingId}`,
+    data: { trainingId },
+  });
 
   // ── Custom tipo helpers ────────────────────────────────────────────
   /** True when tipo is neither a preset nor a saved custom — shows free-text input */
   const isCustomTipo = (tipo: string) =>
     !PRESET_TIPOS.includes(tipo) && !customTipos.some(t => t.name === tipo);
 
-  const loadCustomTipos = async () => {
-    if (!orgId) return;
-    try {
-      const { data } = await supabase
-        .from("custom_techniques")
-        .select("id, name, description")
-        .eq("org_id", orgId)
-        .order("name");
-      if (data) setCustomTipos(data as { id: string; name: string; description: string | null }[]);
-    } catch { /* silent */ }
-  };
-
+  // A biblioteca de técnicas é carregada uma vez pelo WeekDetails e chega por
+  // prop — este componente só a atualiza (salvar/editar), nunca a busca.
   const saveCustomTipo = async (nome: string, descricao?: string) => {
     if (!orgId || !nome.trim()) return;
     try {
@@ -1269,9 +1796,8 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
         .select("id, name, description")
         .single();
       if (error) throw error;
-      setCustomTipos(prev =>
-        [...prev, data as { id: string; name: string; description: string | null }]
-          .sort((a, b) => a.name.localeCompare(b.name))
+      onCustomTiposChange(prev =>
+        [...prev, data as CustomTipo].sort((a, b) => a.name.localeCompare(b.name))
       );
       toast({ title: "Técnica salva!", description: `"${nome.trim()}" adicionada à biblioteca` });
     } catch (err: any) {
@@ -1292,7 +1818,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
         .update({ description: descricao.trim() || null })
         .eq("id", found.id);
       if (error) throw error;
-      setCustomTipos(prev =>
+      onCustomTiposChange(prev =>
         prev.map(t => t.id === found.id ? { ...t, description: descricao.trim() || null } : t)
       );
       toast({ title: "Descrição atualizada globalmente!" });
@@ -1400,53 +1926,14 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
     }];
   };
 
-  useEffect(() => {
-    loadExercises();
-    loadExercisesBase();
-    loadCustomTipos();
-  }, [trainingId]);
+  // Sem busca no mount: os exercícios chegam em `initialExercises`, junto com as
+  // sessões, numa única query aninhada feita pelo WeekDetails. Antes cada coluna
+  // buscava os seus, e N colunas montando juntas estouravam o statement_timeout.
 
-  const loadExercises = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("exercicios")
-        .select("*")
-        .eq("treino_id", trainingId)
-        .order("ordem");
-
-      if (error) throw error;
-      
-      // Apenas exibe os exercícios na ordem retornada pelo banco — sem normalizar na leitura
-      // (evita N updates paralelos que causavam statement timeout)
-      setExercises(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao carregar exercícios",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadExercisesBase = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("exercicios_base")
-        .select("*")
-        .eq("org_id", orgId)
-        .order("nome");
-
-      if (error) throw error;
-      setExercisesBase(data || []);
-    } catch (error: any) {
-      console.error("Error loading exercise library:", error);
-    }
-  };
+  // Toda mutação que altera a LISTA chama `onExercisesChanged()` (recarga do
+  // bloco) em vez de recarregar só esta coluna. Recarregar local deixava o
+  // `exercisesByTraining` do pai desatualizado, e como é ele que o drag consulta,
+  // exercícios criados depois da carga inicial não arrastavam.
 
   const handleSubmitExercise = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1463,18 +1950,31 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
     }
 
     try {
+      const nomeExercicio = formData.get("nome_exercicio") as string;
+
+      // Exercício "personalizado" (digitado à mão, sem passar pela busca da
+      // biblioteca) nunca ganhava exercicio_base_id — mesmo quando o nome batia
+      // exatamente com algo que já existia lá. Sem esse link, o exercício some
+      // de todo cálculo de volume por grupo muscular (ele não sabe a que grupo
+      // pertence). Casa por nome exato (dentro da própria org) como fallback —
+      // tenta tanto ao criar quanto ao editar (ex: exercício duplicado de uma
+      // sessão antiga, ainda sem link, que o treinador abre pra ajustar séries).
+      const matchedBase = exercisesBase.find((b) => b.nome.trim().toLowerCase() === nomeExercicio.trim().toLowerCase());
+
       // Compute legacy fields from detailedSeries for backward compatibility
       const exerciseData = {
-        nome_exercicio: formData.get("nome_exercicio") as string,
+        nome_exercicio: nomeExercicio,
         series: String(detailedSeries.reduce((sum, s) => sum + (s.quantidade ?? 1), 0)),
         repeticoes: detailedSeries[0]?.repeticoes || '—',
         descanso: descansoEx.trim() || null,
         video_url: formData.get("video_url") as string || null,
         observacoes: formData.get("observacoes") as string || null,
-        exercicio_base_id: selectedBase?.id || null,
+        exercicio_base_id: editingExercise?.exercicio_base_id ?? matchedBase?.id ?? null,
         carga_base: cargaBase.trim() || null,
         series_detalhadas: detailedSeries,
       };
+
+      let newExerciseId: string | null = null;
 
       if (editingExercise) {
         const { error } = await supabase
@@ -1485,13 +1985,14 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
         if (error) throw error;
         toast({ title: "Exercício atualizado!" });
       } else {
-        const { error } = await supabase.from("exercicios").insert({
+        const { data: inserted, error } = await supabase.from("exercicios").insert({
           ...exerciseData,
           treino_id: trainingId,
           ordem: exercises.length > 0 ? Math.max(...exercises.map(e => e.ordem ?? 0)) + 1 : 0,
-        });
+        }).select("id").single();
 
         if (error) throw error;
+        newExerciseId = inserted?.id ?? null;
         toast({ title: "Exercício adicionado!" });
       }
 
@@ -1509,29 +2010,34 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
           .eq("id", orgId);
       }
 
-      if (saveToLibrary && !editingExercise) {
+      if (saveToLibrary && !editingExercise && !matchedBase) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("exercicios_base").insert({
+          const { data: novaBase, error: baseError } = await supabase.from("exercicios_base").insert({
             treinador_id: user.id,
+            org_id: orgId,
             nome: exerciseData.nome_exercicio,
             video_url: exerciseData.video_url,
             descricao: exerciseData.observacoes || null,
-          });
+          }).select("id").single();
+
+          // Linka de volta o exercício recém-criado com a entrada da biblioteca
+          // que ele mesmo acabou de gerar — sem isso, "salvar na biblioteca"
+          // criava a entrada mas o exercício prescrito continuava sem link.
+          if (!baseError && novaBase?.id && newExerciseId) {
+            await supabase.from("exercicios").update({ exercicio_base_id: novaBase.id }).eq("id", newExerciseId);
+          }
         }
       }
-
-      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
+      // Exercícios (criação/edição) dentro de um treino existente não notificam.
 
       setDialogOpen(false);
       setEditingExercise(null);
-      setSelectedBase(null);
       setSaveToLibrary(false);
       setDetailedSeries([]);
       setCargaBase('');
       setDescansoEx('');
-      loadExercises();
-      loadExercisesBase();
+      await onExercisesChanged();
     } catch (error: any) {
       toast({
         title: "Erro ao salvar exercício",
@@ -1554,7 +2060,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
 
       toast({ title: "Exercício excluído!" });
       setDeletingExerciseId(null);
-      loadExercises();
+      await onExercisesChanged();
     } catch (error: any) {
       toast({
         title: "Erro ao excluir exercício",
@@ -1566,7 +2072,6 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
 
   const openDialog = (exercise?: Exercise) => {
     setEditingExercise(exercise || null);
-    setSelectedBase(null);
     setSaveToLibrary(false);
     setCargaBase(exercise?.carga_base || '');
     setDescansoEx(exercise?.descanso || '');
@@ -1583,170 +2088,209 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
     setDialogOpen(true);
   };
 
-  const selectExerciseBase = (base: ExerciseBase) => {
-    setSelectedBase(base);
-    setComboOpen(false);
-  };
+  // Reordenar/mover entre treinos agora é feito por arrastar — ver
+  // WeekDetails.handleDragEnd, que já cobre tanto reordenar dentro do mesmo
+  // treino quanto mover pra outro (compartilha um DndContext com as colunas).
 
-  const handleMoveExercise = async (exerciseId: string, direction: "up" | "down") => {
-    // Criar cópia do array atual para evitar stale closure
-    const exercisesCopy = [...exercises];
-    const currentIndex = exercisesCopy.findIndex((e) => e.id === exerciseId);
-    if (currentIndex === -1) return;
-
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= exercisesCopy.length) return;
-
-    const currentExercise = exercisesCopy[currentIndex];
-    const targetExercise = exercisesCopy[targetIndex];
-
-    // Usar índices como ordem garantida (normalizada no load)
-    const newCurrentOrdem = targetIndex;
-    const newTargetOrdem = currentIndex;
-
-    // Atualizar UI otimisticamente usando callback form do setState
-    setExercises(prev => {
-      const updated = [...prev];
-      const ci = updated.findIndex(e => e.id === currentExercise.id);
-      const ti = updated.findIndex(e => e.id === targetExercise.id);
-      if (ci === -1 || ti === -1) return prev;
-      updated[ci] = { ...updated[ci], ordem: newCurrentOrdem };
-      updated[ti] = { ...updated[ti], ordem: newTargetOrdem };
-      return updated.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
-    });
-
+  /** Insere N exercícios da biblioteca de uma vez, sem configuração de séries —
+   *  o treinador ajusta cada um depois (ou usa a barra "aplicar padrão"). */
+  const handleBulkAddExercises = async (bases: ExerciseBase[]) => {
+    if (bases.length === 0) return;
     try {
-      const [res1, res2] = await Promise.all([
-        supabase.from("exercicios").update({ ordem: newCurrentOrdem }).eq("id", currentExercise.id),
-        supabase.from("exercicios").update({ ordem: newTargetOrdem  }).eq("id", targetExercise.id),
-      ]);
-      if (res1.error) throw res1.error;
-      if (res2.error) throw res2.error;
-
-      toast({ title: "Ordem atualizada!" });
-      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
+      const startOrdem = exercises.length > 0 ? Math.max(...exercises.map(e => e.ordem ?? 0)) + 1 : 0;
+      const rows = bases.map((base, i) => ({
+        treino_id: trainingId,
+        nome_exercicio: base.nome,
+        series: "",
+        repeticoes: "",
+        descanso: null,
+        video_url: base.video_url,
+        observacoes: null,
+        exercicio_base_id: base.id,
+        ordem: startOrdem + i,
+      }));
+      // `ordem: startOrdem + i` preserva a ordem do array recebido, que vem na
+      // ordem em que o treinador clicou os exercícios no modal.
+      const { error } = await supabase.from("exercicios").insert(rows);
+      if (error) throw error;
+      toast({ title: `${bases.length} ${bases.length === 1 ? "exercício adicionado" : "exercícios adicionados"}!` });
+      await onExercisesChanged();
     } catch (error: any) {
-      toast({
-        title: "Erro ao reordenar",
-        description: error.message,
-        variant: "destructive",
-      });
-      loadExercises();
+      toast({ title: "Erro ao adicionar exercícios", description: error.message, variant: "destructive" });
     }
   };
 
-  if (loading) return <p className="text-sm">Carregando...</p>;
+  /** Aplica séries/reps/descanso padrão a todos os exercícios recém-adicionados
+   *  ainda não configurados (campos simples só — técnica/blocos avançados
+   *  continuam exigindo o editor individual). */
+  const applyDefaultsToUnconfigured = async (series: string, repeticoes: string, descanso: string) => {
+    const ids = exercises.filter(isUnconfigured).map(e => e.id);
+    if (ids.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from("exercicios")
+        .update({ series, repeticoes, descanso: descanso.trim() || null })
+        .in("id", ids);
+      if (error) throw error;
+      await onExercisesChanged();
+    } catch (error: any) {
+      toast({ title: "Erro ao aplicar padrão", description: error.message, variant: "destructive" });
+    }
+  };
+
+  /** Liga/desliga "sem descanso até o próximo" — encadear bi-set/tri-set/giant-set */
+  const toggleConjugado = async (exerciseId: string, current: boolean) => {
+    setExercises(prev => prev.map(e => e.id === exerciseId ? { ...e, conjugado_com_proximo: !current } : e));
+    try {
+      const { error } = await supabase
+        .from("exercicios")
+        .update({ conjugado_com_proximo: !current })
+        .eq("id", exerciseId);
+      if (error) throw error;
+    } catch (error: any) {
+      setExercises(prev => prev.map(e => e.id === exerciseId ? { ...e, conjugado_com_proximo: current } : e));
+      toast({ title: "Erro ao vincular exercício", description: error.message, variant: "destructive" });
+    }
+  };
+
+  /** Deleta múltiplos exercícios selecionados */
+  const deleteSelectedExercises = async () => {
+    const ids = Array.from(selectedExerciseIds);
+    if (ids.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from("exercicios")
+        .delete()
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast({ title: `${ids.length} ${ids.length === 1 ? "exercício excluído" : "exercícios excluídos"}!` });
+      setSelectedExerciseIds(new Set());
+      await onExercisesChanged();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir exercícios",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Sem estado de "Carregando..." aqui: os exercícios já chegam prontos por prop
+  // junto com a sessão, então não existe janela de espera nesta coluna.
+
+  const unconfiguredCount = exercises.filter(isUnconfigured).length;
+
+  const selectedCount = selectedExerciseIds.size;
+
+  /** Os exercícios marcados no modal, **na ordem em que foram clicados**.
+   *  `Set` preserva ordem de inserção, então basta iterar o Set em vez de
+   *  filtrar `exercisesBase` — filtrar impunha a ordem da biblioteca
+   *  (alfabética por grupo muscular) e descartava a ordem de seleção.
+   *  Desmarcar e marcar de novo joga o item pro fim, que é o esperado. */
+  const bulkSelectedInOrder = (): ExerciseBase[] =>
+    Array.from(bulkSelected)
+      .map((id) => exercisesBase.find((b) => b.id === id))
+      .filter((b): b is ExerciseBase => Boolean(b));
 
   return (
-    <div className="space-y-4 pt-4">
-      <div className="flex justify-between items-center">
-        <h6 className="font-semibold text-sm">Exercícios</h6>
-        <Button size="sm" variant="outline" onClick={() => openDialog()}>
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Exercício
-        </Button>
+    <div className="space-y-3 pt-1">
+      <Button
+        size="sm" variant="outline" className="w-full"
+        onClick={() => { setBulkSearch(''); setBulkSelected(new Set()); setBulkOpen(true); }}
+        style={{
+          backgroundColor: EXERCISE_CARD_BG,
+          borderColor: EXERCISE_CARD_BORDER,
+          boxShadow: EXERCISE_CARD_SHADOW,
+        }}
+      >
+        <Plus className="w-3.5 h-3.5 mr-1.5" />
+        Adicionar exercícios
+      </Button>
+
+      {selectedCount > 0 && (
+        <div className="rounded-lg p-3 flex items-center justify-between gap-3 border border-white/10" style={{ backgroundColor: 'rgba(var(--cp-rgb), 0.08)' }}>
+          <span className="text-sm font-medium">
+            {selectedCount} {selectedCount === 1 ? "exercício selecionado" : "exercícios selecionados"}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm" variant="ghost" className="text-xs h-8"
+              onClick={() => setSelectedExerciseIds(new Set())}
+            >
+              Limpar
+            </Button>
+            <Button
+              size="sm" className="text-xs h-8 font-medium"
+              onClick={() => {
+                if (selectedCount === 1) {
+                  deleteSelectedExercises();
+                } else {
+                  setDeletingExerciseId("multiple");
+                }
+              }}
+              style={{ background: 'var(--cp-gradient)', color: 'var(--cp-text)' }}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Deletar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={setColumnDropRef}
+        className={`space-y-2 min-h-[16px] rounded-lg transition-colors ${isColumnOver ? "bg-accent/40" : ""}`}
+      >
+        {exercises.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-3">Nenhum exercício adicionado</p>
+        ) : (
+          exercises.map((exercise) => (
+            <ExerciseRow
+              key={exercise.id}
+              exercise={exercise}
+              trainingId={trainingId}
+              isLast={exercises.indexOf(exercise) === exercises.length - 1}
+              isUnconfigured={isUnconfigured(exercise)}
+              isSelected={selectedExerciseIds.has(exercise.id)}
+              onToggleConjugado={() => toggleConjugado(exercise.id, !!exercise.conjugado_com_proximo)}
+              onEdit={() => openDialog(exercise)}
+              onDelete={() => setDeletingExerciseId(exercise.id)}
+              onToggleSelect={() => {
+                setSelectedExerciseIds(prev => {
+                  const next = new Set(prev);
+                  if (next.has(exercise.id)) {
+                    next.delete(exercise.id);
+                  } else {
+                    next.add(exercise.id);
+                  }
+                  return next;
+                });
+              }}
+            />
+          ))
+        )}
       </div>
 
-      {exercises.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum exercício adicionado</p>
-      ) : (
-        <div className="space-y-2">
-          {exercises.map((exercise) => (
-            <Card key={exercise.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1.5 flex-1">
-                    <p className="font-medium">{exercise.nome_exercicio}</p>
-                    {/* Series summary */}
-                    {(() => {
-                      const sd = exercise.series_detalhadas as SerieDetalhe[] | null | undefined;
-                      const hasSd = sd && sd.length > 0;
-                      // Total series = sum of quantities (not block count)
-                      const count = hasSd
-                        ? sd.reduce((sum, s) => sum + (s.quantidade ?? 1), 0)
-                        : parseInt(exercise.series) || 0;
-
-                      // Build tipo summary e.g. "2× Work Set · 1× Warm-up"
-                      const tipoLabels: Record<string, string> = {
-                        'warm-up': 'W-up', 'feeder': 'Feeder', 'trabalho': 'Work Set',
-                        'drop-set': 'Drop', 'cluster': 'Cluster',
-                        'rest-pause': 'Rest Pause', 'muscle-round': 'Muscle Rnd',
-                      };
-                      // Count quantities per tipo (not block count)
-                      const tipoCounts = hasSd
-                        ? sd.reduce<Record<string, number>>((acc, s) => {
-                            acc[s.tipo] = (acc[s.tipo] || 0) + (s.quantidade ?? 1); return acc;
-                          }, {})
-                        : null;
-                      const tipoSummary = tipoCounts
-                        ? Object.entries(tipoCounts)
-                            .map(([t, n]) => `${n}× ${tipoLabels[t] ?? t}`)
-                            .join(' · ')
-                        : exercise.repeticoes
-                          ? `${exercise.repeticoes} reps`
-                          : null;
-
-                      return (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            {count} {count === 1 ? 'série' : 'séries'}
-                          </span>
-                          {tipoSummary && (
-                            <span className="text-xs text-muted-foreground opacity-70">
-                              {tipoSummary}
-                            </span>
-                          )}
-                          {exercise.carga_base && (
-                            <span className="text-xs text-muted-foreground opacity-70">
-                              · base {exercise.carga_base}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    {exercise.video_url && (
-                      <div className="flex items-center gap-1 text-xs text-primary opacity-80">
-                        <Video className="h-3 w-3" />
-                        <span>Vídeo</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleMoveExercise(exercise.id, "up")}
-                      disabled={exercises.indexOf(exercise) === 0}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleMoveExercise(exercise.id, "down")}
-                      disabled={exercises.indexOf(exercise) === exercises.length - 1}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openDialog(exercise)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setDeletingExerciseId(exercise.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {unconfiguredCount > 0 && (
+        <div className="rounded-lg bg-accent/60 p-2 space-y-1.5">
+          <div className="flex items-center gap-1 flex-wrap">
+            <Input value={defaultSeries} onChange={(e) => setDefaultSeries(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Séries" />
+            <span className="text-[11px] text-muted-foreground">séries ·</span>
+            <Input value={defaultReps} onChange={(e) => setDefaultReps(e.target.value)} className="h-7 w-14 text-xs px-1.5" aria-label="Repetições" />
+            <span className="text-[11px] text-muted-foreground">reps ·</span>
+            <Input value={defaultDescanso} onChange={(e) => setDefaultDescanso(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Descanso em segundos" />
+            <span className="text-[11px] text-muted-foreground">s</span>
+          </div>
+          <Button
+            size="sm" variant="secondary" className="w-full h-7 text-xs"
+            onClick={() => applyDefaultsToUnconfigured(defaultSeries, defaultReps, defaultDescanso)}
+          >
+            <Wand2 className="h-3 w-3 mr-1" />
+            Aplicar aos {unconfiguredCount} {unconfiguredCount === 1 ? "novo" : "novos"}
+          </Button>
         </div>
       )}
 
@@ -1763,43 +2307,13 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
             <DialogDescription>Configure o exercício</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmitExercise} className="space-y-4">
-            {!editingExercise && exercisesBase.length > 0 && (
-              <div className="space-y-2">
-                <Label>Buscar da Biblioteca</Label>
-                <Popover open={comboOpen} onOpenChange={setComboOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      {selectedBase ? selectedBase.nome : "Selecione um exercício..."}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput placeholder="Buscar exercício..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhum exercício encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {exercisesBase.map((base) => (
-                            <CommandItem
-                              key={base.id}
-                              onSelect={() => selectExerciseBase(base)}
-                            >
-                              {base.nome}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-
             <div>
               <Label htmlFor="nome_exercicio">Nome do Exercício</Label>
               <Input
                 id="nome_exercicio"
                 name="nome_exercicio"
-                defaultValue={editingExercise?.nome_exercicio || selectedBase?.nome}
+                className={FIELD_CLS}
+                defaultValue={editingExercise?.nome_exercicio}
                 required
               />
             </div>
@@ -1808,8 +2322,9 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
               <Input
                 id="video_url"
                 name="video_url"
+                className={FIELD_CLS}
                 placeholder="https://youtube.com/watch?v=..."
-                defaultValue={editingExercise?.video_url || selectedBase?.video_url || ""}
+                defaultValue={editingExercise?.video_url || ""}
               />
             </div>
             <div>
@@ -1817,6 +2332,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
               <Textarea
                 id="observacoes"
                 name="observacoes"
+                className={FIELD_CLS}
                 defaultValue={editingExercise?.observacoes || ""}
               />
             </div>
@@ -1826,6 +2342,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
               <Input
                 id="descanso_ex"
                 type="number"
+                className={FIELD_CLS}
                 min={0}
                 max={600}
                 placeholder="Ex: 60, 90, 120 — padrão 60s"
@@ -1862,7 +2379,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
 
               {/* Carga Base ─ visible when there are series */}
               {detailedSeries.length > 0 && (
-                <div className="rounded-xl border border-border/60 p-3 space-y-2 bg-muted/10">
+                <div className="rounded-xl border border-border/60 p-3 space-y-2 bg-card/60">
                   <div className="flex items-center justify-between">
                     <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Carga Base
@@ -1875,7 +2392,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                     value={cargaBase}
                     onChange={(e) => setCargaBase(e.target.value)}
                     placeholder="Ex: 100kg, 80"
-                    className="h-9 text-sm"
+                    className={`h-9 text-sm ${FIELD_CLS}`}
                   />
                   {cargaBase.trim() && (
                     <p className="text-[10px] text-muted-foreground">
@@ -1896,13 +2413,59 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                       { key: 'manual'     as TipoCalculo, label: 'kg',  title: 'Valor manual (digitado diretamente)' },
                     ] as const;
 
+                    // Dentro do dialog usamos os tokens do tema (cinza neutro:
+                    // --card é `0 0% 8%`), NÃO os tons da escala de elevação do
+                    // kanban. Aqueles vêm do Dashboard e puxam pro azul
+                    // (#1b1c21 = B mais alto que R/G); ao lado do "Carga Base",
+                    // que usa --muted neutro, a diferença de temperatura fica
+                    // evidente. Tokens também acompanham o light mode, que hex
+                    // fixo não faz.
                     return (
-                      <div key={serie.id} className="rounded-xl border p-3 space-y-2.5">
-                        {/* Row 1: index | tipo selector | reorder | delete */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground font-bold w-5 shrink-0 text-center">
-                            {idx + 1}
-                          </span>
+                      <div
+                        key={serie.id}
+                        className="rounded-xl p-3 space-y-2.5 bg-card/60 border border-border/60 shadow-sm"
+                      >
+                        {/* Row 1: [nº + setas] | tipo selector | delete
+                            Número e setas ficam na MESMA coluna à esquerda: as
+                            duas coisas dizem respeito à posição do bloco. Antes
+                            as setas ficavam à direita, encostadas na lixeira —
+                            mesmo tamanho e mesma cor de uma ação destrutiva. */}
+                        <div className="flex items-start gap-2">
+                          {/* Número + setas num bloco só: as duas coisas tratam
+                              da posição. As setas ficam SEMPRE as duas visíveis
+                              quando há mais de um bloco — antes a desabilitada
+                              usava opacity-20 e sumia, então cada card exibia uma
+                              seta solta em posição diferente do outro e parecia
+                              erro de renderização. */}
+                          <div className="flex flex-col items-center shrink-0 rounded-lg bg-muted/40 py-1">
+                            <span className="text-[10px] text-muted-foreground font-bold w-6 text-center">
+                              {idx + 1}
+                            </span>
+                            {/* 57% dos exercícios têm um único bloco; ali as duas
+                                setas ficariam permanentemente desabilitadas. */}
+                            {detailedSeries.length > 1 && (
+                              <div className="flex flex-col mt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => moveDetailedSerie(idx, 'up')}
+                                  disabled={idx === 0}
+                                  title="Mover para cima"
+                                  className="h-5 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default transition-colors"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveDetailedSerie(idx, 'down')}
+                                  disabled={idx === detailedSeries.length - 1}
+                                  title="Mover para baixo"
+                                  className="h-5 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default transition-colors"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
 
                           {/* Type selector — tipos padrão sempre visíveis; avançados sob demanda */}
                           <div className="flex-1 flex flex-col gap-1">
@@ -1926,7 +2489,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                                       updateDetailedSerie(idx, 'tipo', val);
                                     }
                                   }}
-                                  className="w-full h-8 rounded-lg text-xs border bg-background px-2 cursor-pointer"
+                                  className={`w-full h-8 rounded-lg text-xs border px-2 cursor-pointer ${FIELD_CLS}`}
                                 >
                                   <optgroup label="Padrão">
                                     <option value="warm-up">Warm Up</option>
@@ -2030,7 +2593,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                                         value={currentVal}
                                         onChange={(e) => updateDetailedSerie(idx, 'descricao', e.target.value)}
                                         rows={4}
-                                        className="w-full text-[11px] rounded-lg border bg-background px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50"
+                                        className={`w-full text-[11px] rounded-lg border px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50 ${FIELD_CLS}`}
                                         style={{ color: 'inherit' }}
                                       />
                                       <div className="flex items-center gap-3 mt-0.5">
@@ -2068,7 +2631,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                                     value={serie.tipo}
                                     onChange={(e) => updateDetailedSerie(idx, 'tipo', e.target.value)}
                                     placeholder="Nome da técnica..."
-                                    className="flex-1 h-7 rounded-md text-[11px] border bg-background px-2 outline-none focus:ring-1 focus:ring-primary/50"
+                                    className={`flex-1 h-7 rounded-md text-[11px] border px-2 outline-none focus:ring-1 focus:ring-primary/50 ${FIELD_CLS}`}
                                   />
                                   {serie.tipo.trim() && !customTipos.some(t => t.name === serie.tipo.trim()) && (
                                     <button
@@ -2121,7 +2684,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                                             onChange={(e) => updateDetailedSerie(idx, 'descricao', e.target.value)}
                                             rows={3}
                                             placeholder="Descreva como executar esta técnica..."
-                                            className="w-full text-[11px] rounded-lg border bg-background px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50"
+                                            className={`w-full text-[11px] rounded-lg border px-2 py-1.5 resize-none leading-relaxed outline-none focus:ring-1 focus:ring-primary/50 ${FIELD_CLS}`}
                                             style={{ color: 'inherit' }}
                                           />
                                         </div>
@@ -2133,23 +2696,20 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                             )}
                           </div>
 
-                          <Button type="button" size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            onClick={() => moveDetailedSerie(idx, 'up')} disabled={idx === 0}>
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button type="button" size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            onClick={() => moveDetailedSerie(idx, 'down')} disabled={idx === detailedSeries.length - 1}>
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </Button>
+                          {/* Só a exclusão fica à direita, longe dos controles
+                              de posição que agora moram na coluna da esquerda. */}
                           <Button type="button" size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                            onClick={() => removeDetailedSerie(idx)}>
+                            className="h-7 w-7 p-0 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeDetailedSerie(idx)}
+                            title="Remover este bloco de série">
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
 
-                        {/* Row 2: quantidade | reps | tipo_calculo buttons | valor | preview */}
-                        <div className="flex items-end gap-2 ml-7">
+                        {/* Row 2: quantidade | reps | tipo_calculo buttons | valor | preview
+                            ml-8 = w-6 da coluna de posição + gap-2, pra alinhar
+                            com o seletor de tipo da linha de cima. */}
+                        <div className="flex items-end gap-2 ml-8">
                           {/* Quantidade de blocos */}
                           <div className="shrink-0">
                             <Label className="text-[10px] text-muted-foreground">Qtd</Label>
@@ -2157,15 +2717,15 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                               <button
                                 type="button"
                                 onClick={() => updateDetailedSerie(idx, 'quantidade', Math.max(1, (serie.quantidade ?? 1) - 1))}
-                                className="w-6 h-8 rounded-l-lg border border-r-0 border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+                                className="w-6 h-8 rounded-l-lg border border-r-0 border-white/[0.08] bg-card shadow-[0_2px_5px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] text-xs font-bold text-muted-foreground hover:text-foreground hover:brightness-125 transition-all"
                               >−</button>
-                              <span className="w-8 h-8 border-y border-border flex items-center justify-center text-xs font-bold tabular-nums">
+                              <span className="w-8 h-8 border-y border-white/[0.08] bg-card shadow-[0_2px_5px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] flex items-center justify-center text-xs font-bold tabular-nums">
                                 {serie.quantidade ?? 1}×
                               </span>
                               <button
                                 type="button"
                                 onClick={() => updateDetailedSerie(idx, 'quantidade', Math.min(20, (serie.quantidade ?? 1) + 1))}
-                                className="w-6 h-8 rounded-r-lg border border-l-0 border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+                                className="w-6 h-8 rounded-r-lg border border-l-0 border-white/[0.08] bg-card shadow-[0_2px_5px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] text-xs font-bold text-muted-foreground hover:text-foreground hover:brightness-125 transition-all"
                               >＋</button>
                             </div>
                           </div>
@@ -2177,7 +2737,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                               value={serie.repeticoes}
                               onChange={(e) => updateDetailedSerie(idx, 'repeticoes', e.target.value)}
                               placeholder="8-10"
-                              className="h-8 text-xs mt-1"
+                              className={`h-8 text-xs mt-1 ${FIELD_CLS}`}
                             />
                           </div>
 
@@ -2191,10 +2751,10 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                                   type="button"
                                   title={title}
                                   onClick={() => updateDetailedSerie(idx, 'tipo_calculo', key)}
-                                  className={`px-2 rounded text-[10px] font-bold transition-colors border ${
+                                  className={`px-2 rounded text-[10px] font-bold transition-all border ${
                                     serie.tipo_calculo === key
                                       ? 'bg-primary text-primary-foreground border-primary'
-                                      : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/50'
+                                      : 'bg-card text-muted-foreground border-white/[0.08] shadow-[0_2px_5px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] hover:text-foreground hover:brightness-125'
                                   }`}
                                 >
                                   {label}
@@ -2218,7 +2778,7 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
                               value={serie.valor_calculo}
                               onChange={(e) => updateDetailedSerie(idx, 'valor_calculo', e.target.value)}
                               placeholder={serie.tipo_calculo === 'manual' ? '80kg' : '50'}
-                              className="h-8 text-xs mt-1"
+                              className={`h-8 text-xs mt-1 ${FIELD_CLS}`}
                             />
                           </div>
 
@@ -2260,17 +2820,137 @@ const TrainingExercises = ({ trainingId, studentUserId }: { trainingId: string; 
         </DialogContent>
       </Dialog>
 
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Adicionar exercícios</DialogTitle>
+            <DialogDescription>
+              Selecione um ou mais exercícios da biblioteca — depois é só ajustar as séries de cada um.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={bulkSearch}
+              onChange={(e) => setBulkSearch(e.target.value)}
+              placeholder="Buscar exercício ou grupo muscular..."
+              className="pl-8"
+            />
+          </div>
+
+          {bulkSelected.size > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {/* Mesma ordem da inserção, pra servir de prévia do resultado */}
+              {bulkSelectedInOrder()
+                .map((b) => (
+                  <span key={b.id} className="inline-flex items-center gap-1 text-xs bg-accent text-accent-foreground rounded-full pl-2.5 pr-1.5 py-1">
+                    {b.nome}
+                    <button
+                      type="button"
+                      onClick={() => setBulkSelected((prev) => { const next = new Set(prev); next.delete(b.id); return next; })}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-[120px] space-y-1">
+            {(() => {
+              const q = bulkSearch.trim().toLowerCase();
+              const groups = new Map<string, ExerciseBase[]>();
+              exercisesBase.forEach((b) => {
+                const g = b.grupo_muscular_principal || 'Outros';
+                if (!groups.has(g)) groups.set(g, []);
+                groups.get(g)!.push(b);
+              });
+              const entries = Array.from(groups.entries())
+                .map(([g, items]) => {
+                  const groupMatches = g.toLowerCase().includes(q);
+                  const filtered = q === '' ? items : items.filter((b) => groupMatches || b.nome.toLowerCase().includes(q));
+                  return [g, filtered] as const;
+                })
+                .filter(([, items]) => items.length > 0);
+
+              if (exercisesBase.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-6">Nenhum exercício na biblioteca ainda.</p>;
+              }
+              if (entries.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-6">Nenhum exercício encontrado.</p>;
+              }
+              return entries.map(([group, items]) => (
+                <div key={group}>
+                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1 pt-2 pb-1">{group}</p>
+                  {items.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-accent/50 cursor-pointer text-sm">
+                      <Checkbox
+                        checked={bulkSelected.has(b.id)}
+                        onCheckedChange={(checked) => setBulkSelected((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(b.id); else next.delete(b.id);
+                          return next;
+                        })}
+                      />
+                      {b.nome}
+                    </label>
+                  ))}
+                </div>
+              ));
+            })()}
+          </div>
+
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline underline-offset-2 text-left"
+            onClick={() => { setBulkOpen(false); openDialog(); }}
+          >
+            Não achei o que procuro — criar exercício personalizado
+          </button>
+
+          <DialogFooter className="items-center sm:justify-between">
+            <span className="text-xs text-muted-foreground">
+              {bulkSelected.size} {bulkSelected.size === 1 ? "selecionado" : "selecionados"}
+            </span>
+            <Button
+              onClick={() => {
+                const bases = bulkSelectedInOrder();
+                setBulkOpen(false);
+                handleBulkAddExercises(bases);
+              }}
+              disabled={bulkSelected.size === 0}
+            >
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!deletingExerciseId} onOpenChange={() => setDeletingExerciseId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O exercício será excluído permanentemente.
+              {deletingExerciseId === "multiple"
+                ? `Esta ação não pode ser desfeita. ${selectedCount} ${selectedCount === 1 ? "exercício" : "exercícios"} ${selectedCount === 1 ? "será" : "serão"} excluído(s) permanentemente.`
+                : "Esta ação não pode ser desfeita. O exercício será excluído permanentemente."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteExercise}>Excluir</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingExerciseId === "multiple") {
+                  deleteSelectedExercises();
+                } else {
+                  handleDeleteExercise();
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
