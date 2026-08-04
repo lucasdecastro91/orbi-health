@@ -110,7 +110,7 @@
   </noscript>
   -->
 
-  <link rel="stylesheet" href="style.css?v=20260624g">
+  <link rel="stylesheet" href="style.css?v=20260629wl">
 </head>
 <body>
 
@@ -129,10 +129,12 @@
       </a>
 
       <nav class="nav" aria-label="Navegação principal">
-        <a href="#solucoes" class="nav__link">Soluções</a>
-        <a href="#como-funciona" class="nav__link">Como funciona</a>
-        <a href="#diferenciais" class="nav__link">Diferenciais</a>
+        <a href="#problema" class="nav__link">Soluções</a>
+        <a href="#white-label" class="nav__link">Sua marca</a>
+        <a href="#financeiro" class="nav__link">Financeiro</a>
+        <a href="#app-aluno" class="nav__link">App</a>
         <a href="#precos" class="nav__link">Preços</a>
+        <a href="#faq" class="nav__link">Dúvidas</a>
       </nav>
 
       <div class="header__actions">
@@ -141,7 +143,7 @@
            aria-label="Entrar na minha conta">
           Entrar
         </a>
-        <a href="https://app.orbihealth.com.br/cadastro"
+        <a href="#precos"
            class="btn btn--primary btn--sm"
            data-cta="lead"
            aria-label="Criar conta grátis">
@@ -159,15 +161,17 @@
 
     <!-- Menu mobile -->
     <div class="mobile-menu" id="mobile-menu" aria-hidden="true" role="navigation" aria-label="Menu mobile">
-      <a href="#solucoes" class="mobile-menu__link">Soluções</a>
-      <a href="#como-funciona" class="mobile-menu__link">Como funciona</a>
-      <a href="#diferenciais" class="mobile-menu__link">Diferenciais</a>
+      <a href="#problema" class="mobile-menu__link">Soluções</a>
+      <a href="#white-label" class="mobile-menu__link">Sua marca</a>
+      <a href="#financeiro" class="mobile-menu__link">Financeiro</a>
+      <a href="#app-aluno" class="mobile-menu__link">App</a>
       <a href="#precos" class="mobile-menu__link">Preços</a>
+      <a href="#faq" class="mobile-menu__link">Dúvidas</a>
       <div class="mobile-menu__divider" aria-hidden="true"></div>
       <a href="https://app.orbihealth.com.br/entrar" class="btn btn--outline-green mobile-menu__login">
         Entrar na minha conta
       </a>
-      <a href="https://app.orbihealth.com.br/cadastro"
+      <a href="#precos"
          class="btn btn--primary"
          data-cta="lead">
         Começar grátis
@@ -183,15 +187,15 @@
 
         <!-- Coluna esquerda: textos -->
         <div class="hero-text" data-reveal>
-          <span class="hero-tag">Feito por um profissional de saúde, para profissionais de saúde</span>
+          <span class="hero-tag">Feito por um profissional de saúde,<br>para profissionais de saúde</span>
           <h1 class="hero-headline" id="hero-title">
-            Ainda manda treino<br>por PDF e cobra<br>pelo <span class="hero-highlight">WhatsApp?</span>
+            Seus clientes.<br>Sua receita.<br><span class="hero-highlight">Sua marca.</span>
           </h1>
           <p class="hero-sub">
-            Chega de planilha e link de pagamento. Tenha seu app com sua marca em minutos.
+            Gerencie alunos, treino, dieta, agenda e <strong>cobranças recorrentes no automático</strong>. Tudo em um único <strong>app com a sua identidade visual</strong>. Para quem quer mais <strong>previsibilidade de receita e parecer grande desde o primeiro dia.</strong>
           </p>
           <div class="hero-ctas">
-            <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
+            <a href="#precos" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
             <a href="#solucoes" class="btn btn--outline-white btn--lg">Ver soluções</a>
           </div>
           <p class="hero-footnote">
@@ -212,25 +216,201 @@
           <div class="hero-phone hero-phone-center">
             <div class="iphone-frame">
               <div class="iphone-dynamic-island" aria-hidden="true"></div>
-              <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg" alt="App ORBI Health">
+              <!-- App screen HTML mockup -->
+              <div id="hero-app-screen" style="font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;width:100%;height:100%;position:relative;overflow:hidden;">
+                <!-- Scrollable content (nav height offset at bottom) -->
+                <div style="overflow:hidden;padding-bottom:50px;">
+                  <!-- Status bar -->
+                  <div style="padding:7px 22px 4px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:11px;font-weight:600;color:#fff;">21:44</span>
+                    <div style="display:flex;gap:4px;align-items:center;">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+                      <svg width="13" height="9" viewBox="0 0 23 11" fill="none"><rect x="0" y="0" width="20" height="11" rx="2" stroke="#fff" stroke-width="1.3"/><rect x="1.5" y="1.5" width="14" height="8" rx="1" fill="#16a34a"/><path d="M21 3.5v4a2 2 0 0 0 0-4z" fill="#fff"/></svg>
+                    </div>
+                  </div>
+                  <!-- Header: ORBI logo + chat + bell -->
+                  <div style="padding:1px 16px 1px;display:flex;align-items:center;justify-content:space-between;">
+                    <img src="orbi-logo-horizontal-dark.svg" alt="ORBI Health" style="height:26px;width:auto;">
+                    <div style="display:flex;align-items:center;gap:5px;">
+                      <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      </div>
+                      <div style="position:relative;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        <div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:1.5px solid #0a0a0a;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="height:1px;background:rgba(22,163,74,0.4);margin:0 16px;"></div>
+                  <!-- Greeting -->
+                  <div style="padding:7px 16px 0;display:flex;align-items:center;justify-content:space-between;">
+                    <div style="display:flex;align-items:center;gap:7px;">
+                      <div style="width:26px;height:26px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <span style="font-size:11px;font-weight:700;color:#fff;">L</span>
+                      </div>
+                      <span style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.3px;">Olá, <span style="color:#16a34a;">Lucas!</span></span>
+                    </div>
+                    <div style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(22,163,74,0.15);color:#16a34a;">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                      320 XP
+                    </div>
+                  </div>
+                  <!-- Calendar -->
+                  <div style="margin:6px 16px;border-radius:10px;padding:6px;display:flex;gap:2px;border:1px solid rgba(22,163,74,0.4);">
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Seg</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">23</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Ter</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">24</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qua</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">25</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qui</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">26</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sex</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">27</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                      <span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sáb</span>
+                      <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">28</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#16a34a;"></div>
+                    </div>
+                    <div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#16a34a;border:1px solid #16a34a;">
+                      <span style="font-size:7px;font-weight:500;color:#fff;">Dom</span>
+                      <span style="font-size:12px;font-weight:700;color:#fff;line-height:1;">29</span>
+                      <div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div>
+                    </div>
+                  </div>
+                  <!-- Treino card -->
+                  <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+                    <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;">
+                      <div style="width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:rgba(22,163,74,0.15);flex-shrink:0;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                      </div>
+                      <div>
+                        <div style="font-size:12px;font-weight:500;color:#fff;">Treino de hoje</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:1px;">Full Body Upper 1</div>
+                      </div>
+                      <div style="margin-left:auto;font-size:8px;font-weight:600;padding:2px 6px;border-radius:20px;background:rgba(22,163,74,0.15);color:#16a34a;">Novo</div>
+                    </div>
+                    <div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div>
+                    <div style="padding:5px 10px;">
+                      <div style="width:100%;padding:5px;border-radius:7px;background:#16a34a;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;">
+                        Iniciar treino
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Dieta card -->
+                  <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+                    <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;">
+                      <div style="width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.07);flex-shrink:0;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                      </div>
+                      <div>
+                        <div style="font-size:12px;font-weight:500;color:#fff;">Dieta do dia</div>
+                        <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:1px;">Recomposição Corporal</div>
+                      </div>
+                    </div>
+                    <div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div>
+                    <div style="padding:5px 10px;">
+                      <div style="width:100%;padding:5px;border-radius:7px;background:transparent;border:1px solid rgba(22,163,74,0.3);color:#16a34a;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;">Ver dieta</div>
+                    </div>
+                  </div>
+                  <!-- Evolução card (slightly cut at bottom by frame) -->
+                  <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 7px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
+                    <div style="padding:10px 12px 0;display:flex;align-items:center;justify-content:space-between;">
+                      <div style="display:flex;align-items:center;gap:7px;">
+                        <div style="width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </div>
+                        <div>
+                          <div style="font-size:12px;font-weight:500;color:#fff;">Evolução</div>
+                          <div style="font-size:9px;color:rgba(255,255,255,0.3);">últimos 30 dias</div>
+                        </div>
+                      </div>
+                      <div style="text-align:right;">
+                        <div style="font-size:16px;font-weight:700;color:#16a34a;letter-spacing:-.4px;">90 kg</div>
+                        <div style="font-size:9px;font-weight:500;color:#16a34a;">-2 kg</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;margin:6px 12px 0;border-top:1px solid rgba(255,255,255,0.06);">
+                      <div style="flex:1;text-align:center;padding:6px 0;border-right:1px solid rgba(255,255,255,0.06);">
+                        <div style="font-size:8px;font-weight:500;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.04em;">Inicial</div>
+                        <div style="font-size:11px;font-weight:600;color:#fff;margin-top:2px;">92 kg</div>
+                      </div>
+                      <div style="flex:1;text-align:center;padding:6px 0;border-right:1px solid rgba(255,255,255,0.06);">
+                        <div style="font-size:8px;font-weight:500;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.04em;">Variação</div>
+                        <div style="font-size:11px;font-weight:600;color:#16a34a;margin-top:2px;">-2 kg</div>
+                      </div>
+                      <div style="flex:1;text-align:center;padding:6px 0;">
+                        <div style="font-size:8px;font-weight:500;color:rgba(255,255,255,0.28);text-transform:uppercase;letter-spacing:.04em;">Registros</div>
+                        <div style="font-size:11px;font-weight:600;color:#fff;margin-top:2px;">5</div>
+                      </div>
+                    </div>
+                    <div style="padding:6px 10px 10px;">
+                      <svg width="100%" viewBox="0 0 230 45" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="hgr" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#16a34a" stop-opacity="0.45"/>
+                            <stop offset="75%" stop-color="#16a34a" stop-opacity="0.1"/>
+                            <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
+                          </linearGradient>
+                          <filter id="hgl"><feGaussianBlur stdDeviation="1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        </defs>
+                        <line x1="0" y1="7" x2="230" y2="7" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                        <line x1="0" y1="26" x2="230" y2="26" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                        <line x1="0" y1="42" x2="230" y2="42" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                        <polygon points="8,7 62,15 116,23 170,30 226,38 226,45 8,45" fill="url(#hgr)"/>
+                        <polyline points="8,7 62,15 116,23 170,30 226,38" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#hgl)"/>
+                        <circle cx="8" cy="7" r="2.5" fill="#16a34a" stroke="#0a0f0a" stroke-width="1"/>
+                        <circle cx="62" cy="15" r="2.5" fill="#16a34a" stroke="#0a0f0a" stroke-width="1"/>
+                        <circle cx="116" cy="23" r="2.5" fill="#16a34a" stroke="#0a0f0a" stroke-width="1"/>
+                        <circle cx="170" cy="30" r="2.5" fill="#16a34a" stroke="#0a0f0a" stroke-width="1"/>
+                        <circle cx="226" cy="38" r="3" fill="#16a34a" stroke="#0a0f0a" stroke-width="1"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <!-- Bottom nav: fixed at bottom of app screen -->
+                <div style="position:absolute;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:6px 0 20px;">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span style="font-size:8px;color:#16a34a;">Início</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span style="font-size:8px;color:rgba(255,255,255,0.28);">Treinos</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span style="font-size:8px;color:rgba(255,255,255,0.28);">Cardio</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg><span style="font-size:8px;color:rgba(255,255,255,0.28);">Dieta</span></div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span style="font-size:8px;color:rgba(255,255,255,0.28);">Menu</span></div>
+                </div>
+              </div>
             </div>
 
             <!-- Badges flutuantes -->
-            <div class="hero-badge green float-1" style="top:10%;left:-168px;">
+            <div class="hero-badge green float-1" style="top:10%;left:-120px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               Treino enviado
             </div>
-            <div class="hero-badge float-2" style="bottom:26%;left:-175px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span style="color:#16a34a;font-weight:700;">R$ 2.400,00</span>&nbsp;&middot; plano semestral
+            <div class="hero-badge float-4" style="bottom:20%;left:-148px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Pagamento recebido
             </div>
             <div class="hero-badge green float-3" style="top:16%;right:-178px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
               Novo aluno cadastrado
             </div>
-            <div class="hero-badge float-4" style="bottom:20%;right:-163px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              Pagamento recebido
+            <div class="hero-badge float-2" style="bottom:26%;right:-155px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span style="color:#16a34a;font-weight:700;">R$ 2.400,00</span>&nbsp;&middot; plano semestral
             </div>
           </div>
 
@@ -251,7 +431,7 @@
         <div class="pain-header" data-reveal>
           <span class="section-tag">O problema</span>
           <h2 class="pain-title" id="pain-title">
-            Você nunca vai conseguir cobrar mais caro enviando<br>
+            Você nunca vai conseguir cobrar mais caro enviando
             <span class="pain-word-wrap"><span class="pain-typewriter" id="pain-typewriter"></span></span>
           </h2>
           <p class="pain-subtitle">A ferramenta que você usa define o valor que o mercado enxerga em você.</p>
@@ -353,25 +533,208 @@
             </div>
 
             <div class="pain-col pain-col--after">
-              <div class="pain-col__header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Com a Orbi
+              <div class="pain-col-after__card">
+                <div class="pain-col__header">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Com a Orbi
+                </div>
+                <ul class="pain-list">
+                  <li>Treino prescrito direto no app, com vídeo</li>
+                  <li>Cobrança recorrente automática e integrada</li>
+                  <li>Evolução com gráficos, fotos e check-ins</li>
+                  <li><strong>Seu app, sua marca, sua identidade visual</strong></li>
+                  <li>Dashboard completo com métricas reais</li>
+                  <li>Parece empresa. Cobra como empresa.</li>
+                </ul>
               </div>
-              <ul class="pain-list">
-                <li>Treino prescrito direto no app, com vídeo</li>
-                <li>Cobrança recorrente automática e integrada</li>
-                <li>Evolução com gráficos, fotos e check-ins</li>
-                <li><strong>Seu app, sua marca, sua identidade visual</strong></li>
-                <li>Dashboard completo com métricas reais</li>
-                <li>Parece empresa. Cobra como empresa.</li>
-              </ul>
             </div>
 
           </div>
           <p class="pain-compare__cta-text">Seu app. Sua marca. Em minutos.</p>
-          <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
+          <a href="#precos" class="btn btn--primary btn--lg" data-cta="lead">Começar grátis &rarr;</a>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ===== WHITE LABEL ===== -->
+    <section class="whitelabel-section" id="white-label">
+      <div class="container">
+        <div class="section-header section-header--center" data-reveal>
+          <span class="section-tag">White-label</span>
+          <h2 class="section-title">Seu app. Sua marca. Sua cor.</h2>
+          <p class="section-subtitle">Cada treinador tem sua própria identidade visual. O aluno nem sabe que é a mesma plataforma.</p>
+        </div>
+        <div class="wl-phones-row" data-reveal>
+
+          <!-- Bruno Alves: Vermelho #ef4444 -->
+          <div class="wl-phone-wrap">
+            <div class="wl-scaler wl-scaler--side" style="box-shadow:0 0 50px rgba(239,68,68,0.35),0 30px 60px rgba(0,0,0,0.7);">
+              <div class="wl-phone-inner">
+                <div style="font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;width:295px;height:566px;position:relative;overflow:hidden;">
+                  <div style="overflow:hidden;padding-bottom:50px;">
+                    <div style="padding:7px 22px 4px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;font-weight:600;color:#fff;">21:44</span><div style="display:flex;gap:4px;align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg><svg width="13" height="9" viewBox="0 0 23 11" fill="none"><rect x="0" y="0" width="20" height="11" rx="2" stroke="#fff" stroke-width="1.3"/><rect x="1.5" y="1.5" width="14" height="8" rx="1" fill="#ef4444"/><path d="M21 3.5v4a2 2 0 0 0 0-4z" fill="#fff"/></svg></div></div>
+                    <div style="padding:1px 16px 1px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><svg width="26" height="26" viewBox="0 0 26 26"><rect x="5.5" y="5.5" width="15" height="15" fill="#ef4444" transform="rotate(45 13 13)"/><path d="M14.5 8L10 15H13L11 20L16.5 13H13.5Z" fill="#fff"/></svg><div><div style="font-size:12px;font-weight:800;color:#fff;line-height:1;">MARCOS</div><div style="font-size:7px;color:rgba(255,255,255,0.4);letter-spacing:.1em;">TEAM</div></div></div><div style="display:flex;gap:5px;"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div style="position:relative;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:1.5px solid #0a0a0a;"></div></div></div></div>
+                    <div style="height:1px;background:rgba(239,68,68,0.4);margin:0 16px;"></div>
+                    <div style="padding:7px 16px 0;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:26px;height:26px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:11px;font-weight:700;color:#fff;">B</span></div><span style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.3px;">Olá, <span style="color:#ef4444;">Bruno!</span></span></div><div style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(239,68,68,0.15);color:#ef4444;"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>440 XP</div></div>
+                    <div style="margin:6px 16px;border-radius:10px;padding:6px;display:flex;gap:2px;border:1px solid rgba(239,68,68,0.4);"><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Seg</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">23</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Ter</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">24</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qua</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">25</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qui</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">26</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sex</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">27</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sáb</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">28</span><div style="width:4px;height:4px;border-radius:50%;background:#ef4444;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#ef4444;"><span style="font-size:7px;font-weight:500;color:#fff;">Dom</span><span style="font-size:12px;font-weight:700;color:#fff;line-height:1;">29</span><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div><div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#fff;">Treino de hoje</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Glúteos e Posterior</div></div><div style="font-size:8px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(239,68,68,0.15);color:#ef4444;">Novo</div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;text-align:center;">Iniciar treino →</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Dieta do dia</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Bulking Limpo</div></div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(239,68,68,0.35);color:#ef4444;font-size:11px;font-weight:500;text-align:center;">Ver dieta</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px 5px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:6px;"><div style="width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Evolução</div><div style="font-size:8px;color:rgba(255,255,255,0.35);">últimos 30 dias</div></div></div><div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:#ef4444;line-height:1;">80 kg</div><div style="font-size:9px;color:#ef4444;">-5 kg</div></div></div><div style="display:flex;padding:0 12px 5px;"><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Inicial</div><div style="font-size:11px;font-weight:600;color:#fff;">85 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Variação</div><div style="font-size:11px;font-weight:600;color:#ef4444;">-5 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Registros</div><div style="font-size:11px;font-weight:600;color:#fff;">6</div></div></div><div style="padding:0 10px 8px;"><svg width="100%" viewBox="0 0 230 45" preserveAspectRatio="none"><defs><linearGradient id="gr-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></linearGradient></defs><polygon points="8,5 62,10 116,8 170,20 226,38 226,45 8,45" fill="url(#gr-b)"/><polyline points="8,5 62,10 116,8 170,20 226,38" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="5" r="2.5" fill="#ef4444"/><circle cx="62" cy="10" r="2" fill="#ef4444"/><circle cx="116" cy="8" r="2" fill="#ef4444"/><circle cx="170" cy="20" r="2" fill="#ef4444"/><circle cx="226" cy="38" r="2" fill="#ef4444"/></svg></div></div>
+                  </div>
+                  <div style="position:absolute;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:6px 0 20px;"><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span style="font-size:7px;color:#ef4444;">Início</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Treinos</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Cardio</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Dieta</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Menu</span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="wl-brand-label">
+              <svg width="20" height="20" viewBox="0 0 26 26"><rect x="5.5" y="5.5" width="15" height="15" fill="#ef4444" transform="rotate(45 13 13)"/><path d="M14.5 8L10 15H13L11 20L16.5 13H13.5Z" fill="#fff"/></svg>
+              <div><div class="wl-brand-name">MARCOS</div><div class="wl-brand-sub">TEAM</div></div>
+            </div>
+          </div>
+
+          <!-- Felipe Costa: Azul #3b82f6 (center) -->
+          <div class="wl-phone-wrap">
+            <div class="wl-scaler wl-scaler--center" style="box-shadow:0 0 70px rgba(59,130,246,0.45),0 40px 80px rgba(0,0,0,0.7);">
+              <div class="wl-phone-inner">
+                <div style="font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;width:295px;height:566px;position:relative;overflow:hidden;">
+                  <div style="overflow:hidden;padding-bottom:50px;">
+                    <div style="padding:7px 22px 4px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;font-weight:600;color:#fff;">21:44</span><div style="display:flex;gap:4px;align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg><svg width="13" height="9" viewBox="0 0 23 11" fill="none"><rect x="0" y="0" width="20" height="11" rx="2" stroke="#fff" stroke-width="1.3"/><rect x="1.5" y="1.5" width="14" height="8" rx="1" fill="#3b82f6"/><path d="M21 3.5v4a2 2 0 0 0 0-4z" fill="#fff"/></svg></div></div>
+                    <div style="padding:1px 16px 1px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><svg width="26" height="26" viewBox="0 0 26 26"><path d="M5 5C5 3.9 5.9 3 7 3H19C20.1 3 21 3.9 21 5V13C21 19 13 24 13 24C13 24 5 19 5 13V5Z" fill="#3b82f6"/><path d="M8 15L13 7L18 15H8Z" fill="#fff"/></svg><div><div style="font-size:12px;font-weight:800;color:#fff;line-height:1;">CASTRO</div><div style="font-size:7px;color:rgba(255,255,255,0.4);letter-spacing:.1em;">CONSULTORIA</div></div></div><div style="display:flex;gap:5px;"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div style="position:relative;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:1.5px solid #0a0a0a;"></div></div></div></div>
+                    <div style="height:1px;background:rgba(59,130,246,0.4);margin:0 16px;"></div>
+                    <div style="padding:7px 16px 0;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:26px;height:26px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:11px;font-weight:700;color:#fff;">F</span></div><span style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.3px;">Olá, <span style="color:#3b82f6;">Felipe!</span></span></div><div style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(59,130,246,0.15);color:#3b82f6;"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>320 XP</div></div>
+                    <div style="margin:6px 16px;border-radius:10px;padding:6px;display:flex;gap:2px;border:1px solid rgba(59,130,246,0.4);"><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Seg</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">23</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Ter</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">24</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qua</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">25</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qui</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">26</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sex</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">27</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sáb</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">28</span><div style="width:4px;height:4px;border-radius:50%;background:#3b82f6;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#3b82f6;"><span style="font-size:7px;font-weight:500;color:#fff;">Dom</span><span style="font-size:12px;font-weight:700;color:#fff;line-height:1;">29</span><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div><div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#fff;">Treino de hoje</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Full Body Upper 1</div></div><div style="font-size:8px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(59,130,246,0.15);color:#3b82f6;">Novo</div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;background:#3b82f6;color:#fff;font-size:11px;font-weight:700;text-align:center;">Iniciar treino →</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Dieta do dia</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Recomposição Corporal</div></div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(59,130,246,0.35);color:#3b82f6;font-size:11px;font-weight:500;text-align:center;">Ver dieta</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px 5px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:6px;"><div style="width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Evolução</div><div style="font-size:8px;color:rgba(255,255,255,0.35);">últimos 30 dias</div></div></div><div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:#3b82f6;line-height:1;">90 kg</div><div style="font-size:9px;color:#3b82f6;">-2 kg</div></div></div><div style="display:flex;padding:0 12px 5px;"><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Inicial</div><div style="font-size:11px;font-weight:600;color:#fff;">92 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Variação</div><div style="font-size:11px;font-weight:600;color:#3b82f6;">-2 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Registros</div><div style="font-size:11px;font-weight:600;color:#fff;">6</div></div></div><div style="padding:0 10px 8px;"><svg width="100%" viewBox="0 0 230 45" preserveAspectRatio="none"><defs><linearGradient id="gr-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs><polygon points="8,5 62,16 116,12 170,18 226,30 226,45 8,45" fill="url(#gr-f)"/><polyline points="8,5 62,16 116,12 170,18 226,30" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="5" r="2.5" fill="#3b82f6"/><circle cx="62" cy="16" r="2" fill="#3b82f6"/><circle cx="116" cy="12" r="2" fill="#3b82f6"/><circle cx="170" cy="18" r="2" fill="#3b82f6"/><circle cx="226" cy="30" r="2" fill="#3b82f6"/></svg></div></div>
+                  </div>
+                  <div style="position:absolute;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:6px 0 20px;"><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span style="font-size:7px;color:#3b82f6;">Início</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Treinos</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Cardio</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Dieta</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Menu</span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="wl-brand-label wl-brand-label--center">
+              <svg width="20" height="20" viewBox="0 0 26 26"><path d="M5 5C5 3.9 5.9 3 7 3H19C20.1 3 21 3.9 21 5V13C21 19 13 24 13 24C13 24 5 19 5 13V5Z" fill="#3b82f6"/><path d="M8 15L13 7L18 15H8Z" fill="#fff"/></svg>
+              <div><div class="wl-brand-name">CASTRO</div><div class="wl-brand-sub">CONSULTORIA</div></div>
+            </div>
+          </div>
+
+          <!-- Carla Santos: Ambar #f59e0b -->
+          <div class="wl-phone-wrap">
+            <div class="wl-scaler wl-scaler--side" style="box-shadow:0 0 50px rgba(245,158,11,0.35),0 30px 60px rgba(0,0,0,0.7);">
+              <div class="wl-phone-inner">
+                <div style="font-family:'Inter',system-ui,sans-serif;background:#0a0a0a;width:295px;height:566px;position:relative;overflow:hidden;">
+                  <div style="overflow:hidden;padding-bottom:50px;">
+                    <div style="padding:7px 22px 4px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;font-weight:600;color:#fff;">21:44</span><div style="display:flex;gap:4px;align-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg><svg width="13" height="9" viewBox="0 0 23 11" fill="none"><rect x="0" y="0" width="20" height="11" rx="2" stroke="#fff" stroke-width="1.3"/><rect x="1.5" y="1.5" width="14" height="8" rx="1" fill="#f59e0b"/><path d="M21 3.5v4a2 2 0 0 0 0-4z" fill="#fff"/></svg></div></div>
+                    <div style="padding:1px 16px 1px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><svg width="26" height="26" viewBox="0 0 26 26"><polygon points="13,2 22,7.5 22,18.5 13,24 4,18.5 4,7.5" fill="#f59e0b"/><path d="M13 8L14.5 11.5L18 13L14.5 14.5L13 18L11.5 14.5L8 13L11.5 11.5Z" fill="#fff"/></svg><div><div style="font-size:12px;font-weight:800;color:#fff;line-height:1;">ANA</div><div style="font-size:7px;color:rgba(255,255,255,0.4);letter-spacing:.1em;">FITNESS</div></div></div><div style="display:flex;gap:5px;"><div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div style="position:relative;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div style="position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:1.5px solid #0a0a0a;"></div></div></div></div>
+                    <div style="height:1px;background:rgba(245,158,11,0.4);margin:0 16px;"></div>
+                    <div style="padding:7px 16px 0;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:7px;"><div style="width:26px;height:26px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-size:11px;font-weight:700;color:#fff;">C</span></div><span style="font-size:14px;font-weight:600;color:#fff;letter-spacing:-.3px;">Olá, <span style="color:#f59e0b;">Carla!</span></span></div><div style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(245,158,11,0.15);color:#f59e0b;"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>185 XP</div></div>
+                    <div style="margin:6px 16px;border-radius:10px;padding:6px;display:flex;gap:2px;border:1px solid rgba(245,158,11,0.4);"><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Seg</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">23</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Ter</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">24</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qua</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">25</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Qui</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">26</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sex</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">27</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:7px;font-weight:500;color:rgba(255,255,255,0.35);">Sáb</span><span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.35);line-height:1;">28</span><div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div></div><div style="flex:1;border-radius:7px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#f59e0b;"><span style="font-size:7px;font-weight:500;color:#fff;">Dom</span><span style="font-size:12px;font-weight:700;color:#fff;line-height:1;">29</span><div style="width:4px;height:4px;border-radius:50%;background:#fff;"></div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div><div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#fff;">Treino de hoje</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Peito e Triceps A</div></div><div style="font-size:8px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(245,158,11,0.15);color:#f59e0b;">Novo</div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;text-align:center;">Iniciar treino →</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px;display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Dieta do dia</div><div style="font-size:9px;color:rgba(255,255,255,0.35);">Low Carb Fase 2</div></div></div><div style="height:1px;background:rgba(255,255,255,0.06);margin:0 12px;"></div><div style="padding:6px 10px;"><div style="width:100%;padding:6px;border-radius:7px;border:1px solid rgba(245,158,11,0.35);color:#f59e0b;font-size:11px;font-weight:500;text-align:center;">Ver dieta</div></div></div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:11px;margin:0 16px 5px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;"><div style="padding:8px 12px 5px;display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:6px;"><div style="width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div style="font-size:12px;font-weight:600;color:#fff;">Evolução</div><div style="font-size:8px;color:rgba(255,255,255,0.35);">últimos 30 dias</div></div></div><div style="text-align:right;"><div style="font-size:16px;font-weight:700;color:#f59e0b;line-height:1;">68 kg</div><div style="font-size:9px;color:#f59e0b;">-3 kg</div></div></div><div style="display:flex;padding:0 12px 5px;"><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Inicial</div><div style="font-size:11px;font-weight:600;color:#fff;">71 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Variação</div><div style="font-size:11px;font-weight:600;color:#f59e0b;">-3 kg</div></div><div style="flex:1;text-align:center;"><div style="font-size:7px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:.05em;">Registros</div><div style="font-size:11px;font-weight:600;color:#fff;">6</div></div></div><div style="padding:0 10px 8px;"><svg width="100%" viewBox="0 0 230 45" preserveAspectRatio="none"><defs><linearGradient id="gr-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></linearGradient></defs><polygon points="8,5 62,14 116,20 170,15 226,35 226,45 8,45" fill="url(#gr-c)"/><polyline points="8,5 62,14 116,20 170,15 226,35" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="5" r="2.5" fill="#f59e0b"/><circle cx="62" cy="14" r="2" fill="#f59e0b"/><circle cx="116" cy="20" r="2" fill="#f59e0b"/><circle cx="170" cy="15" r="2" fill="#f59e0b"/><circle cx="226" cy="35" r="2" fill="#f59e0b"/></svg></div></div>
+                  </div>
+                  <div style="position:absolute;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:6px 0 20px;"><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span style="font-size:7px;color:#f59e0b;">Início</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Treinos</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Cardio</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Dieta</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span style="font-size:7px;color:rgba(255,255,255,0.28);">Menu</span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="wl-brand-label">
+              <svg width="20" height="20" viewBox="0 0 26 26"><polygon points="13,2 22,7.5 22,18.5 13,24 4,18.5 4,7.5" fill="#f59e0b"/><path d="M13 8L14.5 11.5L18 13L14.5 14.5L13 18L11.5 14.5L8 13L11.5 11.5Z" fill="#fff"/></svg>
+              <div><div class="wl-brand-name">ANA</div><div class="wl-brand-sub">FITNESS</div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FINANCEIRO ===== -->
+    <section class="financeiro-section" id="financeiro">
+      <div class="container">
+        <div class="section-header section-header--center" data-reveal>
+          <span class="section-tag">Financeiro</span>
+          <h2 class="section-title">Cobra pelo WhatsApp sem controle financeiro?</h2>
+          <p class="section-subtitle">Receba, controle e cresça. Gerencie cobranças, vencimentos e inadimplência diretamente pelo painel — automático, profissional, com a sua marca.</p>
+        </div>
+        <div class="why-block-full" data-reveal>
+          <div class="financeiro-panel">
+            <div class="financeiro-panel__bar">
+              <span class="financeiro-panel__dot"></span>
+              <span class="financeiro-panel__dot"></span>
+              <span class="financeiro-panel__dot"></span>
+              <span class="financeiro-panel__label">Financeiro · ORBI</span>
+            </div>
+            <div class="financeiro-app-header">
+              <div>
+                <span class="financeiro-app-header__title">Financeiro</span>
+                <span class="financeiro-app-header__sub">Cobranças e pagamentos</span>
+              </div>
+              <button class="financeiro-app-header__btn">+ Nova cobrança</button>
+            </div>
+            <div class="financeiro-panel__metrics">
+              <div class="financeiro-metric">
+                <span class="financeiro-metric__label financeiro-metric__label--green">↑ Recebido</span>
+                <span class="financeiro-metric__value financeiro-metric__value--green" id="fin-recebido">R$ 4.200,00</span>
+                <span class="financeiro-metric__sub">este mês</span>
+              </div>
+              <div class="financeiro-metric">
+                <span class="financeiro-metric__label financeiro-metric__label--amber">● Pendente</span>
+                <span class="financeiro-metric__value financeiro-metric__value--amber" id="fin-pendente">R$ 1.800,00</span>
+                <span class="financeiro-metric__sub">2 cobranças</span>
+              </div>
+              <div class="financeiro-metric">
+                <span class="financeiro-metric__label financeiro-metric__label--red">⚠ Vencido</span>
+                <span class="financeiro-metric__value financeiro-metric__value--red" id="fin-vencido">R$ 1.800,00</span>
+                <span class="financeiro-metric__sub">0 cobranças</span>
+              </div>
+            </div>
+            <div class="financeiro-search-row">
+              <div class="financeiro-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <span>Buscar aluno ou descrição...</span>
+              </div>
+            </div>
+            <div class="financeiro-filters">
+              <button class="financeiro-filter financeiro-filter--active">Todas</button>
+              <button class="financeiro-filter">Pendentes <span class="financeiro-filter__badge">2</span></button>
+              <button class="financeiro-filter">Pagas</button>
+              <button class="financeiro-filter">Vencidas</button>
+            </div>
+            <div class="financeiro-panel__list">
+              <div class="financeiro-item">
+                <div class="financeiro-item__avatar">A</div>
+                <div class="financeiro-item__info">
+                  <span class="financeiro-item__name">Ana Beatriz Santos</span>
+                  <span class="financeiro-item__sub">Consultoria Pro — Anual</span>
+                  <span class="financeiro-item__detail">R$ 3.600,00 · Vence 21/06/2026 · PIX</span>
+                </div>
+                <span class="financeiro-item__badge financeiro-item__badge--pago">Pago</span>
+              </div>
+              <div class="financeiro-item">
+                <div class="financeiro-item__avatar">R</div>
+                <div class="financeiro-item__info">
+                  <span class="financeiro-item__name">Rafael Mendes</span>
+                  <span class="financeiro-item__sub">Consultoria Pro — Semestral</span>
+                  <span class="financeiro-item__detail">R$ 2.400,00 · Vence 21/06/2026 · PIX</span>
+                </div>
+                <span class="financeiro-item__badge financeiro-item__badge--pago">Pago</span>
+              </div>
+              <div class="financeiro-item financeiro-item--last financeiro-item--fernanda" id="fin-item-fernanda">
+                <div class="financeiro-item__avatar financeiro-item__avatar--amber">F</div>
+                <div class="financeiro-item__info">
+                  <span class="financeiro-item__name">Fernanda Lima</span>
+                  <span class="financeiro-item__sub">Consultoria Básica — Anual</span>
+                  <span class="financeiro-item__detail" id="fin-detail-fernanda">R$ 1.800,00 · Venceu em 27/06/2026</span>
+                </div>
+                <span class="financeiro-item__badge financeiro-item__badge--vencido" id="fin-badge-fernanda">Vencido</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center; margin-top: 2.5rem;">
+            <a href="#precos" class="btn btn--primary" data-cta="lead">
+              Criar meu app agora
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -386,59 +749,269 @@
         </div>
 
         <!-- Bloco 1: texto esquerda, imagem direita -->
-        <div class="why-block why-block--normal" data-reveal>
+        <div class="why-block why-block--normal" data-reveal style="padding: 5rem 0; margin-bottom: 2rem;">
           <div class="why-block__text">
             <h3 class="why-block__title">Ainda manda treino por PDF?</h3>
             <p class="why-block__desc">
               Seus alunos merecem uma experiência premium. Com a ORBI, você entrega treinos personalizados direto no app — com vídeos, cargas, séries e acompanhamento em tempo real.
             </p>
-            <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary" data-cta="lead">
+            <a href="#precos" class="btn btn--primary" data-cta="lead">
               Criar meu app agora
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
           </div>
-          <div class="why-block__image">
-            <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (1).jpeg"
-                 alt="Tela de treino ORBI Health"
-                 class="screenshot-mobile-card">
+          <div class="why-block__image" style="background: radial-gradient(ellipse at center, rgba(22,163,74,0.15) 0%, transparent 70%); display:flex; align-items:center; justify-content:center; padding: 2rem 0;">
+            <div class="workout-float">
+              <svg class="workout-float__border-svg" aria-hidden="true">
+                <defs>
+                  <filter id="wf-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+                    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                  </filter>
+                </defs>
+                <rect class="workout-float__border-rect" x="1.5" y="1.5" rx="19" ry="19" fill="none" stroke="rgba(22,163,74,0.7)" stroke-width="2.5" filter="url(#wf-glow)"/>
+              </svg>
+              <div class="workout-float__video">
+                <div class="workout-float__video-thumb">
+                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="18" fill="rgba(22,163,74,0.85)"/><polygon points="14,11 28,18 14,25" fill="#fff"/></svg>
+                </div>
+                <div class="workout-float__video-info">
+                  <div class="workout-float__ex-tag">EXERCÍCIO 2 DE 5</div>
+                  <div class="workout-float__ex-name">Supino Reto com Barra</div>
+                  <div class="workout-float__group">Peito · Ombro · Tríceps</div>
+                </div>
+              </div>
+              <div class="workout-float__series">
+                <div class="workout-float__series-head">
+                  <span>SÉRIE</span><span>REPS</span><span>CARGA</span><span></span>
+                </div>
+                <div class="workout-float__series-row workout-float__series-row--done">
+                  <span class="workout-float__badge workout-float__badge--warmup">WARM-UP</span>
+                  <span>15</span>
+                  <span>40 kg</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#16a34a" stroke-width="1.5"/><path d="M8 12l3 3 5-5" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="workout-float__series-row workout-float__series-row--done">
+                  <span class="workout-float__badge workout-float__badge--feeder">FEEDER</span>
+                  <span>2-4</span>
+                  <span>56 kg</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#16a34a" stroke-width="1.5"/><path d="M8 12l3 3 5-5" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="workout-float__series-row workout-float__series-row--active">
+                  <span class="workout-float__badge workout-float__badge--working">WORK SET</span>
+                  <span>6-9</span>
+                  <span>80 kg</span>
+                  <div class="workout-float__dot-active"></div>
+                </div>
+                <div class="workout-float__series-row workout-float__series-row--pending">
+                  <span class="workout-float__badge workout-float__badge--cluster">CLUSTER</span>
+                  <span>6</span>
+                  <span>92 kg</span>
+                  <div class="workout-float__dot-pending"></div>
+                </div>
+              </div>
+              <div class="workout-float__timer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                <span class="workout-float__timer-label">DESCANSO ENTRE SÉRIES</span>
+                <span class="workout-float__timer-val">2:30</span>
+                <button class="workout-float__timer-btn">Iniciar</button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Bloco 2: imagem esquerda, texto direita -->
-        <div class="why-block why-block--reverse" data-reveal>
+
+        <!-- Bloco 3: gráfico flutuante esquerda + texto direita -->
+        <div class="why-block why-block--normal" data-reveal style="margin-top: 6rem; padding: 2.5rem 0 0;">
           <div class="why-block__image">
-            <img src="screenshots/processed/financeiro-mobile.png"
-                 alt="Controle financeiro ORBI Health"
-                 class="screenshot-mobile-card">
+            <div class="float-chart-wrap">
+              <div class="float-chart__label">↗ Progressão de Carga</div>
+              <div class="float-chart__ex">Agachamento Livre &nbsp;·&nbsp; <span style="opacity:0.35">Supino Reto com Barra</span></div>
+              <div class="float-chart__svg-area">
+                <svg width="100%" viewBox="0 0 500 210" preserveAspectRatio="none" id="prog-svg">
+                  <defs>
+                    <clipPath id="prog-cp"><rect id="prog-cr" x="0" y="0" width="0" height="210"/></clipPath>
+                    <linearGradient id="prog-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#16a34a" stop-opacity="0.22"/>
+                      <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
+                    </linearGradient>
+                    <filter id="prog-glow">
+                      <feGaussianBlur stdDeviation="3" result="blur"/>
+                      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                  </defs>
+                  <!-- grid lines: 90=8, 81=51, 72=94, 63=137, 54=180 -->
+                  <line x1="0" y1="8"   x2="500" y2="8"   stroke="#1a2e1a" stroke-width="1" stroke-dasharray="4,6"/>
+                  <line x1="0" y1="51"  x2="500" y2="51"  stroke="#1a2e1a" stroke-width="1" stroke-dasharray="4,6"/>
+                  <line x1="0" y1="94"  x2="500" y2="94"  stroke="#1a2e1a" stroke-width="1" stroke-dasharray="4,6"/>
+                  <line x1="0" y1="137" x2="500" y2="137" stroke="#1a2e1a" stroke-width="1" stroke-dasharray="4,6"/>
+                  <line x1="0" y1="180" x2="500" y2="180" stroke="#1a2e1a" stroke-width="1" stroke-dasharray="4,6"/>
+                  <text x="2" y="7"   font-size="9" fill="#2d5c2d">90kg</text>
+                  <text x="2" y="50"  font-size="9" fill="#2d5c2d">81kg</text>
+                  <text x="2" y="93"  font-size="9" fill="#2d5c2d">72kg</text>
+                  <text x="2" y="136" font-size="9" fill="#2d5c2d">63kg</text>
+                  <text x="2" y="179" font-size="9" fill="#2d5c2d">54kg</text>
+                  <!-- 6 pts: 12/03=54, 26/03=63, 09/04=68, 23/04=65, 07/05=72, 28/05=90 -->
+                  <!-- x: 36,128,220,313,405,498 | y: 180,137,113,127,94,8 -->
+                  <g clip-path="url(#prog-cp)">
+                    <polygon points="36,180 128,137 220,113 313,127 405,94 498,8 498,210 36,210" fill="url(#prog-grad)"/>
+                    <polyline points="36,180 128,137 220,113 313,127 405,94 498,8" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#prog-glow)"/>
+                  </g>
+                  <circle id="pg1" cx="36"  cy="180" r="4" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <circle id="pg2" cx="128" cy="137" r="4" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <circle id="pg3" cx="220" cy="113" r="4" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <circle id="pg4" cx="313" cy="127" r="4" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <circle id="pg5" cx="405" cy="94"  r="4" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <circle id="pg6" cx="498" cy="8"   r="5" fill="#16a34a" stroke="#09090b" stroke-width="2" opacity="0"/>
+                  <text x="36"  y="198" font-size="8" fill="#2d5c2d" text-anchor="middle">12/03</text>
+                  <text x="220" y="198" font-size="8" fill="#2d5c2d" text-anchor="middle">09/04</text>
+                  <text x="405" y="198" font-size="8" fill="#2d5c2d" text-anchor="middle">07/05</text>
+                  <text x="498" y="198" font-size="8" fill="#2d5c2d" text-anchor="end">28/05</text>
+                </svg>
+              </div>
+              <div class="float-chart__metrics">
+                <div class="float-chart__metric"><span class="float-chart__metric-lbl">Carga Inicial</span><span class="float-chart__metric-val">54 kg</span></div>
+                <div class="float-chart__metric"><span class="float-chart__metric-lbl">Carga Atual</span><span class="float-chart__metric-val" id="prog-ca">54 kg</span></div>
+                <div class="float-chart__metric"><span class="float-chart__metric-lbl">Evolução</span><span class="float-chart__metric-val float-chart__metric-val--amber" id="prog-vr">+0%</span></div>
+              </div>
+            </div>
           </div>
           <div class="why-block__text">
-            <h3 class="why-block__title">Cobra pelo PIX sem controle financeiro?</h3>
-            <p class="why-block__desc">
-              Chega de perder pagamento. Gerencie cobranças, vencimentos e inadimplência diretamente pelo painel — com gateway de pagamento integrado, automático e profissional.
-            </p>
-            <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary" data-cta="lead">
+            <h3 class="why-block__title">Seu aluno evoluiu. Você sabe quanto?</h3>
+            <p class="why-block__desc">Acompanhe a progressão de carga de cada aluno com gráficos em tempo real — sem planilha, sem WhatsApp, sem chute.</p>
+            <a href="#precos" class="btn btn--primary" data-cta="lead">
               Criar meu app agora
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
           </div>
         </div>
 
-        <!-- Bloco 3: texto esquerda, imagem direita -->
-        <div class="why-block why-block--normal" data-reveal>
+        <!-- Bloco dieta: visual esquerda, texto direita -->
+        <div class="why-block why-block--reverse" data-reveal style="margin-top: 6rem; padding: 2.5rem 0 0;">
+          <div class="why-block__image" style="background: radial-gradient(ellipse at center, rgba(22,163,74,0.22) 0%, rgba(22,163,74,0.06) 50%, transparent 75%); display:flex; align-items:center; justify-content:center; padding: 2rem 0;">
+            <div class="diet-float diet-float--anim">
+
+              <!-- Estado 1: detalhe macro por ingrediente com substituição -->
+              <div class="diet-float__screen" style="animation: diet-fade-1 12s ease-in-out infinite;">
+                <div class="diet-float__meal-header" style="padding-bottom:0.5rem;">
+                  <div class="diet-float__meal-info">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span class="diet-float__meal-name">Lanche da tarde</span>
+                    </div>
+                    <div class="diet-float__meal-meta" style="margin-top:3px;">P 29.6g &nbsp;·&nbsp; C 41.9g &nbsp;·&nbsp; G 11.7g</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:12px;font-weight:700;color:#fff;">385 kcal</div>
+                    <div class="diet-float__meal-time" style="font-size:11px;margin-top:1px;">16:00</div>
+                  </div>
+                </div>
+                <div class="diet-float__item">
+                  <div class="diet-float__item-row">
+                    <span class="diet-float__item-name" style="font-size:12px;">Whey Protein Concentrado</span>
+                    <span class="diet-float__item-qty">30g</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                  <div class="diet-float__meal-meta" style="margin-top:2px;">122 kcal &nbsp;·&nbsp; P 20g &nbsp;·&nbsp; C 5.7g &nbsp;·&nbsp; G 2.1g</div>
+                </div>
+                <div class="diet-float__item">
+                  <div class="diet-float__item-row">
+                    <span class="diet-float__item-name" style="font-size:12px;">Iogurte Natural Integral</span>
+                    <span class="diet-float__item-qty">170g</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                  <div class="diet-float__meal-meta" style="margin-top:2px;">117 kcal &nbsp;·&nbsp; P 6.8g &nbsp;·&nbsp; C 6.8g &nbsp;·&nbsp; G 8g</div>
+                </div>
+                <div class="diet-float__item diet-float__item--expanded">
+                  <div class="diet-float__item-row">
+                    <span class="diet-float__item-name" style="font-size:12px;">Mamão, papaia, cru</span>
+                    <span class="diet-float__item-qty">120g</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </div>
+                  <div class="diet-float__meal-meta" style="margin-top:2px;">48 kcal &nbsp;·&nbsp; P 0.6g &nbsp;·&nbsp; C 12.5g &nbsp;·&nbsp; G 0.1g</div>
+                  <div class="diet-float__sub-label" style="margin-top:8px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+                    PODE SUBSTITUIR POR
+                  </div>
+                  <div style="margin-top:6px;padding:10px 12px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.15);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                      <div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);">1 porção da lista de substituição</div>
+                      <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;">Toque para ver as opções disponíveis</div>
+                    </div>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Estado 2: lista do grupo de substituição -->
+              <div class="diet-float__screen" style="animation: diet-fade-2 12s ease-in-out infinite;">
+                <div class="diet-float__meal-header">
+                  <div class="diet-float__meal-info">
+                    <div class="diet-float__meal-name" style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:500;">1 PORÇÃO · LISTA DE SUBSTITUIÇÃO</div>
+                    <div class="diet-float__meal-name" style="margin-top:2px;">
+                      <span style="background:#16a34a;color:#fff;font-size:11px;font-weight:700;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;">6</span>
+                      Frutas Comuns
+                    </div>
+                  </div>
+                </div>
+                <div class="diet-float__group-list">
+                  <div class="diet-float__group-item"><span>Abacaxi cru</span><span class="diet-float__option-qty">100g</span></div>
+                  <div class="diet-float__group-item"><span>Acerola</span><span class="diet-float__option-qty">150g</span></div>
+                  <div class="diet-float__group-item"><span>Ameixa crua</span><span class="diet-float__option-qty">90g</span></div>
+                  <div class="diet-float__group-item"><span>Banana da terra</span><span class="diet-float__option-qty">40g</span></div>
+                  <div class="diet-float__group-item diet-float__option--selected"><span style="color:#fff;font-weight:600;">Banana prata</span><span class="diet-float__option-qty">50g</span></div>
+                  <div class="diet-float__group-item"><span>Caju cru</span><span class="diet-float__option-qty">115g</span></div>
+                  <div class="diet-float__group-item"><span>Manga</span><span class="diet-float__option-qty">80g</span></div>
+                </div>
+              </div>
+
+              <!-- Estado 3: versão da refeição (duas opções) -->
+              <div class="diet-float__screen" style="animation: diet-fade-3 12s ease-in-out infinite;">
+                <div class="diet-float__meal-header">
+                  <div class="diet-float__meal-info">
+                    <div class="diet-float__meal-name" style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:500;letter-spacing:0.06em;">VERSÃO DA REFEIÇÃO</div>
+                    <div class="diet-float__meal-name" style="margin-top:2px;">Lanche da tarde</div>
+                  </div>
+                </div>
+                <div class="diet-float__alt-option diet-float__alt-option--active">
+                  <div class="diet-float__alt-header">
+                    <span class="diet-float__alt-dot diet-float__alt-dot--active"></span>
+                    <span class="diet-float__alt-name">Refeição principal</span>
+                    <span class="diet-float__option-qty">385 kcal</span>
+                  </div>
+                  <div class="diet-float__alt-items">
+                    <span>Whey Protein Concentrado · 30g</span>
+                    <span>Iogurte Natural Integral · 170g</span>
+                    <span>Mamão, papaia, cru · 120g</span>
+                  </div>
+                </div>
+                <div class="diet-float__alt-option">
+                  <div class="diet-float__alt-header">
+                    <span class="diet-float__alt-dot"></span>
+                    <span class="diet-float__alt-name">Sanduíche de Atum e frutas</span>
+                    <span class="diet-float__option-qty">379 kcal</span>
+                  </div>
+                  <div class="diet-float__alt-items">
+                    <span>Atum Sólido ao Natural · 70g</span>
+                    <span>Pão integral · 75g</span>
+                    <span>Requeijão light · 40g</span>
+                    <span>Mamão, papaia, cru · 120g</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
           <div class="why-block__text">
-            <h3 class="why-block__title">Acompanha a evolução do aluno pelo WhatsApp?</h3>
+            <h3 class="why-block__title">Dieta adaptada pelo aluno. Sem uma mensagem no WhatsApp.</h3>
             <p class="why-block__desc">
-              Visualize o progresso de cada aluno com gráficos de carga, fotos de evolução e check-ins — tudo organizado, tudo no seu app com a sua marca.
+              Você configura os grupos de substituição uma vez. O aluno escolhe o que quiser — dentro das opções que você aprovou. Tudo automático.
             </p>
-            <a href="https://app.orbihealth.com.br/cadastro" class="btn btn--primary" data-cta="lead">
+            <a href="#precos" class="btn btn--primary" data-cta="lead">
               Criar meu app agora
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
-          </div>
-          <div class="why-block__image">
-            <img src="screenshots/processed/Captura de tela 2026-06-04 221535.png"
-                 alt="Progressão de carga ORBI Health"
-                 class="screenshot-desktop-card">
           </div>
         </div>
 
@@ -448,21 +1021,272 @@
     <!-- ===== PAINEL DO TREINADOR ===== -->
     <section id="painel-treinador" class="painel-treinador" aria-labelledby="painel-treinador-title">
       <div class="container">
-        <div class="section-header" data-reveal>
+        <div class="section-header section-header--center" data-reveal>
           <span class="section-tag">Painel do Treinador</span>
           <h2 class="section-title" id="painel-treinador-title">Comande sua consultoria como uma empresa</h2>
-          <p class="section-subtitle">Dashboard com visão completa dos seus alunos, cobranças e progressão — tudo em um único painel.</p>
+          <p class="section-subtitle">Visão completa dos seus clientes, cobranças e evolução — num único painel.</p>
         </div>
-        <div class="painel-treinador__grid">
-          <img src="screenshots/processed/Captura de tela 2026-06-04 221002.png"
-               alt="Dashboard ORBI Health"
-               class="reveal-img painel-treinador__img">
-          <img src="screenshots/processed/Captura de tela 2026-06-04 221940.png"
-               alt="Meus Clientes ORBI Health"
-               class="reveal-img painel-treinador__img"
-               style="transition-delay:150ms">
+
+        <div class="dashboard-float" data-reveal>
+          <!-- Anel orbital SVG -->
+          <svg class="dashboard-float__orbit-svg" viewBox="0 0 860 520" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Anel externo dashed -->
+            <ellipse cx="430" cy="260" rx="310" ry="185" fill="none" stroke="rgba(74,222,128,0.08)" stroke-width="1" stroke-dasharray="6 8"/>
+            <!-- Anel interno dashed -->
+            <ellipse cx="430" cy="260" rx="190" ry="115" fill="none" stroke="rgba(74,222,128,0.06)" stroke-width="1" stroke-dasharray="3 10"/>
+            <!-- Linhas do centro para os cards -->
+            <line x1="430" y1="260" x2="430" y2="62"  stroke="rgba(74,222,128,0.12)" stroke-width="1" stroke-dasharray="4 7"/>
+            <line x1="430" y1="260" x2="726" y2="100" stroke="rgba(74,222,128,0.12)" stroke-width="1" stroke-dasharray="4 7"/>
+            <line x1="430" y1="260" x2="790" y2="280" stroke="rgba(74,222,128,0.12)" stroke-width="1" stroke-dasharray="4 7"/>
+            <line x1="430" y1="260" x2="130" y2="280" stroke="rgba(74,222,128,0.12)" stroke-width="1" stroke-dasharray="4 7"/>
+            <line x1="430" y1="260" x2="160" y2="100" stroke="rgba(74,222,128,0.12)" stroke-width="1" stroke-dasharray="4 7"/>
+            <!-- Dot luminoso girando no anel externo -->
+            <circle r="4" fill="#4ade80" opacity="0.7" filter="url(#df-glow)">
+              <animateMotion dur="12s" repeatCount="indefinite">
+                <mpath href="#df-orbit-path"/>
+              </animateMotion>
+            </circle>
+            <ellipse id="df-orbit-path" cx="430" cy="260" rx="310" ry="185" fill="none"/>
+            <defs>
+              <filter id="df-glow" x="-200%" y="-200%" width="500%" height="500%">
+                <feGaussianBlur stdDeviation="4" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+          </svg>
+
+          <!-- Hub central -->
+          <div class="dashboard-float__hub">
+            <div class="dashboard-float__hub-pulse"></div>
+            <div class="dashboard-float__hub-inner">
+              <div class="df-hub-label">RECEITA MENSAL</div>
+              <div class="df-hub-value">R$ 21.800</div>
+              <div class="df-hub-sub">crescendo todo mês</div>
+            </div>
+          </div>
+
+          <!-- Card: Clientes Ativos (topo centro) -->
+          <div class="df-card" style="top:0;left:50%;transform:translateX(-50%);animation:df-float-1 5.5s ease-in-out infinite alternate;">
+            <div class="df-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="df-card__value">143</div>
+            <div class="df-card__label">Clientes Ativos</div>
+            <div class="df-card__desc">Todos monitorados em tempo real</div>
+          </div>
+
+          <!-- Card: Agenda (topo direita) -->
+          <div class="df-card" style="top:4%;right:1%;animation:df-float-2 6.2s ease-in-out infinite alternate;">
+            <div class="df-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="df-card__value">8</div>
+            <div class="df-card__label">Sessões Hoje</div>
+            <div class="df-card__desc">Agenda integrada ao app</div>
+          </div>
+
+          <!-- Card: Atualizações (direita) -->
+          <div class="df-card" style="top:50%;right:-1%;transform:translateY(-50%);animation:df-float-3 4.8s ease-in-out infinite alternate;">
+            <div class="df-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </div>
+            <div class="df-card__value">38</div>
+            <div class="df-card__label">Atualizações</div>
+            <div class="df-card__desc">Nos últimos 7 dias</div>
+          </div>
+
+          <!-- Card: Anamneses (esquerda) -->
+          <div class="df-card" style="top:50%;left:-1%;transform:translateY(-50%);animation:df-float-4 7s ease-in-out infinite alternate;">
+            <div class="df-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            </div>
+            <div class="df-card__value">24</div>
+            <div class="df-card__label">Anamneses</div>
+            <div class="df-card__desc">Aguardando preenchimento</div>
+          </div>
+
+          <!-- Card: Mensagens (topo esquerda) -->
+          <div class="df-card" style="top:4%;left:1%;animation:df-float-5 5.2s ease-in-out infinite alternate;">
+            <div class="df-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div class="df-card__value">12</div>
+            <div class="df-card__label">Mensagens</div>
+            <div class="df-card__desc">Nenhuma não lida</div>
+          </div>
+        </div>
+
+        <!-- Strip de benefícios -->
+        <div class="dashboard-strip" data-reveal>
+          <div class="dashboard-strip__item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            <span><strong>Receita previsível</strong> — Faturamento recorrente e automatizado</span>
+          </div>
+          <div class="dashboard-strip__sep"></div>
+          <div class="dashboard-strip__item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span><strong>Menos cancelamento</strong> — Aluno engajado fica mais tempo</span>
+          </div>
+          <div class="dashboard-strip__sep"></div>
+          <div class="dashboard-strip__item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span><strong>Cresce sozinho</strong> — Menos tempo operacional, mais escala</span>
+          </div>
         </div>
       </div>
+    </section>
+
+    <!-- ===== COLABORADORES ===== -->
+    <section id="colaboradores" class="colaboradores-section" aria-labelledby="colab-title">
+      <!-- Header -->
+      <div class="container">
+        <div class="section-header section-header--center" data-reveal>
+          <span class="section-tag">Colaboradores</span>
+          <h2 class="section-title" id="colab-title">Sua equipe inteira, numa só plataforma</h2>
+          <p class="section-subtitle">Adicione treinadores, nutricionistas, estagiários. Cada um com acesso somente ao que precisa e que você permite.</p>
+        </div>
+      </div>
+
+      <div class="container">
+        <div class="macbook-wrap">
+          <div class="macbook-device">
+            <!-- Mockup colaboradores — atrás do frame PNG -->
+            <div class="macbook-app-screen" id="colabScreenContent">
+              <!-- Top bar macOS -->
+              <div class="mc-topbar">
+                <div class="mc-topbar-left">
+                  <span class="mc-dot" style="background:#ff5f57"></span>
+                  <span class="mc-dot" style="background:#febc2e"></span>
+                  <span class="mc-dot" style="background:#28c840"></span>
+                  <span class="mc-appname">Colaboradores — ORBI Pro</span>
+                </div>
+                <div class="mc-topbar-right">14:32</div>
+              </div>
+              <div class="mc-layout">
+                <!-- Sidebar -->
+                <div class="mc-sidebar">
+                  <div class="mc-brand">
+                    <span class="mc-brand-dot" style="display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;">R</span>
+                    <span class="mc-brand-name">Rafael Torres</span>
+                  </div>
+                  <nav class="mc-nav">
+                    <div class="mc-nav-item">Resumo</div>
+                    <div class="mc-nav-item">Meus Clientes</div>
+                    <div class="mc-nav-item">Agenda</div>
+                    <div class="mc-nav-item">Mensagens</div>
+                    <div class="mc-nav-item">Leads / CRM</div>
+                    <div class="mc-nav-item">Financeiro</div>
+                    <div class="mc-nav-item">Produtos / Planos</div>
+                    <div class="mc-nav-item">Biblioteca de Exercícios</div>
+                    <div class="mc-nav-item">Modelos de Treino</div>
+                    <div class="mc-nav-item mc-nav-item--active">Colaboradores</div>
+                    <div class="mc-nav-item">Alimentos</div>
+                    <div class="mc-nav-item">Notificações</div>
+                  </nav>
+                </div>
+                <!-- Main -->
+                <div class="mc-main">
+                  <div class="mc-header">
+                    <div class="mc-title">Colaboradores <span class="mc-count">3</span></div>
+                    <button class="mc-add-btn">+ Adicionar</button>
+                  </div>
+                  <div class="mc-list">
+                    <!-- Ana Costa -->
+                    <div class="mc-row">
+                      <div class="mc-avatar" style="background:linear-gradient(135deg,#4ade80,#16a34a)">AC</div>
+                      <div class="mc-info">
+                        <div class="mc-name">Ana Costa</div>
+                        <div class="mc-role" style="color:#4ade80">Nutricionista</div>
+                      </div>
+                      <div class="mc-tags">
+                        <span class="mc-tag mc-tag--green">Ver treinos</span>
+                        <span class="mc-tag mc-tag--blue">Criar dietas</span>
+                        <span class="mc-tag mc-tag--purple">Ver alunos</span>
+                      </div>
+                      <span class="mc-status">Ativo</span>
+                    </div>
+                    <!-- Pedro Alves -->
+                    <div class="mc-row">
+                      <div class="mc-avatar" style="background:linear-gradient(135deg,#166534,#14532d)">PA</div>
+                      <div class="mc-info">
+                        <div class="mc-name">Pedro Alves</div>
+                        <div class="mc-role" style="color:#22c55e">Estagiário</div>
+                      </div>
+                      <div class="mc-tags">
+                        <span class="mc-tag mc-tag--green">Ver treinos</span>
+                        <span class="mc-tag mc-tag--purple">Ver alunos</span>
+                        <span class="mc-tag mc-tag--gray">Sem financeiro</span>
+                      </div>
+                      <span class="mc-status">Ativo</span>
+                    </div>
+                    <!-- Julia Ferreira -->
+                    <div class="mc-row">
+                      <div class="mc-avatar" style="background:linear-gradient(135deg,#22c55e,#15803d)">JF</div>
+                      <div class="mc-info">
+                        <div class="mc-name">Julia Ferreira</div>
+                        <div class="mc-role" style="color:#16a34a">Recepcionista</div>
+                      </div>
+                      <div class="mc-tags">
+                        <span class="mc-tag mc-tag--amber">Financeiro</span>
+                        <span class="mc-tag mc-tag--purple">Ver alunos</span>
+                        <span class="mc-tag mc-tag--gray">Sem treinos</span>
+                      </div>
+                      <span class="mc-status">Ativo</span>
+                    </div>
+                    <!-- Invite row -->
+                    <div class="mc-invite-row">
+                      <span class="mc-invite-plus">+</span>
+                      <span class="mc-invite-text">Convidar colaborador por e-mail...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Frame PNG do Canva por cima (cor Midnight via filter) -->
+            <img
+              class="macbook-frame-img"
+              src="screenshots/macbook-mockup.png.png"
+              alt=""
+              aria-hidden="true"
+            >
+          </div>
+        </div><!-- /.macbook-wrap -->
+      </div><!-- /.container -->
+
+      <!-- Benefícios abaixo do notebook -->
+      <div class="container">
+        <div class="colab-benefits" data-reveal>
+          <div class="colab-benefit">
+            <div class="colab-benefit__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="colab-benefit__text">
+              <strong>Permissões granulares</strong>
+              <span>Controle exato o que cada colaborador pode ver e fazer</span>
+            </div>
+          </div>
+          <div class="colab-benefit__sep"></div>
+          <div class="colab-benefit">
+            <div class="colab-benefit__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="colab-benefit__text">
+              <strong>Multi-profissional</strong>
+              <span>Personal, nutricionista e estagiário no mesmo painel</span>
+            </div>
+          </div>
+          <div class="colab-benefit__sep"></div>
+          <div class="colab-benefit">
+            <div class="colab-benefit__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="colab-benefit__text">
+              <strong>Sem acesso ao financeiro</strong>
+              <span>Dados sensíveis ficam visíveis só pra você</span>
+            </div>
+          </div>
+        </div>
+      </div><!-- /.container -->
     </section>
 
     <!-- ===== APP DO ALUNO ===== -->
@@ -483,24 +1307,24 @@
               <div class="app-aluno__phone">
               <div id="carousel-aluno" class="app-aluno__carousel-track" role="region" aria-label="Telas do app do aluno">
                 <div class="carousel__item">
-                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.38 (1).jpeg"
-                       alt="Início" class="carousel__img" style="top:-82px">
+                  <img src="screenshots/Novas/dashboard final.jpeg"
+                       alt="Início" class="carousel__img" style="top:-85px">
                 </div>
                 <div class="carousel__item">
-                  <img src="screenshots/PAINEL DO ALUNO/imagem 2 carrossel.PNG"
-                       alt="Treinos" class="carousel__img" style="top:-110px; clip-path: inset(130px 0 55px 0)">
+                  <img src="screenshots/PAINEL DO ALUNO/treino-video.jpeg"
+                       alt="Treino com vídeo" class="carousel__img" style="top:-73px">
                 </div>
                 <div class="carousel__item">
-                  <img src="screenshots/PAINEL DO ALUNO/dieta final.PNG"
-                       alt="Dieta" class="carousel__img" style="top:-68px; clip-path: inset(81px 0 0 0)">
+                  <img src="screenshots/PAINEL DO ALUNO/dieta-substituicao.jpeg"
+                       alt="Dieta com substituição" class="carousel__img" style="top:-85px">
                 </div>
                 <div class="carousel__item">
-                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37 (3).jpeg"
-                       alt="Cardio" class="carousel__img" style="top:-73px; clip-path: inset(90px 0 0 0)">
+                  <img src="screenshots/PAINEL DO ALUNO/cardio-prescrito.jpeg"
+                       alt="Cardio prescrito" class="carousel__img" style="top:-89px">
                 </div>
                 <div class="carousel__item">
-                  <img src="screenshots/processed/WhatsApp Image 2026-06-05 at 23.38.37.jpeg"
-                       alt="Evolução de Carga" class="carousel__img">
+                  <img src="screenshots/PAINEL DO ALUNO/evolucao-carga.jpeg"
+                       alt="Evolução de Carga" class="carousel__img" style="top:-156px">
                 </div>
               </div>
               </div>
@@ -559,7 +1383,7 @@
         <div class="section-header section-header--center" data-reveal>
           <span class="section-tag">Planos</span>
           <h2 class="section-title" id="pricing-title">Planos simples, sem surpresas</h2>
-          <p class="section-subtitle">Comece grátis. Sem taxa de implementação. Cancele quando quiser.</p>
+          <p class="section-subtitle">Comece grátis, sem cartão. Sem taxa de implementação. Cancele quando quiser.</p>
         </div>
 
         <!-- Toggle mensal / anual -->
@@ -574,34 +1398,7 @@
           </span>
         </div>
 
-        <div class="pricing__grid">
-
-          <!-- Free -->
-          <div class="pricing-card" data-reveal>
-            <div class="pricing-card__badge pricing-card__badge--free">GRÁTIS</div>
-            <div class="pricing-card__name">ORBI Motion</div>
-            <div class="pricing-card__price">
-              <span class="pricing-card__amount">R$0</span>
-              <span class="pricing-card__period">/para sempre</span>
-            </div>
-            <p class="pricing-card__desc">Para começar e testar a plataforma</p>
-            <div class="pricing-card__limit">Até 3 alunos</div>
-            <ul class="pricing-card__features">
-              <li>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                Treinos personalizados
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                App com sua marca
-              </li>
-            </ul>
-            <a href="https://app.orbihealth.com.br/cadastro"
-               class="btn btn--outline-green pricing-card__btn"
-               data-cta="lead">
-              Começar grátis
-            </a>
-          </div>
+        <div class="pricing__grid pricing__grid--two">
 
           <!-- Motion (popular) -->
           <div class="pricing-card pricing-card--popular" data-reveal>
@@ -626,7 +1423,11 @@
             <ul class="pricing-card__features">
               <li>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                Tudo do Free
+                Treinos personalizados
+              </li>
+              <li>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                App com sua marca
               </li>
               <li>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -636,15 +1437,15 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                 Financeiro e cobranças
               </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                Colaboradores com acesso controlado
+              <li class="pricing-feature--gated" data-tier-feature="motion">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                Colaboradores
               </li>
             </ul>
-            <a href="https://app.orbihealth.com.br/cadastro"
+            <a href="https://app.orbihealth.com.br/cadastro?plano=motion"
                class="btn btn--primary pricing-card__btn"
                data-cta="lead">
-              Assinar agora
+              Começar grátis
             </a>
           </div>
 
@@ -673,6 +1474,10 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                 Tudo do Motion
               </li>
+              <li class="pricing-feature--gated" data-tier-feature="pro">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                Colaboradores
+              </li>
               <li>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                 Gestão de dieta completa
@@ -683,17 +1488,13 @@
               </li>
               <li>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                Substituições alimentares
-              </li>
-              <li>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                 IA para análise de check-ins
               </li>
             </ul>
-            <a href="https://app.orbihealth.com.br/cadastro"
+            <a href="https://app.orbihealth.com.br/cadastro?plano=pro"
                class="btn btn--primary pricing-card__btn"
                data-cta="lead">
-              Assinar agora
+              Começar grátis
             </a>
           </div>
 
@@ -719,42 +1520,49 @@
           <details class="faq__item">
             <summary class="faq__question">Como posso migrar meus alunos existentes para a ORBI?</summary>
             <div class="faq__answer">
-              <p>A ORBI facilita a importação dos seus alunos. Você pode cadastrá-los manualmente ou em lote através de um arquivo. Todos os dados deles ficam salvos e sincronizados no seu app.</p>
+              <p>A ORBI apoia a migração dos seus dados e dos seus alunos, facilitando e auxiliando durante todo o processo de migração.</p>
             </div>
           </details>
 
           <details class="faq__item">
             <summary class="faq__question">Consigo dar acesso a múltiplos colaboradores da minha operação?</summary>
             <div class="faq__answer">
-              <p>Sim. Você pode adicionar quantos colaboradores quiser — personal trainers, nutricionistas, estagiários — com permissões e acessos controlados. Todos trabalham na mesma conta, sob a sua marca.</p>
+              <p>Sim. Você pode adicionar quantos colaboradores quiser: personal trainers, nutricionistas, estagiários, com permissões e acessos controlados. Todos trabalham na mesma conta, sob a sua marca.</p>
             </div>
           </details>
 
           <details class="faq__item">
-            <summary class="faq__question">Como é o processo para colocar meu app no ar?</summary>
+            <summary class="faq__question">Como é o processo para colocar a minha marca no app?</summary>
             <div class="faq__answer">
-              <p>Simples: escolha seu plano, configure sua marca (logo, cores e nome), e seu app está pronto em menos de 10 minutos. Sem código, sem desenvolvedor. Seu app estará disponível na Apple Store e Google Play para seus alunos baixarem — com sua marca, sua identidade visual, tudo.</p>
+              <p>Simples: escolha seu plano, configure sua logo, cores e nome, e o app está com a sua marca em menos de 10 minutos. Sem código, sem desenvolvedor. O app estará disponível na Apple Store e Google Play para seus alunos baixarem, com sua marca e sua identidade visual.</p>
             </div>
           </details>
 
           <details class="faq__item">
             <summary class="faq__question">Como engajo meus alunos no app?</summary>
             <div class="faq__answer">
-              <p>A ORBI oferece várias formas de engajamento: treinos com vídeo, check-ins de evolução, gráficos de progresso, dieta integrada e notificações. Tudo isso mantém o aluno ativo e motivado dentro do seu app.</p>
+              <p>A ORBI oferece várias formas de engajamento: treinos com vídeo, check-ins de evolução, gráficos de progresso, dieta integrada, notificações e um sistema de pontuação por XP que gamifica a experiência do aluno. Tudo isso mantém o aluno ativo, motivado e dentro do seu app.</p>
             </div>
           </details>
 
           <details class="faq__item">
             <summary class="faq__question">Consigo vender planos e cursos de treino dentro da ORBI?</summary>
             <div class="faq__answer">
-              <p>Sim. Você pode criar planos de treino, dietas pré-prontas, e até cursos dentro do seu app. Tudo com cobrança automática integrada — seus alunos pagam uma vez e acessam para sempre.</p>
+              <p>Em breve. Estamos desenvolvendo um módulo para venda de planos e infoprodutos diretamente no app, com cobrança automática integrada. Se quiser ser avisado quando lançar, entre na lista de espera.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">A ORBI tem IA para montar treinos e dietas?</summary>
+            <div class="faq__answer">
+              <p>Em breve. A IA vai sugerir treinos e dietas personalizados com base no perfil e nos objetivos de cada aluno, economizando horas do seu trabalho. Entre na lista de espera para ser o primeiro a testar.</p>
             </div>
           </details>
 
           <details class="faq__item">
             <summary class="faq__question">Qual é o suporte que recebo?</summary>
             <div class="faq__answer">
-              <p>Você tem suporte via chat e email. Além disso, nossa equipe é feita por profissionais da saúde — entendemos seu negócio porque já estivemos no seu lugar.</p>
+              <p>Você tem suporte via WhatsApp, chat e email. Além disso, nossa equipe é feita por profissionais da saúde: entendemos seu negócio porque já estivemos no seu lugar.</p>
             </div>
           </details>
 
@@ -767,13 +1575,13 @@
       <div class="container">
         <div class="cta-final__content" data-reveal>
           <h2 class="cta-final__title" id="cta-title">
-            Seu concorrente já tem app. E você?
+            Seu concorrente já tem app.<br>E você?
           </h2>
           <p class="cta-final__subtitle">
             Comece grátis agora. Sem cartão de crédito.
           </p>
-          <a href="https://app.orbihealth.com.br/cadastro"
-             class="btn btn--white btn--lg"
+          <a href="#precos"
+             class="btn btn--primary btn--lg"
              data-cta="lead">
             Criar minha conta grátis
           </a>
@@ -786,49 +1594,203 @@
 
   <!-- ===== FOOTER ===== -->
   <footer class="footer" role="contentinfo">
-    <div class="container footer__inner">
+    <div class="container footer__main-row">
 
-      <div class="footer__brand">
-        <a href="/" class="logo footer__logo" aria-label="ORBI HEALTH">
-          <svg width="149" height="44" viewBox="0 0 216 64" fill="none" aria-hidden="true">
-            <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
-            <circle cx="46.1" cy="17.9" r="4.5" fill="#16a34a"/>
-            <circle cx="32" cy="32" r="2" fill="#16a34a"/>
-            <text x="76" y="36" font-family="'Inter',-apple-system,sans-serif" font-size="30" font-weight="700" letter-spacing="0.5" fill="#ffffff">ORBI</text>
-            <text x="76.5" y="51" font-family="'Inter',-apple-system,sans-serif" font-size="11" font-weight="300" letter-spacing="3.8" fill="rgba(255,255,255,0.45)">HEALTH</text>
-          </svg>
+      <a href="/" class="logo footer__logo" aria-label="ORBI HEALTH">
+        <svg width="120" height="36" viewBox="0 0 216 64" fill="none" aria-hidden="true">
+          <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="46.1" cy="17.9" r="4.5" fill="#16a34a"/>
+          <circle cx="32" cy="32" r="2" fill="#16a34a"/>
+          <text x="76" y="36" font-family="'Inter',-apple-system,sans-serif" font-size="30" font-weight="700" letter-spacing="0.5" fill="#ffffff">ORBI</text>
+          <text x="76.5" y="51" font-family="'Inter',-apple-system,sans-serif" font-size="11" font-weight="300" letter-spacing="3.8" fill="rgba(255,255,255,0.45)">HEALTH</text>
+        </svg>
+      </a>
+
+      <nav class="footer__nav">
+        <a href="#problema" class="footer__nav-link">Soluções</a>
+        <a href="#white-label" class="footer__nav-link">Sua marca</a>
+        <a href="#financeiro" class="footer__nav-link">Financeiro</a>
+        <a href="#app-aluno" class="footer__nav-link">App</a>
+        <a href="#precos" class="footer__nav-link">Preços</a>
+        <a href="#faq" class="footer__nav-link">Dúvidas</a>
+      </nav>
+
+      <div class="footer__socials">
+        <a href="#" class="footer__social" aria-label="Instagram">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
         </a>
-        <p class="footer__tagline">Seu app. Seus clientes. Sua marca.</p>
-      </div>
-
-      <div class="footer__links">
-        <div class="footer__col">
-          <h4 class="footer__col-title">Soluções</h4>
-          <a href="#solucoes" class="footer__link">ORBI Motion</a>
-          <a href="#solucoes" class="footer__link">ORBI Pro</a>
-        </div>
-        <div class="footer__col">
-          <h4 class="footer__col-title">Legal</h4>
-          <a href="/privacidade" class="footer__link">Política de Privacidade</a>
-          <a href="/termos" class="footer__link">Termos de Uso</a>
-        </div>
-        <div class="footer__col">
-          <h4 class="footer__col-title">Contato</h4>
-          <a href="mailto:contato@orbihealth.com.br" class="footer__link">contato@orbihealth.com.br</a>
-          <a href="https://wa.me/5582998042717" class="footer__link" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-        </div>
+        <a href="#" class="footer__social" aria-label="LinkedIn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+        </a>
+        <a href="#" class="footer__social" aria-label="YouTube">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>
+        </a>
       </div>
 
     </div>
     <div class="footer__bottom">
-      <div class="container">
-        <p class="footer__copy">
-          &copy; 2026 ORBI HEALTH. Todos os direitos reservados.
-        </p>
+      <div class="container footer__bottom-inner">
+        <p class="footer__copy">&copy; 2026 ORBI HEALTH &middot; Todos os direitos reservados.</p>
+        <div class="footer__legal">
+          <a href="/termos" class="footer__legal-link">Termos de Uso</a>
+          <a href="/privacidade" class="footer__legal-link">Política de Privacidade</a>
+        </div>
       </div>
     </div>
   </footer>
 
   <script src="script.js?v=20260621" defer></script>
+  <script>
+    function formatBRL(val) {
+      return 'R$ ' + val.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+    function animateValue(el, from, to, duration) {
+      var start = performance.now();
+      function step(now) {
+        var p = Math.min((now - start) / duration, 1);
+        var ease = p < 0.5 ? 2*p*p : -1+(4-2*p)*p;
+        el.textContent = formatBRL(Math.round(from + (to - from) * ease));
+        if (p < 1) requestAnimationFrame(step);
+        else el.textContent = formatBRL(to);
+      }
+      requestAnimationFrame(step);
+    }
+    function runFinanceiroAnimation() {
+      setTimeout(function() {
+        var item = document.getElementById('fin-item-fernanda');
+        var badge = document.getElementById('fin-badge-fernanda');
+        var detail = document.getElementById('fin-detail-fernanda');
+        var recebido = document.getElementById('fin-recebido');
+        var vencido = document.getElementById('fin-vencido');
+        if (!item) return;
+        item.style.background = 'rgba(22,163,74,0.08)';
+        badge.className = 'financeiro-item__badge financeiro-item__badge--pago';
+        badge.textContent = 'Pago';
+        detail.textContent = 'R$ 1.800,00 · Pago em 28/06/2026 · PIX';
+        animateValue(recebido, 4200, 6000, 1200);
+        animateValue(vencido, 1800, 0, 1000);
+        setTimeout(function() { vencido.style.color = '#1f5c28'; }, 1050);
+      }, 1500);
+      setTimeout(function() {
+        var item = document.getElementById('fin-item-fernanda');
+        var badge = document.getElementById('fin-badge-fernanda');
+        var detail = document.getElementById('fin-detail-fernanda');
+        var recebido = document.getElementById('fin-recebido');
+        var vencido = document.getElementById('fin-vencido');
+        if (!item) return;
+        item.style.background = '';
+        badge.className = 'financeiro-item__badge financeiro-item__badge--vencido';
+        badge.textContent = 'Vencido';
+        detail.textContent = 'R$ 1.800,00 · Venceu em 27/06/2026';
+        vencido.style.color = '';
+        animateValue(recebido, 6000, 4200, 800);
+        animateValue(vencido, 0, 1800, 800);
+      }, 5000);
+      setTimeout(runFinanceiroAnimation, 6800);
+    }
+    runFinanceiroAnimation();
+
+    /* === Progressão de Carga animation === */
+    var progPts=[{x:36,kg:54},{x:128,kg:63},{x:220,kg:68},{x:313,kg:65},{x:405,kg:72},{x:498,kg:90}];
+    var progMaxX=498,progDur=3000,progT0=null;
+    function runProgAnimation(ts){
+      if(!progT0)progT0=ts;
+      var p=Math.min((ts-progT0)/progDur,1),ep=1-Math.pow(1-p,3);
+      var cr=document.getElementById('prog-cr');
+      if(!cr)return;
+      cr.setAttribute('width',progMaxX*ep);
+      var cx=progPts[0].x+(progMaxX-progPts[0].x)*ep,kg=progPts[0].kg,maxKg=progPts[0].kg;
+      for(var i=0;i<progPts.length-1;i++){
+        var a=progPts[i],b=progPts[i+1];
+        if(cx>=a.x&&cx<=b.x){kg=Math.round(a.kg+(b.kg-a.kg)*((cx-a.x)/(b.x-a.x)));break;}
+        if(cx>b.x)kg=b.kg;
+      }
+      for(var j=0;j<progPts.length;j++){if(progPts[j].x<=cx&&progPts[j].kg>maxKg)maxKg=progPts[j].kg;}
+      if(ep<0.02){kg=54;maxKg=54;}
+      document.getElementById('prog-ca').textContent=kg+' kg';
+      var pct=(kg-54)/54*100;
+      document.getElementById('prog-vr').textContent=(pct>=0?'+':'')+pct.toFixed(0)+'%';
+      progPts.forEach(function(dp,i){
+        var d=document.getElementById('pg'+(i+1));
+        if(d)d.setAttribute('opacity',dp.x<=cx?'1':'0');
+      });
+      if(p<1){requestAnimationFrame(runProgAnimation);}
+      else{
+        setTimeout(function(){
+          progT0=null;
+          document.getElementById('prog-cr').setAttribute('width',0);
+          document.getElementById('prog-ca').textContent='54 kg';
+          document.getElementById('prog-vr').textContent='+0%';
+          progPts.forEach(function(_,i){var d=document.getElementById('pg'+(i+1));if(d)d.setAttribute('opacity','0');});
+          setTimeout(function(){requestAnimationFrame(runProgAnimation);},800);
+        },3500);
+      }
+    }
+    requestAnimationFrame(runProgAnimation);
+  </script>
+
+  <script>
+    (function() {
+      const card = document.querySelector('.workout-float');
+      const rect = document.querySelector('.workout-float__border-rect');
+      if (!card || !rect) return;
+
+      function initDraw() {
+        const w = card.offsetWidth;
+        const h = card.offsetHeight;
+        const rx = 19;
+        // perimeter of rounded rect
+        const perimeter = 2 * (w - 3 + h - 3) - 8 * rx + 2 * Math.PI * rx;
+
+        rect.setAttribute('width', w - 3);
+        rect.setAttribute('height', h - 3);
+        rect.style.strokeDasharray = perimeter;
+        rect.style.strokeDashoffset = perimeter;
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              setTimeout(() => {
+                rect.style.transition = 'stroke-dashoffset 2.2s cubic-bezier(0.4, 0, 0.2, 1)';
+                rect.style.strokeDashoffset = '0';
+              }, 300);
+              observer.disconnect();
+            }
+          });
+        }, { threshold: 0.3 });
+
+        observer.observe(card);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDraw);
+      } else {
+        initDraw();
+      }
+    })();
+  </script>
+
+  <script>
+    (function() {
+      var wrap   = document.querySelector('.macbook-wrap');
+      var screen = document.querySelector('.macbook-app-screen');
+      if (!wrap) return;
+
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            wrap.classList.add('is-open');
+            setTimeout(function() {
+              if (screen) screen.style.opacity = '1';
+            }, 900);
+            observer.disconnect();
+          }
+        });
+      }, { threshold: 0.2 });
+
+      observer.observe(wrap);
+    })();
+  </script>
+
 </body>
 </html>

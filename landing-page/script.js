@@ -181,6 +181,25 @@ function initPricingToggle() {
       proEl.textContent     = proEl.getAttribute(key);
       proPeriod.textContent = period;
     }
+
+    // CTAs — leva o tier escolhido pro cadastro
+    const motionCta = document.querySelector('a[href^="https://app.orbihealth.com.br/cadastro?plano=motion"]');
+    if (motionCta) {
+      const alunos = tierState.motion === '50' ? '50' : 'ilimitado';
+      motionCta.setAttribute('href', `https://app.orbihealth.com.br/cadastro?plano=motion&alunos=${alunos}`);
+    }
+    const proCta = document.querySelector('a[href^="https://app.orbihealth.com.br/cadastro?plano=pro"]');
+    if (proCta) {
+      const alunos = tierState.pro === '50' ? '50' : 'ilimitado';
+      proCta.setAttribute('href', `https://app.orbihealth.com.br/cadastro?plano=pro&alunos=${alunos}`);
+    }
+
+    // Features condicionadas ao tier (ex: colaboradores só no Ilimitado)
+    document.querySelectorAll('[data-tier-feature]').forEach((li) => {
+      const plan = li.getAttribute('data-tier-feature');
+      const active = tierState[plan] !== '50';
+      li.classList.toggle('pricing-feature--active', active);
+    });
   }
 
   // Toggle global mensal / anual
