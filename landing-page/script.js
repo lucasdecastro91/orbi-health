@@ -264,6 +264,70 @@ function initCarouselDots() {
   });
 }
 
+/* --- Carrossel White-label (swipe, só mobile — desktop mantém os 3 lado
+   a lado sem transform nenhum) --- */
+let wlCarouselIndex = 0;
+
+function applyWlCarousel() {
+  const track = document.getElementById('wl-carousel-track');
+  const dotsContainer = document.getElementById('wl-carousel-dots');
+  if (!track) return;
+  track.style.transform = `translateX(-${wlCarouselIndex * 100}%)`;
+  if (dotsContainer) {
+    dotsContainer.querySelectorAll('.app-aluno__dot').forEach((dot, idx) => {
+      dot.classList.toggle('app-aluno__dot--active', idx === wlCarouselIndex);
+    });
+  }
+}
+
+function wlCarouselGoTo(idx) {
+  wlCarouselIndex = idx;
+  applyWlCarousel();
+}
+
+function initWlCarousel() {
+  const track = document.getElementById('wl-carousel-track');
+  const dotsContainer = document.getElementById('wl-carousel-dots');
+  if (!track) return;
+
+  dotsContainer?.querySelectorAll('.app-aluno__dot').forEach((dot, idx) => {
+    dot.addEventListener('click', () => wlCarouselGoTo(idx));
+  });
+
+  const total = track.querySelectorAll('.wl-phone-wrap').length;
+  let startX = 0;
+  let deltaX = 0;
+  let dragging = false;
+
+  track.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    startX = e.touches[0].clientX;
+    deltaX = 0;
+    dragging = true;
+    track.style.transition = 'none';
+  }, { passive: true });
+
+  track.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    deltaX = e.touches[0].clientX - startX;
+    const pct = (deltaX / track.clientWidth) * 100;
+    track.style.transform = `translateX(calc(-${wlCarouselIndex * 100}% + ${pct}%))`;
+  }, { passive: true });
+
+  track.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    track.style.transition = '';
+    const threshold = track.clientWidth * 0.15;
+    if (deltaX < -threshold && wlCarouselIndex < total - 1) {
+      wlCarouselIndex++;
+    } else if (deltaX > threshold && wlCarouselIndex > 0) {
+      wlCarouselIndex--;
+    }
+    applyWlCarousel();
+  });
+}
+
 /* --- Scroll reveal para .reveal-img --- */
 function initRevealImg() {
   const observer = new IntersectionObserver((entries) => {
@@ -320,4 +384,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initRevealImg();
   initPainTypewriter();
   initCarouselDots();
+  initWlCarousel();
 });
