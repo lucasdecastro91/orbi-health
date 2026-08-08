@@ -21,6 +21,7 @@ export interface CollabPerms {
     financeiro:      boolean;
     produtos_planos: boolean;
     notificacoes:    boolean;
+    ranking:         boolean;
   };
   administracao: {
     configuracoes: boolean;
@@ -29,7 +30,6 @@ export interface CollabPerms {
     treinos:      boolean;
     dieta:        boolean;
     plano:        boolean;
-    alongamentos: boolean;
     cardio:       boolean;
     postural:     boolean;
     checkins:     boolean;
@@ -44,13 +44,12 @@ export interface CollabPerms {
 export const DEFAULT_COLLAB_PERMS: CollabPerms = {
   treino:        { clientes: true,  agenda: false, biblioteca_exercicios: true, modelos_treino: true },
   nutricao:      { alimentos: false, banco_alimentos: false },
-  gestao:        { mensagens: true,  leads_crm: false, financeiro: false, produtos_planos: false, notificacoes: true },
+  gestao:        { mensagens: true,  leads_crm: false, financeiro: false, produtos_planos: false, notificacoes: true, ranking: false },
   administracao: { configuracoes: false },
   abas_aluno: {
     treinos:      false,
     dieta:        false,
     plano:        false,
-    alongamentos: false,
     cardio:       false,
     postural:     false,
     checkins:     false,

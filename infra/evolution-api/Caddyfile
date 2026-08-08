@@ -1,0 +1,5 @@
+# Proxy reverso com TLS automático (Let's Encrypt) na frente da Evolution API.
+
+wpp.orbihealth.com.br {
+    reverse_proxy evolution-api:8080
+}

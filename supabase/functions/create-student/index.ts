@@ -22,6 +22,7 @@ const studentSchema = z.object({
   email:       z.string().email().max(255),
   nome:        z.string().trim().min(1).max(100),
   observacoes: z.string().max(1000).optional(),
+  telefone:    z.string().trim().max(20).optional(),
   org_id:      z.string().uuid().optional(),
 });
 
@@ -101,7 +102,36 @@ Deno.serve(async (req) => {
     if (!parsed.success) {
       return json({ error: parsed.error.errors[0].message }, 400);
     }
-    const { email, nome, observacoes, org_id } = parsed.data;
+    const { email, nome, observacoes, telefone, org_id } = parsed.data;
+
+    // 4b. Resolve org_id ANTES de criar o usuário no Auth — se a org for
+    // inválida ou ambígua, falha aqui sem deixar usuário órfão. NUNCA adivinhar:
+    // o fallback antigo fazia SELECT sem ORDER BY e pegava orgs[0]; com um
+    // treinador dono de 2+ orgs, o aluno era vinculado à org errada de forma
+    // aleatória (casos reais: Eduardo Almeida e Nelbinho Jatobá).
+    let resolvedOrgId = org_id ?? null;
+
+    if (resolvedOrgId) {
+      // org_id informado: valida que o treinador realmente pertence a essa org
+      // (dono, membro ou colaborador ativo) — impede vínculo cross-org.
+      const [owned, member, collab] = await Promise.all([
+        dbSelect("organizations", `id=eq.${resolvedOrgId}&owner_id=eq.${trainerId}`, "id"),
+        dbSelect("organization_members", `org_id=eq.${resolvedOrgId}&user_id=eq.${trainerId}`, "org_id"),
+        dbSelect("collaborators", `org_id=eq.${resolvedOrgId}&user_id=eq.${trainerId}&status=eq.active`, "org_id"),
+      ]);
+      if (!owned.length && !member.length && !collab.length) {
+        return json({ error: "org_id_forbidden" }, 403);
+      }
+    } else {
+      // Sem org_id: só resolve sozinho se for inequívoco (exatamente 1 org ativa).
+      const orgs = await dbSelect("organizations", `owner_id=eq.${trainerId}&active=eq.true`, "id");
+      if (orgs.length === 1) {
+        resolvedOrgId = orgs[0].id;
+      } else if (orgs.length > 1) {
+        return json({ error: "org_id_required_multiple_orgs" }, 400);
+      }
+      // 0 orgs: segue com null (caso legado; trigger do banco também não adivinha mais)
+    }
 
     // 5. Gera senha aleatória
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -121,14 +151,35 @@ Deno.serve(async (req) => {
       }),
     });
     const createData = await createRes.json();
-    if (!createRes.ok || !createData?.id) {
-      const msg = createData?.msg || createData?.message || createData?.error_description
-                  || createData?.error || "create_user_failed";
-      return json({ error: msg }, 400);
-    }
-    const newUserId: string = createData.id;
 
-    // 7. Insere profile
+    let newUserId: string;
+    let isExistingUser = false;
+
+    if (createRes.ok && createData?.id) {
+      newUserId = createData.id;
+    } else {
+      // E-mail já cadastrado em algum lugar da plataforma — reaproveita a conta
+      // existente em vez de falhar (aluno pode ter outro treinador, ou já ter
+      // sido treinador/aluno antes).
+      const isDuplicate = createData?.error_code === "email_exists"
+        || /already.*registered|already exists/i.test(createData?.msg ?? createData?.message ?? "");
+      if (!isDuplicate) {
+        const msg = createData?.msg || createData?.message || createData?.error_description
+                    || createData?.error || "create_user_failed";
+        return json({ error: msg }, 400);
+      }
+
+      const lookupRes  = await fetch(`${AUTH}/admin/users?email=${encodeURIComponent(email)}`, { headers: H });
+      const lookupData = await lookupRes.json();
+      const existingUser = Array.isArray(lookupData?.users) ? lookupData.users[0] : null;
+      if (!existingUser?.id) {
+        return json({ error: "email_already_registered" }, 409);
+      }
+      newUserId      = existingUser.id;
+      isExistingUser = true;
+    }
+
+    // 7. Insere profile (idempotente — ignora conflito se já existir)
     const pInsert = await dbInsert("profiles", { id: newUserId, nome, tipo_usuario: "aluno" });
     if (!pInsert.ok && pInsert.data?.code !== "23505") {
       return json({ error: pInsert.data?.message || "profile_insert_failed" }, 400);
@@ -137,60 +188,70 @@ Deno.serve(async (req) => {
     // 8. user_roles (best-effort — tabela pode não existir)
     await dbInsert("user_roles", { user_id: newUserId, role: "aluno" }).catch(() => null);
 
-    // 9. Resolve org_id
-    let resolvedOrgId = org_id ?? null;
-    if (!resolvedOrgId) {
-      const orgs = await dbSelect("organizations", `owner_id=eq.${trainerId}`, "id");
-      resolvedOrgId = orgs[0]?.id ?? null;
+    // 10. Impede vínculo duplicado com o mesmo treinador/org
+    if (isExistingUser) {
+      const dup = await dbSelect(
+        "alunos",
+        `user_id=eq.${newUserId}&treinador_id=eq.${trainerId}`,
+        "id",
+      );
+      if (dup.length) {
+        return json({ error: "already_client_of_this_trainer" }, 409);
+      }
     }
 
-    // 10. Insere em alunos
+    // 11. Insere em alunos
     const aInsert = await dbInsert("alunos", {
       user_id:     newUserId,
       treinador_id: trainerId,
       org_id:      resolvedOrgId,
       observacoes: observacoes || null,
+      telefone:    telefone || null,
     });
     if (!aInsert.ok) {
       return json({ error: aInsert.data?.message || "alunos_insert_failed" }, 400);
     }
 
-    // 11. Envia e-mail de boas-vindas (best-effort — não bloqueia em caso de falha)
-    try {
-      // Busca nome da org
-      let orgName = "sua plataforma";
-      if (resolvedOrgId) {
-        const orgsData = await dbSelect("organizations", `id=eq.${resolvedOrgId}`, "name,slug");
-        orgName = orgsData[0]?.name ?? orgName;
-        const orgSlug = orgsData[0]?.slug;
-        const appUrl  = orgSlug
-          ? `${SUPABASE_URL.replace(".supabase.co", "").replace("https://", "https://app.orbipro.com.br/")}/${orgSlug}/aluno`
-          : "https://app.orbipro.com.br";
+    // 12. Envia e-mail (best-effort — não bloqueia em caso de falha)
+    // Para conta reaproveitada, não sabemos a senha atual — não faz sentido
+    // enviar o template de boas-vindas com credenciais.
+    if (!isExistingUser) {
+      try {
+        let orgName = "sua plataforma";
+        if (resolvedOrgId) {
+          const orgsData = await dbSelect("organizations", `id=eq.${resolvedOrgId}`, "name,slug");
+          orgName = orgsData[0]?.name ?? orgName;
+          const orgSlug = orgsData[0]?.slug;
 
-        await fetch(`${SUPABASE_URL}/functions/v1/enviar-email`, {
-          method:  "POST",
-          headers: {
-            "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
-            "apikey":        SERVICE_ROLE_KEY,
-            "Content-Type":  "application/json",
-          },
-          body: JSON.stringify({
-            type:    "boas_vindas",
-            to:      email,
-            nome,
-            email,
-            senha:   password,
-            orgName,
-            appUrl:  `https://app.orbipro.com.br/${orgSlug}/aluno`,
-          }),
-        });
+          await fetch(`${SUPABASE_URL}/functions/v1/enviar-email`, {
+            method:  "POST",
+            headers: {
+              "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+              "apikey":        SERVICE_ROLE_KEY,
+              "Content-Type":  "application/json",
+            },
+            body: JSON.stringify({
+              type:    "boas_vindas",
+              to:      email,
+              nome,
+              email,
+              senha:   password,
+              orgName,
+              appUrl:  `https://app.orbihealth.com.br/${orgSlug}/aluno`,
+            }),
+          });
+        }
+      } catch (emailErr) {
+        console.warn("enviar-email failed (non-critical):", emailErr);
       }
-    } catch (emailErr) {
-      // Falha silenciosa — aluno foi criado com sucesso
-      console.warn("enviar-email failed (non-critical):", emailErr);
     }
 
-    return json({ ok: true, user_id: newUserId, password });
+    return json({
+      ok: true,
+      user_id: newUserId,
+      password: isExistingUser ? null : password,
+      reused_existing_account: isExistingUser,
+    });
 
   } catch (e: any) {
     return json({ error: e?.message ?? "internal_error" }, 500);

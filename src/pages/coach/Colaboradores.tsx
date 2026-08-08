@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
@@ -27,8 +28,6 @@ interface Collaborator {
   accepted_at: string | null;
 }
 
-const PLAN_LIMITS: Record<string, number> = { motion: 2 };
-
 // ── Permission definitions ────────────────────────────────────────────────────
 
 type PermCat = { label: string; emoji: string; keys: { key: string; label: string }[] };
@@ -51,6 +50,7 @@ const PERM_GROUPS: PermCat[] = [
       { key: "financeiro",     label: "Financeiro"      },
       { key: "produtos_planos",label: "Produtos / Planos"},
       { key: "notificacoes",   label: "Notificações"    },
+      { key: "ranking",        label: "Ranking"         },
     ],
   },
   {
@@ -80,8 +80,9 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 // ── Main component ────────────────────────────────────────────────────────────
 
 const Colaboradores = () => {
-  const { orgId, org } = useTenantContext();
-  const { planType, hasDiet } = usePlanFeatures();
+  const { orgId, org, slug } = useTenantContext();
+  const navigate = useNavigate();
+  const { hasDiet, hasCollaborators, hasAvaliacaoPostural } = usePlanFeatures();
   const { toast } = useToast();
 
   const [collabs,  setCollabs]  = useState<Collaborator[]>([]);
@@ -114,9 +115,8 @@ const Colaboradores = () => {
   };
 
   // ── Plan limit ─────────────────────────────────────────────────────────────
-  const maxCollab    = PLAN_LIMITS[planType] ?? Infinity;
-  const activeCount  = collabs.filter(c => c.status !== "inactive").length;
-  const atLimit      = maxCollab !== Infinity && activeCount >= maxCollab;
+  // Colaboradores só disponível no tier de alunos ilimitados
+  const atLimit = !hasCollaborators;
 
   // ── Open modal ────────────────────────────────────────────────────────────
   const openAdd = () => {
@@ -157,7 +157,7 @@ const Colaboradores = () => {
         });
         if (res.error) {
           const msg: Record<string, string> = {
-            plan_limit_reached: `Limite do plano atingido (máx ${maxCollab}).`,
+            plan_feature_unavailable: "Colaboradores disponível apenas no plano com alunos ilimitados.",
             email_already_active: "Este e-mail já é um colaborador ativo.",
           };
           throw new Error(msg[res.error.message] ?? res.error.message);
@@ -241,10 +241,9 @@ const Colaboradores = () => {
       label: "Abas do Aluno", emoji: "👤", catKey: "abas_aluno",
       keys: [
         { key: "treinos",      label: "Treinos"      },
-        { key: "dieta",        label: "Dieta"        },
-        { key: "alongamentos", label: "Alongamentos" },
+        ...(hasDiet ? [{ key: "dieta", label: "Dieta" }] : []),
         { key: "cardio",       label: "Cardio"       },
-        { key: "postural",     label: "Avaliação Postural" },
+        ...(hasAvaliacaoPostural ? [{ key: "postural", label: "Avaliação Postural" }] : []),
         { key: "checkins",     label: "Check-ins"    },
         { key: "evolucao",     label: "Evolução"     },
         { key: "anamnese",     label: "Anamnese"     },
@@ -273,7 +272,7 @@ const Colaboradores = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-zinc-950">
-      <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl">
+      <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl mx-auto">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
@@ -288,28 +287,39 @@ const Colaboradores = () => {
               onClick={openAdd}
               disabled={atLimit}
               className="flex items-center gap-2 h-9 px-4 rounded-xl text-white font-semibold text-sm"
-              style={{ background: atLimit ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))" }}
-              title={atLimit ? `Limite do plano atingido (máx ${maxCollab}). Faça upgrade para o Orbi Pro.` : undefined}
+              style={{ background: atLimit ? "rgba(255,255,255,0.1)" : "var(--cp-gradient)" }}
+              title={atLimit ? "Colaboradores disponível apenas no plano com alunos ilimitados." : undefined}
             >
               <UserPlus className="w-4 h-4" />
               Adicionar Colaborador
             </Button>
             {atLimit && (
               <p className="absolute top-full mt-1.5 right-0 text-[11px] text-white/40 whitespace-nowrap">
-                Limite atingido — <span className="text-amber-400/80">upgrade para Pro</span>
+                Indisponível —{" "}
+                <button
+                  onClick={() => navigate(`/${slug}/treinador/plano`)}
+                  className="text-amber-400/80 hover:text-amber-400 underline underline-offset-2"
+                >
+                  upgrade para alunos ilimitados
+                </button>
               </p>
             )}
           </div>
         </div>
 
         {/* Plan badge */}
-        {maxCollab !== Infinity && (
+        {atLimit && (
           <div className="mb-6 flex items-center gap-2.5 px-4 py-3 rounded-xl"
             style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <Lock className="w-4 h-4 text-white/30 shrink-0" />
             <p className="text-sm text-white/50">
-              Plano <strong className="text-white/70">Motion</strong> — até {maxCollab} colaboradores.
-              <span className="text-amber-400/80 ml-1">Faça upgrade para Pro para adicionar mais.</span>
+              Colaboradores não disponível no seu plano.{" "}
+              <button
+                onClick={() => navigate(`/${slug}/treinador/plano`)}
+                className="text-amber-400/80 hover:text-amber-400 underline underline-offset-2 ml-1"
+              >
+                Faça upgrade para alunos ilimitados para liberar.
+              </button>
             </p>
           </div>
         )}
@@ -320,7 +330,8 @@ const Colaboradores = () => {
             <Loader2 className="w-5 h-5 animate-spin text-white/30" />
           </div>
         ) : collabs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="rounded-2xl flex flex-col items-center justify-center py-20 gap-4"
+            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
               <Users className="w-7 h-7 text-white/20" />
@@ -333,8 +344,8 @@ const Colaboradores = () => {
           <div className="space-y-3">
             {collabs.map((c) => (
               <div key={c.id}
-                className="rounded-2xl border border-white/8 p-4 flex items-start gap-4"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                className="rounded-2xl p-4 flex items-start gap-4"
+                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
                 <Avatar className="h-10 w-10 shrink-0 mt-0.5">
                   <AvatarFallback
                     className="text-sm font-bold text-white"
@@ -467,7 +478,7 @@ const Colaboradores = () => {
                 <Input
                   value={form.role}
                   onChange={e => setForm(p => ({ ...p, role: e.target.value }))}
-                  placeholder="ex: Nutricionista, Estagiário..."
+                  placeholder={hasDiet ? "ex: Nutricionista, Estagiário..." : "ex: Instrutor, Estagiário..."}
                   className="mt-1.5 bg-white/5 border-white/10 text-white rounded-xl h-11"
                 />
               </div>
@@ -514,7 +525,7 @@ const Colaboradores = () => {
                 onClick={handleSave}
                 disabled={saving}
                 className="rounded-xl text-white font-semibold px-5"
-                style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))" }}>
+                style={{ background: "var(--cp-gradient)" }}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingId ? "Salvar" : "Enviar convite"}
               </Button>
             </div>

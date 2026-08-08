@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +31,7 @@ const TrainingTemplates = () => {
   const [novoModelo, setNovoModelo] = useState({ nome_modelo: "", objetivo: "", descricao: "" });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
 
   useEffect(() => {
     loadModelos();
@@ -67,6 +69,7 @@ const TrainingTemplates = () => {
 
       const { error } = await supabase.from("modelos_treino").insert({
         treinador_id: session.user.id,
+        org_id: orgId,
         nome_modelo: novoModelo.nome_modelo,
         objetivo: novoModelo.objetivo || null,
         descricao: novoModelo.descricao || null,
@@ -227,7 +230,10 @@ const TrainingTemplates = () => {
       </div>
 
       {modelos.length === 0 ? (
-        <Card>
+        <Card
+          className="rounded-2xl"
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+        >
           <CardContent className="text-center py-12">
             <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">
@@ -238,7 +244,11 @@ const TrainingTemplates = () => {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {modelos.map((modelo) => (
-            <Card key={modelo.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={modelo.id}
+              className="rounded-2xl transition-shadow"
+              style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">

@@ -12,6 +12,7 @@ import SplashScreen from "@/components/SplashScreen";
 import Auth          from "./pages/Auth";
 import Login         from "./pages/Login";
 import Signup        from "./pages/Signup";
+import Planos        from "./pages/Planos";
 import PlanSelection from "./pages/PlanSelection";
 import NotFound      from "./pages/NotFound";
 
@@ -40,7 +41,10 @@ import ListaSubstituicao      from "./pages/coach/ListaSubstituicao";
 import FormBuilder            from "./pages/coach/FormBuilder";
 import AtualizacoesCoach      from "./pages/coach/AtualizacoesCoach";
 import Colaboradores          from "./pages/coach/Colaboradores";
+import PlanoAtual             from "./pages/coach/PlanoAtual";
+import CoachRanking           from "./pages/coach/Ranking";
 import ConviteAccept          from "./pages/ConviteAccept";
+import Pagamento              from "./pages/Pagamento";
 import AnamneseBuilder        from "./pages/coach/AnamneseBuilder";
 import PosturalEvalBuilder    from "./pages/coach/PosturalEvalBuilder";
 import Leads                  from "./pages/coach/Leads";
@@ -55,6 +59,7 @@ import SemanaDetail       from "./pages/student/SemanaDetail";
 import ExerciseDetail     from "./pages/student/ExerciseDetail";
 import Dieta              from "./pages/student/Dieta";
 import Historico          from "./pages/student/Historico";
+import TreinoHistory      from "./pages/student/TreinoHistory";
 import StudentAlterarSenha from "./pages/student/AlterarSenha";
 import CheckIn            from "./pages/student/CheckIn";
 import Atualizacao        from "./pages/student/Atualizacao";
@@ -65,10 +70,12 @@ import AgendaAluno        from "./pages/student/AgendaAluno";
 import MensagensAluno     from "./pages/student/MensagensAluno";
 import Anamnese           from "./pages/student/Anamnese";
 import DietHistory           from "./pages/student/DietHistory";
+import Agua                  from "./pages/student/Agua";
 import Ranking               from "./pages/student/Ranking";
 import NotificationSettings  from "./pages/student/NotificationSettings";
 import AvaliacaoPostural     from "./pages/student/AvaliacaoPostural";
 import StudentCardio         from "./pages/student/Cardio";
+import SleepCalculator       from "./pages/student/SleepCalculator";
 
 const queryClient = new QueryClient();
 
@@ -118,17 +125,35 @@ const App = () => {
         const firstSegment   = pathParts[0] ?? "";
         const loginOrgSlug   = firstSegment === "entrar" ? (pathParts[1] ?? "") : "";
         // slug efetivo da org (ignora segmentos como "entrar", "cadastro" etc.)
-        const knownPublicPaths = ["", "auth", "entrar", "cadastro", "assinar", "auth-legacy"];
+        const knownPublicPaths = ["", "auth", "entrar", "cadastro", "planos", "assinar", "auth-legacy", "pagar"];
         const pathSlug = loginOrgSlug || (knownPublicPaths.includes(firstSegment) ? "" : firstSegment);
 
-        // ── Camada 1: cache no localStorage (sem consulta ao banco) ──────
+        // ── Camada 1: cache no localStorage (evita decidir de novo QUAL org é) ──
+        // Importante: o cache só decide "é a Get Shape?" — o icon_url em si é
+        // SEMPRE revalidado contra o banco logo abaixo. Antes, o icon_url também
+        // vinha do cache e nunca era atualizado depois da primeira vez, então
+        // trocar o ícone em Configurações nunca aparecia na splash screen até
+        // alguém limpar o localStorage manualmente (bug recorrente).
         const storedGsSlug = localStorage.getItem("gs_org_slug");
+        const storedOrgId  = localStorage.getItem("gs_org_id");
         if (storedGsSlug && storedGsSlug === pathSlug) {
           localStorage.setItem("gs_brand", "1");
           setIsGetShapeUser(true);
           document.title = "Get Shape";
           applyFavicon("/favicon-gs.png", "image/png");
-          return; // já sabemos — não precisa consultar o banco
+          if (storedOrgId) {
+            const { data: freshOrg } = await supabase
+              .from("organizations")
+              .select("icon_url")
+              .eq("id", storedOrgId)
+              .maybeSingle();
+            const freshIconUrl = freshOrg?.icon_url ?? null;
+            localStorage.setItem("gs_icon_url", freshIconUrl ?? "");
+            setSplashIconUrl(freshIconUrl);
+          } else {
+            setSplashIconUrl(localStorage.getItem("gs_icon_url") || null);
+          }
+          return;
         }
 
         // ── Camada 2: e-mail do owner na sessão ───────────────────────────
@@ -138,6 +163,16 @@ const App = () => {
           setIsGetShapeUser(true);
           document.title = "Get Shape";
           applyFavicon("/favicon-gs.png", "image/png");
+          const { data: freshOrg } = await supabase
+            .from("organizations")
+            .select("id, icon_url")
+            .eq("owner_id", session.user.id)
+            .eq("is_gs_brand", true)
+            .maybeSingle();
+          const freshIconUrl = freshOrg?.icon_url ?? null;
+          if (freshOrg?.id) localStorage.setItem("gs_org_id", freshOrg.id);
+          localStorage.setItem("gs_icon_url", freshIconUrl ?? "");
+          setSplashIconUrl(freshIconUrl);
           return;
         }
 
@@ -152,11 +187,13 @@ const App = () => {
             .maybeSingle();
 
           if (orgData?.is_gs_brand) {
+            const iconUrl = (orgData as { icon_url?: string | null }).icon_url ?? null;
             localStorage.setItem("gs_org_id",   orgData.id);
             localStorage.setItem("gs_org_slug", orgData.slug);
             localStorage.setItem("gs_brand",    "1");
+            localStorage.setItem("gs_icon_url", iconUrl ?? "");
             setIsGetShapeUser(true);
-            setSplashIconUrl((orgData as { icon_url?: string | null }).icon_url ?? null);
+            setSplashIconUrl(iconUrl);
             document.title = "Get Shape";
             applyFavicon("/favicon-gs.png", "image/png");
           } else if (orgData) {
@@ -191,8 +228,10 @@ const App = () => {
             {/* Auth legacy — mantido para compatibilidade interna */}
             <Route path="/auth-legacy"     element={<Auth />} />
             <Route path="/cadastro" element={<Signup />} />
+            <Route path="/planos"   element={<Planos />} />
             <Route path="/assinar"  element={<PlanSelection />} />
             <Route path="/convite/:token" element={<ConviteAccept />} />
+            <Route path="/pagar/:cobrancaId" element={<Pagamento />} />
 
             {/* ── Rotas com contexto de org (/:slug/*) ── */}
             <Route path="/:slug" element={<OrgWrapper />}>
@@ -204,6 +243,7 @@ const App = () => {
               <Route path="treinador" element={<CoachLayout />}>
                 <Route index                   element={<CoachDashboard />} />
                 <Route path="clientes"         element={<MeusClientes />} />
+                <Route path="ranking"          element={<CoachRanking />} />
                 <Route path="aluno/:id"        element={<StudentDetails />} />
                 <Route path="biblioteca"       element={<ExerciseLibrary />} />
                 <Route path="modelos"          element={<TrainingTemplates />} />
@@ -225,12 +265,17 @@ const App = () => {
                 <Route path="colaboradores"         element={<Colaboradores />} />
               </Route>
 
+              {/* Plano — tela standalone, sem o layout/sidebar do painel */}
+              <Route path="treinador/plano" element={<PlanoAtual />} />
+
               {/* Student routes — com layout */}
               <Route path="aluno" element={<StudentLayout />}>
                 <Route index                   element={<StudentDashboard />} />
                 <Route path="treinos"          element={<Treinos />} />
+                <Route path="treinos/historico" element={<TreinoHistory />} />
                 <Route path="dieta"            element={<Dieta />} />
                 <Route path="dieta/historico" element={<DietHistory />} />
+                <Route path="dieta/agua"      element={<Agua />} />
                 <Route path="ranking"         element={<Ranking />} />
                 {/* check-in desativado — substituído por Atualização */}
                 <Route path="atualizacao"      element={<Atualizacao />} />
@@ -244,6 +289,7 @@ const App = () => {
                 <Route path="notificacoes"           element={<NotificationSettings />} />
                 <Route path="avaliacao-postural"    element={<AvaliacaoPostural />} />
                 <Route path="cardio"               element={<StudentCardio />} />
+                <Route path="sono"                 element={<SleepCalculator />} />
               </Route>
 
               {/* Student routes — sem layout (fullscreen) */}

@@ -11,7 +11,7 @@ import {
   Loader2, ChevronDown,
   ClipboardList, ClipboardCheck, ScanLine, Dumbbell,
   Utensils, MessageSquare, AlertTriangle, Info, Check,
-  Inbox, Filter,
+  Inbox,
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -153,9 +153,9 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
 
   return (
     <div className="space-y-4">
-      {/* Filter pills */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <Filter className="w-3.5 h-3.5 text-white/30 shrink-0" />
+      {/* Filter pills — tipo. Scroll horizontal em vez de quebrar linha: com 8
+          chips, o wrap deixava "Alertas" sozinho numa segunda linha torta. */}
+      <div className="flex gap-2 items-center overflow-x-auto scrollbar-none pb-1">
         {tiposList.map((tipo) => {
           const count = tipo === "todos" ? totalUnread : (unreadByTipo[tipo] ?? 0);
           const active = tipoFiltro === tipo;
@@ -164,7 +164,7 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
             <button
               key={tipo}
               onClick={() => setTipoFiltro(tipo)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 whitespace-nowrap"
               style={{
                 backgroundColor: active
                   ? (cor ? cor.bg : "rgba(var(--cp-rgb),0.15)")
@@ -190,43 +190,43 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
             </button>
           );
         })}
+      </div>
 
-        {/* Separator */}
-        <div className="ml-auto flex items-center gap-2">
+      {/* Filter pills — estado de leitura + ação em massa (linha própria, nunca mistura com os chips de tipo) */}
+      <div className="flex items-center gap-2 flex-wrap justify-end">
+        <button
+          onClick={() => setApenasNaoLidas((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+          style={{
+            backgroundColor: apenasNaoLidas ? "rgba(239,68,68,0.12)" : "var(--ui-inactive-bg)",
+            color: apenasNaoLidas ? "#f87171" : "var(--ui-inactive-color)",
+            border: `1px solid ${apenasNaoLidas ? "rgba(239,68,68,0.3)" : "var(--ui-inactive-border)"}`,
+          }}
+        >
+          Não lidas
+        </button>
+        {totalUnread > 0 && (
           <button
-            onClick={() => setApenasNaoLidas((v) => !v)}
+            onClick={markAllRead}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
             style={{
-              backgroundColor: apenasNaoLidas ? "rgba(239,68,68,0.12)" : "var(--ui-inactive-bg)",
-              color: apenasNaoLidas ? "#f87171" : "var(--ui-inactive-color)",
-              border: `1px solid ${apenasNaoLidas ? "rgba(239,68,68,0.3)" : "var(--ui-inactive-border)"}`,
+              backgroundColor: "var(--ui-inactive-bg)",
+              color: "var(--ui-inactive-color)",
+              border: "1px solid var(--ui-inactive-border)",
             }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-high)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ui-inactive-color)"; }}
           >
-            Não lidas
+            <Check className="w-3 h-3" />
+            Marcar todas lidas
           </button>
-          {totalUnread > 0 && (
-            <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-              style={{
-                backgroundColor: "var(--ui-inactive-bg)",
-                color: "var(--ui-inactive-color)",
-                border: "1px solid var(--ui-inactive-border)",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-high)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ui-inactive-color)"; }}
-            >
-              <Check className="w-3 h-3" />
-              Marcar todas lidas
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Notification list */}
       <div
-        className="rounded-2xl border overflow-hidden"
-        style={{ borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.01)" }}
+        className="rounded-2xl overflow-hidden"
+        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
       >
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-white/25">
@@ -434,7 +434,8 @@ const SenderTab = ({ orgId }: { orgId: string }) => {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Form */}
-      <div className="rounded-2xl border border-white/6 bg-white/3 p-5 space-y-4">
+      <div className="rounded-2xl p-5 space-y-4"
+        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
 
         {/* Destinatário */}
         <div className="space-y-2">
@@ -588,7 +589,7 @@ export default function NotificationsManager() {
 
   return (
     <div className="px-6 lg:px-8 py-6 lg:py-8">
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div

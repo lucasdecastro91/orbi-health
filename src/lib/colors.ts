@@ -1,5 +1,5 @@
 /**
- * Primary color palette for ORBI Pro.
+ * Primary color palette for ORBI Health.
  * Each entry includes all pre-computed variants needed by TenantContext
  * to set CSS custom properties, so the entire UI updates automatically.
  *
@@ -38,9 +38,12 @@ export const COLOR_PALETTE: ColorEntry[] = [
     label:    "Verde Esmeralda",
     hsl:      "142 76% 36%",
     rgb:      "22, 163, 74",
-    light:    "hsl(142 69% 52%)",
-    mid:      "hsl(142 69% 45%)",
-    gradient: "linear-gradient(135deg, hsl(142 69% 45%), hsl(142 76% 36%))",
+    // light/mid ficavam bem mais claros que a cor-base (52%/45% de luminosidade vs 36%),
+    // dando um efeito "neon" em texto/ícones de destaque e no início do gradiente dos
+    // botões — aproximados da cor-base real (mesmo verde usado no mockup da landing).
+    light:    "hsl(142 70% 40%)",
+    mid:      "hsl(142 72% 38%)",
+    gradient: "linear-gradient(135deg, hsl(142 72% 38%), hsl(142 76% 36%))",
     textOn:   "#ffffff",
   },
   {

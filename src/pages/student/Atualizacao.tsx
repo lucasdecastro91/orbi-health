@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { useToast } from "@/hooks/use-toast";
+import { grantXP } from "@/lib/xp";
 import {
   ChevronLeft, ChevronRight, Upload, Check, Loader2,
   X, AlertTriangle, ClipboardList,
@@ -320,6 +321,20 @@ const Atualizacao = () => {
         }
       } catch { /* falha silenciosa — não bloqueia o submit principal */ }
       // ─────────────────────────────────────────────────────────────
+
+      // XP: mais pontos se enviada até a data prevista, menos se atrasada
+      try {
+        if (orgId) {
+          const { data: alunoData } = await supabase
+            .from("alunos")
+            .select("form_atualizacao_ultima_data")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          const dueDate = (alunoData as any)?.form_atualizacao_ultima_data;
+          const onTime = !dueDate || today <= dueDate;
+          await grantXP(session.user.id, orgId, onTime ? "checkin_on_time" : "checkin_late");
+        }
+      } catch { /* falha silenciosa — não bloqueia o submit principal */ }
 
       setSubmitted(true);
     } catch (e: any) {

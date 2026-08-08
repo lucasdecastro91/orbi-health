@@ -3,14 +3,15 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { startTimer, pauseTimer, clearTimer, getActiveTimer } from "@/lib/activeTimer";
 import {
   ArrowLeft, Play, Weight,
   ChevronDown, ChevronUp, X,
   Timer, Pause, SkipForward, CheckCircle, TrendingUp,
-  Circle, AlertCircle,
+  Circle, AlertCircle, Link2,
 } from "lucide-react";
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip,
 } from "recharts";
 
@@ -28,6 +29,13 @@ interface SerieDetalhe {
   valor_calculo: string;
   quantidade: number; // quantas vezes repetir este bloco (default 1)
   observacoes?: string; // per-serie note set by trainer
+}
+
+/** Carga + reps realizadas num slot físico de uma série (uma série com quantidade=2 tem 2 slots) */
+interface SlotValue {
+  reps: string;
+  carga: string;
+  saved: boolean; // true quando os dois campos foram preenchidos e persistidos
 }
 
 interface Exercise {
@@ -176,6 +184,12 @@ const parseDescansoSecs = (d: string | null | undefined): number => {
 const fmtTime = (s: number) =>
   `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
+/** Brazil local date YYYY-MM-DD */
+const brazilToday = (): string => {
+  const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  return brazil.toISOString().slice(0, 10);
+};
+
 // ─────────────────────────────────────────────────────────────
 // Rest Timer Sheet
 // ─────────────────────────────────────────────────────────────
@@ -183,25 +197,37 @@ const fmtTime = (s: number) =>
 interface RestTimerSheetProps {
   open: boolean;
   seconds: number;
+  /** Instante real (Date.now()) em que o descanso começou — permite restaurar
+   *  o tempo restante certo quando o aluno sai da tela e volta, em vez de
+   *  reiniciar a contagem do zero. Já vem ajustado pelo pai ao retomar de uma
+   *  pausa (descontando o tempo parado), então este componente só lê, nunca ajusta. */
+  startedAt: number | null;
+  /** Controlado pelo pai — persiste no banco (active_timers.paused_at), então
+   *  sobrevive a minimizar/fechar o app sem perder o estado. */
+  paused: boolean;
   exerciseName: string;
-  onClose: () => void;
+  /** Só esconde o sheet — o timer continua rodando (active_timers intacto), pra
+   *  aparecer minimizado na barra fixa se o aluno for pra outra tela. */
+  onMinimize: () => void;
+  /** Cancela o descanso de vez (Pular, ou quando o tempo acaba de verdade). */
+  onSkip: () => void;
+  onTogglePause: () => void;
 }
 
-const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheetProps) => {
+const RestTimerSheet = ({ open, seconds, startedAt, paused, exerciseName, onMinimize, onSkip, onTogglePause }: RestTimerSheetProps) => {
   const [remaining, setRemaining] = useState(seconds);
-  const [running,   setRunning]   = useState(false);
   const [done,      setDone]      = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioRef    = useRef<AudioContext | null>(null);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef     = useRef<AudioContext | null>(null);
+  const firedRef      = useRef(false);
 
   useEffect(() => {
     if (open) {
       setRemaining(seconds);
-      setRunning(true);
       setDone(false);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setRunning(false);
+      firedRef.current = false;
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
     }
   }, [open, seconds]);
 
@@ -230,26 +256,27 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
   }, []);
 
   useEffect(() => {
-    if (running) {
-      intervalRef.current = setInterval(() => {
-        setRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current!);
-            setRunning(false);
-            setDone(true);
-            playBeep();
-            vibrate();
-            setTimeout(onClose, 1800);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
+    if (!open || paused || startedAt == null) {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
     }
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const rem = Math.max(0, seconds - elapsed);
+      setRemaining(rem);
+      if (rem <= 0 && !firedRef.current) {
+        firedRef.current = true;
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setDone(true);
+        playBeep();
+        vibrate();
+        setTimeout(onSkip, 1800);
+      }
+    };
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [running, playBeep, vibrate, onClose]);
+  }, [open, paused, seconds, startedAt, playBeep, vibrate, onSkip]);
 
   const r        = 72;
   const circ     = 2 * Math.PI * r;
@@ -262,7 +289,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-      onClick={onClose}
+      onClick={onMinimize}
     >
       <div
         className="w-full max-w-lg rounded-t-3xl pb-10 pt-6 px-6"
@@ -279,9 +306,10 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={onMinimize}
             className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
+            title="Minimizar (o descanso continua contando)"
           >
             <X className="w-4 h-4" style={{ color: "rgba(255,255,255,0.75)" }} />
           </button>
@@ -319,16 +347,16 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
           {!done && (
             <div className="flex gap-3 w-full">
               <button
-                onClick={() => setRunning((v) => !v)}
+                onClick={onTogglePause}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold"
                 style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)" }}
               >
-                {running
-                  ? <><Pause className="w-4 h-4" /> Pausar</>
-                  : <><Play className="w-4 h-4" /> Continuar</>}
+                {paused
+                  ? <><Play className="w-4 h-4" /> Continuar</>
+                  : <><Pause className="w-4 h-4" /> Pausar</>}
               </button>
               <button
-                onClick={onClose}
+                onClick={onSkip}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold"
                 style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
               >
@@ -422,7 +450,7 @@ const CargaTooltip = ({ active, payload, label }: any) => {
       style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}
     >
       <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>{label}</p>
-      <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
+      <p className="text-sm font-bold" style={{ color: "var(--cp-400)" }}>{payload[0].value} kg</p>
     </div>
   );
 };
@@ -435,13 +463,13 @@ const HistoricoChart = ({ historico, loading }: { historico: HistoricoEntry[]; l
   return (
     <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
       <div className="flex items-center gap-1.5">
-        <TrendingUp className="w-3.5 h-3.5" style={{ color: "hsl(42 95% 58%)" }} />
+        <TrendingUp className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
         <p className="text-xs text-muted-foreground uppercase tracking-wider">Evolução de Carga</p>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <div className="w-5 h-5 rounded-full border-2 border-white/10 border-t-amber-500/60 animate-spin" />
+          <div className="w-5 h-5 rounded-full border-2 border-white/10 animate-spin" style={{ borderTopColor: "var(--cp-500)" }} />
         </div>
       ) : chartData.length < 2 ? (
         <div className="flex flex-col items-center gap-2 py-6">
@@ -452,19 +480,33 @@ const HistoricoChart = ({ historico, loading }: { historico: HistoricoEntry[]; l
           </p>
           <div className="flex gap-1 mt-1">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: i < chartData.length ? "hsl(42 95% 58%)" : "var(--border-subtle)" }} />
+              <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: i < chartData.length ? "var(--cp-500)" : "var(--border-subtle)" }} />
             ))}
           </div>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={160}>
-          <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="cargaAreaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--cp-500)" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="var(--cp-500)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
             <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 10 }} tickLine={false} axisLine={false} />
             <Tooltip content={<CargaTooltip />} />
-            <Line type="monotone" dataKey="carga" stroke="hsl(42 95% 58%)" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(42 95% 58%)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
-          </LineChart>
+            <Area
+              type="monotone"
+              dataKey="carga"
+              stroke="var(--cp-500)"
+              strokeWidth={2.5}
+              fill="url(#cargaAreaFill)"
+              dot={{ r: 3, fill: "var(--cp-500)", strokeWidth: 0 }}
+              activeDot={{ r: 5 }}
+            />
+          </AreaChart>
         </ResponsiveContainer>
       )}
     </div>
@@ -480,44 +522,194 @@ const ExerciseDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { slug, org } = useTenantContext();
+  const { slug, org, orgId } = useTenantContext();
 
   const [exercise, setExercise]     = useState<Exercise | null>(null);
   const [loading, setLoading]       = useState(true);
   const [carga, setCarga]           = useState("");
   const [cargaFetched, setCargaFetched] = useState(false);
   const [alunoId, setAlunoId]       = useState<string | null>(null);
+  const [studentUserId, setStudentUserId] = useState<string | null>(null);
   const [savingCarga, setSavingCarga] = useState(false);
   const [videoOpen, setVideoOpen]   = useState(false);
   const [descOpen, setDescOpen]     = useState(false);
   const [restOpen, setRestOpen]     = useState(false);
   const [restSecs, setRestSecs]     = useState(60);
+  const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
+  const [restNow, setRestNow]       = useState(() => Date.now());
+  // Pausa persistida no banco (active_timers.paused_at) — controla tanto o sheet
+  // quanto o indicador inline abaixo, então os dois concordam mesmo se o sheet
+  // for minimizado/o app for fechado e reaberto no meio da pausa.
+  const [restPaused, setRestPaused] = useState(false);
+  const [restPausedAt, setRestPausedAt] = useState<number | null>(null);
+
+  // Só faz ticar quando o sheet está minimizado (fechado, mas com timer ativo) e não
+  // pausado — é o que alimenta o indicador inline "Descanso · Xs restantes" abaixo.
+  // Com o sheet aberto, ele já tem seu próprio relógio interno, não precisa duplicar.
+  useEffect(() => {
+    if (restStartedAt == null || restOpen || restPaused) return;
+    const id = setInterval(() => setRestNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [restStartedAt, restOpen, restPaused]);
+
+  const restNowRef        = restPaused && restPausedAt != null ? restPausedAt : restNow;
+  const restElapsedSec   = restStartedAt != null ? Math.floor((restNowRef - restStartedAt) / 1000) : 0;
+  const restRemainingSec = restStartedAt != null ? Math.max(0, restSecs - restElapsedSec) : 0;
+  const restIsOverdue    = restStartedAt != null && restElapsedSec >= restSecs;
+  const restMinimized    = restStartedAt != null && !restOpen;
+
+  /** Pausa o descanso — persiste no banco pra sobreviver a minimizar/fechar o app. */
+  const pauseRest = () => {
+    setRestPaused(true);
+    setRestPausedAt(Date.now());
+    if (studentUserId) void pauseTimer(studentUserId);
+  };
+
+  /** Retoma o descanso, descontando o tempo parado do instante de início (mesma
+   *  ideia do cardio) — e persiste o novo started_at pra limpar o paused_at. */
+  const resumeRest = () => {
+    if (!restStartedAt || !restPausedAt || !exercise) return;
+    const pauseDuration = Date.now() - restPausedAt;
+    const newStartedAt = restStartedAt + pauseDuration;
+    setRestStartedAt(newStartedAt);
+    setRestNow(Date.now());
+    setRestPaused(false);
+    setRestPausedAt(null);
+    if (studentUserId) {
+      void startTimer(studentUserId, orgId ?? null, "descanso", exercise.nome_exercicio, restSecs, exercise.id, new Date(newStartedAt));
+    }
+  };
   const [historico, setHistorico]         = useState<HistoricoEntry[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(true);
-  const [doneSeries, setDoneSeries]       = useState<Set<string>>(new Set());
+  const [pairedNames, setPairedNames]     = useState<string[]>([]);
   const [openHintKey, setOpenHintKey]     = useState<string | null>(null);
 
-  const toggleSerie = (serieKey: string, serieType: string) => {
-    const isCurrentlyDone = doneSeries.has(serieKey);
-    setDoneSeries((prev) => {
-      const next = new Set(prev);
-      next.has(serieKey) ? next.delete(serieKey) : next.add(serieKey);
+  // Registro por slot: cada execução física de uma série (quantidade > 1 = múltiplos
+  // slots) guarda carga+reps realizadas. Uma série fica "feita" quando todos os seus
+  // slots têm os dois campos preenchidos e salvos — sem toggle manual separado.
+  const [slots, setSlots]           = useState<Record<string, SlotValue>>({});
+  const [openLogKey, setOpenLogKey] = useState<string | null>(null);
+  const [savingLogKey, setSavingLogKey] = useState<string | null>(null);
+
+  const slotKey = (serieKey: string, i: number) => `${serieKey}#${i}`;
+
+  const getSlotsCount = (serie: SerieDetalhe) =>
+    serie.quantidade && serie.quantidade >= 1 ? serie.quantidade : 1;
+
+  const isSerieFullyDone = (serieKey: string, slotsCount: number) =>
+    Array.from({ length: slotsCount }, (_, i) => slots[slotKey(serieKey, i)]?.saved).every(Boolean);
+
+  const updateSlotDraft = (serieKey: string, i: number, field: "reps" | "carga", value: string) => {
+    setSlots((prev) => {
+      const key = slotKey(serieKey, i);
+      const cur = prev[key] ?? { reps: "", carga: "", saved: false };
+      return { ...prev, [key]: { ...cur, [field]: value, saved: false } };
+    });
+  };
+
+  const openLog = (serieKey: string, slotsCount: number, defaultCarga: string) => {
+    setOpenLogKey((prev) => (prev === serieKey ? null : serieKey));
+    setSlots((prev) => {
+      const next = { ...prev };
+      for (let i = 0; i < slotsCount; i++) {
+        const key = slotKey(serieKey, i);
+        if (!next[key]) next[key] = { reps: "", carga: defaultCarga, saved: false };
+      }
       return next;
     });
-    // Ao marcar como concluída, abre o timer de descanso automaticamente
-    if (!isCurrentlyDone) {
-      const secs =
-        DEFAULT_REST_SECS[serieType] ??
-        parseDescansoSecs(exercise?.descanso);
-      setTimeout(() => {
-        setRestSecs(secs);
-        setRestOpen(true);
-      }, 150);
+  };
+
+  /** Abre o timer de descanso e registra como "timer ativo" (sobrevive a navegar/minimizar) */
+  const openRestTimer = (secs: number) => {
+    setRestSecs(secs);
+    setRestStartedAt(Date.now());
+    setRestOpen(true);
+    setRestPaused(false);
+    setRestPausedAt(null);
+    if (studentUserId && exercise) {
+      void startTimer(studentUserId, orgId ?? null, "descanso", exercise.nome_exercicio, secs, exercise.id);
     }
+  };
+
+  // Restaura o timer de descanso se o aluno saiu da tela (ex: via barra fixa) e voltou —
+  // sem isso, a tela sempre mostrava "Iniciar" do zero, mesmo com um descanso já rodando.
+  // getActiveTimer já descarta sozinho um timer esquecido (pausado 1h+/rodando 3h+).
+  useEffect(() => {
+    if (!studentUserId || !exercise) return;
+    void (async () => {
+      const active = await getActiveTimer(studentUserId);
+      if (active?.tipo === "descanso" && active.ref_id === exercise.id) {
+        setRestSecs(active.duracao_segundos);
+        setRestStartedAt(new Date(active.started_at).getTime());
+        setRestOpen(true);
+        if (active.paused_at) {
+          setRestPaused(true);
+          setRestPausedAt(new Date(active.paused_at).getTime());
+        }
+      }
+    })();
+  }, [studentUserId, exercise]);
+
+  const saveSingleSlot = async (serieKey: string, serieType: string, i: number) => {
+    if (!studentUserId || !id) return;
+    const v = slots[slotKey(serieKey, i)] ?? { reps: "", carga: "" };
+    if (!v.reps.trim() || !v.carga.trim()) return; // só salva com os dois campos preenchidos
+
+    const key = slotKey(serieKey, i);
+    setSavingLogKey(key);
+    try {
+      const row = {
+        student_id: studentUserId,
+        exercicio_id: id,
+        serie_key: serieKey,
+        slot_index: i,
+        date: brazilToday(),
+        reps_realizadas: v.reps.trim(),
+        carga_realizada: v.carga.trim(),
+      };
+
+      const { error } = await supabase
+        .from("serie_completions")
+        .upsert(row, { onConflict: "student_id,exercicio_id,serie_key,slot_index,date" });
+      if (error) throw error;
+
+      setSlots((prev) => ({ ...prev, [key]: { reps: row.reps_realizadas, carga: row.carga_realizada, saved: true } }));
+
+      const secs = DEFAULT_REST_SECS[serieType] ?? parseDescansoSecs(exercise?.descanso);
+      setTimeout(() => openRestTimer(secs), 150);
+    } catch (err: any) {
+      toast({ title: "Não foi possível salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingLogKey(null);
+    }
+  };
+
+  const loadSerieCompletions = async () => {
+    if (!studentUserId || !id) return;
+    try {
+      const { data } = await supabase
+        .from("serie_completions")
+        .select("serie_key, slot_index, reps_realizadas, carga_realizada")
+        .eq("student_id", studentUserId)
+        .eq("exercicio_id", id)
+        .eq("date", brazilToday());
+      if (data) {
+        const next: Record<string, SlotValue> = {};
+        for (const row of data as any[]) {
+          next[slotKey(row.serie_key, row.slot_index)] = {
+            reps: row.reps_realizadas ?? "",
+            carga: row.carga_realizada ?? "",
+            saved: !!(row.reps_realizadas && row.carga_realizada),
+          };
+        }
+        setSlots(next);
+      }
+    } catch { /* silent */ }
   };
 
   useEffect(() => { loadExercise(); getAlunoId(); }, [id]);
   useEffect(() => { if (alunoId && id) { loadCarga(); loadHistorico(); } }, [alunoId, id]);
+  useEffect(() => { if (studentUserId && id) loadSerieCompletions(); }, [studentUserId, id]);
 
   // Pre-fill carga from exercise.carga_base when student has no saved carga
   useEffect(() => {
@@ -532,6 +724,7 @@ const ExerciseDetail = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setStudentUserId(user.id);
       const { data } = await supabase
         .from("alunos").select("id").eq("user_id", user.id).single();
       if (data) setAlunoId(data.id);
@@ -571,12 +764,16 @@ const ExerciseDetail = () => {
         : (() => {
             const count = parseInt(q.series);
             if (!count || count <= 0) return null;
+            // id vazio de propósito: sem series_detalhadas salva no banco, o índice
+            // (via `serie.id || String(idx)`) é a única chave estável entre reloads —
+            // um id aleatório aqui mudaria a cada load e quebraria a persistência de conclusão.
             return Array.from({ length: count }, () => ({
-              id: crypto.randomUUID(),
+              id: '',
               tipo: 'trabalho' as const,
               repeticoes: q.repeticoes || '',
               tipo_calculo: 'manual' as TipoCalculo,
               valor_calculo: '',
+              quantidade: 1,
             }));
           })();
 
@@ -593,11 +790,41 @@ const ExerciseDetail = () => {
         descricao: q.exercicios_base?.descricao ?? null,
         series_detalhadas: effectiveSd,
       });
+
+      if (q.treino_id && q.ordem != null) void loadPairedExercises(q.treino_id, q.ordem);
     } catch (err: any) {
       toast({ title: "Erro ao carregar exercício", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Descobre se este exercício faz parte de um bi-set/tri-set (cadeia de conjugado_com_proximo) */
+  const loadPairedExercises = async (treinoId: string, ordem: number) => {
+    try {
+      const { data } = await supabase
+        .from("exercicios")
+        .select("nome_exercicio, ordem, conjugado_com_proximo")
+        .eq("treino_id", treinoId)
+        .order("ordem");
+      if (!data) return;
+      const list = data as any[];
+      const idx = list.findIndex((e) => e.ordem === ordem);
+      if (idx === -1) return;
+
+      let start = idx;
+      while (start > 0 && list[start - 1].conjugado_com_proximo) start--;
+      let end = idx;
+      while (list[end]?.conjugado_com_proximo) end++;
+
+      if (end > start) {
+        setPairedNames(
+          list.slice(start, end + 1)
+            .filter((_, i) => start + i !== idx)
+            .map((e) => e.nome_exercicio)
+        );
+      }
+    } catch { /* silent */ }
   };
 
   const loadCarga = async () => {
@@ -704,8 +931,18 @@ const ExerciseDetail = () => {
       <RestTimerSheet
         open={restOpen}
         seconds={restSecs}
+        startedAt={restStartedAt}
+        paused={restPaused}
         exerciseName={exercise.nome_exercicio}
-        onClose={() => setRestOpen(false)}
+        onMinimize={() => setRestOpen(false)}
+        onSkip={() => {
+          setRestOpen(false);
+          setRestStartedAt(null);
+          setRestPaused(false);
+          setRestPausedAt(null);
+          if (studentUserId) void clearTimer(studentUserId);
+        }}
+        onTogglePause={() => (restPaused ? resumeRest() : pauseRest())}
       />
 
       {/* Video modal */}
@@ -791,39 +1028,64 @@ const ExerciseDetail = () => {
             </div>
           )}
 
+          {/* ── Conjugado (bi-set/tri-set) ── */}
+          {pairedNames.length > 0 && (
+            <div
+              className="rounded-2xl border flex items-center gap-2.5 px-4 py-3"
+              style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", borderColor: "rgba(var(--cp-rgb),0.2)" }}
+            >
+              <Link2 className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+              <p className="text-xs leading-relaxed" style={{ color: "var(--cp-400)" }}>
+                Conjugado com <span className="font-semibold">{pairedNames.join(" e ")}</span> — sem descanso entre eles, descanse só depois de completar a sequência.
+              </p>
+            </div>
+          )}
+
           {/* ── Descanso ── */}
           {exercise.descanso && (
             <div
               className="rounded-2xl border flex items-center justify-between px-4 py-3"
-              style={{ backgroundColor: "var(--surface-2)", borderColor: "var(--border-subtle)" }}
+              style={{
+                backgroundColor: restMinimized ? "rgba(var(--cp-rgb),0.08)" : "var(--surface-2)",
+                borderColor: restMinimized ? "rgba(var(--cp-rgb),0.25)" : "var(--border-subtle)",
+              }}
             >
               <div className="flex items-center gap-2">
                 <div
                   className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                  style={{ backgroundColor: restMinimized ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.06)" }}
                 >
-                  <Timer className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Timer className="w-3.5 h-3.5" style={{ color: restMinimized ? "var(--cp-400)" : "hsl(var(--muted-foreground))" }} />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider leading-none mb-0.5">
-                    Descanso entre séries
+                  <p className="text-xs uppercase tracking-wider leading-none mb-0.5" style={{ color: restMinimized ? "var(--cp-400)" : "hsl(var(--muted-foreground))" }}>
+                    {restMinimized ? (restPaused ? "Descanso pausado" : restIsOverdue ? "Descanso concluído" : "Descanso") : "Descanso entre séries"}
                   </p>
                   <p className="text-sm font-semibold text-foreground">
-                    {parseDescanso(exercise.descanso)}
+                    {restMinimized
+                      ? (restPaused ? `${fmtTime(restRemainingSec)} restantes (pausado)` : restIsOverdue ? "Hora da próxima série!" : `${fmtTime(restRemainingSec)} restantes`)
+                      : parseDescanso(exercise.descanso)}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setRestSecs(parseDescansoSecs(exercise.descanso));
-                  setRestOpen(true);
-                }}
-                className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}
-              >
-                <Timer className="w-3.5 h-3.5" />
-                Iniciar
-              </button>
+              {restMinimized ? (
+                <button
+                  onClick={() => setRestOpen(true)}
+                  className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}
+                >
+                  Continuar
+                </button>
+              ) : (
+                <button
+                  onClick={() => openRestTimer(parseDescansoSecs(exercise.descanso))}
+                  className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}
+                >
+                  <Timer className="w-3.5 h-3.5" />
+                  Iniciar
+                </button>
+              )}
             </div>
           )}
 
@@ -923,13 +1185,16 @@ const ExerciseDetail = () => {
                     return DEFAULT_SERIE_HINT[serie.tipo] ?? null;
                   })();
 
-                  const done = doneSeries.has(serieKey);
+                  const slotsCount = getSlotsCount(serie);
+                  const done = isSerieFullyDone(serieKey, slotsCount);
+                  const suggestedLoad = calculatedLoad ?? manualLoad ?? '';
 
                   return (
                     <div key={serieKey}>
-                      {/* Linha da série */}
+                      {/* Linha da série — toca em qualquer lugar (fora do "!") pra abrir o registro */}
                       <div
-                        className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                        onClick={() => openLog(serieKey, slotsCount, suggestedLoad)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2.5 cursor-pointer"
                         style={{
                           backgroundColor: done ? 'rgba(34,197,94,0.05)' : 'var(--surface-2)',
                           border: `1px solid ${done ? 'rgba(34,197,94,0.20)' : 'var(--border-subtle)'}`,
@@ -958,7 +1223,7 @@ const ExerciseDetail = () => {
                         {/* Ícone de observação — abre/fecha hint inline */}
                         {hintText && (
                           <button
-                            onClick={() => setOpenHintKey(openHintKey === serieKey ? null : serieKey)}
+                            onClick={(e) => { e.stopPropagation(); setOpenHintKey(openHintKey === serieKey ? null : serieKey); }}
                             className="shrink-0 flex items-center justify-center transition-opacity active:scale-95"
                             style={{ color: openHintKey === serieKey ? cfg.text : (done ? 'var(--text-dim)' : cfg.text), opacity: done ? 0.5 : 1 }}
                             aria-label="Ver observações"
@@ -1003,22 +1268,74 @@ const ExerciseDetail = () => {
                         </div>
                       )}
 
-                        {/* Marcador de conclusão */}
-                        <button
-                          onClick={() => toggleSerie(serieKey, serie.tipo)}
-                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full ml-1 transition-all active:scale-90"
+                        {/* Indicador de conclusão — automático, acende quando todos os slots estão salvos */}
+                        <span
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full ml-1"
                           style={{
                             backgroundColor: done ? 'rgba(34,197,94,0.15)' : 'var(--surface-1)',
                             border: `1.5px solid ${done ? 'rgba(34,197,94,0.45)' : 'var(--border-subtle)'}`,
                           }}
-                          aria-label={done ? 'Desmarcar série' : 'Marcar série como concluída'}
                         >
                           {done
                             ? <CheckCircle className="w-4 h-4 text-green-500" />
                             : <Circle className="w-4 h-4" style={{ color: 'var(--text-dim)' }} />
                           }
-                        </button>
+                        </span>
                       </div>
+
+                      {/* Painel de registro — abre ao tocar na linha da série */}
+                      {openLogKey === serieKey && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-xl px-3 py-3 mt-1 space-y-2"
+                          style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-subtle)' }}
+                        >
+                          <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: cfg.text }}>
+                            Registrar {slotsCount > 1 ? `${slotsCount} séries` : 'série'} realizada{slotsCount > 1 ? 's' : ''}
+                          </p>
+                          {Array.from({ length: slotsCount }, (_, i) => {
+                            const v = slots[slotKey(serieKey, i)] ?? { reps: '', carga: '', saved: false };
+                            const canSave = !!v.reps.trim() && !!v.carga.trim();
+                            const isSaving = savingLogKey === slotKey(serieKey, i);
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold shrink-0" style={{ width: 36, color: 'var(--text-dim)' }}>
+                                  Set {i + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="Carga"
+                                  value={v.carga}
+                                  onChange={(e) => updateSlotDraft(serieKey, i, 'carga', e.target.value)}
+                                  className="w-20 h-9 rounded-lg px-2 text-xs text-foreground outline-none"
+                                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                                />
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder={serie.repeticoes ? `Reps (${serie.repeticoes})` : 'Reps'}
+                                  value={v.reps}
+                                  onChange={(e) => updateSlotDraft(serieKey, i, 'reps', e.target.value)}
+                                  className="flex-1 min-w-0 h-9 rounded-lg px-2 text-xs text-foreground outline-none"
+                                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                                />
+                                <button
+                                  onClick={() => saveSingleSlot(serieKey, serie.tipo, i)}
+                                  disabled={!canSave || isSaving}
+                                  className="w-6 h-6 flex items-center justify-center shrink-0 transition-transform active:scale-90 disabled:active:scale-100"
+                                  aria-label={v.saved ? 'Set salvo' : 'Salvar set'}
+                                >
+                                  {v.saved
+                                    ? <CheckCircle className="w-4 h-4 text-green-500" />
+                                    : <Circle className="w-3.5 h-3.5" style={{ color: canSave ? 'var(--cp-400)' : 'var(--text-dim)', opacity: canSave ? 1 : 0.4 }} />
+                                  }
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
                       {/* Hint inline — expande abaixo da série ao clicar no "!" */}
                       {openHintKey === serieKey && hintText && (

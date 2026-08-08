@@ -71,6 +71,13 @@
     --border-subtle: rgba(255,255,255,0.06);
     --border-dim:    rgba(255,255,255,0.04);
 
+    /* ── Dashboard section cards (Treino/Dieta/Água/Cardio/Evolução) — mesmo
+       tratamento translúcido do mockup da landing (rgba branco sobre o fundo, não
+       um cinza sólido) ── */
+    --dash-card-bg:     rgba(255,255,255,0.05);
+    --dash-card-border: rgba(255,255,255,0.09);
+    --dash-card-shadow: 0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25);
+
     /* ── Chart & text semantic vars ── */
     --chart-tick:    rgba(255,255,255,0.35);
     --chart-grid:    rgba(255,255,255,0.05);
@@ -155,7 +162,7 @@
     --tag-amber-color:   hsl(42 95% 58%);
 
     /* ── Section card containers (FormBuilder, AnamneseBuilder, etc.) ── */
-    --section-card-bg:      rgba(255,255,255,0.015);
+    --section-card-bg:      #141417;
     --section-card-border:  rgba(255,255,255,0.09);
     --section-header-bg:    rgba(255,255,255,0.03);
     --section-header-border:rgba(255,255,255,0.07);
@@ -232,6 +239,10 @@
     --surface-2:     rgba(255,255,255,0.035);
     --border-subtle: rgba(255,255,255,0.06);
     --border-dim:    rgba(255,255,255,0.04);
+
+    --dash-card-bg:     rgba(255,255,255,0.05);
+    --dash-card-border: rgba(255,255,255,0.09);
+    --dash-card-shadow: 0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25);
 
     /* ── Chart & text semantic vars ── */
     --chart-tick:    rgba(255,255,255,0.35);
@@ -317,7 +328,7 @@
     --tag-amber-color:   hsl(42 95% 58%);
 
     /* ── Section card containers ── */
-    --section-card-bg:       rgba(255,255,255,0.015);
+    --section-card-bg:       #141417;
     --section-card-border:   rgba(255,255,255,0.09);
     --section-header-bg:     rgba(255,255,255,0.03);
     --section-header-border: rgba(255,255,255,0.07);
@@ -386,6 +397,12 @@
     --surface-2:     #f9fafb;
     --border-subtle: #e5e7eb;
     --border-dim:    #f3f4f6;
+
+    /* Sem referência de mockup pro tema claro — reaproveita surface-2/border-subtle,
+       já testados nesse tema */
+    --dash-card-bg:     #f9fafb;
+    --dash-card-border: #e5e7eb;
+    --dash-card-shadow: 0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 
     /* ── Chart & text semantic vars — light values ── */
     --chart-tick:    #6b7280;

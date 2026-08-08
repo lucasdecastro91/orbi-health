@@ -3,16 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, BellOff, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock, Moon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const Profile = () => {
   const navigate    = useNavigate();
   const { toast }   = useToast();
-  const { slug, orgId } = useTenantContext();
-  const push = usePushNotifications(orgId);
+  const { slug } = useTenantContext();
+  const { hasAvaliacaoPostural } = usePlanFeatures();
 
   const [nome,           setNome]           = useState("");
   const [email,          setEmail]          = useState("");
@@ -345,8 +345,29 @@ const Profile = () => {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ferramentas</p>
 
         {/* Avaliação postural */}
+        {hasAvaliacaoPostural && (
+          <button
+            onClick={() => navigate(`/${slug}/aluno/avaliacao-postural`)}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-left"
+            style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
+              <ScanLine className="w-4 h-4" style={{ color: "var(--cp-500)" }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Avaliação Postural</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fotos anterior, posterior e lateral</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-40 shrink-0" />
+          </button>
+        )}
+
+        {/* Calculadora de sono */}
         <button
-          onClick={() => navigate(`/${slug}/aluno/avaliacao-postural`)}
+          onClick={() => navigate(`/${slug}/aluno/sono`)}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-left"
           style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
@@ -354,11 +375,11 @@ const Profile = () => {
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
-            <ScanLine className="w-4 h-4" style={{ color: "var(--cp-500)" }} />
+            <Moon className="w-4 h-4" style={{ color: "var(--cp-500)" }} />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Avaliação Postural</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Fotos anterior, posterior e lateral</p>
+            <p className="text-sm font-medium text-foreground">ORBI Sleep</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Calculadora de ciclos de sono</p>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground opacity-40 shrink-0" />
         </button>
@@ -406,37 +427,6 @@ const Profile = () => {
           Instagram do treinador
         </button>
       </div>
-
-      {/* Push notifications toggle */}
-      {push.supported && push.permission !== "denied" && (
-        <div className="rounded-2xl border p-5" style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Notificações</p>
-          <button
-            onClick={push.subscribed ? push.unsubscribe : push.subscribe}
-            disabled={push.subscribing}
-            className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors"
-            style={{
-              backgroundColor: push.subscribed ? "rgba(var(--cp-rgb),0.1)" : "rgba(255,255,255,0.04)",
-              color: push.subscribed ? "var(--cp-400)" : "hsl(var(--foreground) / 0.7)",
-              border: `1px solid ${push.subscribed ? "rgba(var(--cp-rgb),0.25)" : "rgba(255,255,255,0.07)"}`,
-            }}
-          >
-            {push.subscribing
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : push.subscribed
-              ? <Bell className="w-4 h-4" />
-              : <BellOff className="w-4 h-4 text-muted-foreground" />}
-            {push.subscribing
-              ? "Ativando..."
-              : push.subscribed
-              ? "Notificações ativadas"
-              : "Ativar notificações push"}
-          </button>
-          {push.subscribed && (
-            <p className="text-[11px] text-muted-foreground opacity-60 mt-2 text-center">Você receberá alertas de treinos, mensagens e atualizações</p>
-          )}
-        </div>
-      )}
 
       {/* Logout — zona de perigo */}
       <div className="rounded-2xl border p-5" style={{ backgroundColor: "rgba(239,68,68,0.04)", borderColor: "rgba(239,68,68,0.15)" }}>

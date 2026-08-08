@@ -102,7 +102,12 @@ const FeedbackManager = ({ studentId }: FeedbackManagerProps) => {
   };
 
   if (loading) {
-    return <p>Carregando feedbacks...</p>;
+    return (
+      <div className="flex items-center justify-center py-12 gap-2 text-white/25">
+        <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+        <span className="text-sm">Carregando feedbacks...</span>
+      </div>
+    );
   }
 
   return (
@@ -171,7 +176,10 @@ const FeedbackManager = ({ studentId }: FeedbackManagerProps) => {
       </div>
 
       {feedbacks.length === 0 ? (
-        <Card>
+        <Card
+          className="rounded-2xl"
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+        >
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">
               Nenhum feedback enviado ainda. Clique em "Novo feedback" para começar.
@@ -179,9 +187,13 @@ const FeedbackManager = ({ studentId }: FeedbackManagerProps) => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {feedbacks.map((feedback) => (
-            <Card key={feedback.id}>
+            <Card
+              key={feedback.id}
+              className="rounded-2xl"
+              style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">

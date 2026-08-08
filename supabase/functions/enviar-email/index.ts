@@ -1,15 +1,5 @@
-/**
- * enviar-email — envia e-mails transacionais via Resend.
- * Chamado internamente por outras Edge Functions (ex: create-student).
- * Também pode ser chamado diretamente pelo frontend em casos futuros.
- *
- * Env vars necessárias:
- *   RESEND_API_KEY   — chave da API do Resend
- *   SUPABASE_URL     — para verificar o JWT (opcional se chamada interna)
- */
-
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_EMAIL     = "ORBI Pro <noreply@orbihealth.com.br>";
+const FROM_EMAIL     = "ORBI Health <noreply@orbihealth.com.br>";
 
 const cors = {
   "Access-Control-Allow-Origin":  "*",
@@ -24,159 +14,363 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// ── E-mail templates ───────────────────────────────────────────────
+// Bloco de logo com bgcolor forçado em cada camada — evita que apps de e-mail
+// (Gmail principalmente) reescrevam as cores no modo escuro do celular.
+const LOGO_BLOCK = `
+<table cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td valign="middle" style="padding-right:10px;">
+      <img src="https://mdbqhmkblzyllkyxjhrd.supabase.co/storage/v1/object/public/logos/orbi-logo-icon.svg" width="36" height="36" border="0" alt="ORBI icon" style="display:block;border:0;" />
+    </td>
+    <td valign="middle">
+      <p style="margin:0;padding:0;font-family:'Poppins','Montserrat',Arial,sans-serif;line-height:1;">
+        <span style="font-size:18px;font-weight:700;color:#111111;letter-spacing:0.05em;">ORBI</span><span style="font-size:11px;font-weight:500;color:#888888;letter-spacing:0.2em;text-transform:uppercase;margin-left:5px;">HEALTH</span>
+      </p>
+    </td>
+  </tr>
+</table>`;
 
 function boasVindasTemplate(nome: string, email: string, senha: string, orgName: string, appUrl: string) {
   return {
-    subject: `Bem-vindo(a) à ${orgName}! 🎉`,
-    html: `
-<!DOCTYPE html>
-<html lang="pt-BR">
+    subject: `Bem-vindo(a) a ${orgName}!`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bem-vindo(a) à ${orgName}</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bem-vindo(a)</title>
 </head>
-<body style="margin:0;padding:0;background:#0a0a0b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0b;padding:40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" style="max-width:520px;background:#111113;border-radius:16px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
-
-          <!-- Header amber band -->
-          <tr>
-            <td style="background:linear-gradient(135deg,hsl(42,95%,58%),hsl(35,92%,44%));padding:24px 32px;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#000;">ORBI Pro</p>
-              <p style="margin:4px 0 0;font-size:13px;color:rgba(0,0,0,0.65);">${orgName}</p>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding:32px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#fff;">
-                Olá, ${nome}! 👋
-              </h1>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;">
-                Seu treinador te adicionou à plataforma <strong style="color:#fff;">${orgName}</strong>.
-                Seus dados de acesso estão abaixo — guarde-os em um lugar seguro.
-              </p>
-
-              <!-- Credentials box -->
-              <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:24px;">
-                <p style="margin:0 0 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.35);">Dados de acesso</p>
-                <p style="margin:0 0 6px;font-size:14px;color:rgba(255,255,255,0.6);">
-                  <span style="color:rgba(255,255,255,0.35);">E-mail:</span>
-                  <strong style="color:#fff;margin-left:8px;">${email}</strong>
-                </p>
-                <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.6);">
-                  <span style="color:rgba(255,255,255,0.35);">Senha:</span>
-                  <strong style="color:hsl(42,95%,65%);margin-left:8px;font-family:monospace;font-size:16px;">${senha}</strong>
-                </p>
-              </div>
-
-              <!-- CTA button -->
-              <a href="${appUrl}"
-                style="display:block;text-align:center;background:linear-gradient(135deg,hsl(42,95%,58%),hsl(35,92%,44%));color:#000;font-weight:700;font-size:14px;text-decoration:none;padding:14px 24px;border-radius:12px;margin-bottom:24px;">
-                Acessar minha plataforma →
-              </a>
-
-              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.3);line-height:1.6;">
-                Recomendamos alterar sua senha após o primeiro acesso em
-                <strong style="color:rgba(255,255,255,0.45);">Perfil → Alterar senha</strong>.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);">
-              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);text-align:center;">
-                Este e-mail foi enviado automaticamente. Não responda a esta mensagem.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Seu treinador te adicionou a plataforma <span style="color:#111111;font-weight:600;">${orgName}</span>. Seus dados de acesso estao abaixo.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#e8e8e8" style="background-color:#e8e8e8;border-radius:6px;padding:16px 20px;">
+<p style="margin:0 0 10px 0;font-size:11px;font-weight:600;color:#888888;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;">Dados de acesso</p>
+<p style="margin:0 0 6px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;">
+<span style="color:#888888;">E-mail:</span>
+<span style="color:#111111;font-weight:600;margin-left:6px;">${email}</span>
+</p>
+<p style="margin:0;font-size:14px;color:#555555;font-family:Arial,sans-serif;">
+<span style="color:#888888;">Senha:</span>
+<span style="color:#111111;font-weight:600;font-family:monospace;font-size:15px;margin-left:6px;">${senha}</span>
+</p>
+</td>
+</tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;margin-bottom:24px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#16a34a" style="background-color:#16a34a;border-radius:6px;padding:13px 28px;">
+<a href="${appUrl}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Acessar minha conta</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
 </body>
 </html>`,
   };
 }
 
-function conviteColaboradorTemplate(
-  name: string, orgName: string, coachName: string,
-  role: string, inviteUrl: string,
-) {
+function conviteColaboradorTemplate(name: string, orgName: string, coachName: string, role: string, inviteUrl: string) {
   return {
-    subject: `Você foi convidado para colaborar no ${orgName}`,
-    html: `
-<!DOCTYPE html>
-<html lang="pt-BR" xmlns:v="urn:schemas-microsoft-com:vml">
+    subject: `Voce foi convidado para colaborar no ${orgName}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Convite de colaboração — ${orgName}</title>
-  <style type="text/css">
-    @media only screen and (max-width: 600px) {
-      .email-wrapper { background-color: #000000 !important; }
-      .email-card    { background-color: #1a1a1a !important; }
-      .header-cell   { background-color: #111111 !important; }
-      * { color: inherit !important; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Convite de colaboracao</title>
 </head>
-<body bgcolor="#000000" style="margin:0;padding:0;background:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table class="email-wrapper" width="100%" cellpadding="0" cellspacing="0" style="background:#000000;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table class="email-card" width="100%" style="max-width:480px;background:#111113;border-radius:16px;border:1px solid rgba(255,255,255,0.07);overflow:hidden;">
-          <tr>
-            <td class="header-cell" style="background:#111111;padding:20px 24px;border-bottom:2px solid #f59e0b;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">ORBI Pro</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#a0a0a0;">${orgName}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:24px;">
-              <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#fff;">
-                Olá, ${name}! 👋
-              </h1>
-              <p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;">
-                <strong style="color:#fff;">${coachName}</strong> te convidou para colaborar na plataforma
-                <strong style="color:#fff;">${orgName}</strong> como <strong style="color:hsl(42,95%,65%);">${role}</strong>.
-              </p>
-              <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.55);line-height:1.6;">
-                Clique no botão abaixo para criar sua senha e começar a usar o painel.
-              </p>
-              <a href="${inviteUrl}"
-                style="display:block;text-align:center;background:linear-gradient(135deg,hsl(42,95%,58%),hsl(35,92%,44%));color:#000;font-weight:700;font-size:14px;text-decoration:none;padding:14px 24px;border-radius:12px;margin-bottom:24px;">
-                Aceitar convite →
-              </a>
-              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;text-align:center;">
-                Este link expira em 24 horas. Se você não esperava este convite, ignore este e-mail.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);">
-              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.2);text-align:center;">
-                Este e-mail foi enviado automaticamente. Não responda a esta mensagem.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${name}!</p>
+<p style="margin:0 0 20px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+<span style="color:#111111;font-weight:600;">${coachName}</span> te convidou para colaborar na plataforma
+<span style="color:#111111;font-weight:600;">${orgName}</span> como
+<span style="color:#111111;font-weight:600;">${role}</span>.
+</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Clique no botao abaixo para criar sua senha e comecar a usar o painel.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#16a34a" style="background-color:#16a34a;border-radius:6px;padding:13px 28px;">
+<a href="${inviteUrl}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Aceitar convite &rarr;</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este link expira em 24 horas. Se voce nao esperava este convite, ignore este e-mail.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
 </body>
 </html>`,
   };
 }
 
-// ── Handler ────────────────────────────────────────────────────────
+function boasVindasTreinadorTemplate(nome: string, orgName: string, appUrl: string) {
+  return {
+    subject: `Bem-vindo(a) a ORBI Health, ${nome}!`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bem-vindo(a)</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}! &#127881;</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Sua conta na <span style="color:#111111;font-weight:600;">${orgName}</span> ja esta ativa. Estamos felizes em ter voce com a gente nessa jornada.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#16a34a" style="background-color:#16a34a;border-radius:6px;padding:13px 28px;">
+<a href="${appUrl}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Acessar meu painel</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+<p style="margin:0;font-size:13px;color:#999999;font-family:Arial,sans-serif;line-height:1.6;">
+Precisa de ajuda para comecar? Responda este e-mail que a gente te ajuda.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
+
+function cobrancaGeradaTemplate(nome: string, orgName: string, descricao: string, valorFmt: string, dateFmt: string, link: string) {
+  return {
+    subject: `Nova cobranca — ${descricao}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nova cobranca</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+${orgName} gerou uma nova cobranca pra voce.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#e8e8e8" style="background-color:#e8e8e8;border-radius:6px;padding:16px 20px;">
+<p style="margin:0 0 6px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;">
+<span style="color:#888888;">Descricao:</span>
+<span style="color:#111111;font-weight:600;margin-left:6px;">${descricao}</span>
+</p>
+<p style="margin:0 0 6px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;">
+<span style="color:#888888;">Valor:</span>
+<span style="color:#111111;font-weight:600;margin-left:6px;">${valorFmt}</span>
+</p>
+<p style="margin:0;font-size:14px;color:#555555;font-family:Arial,sans-serif;">
+<span style="color:#888888;">Vencimento:</span>
+<span style="color:#111111;font-weight:600;margin-left:6px;">${dateFmt}</span>
+</p>
+</td>
+</tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;margin-bottom:24px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#16a34a" style="background-color:#16a34a;border-radius:6px;padding:13px 28px;">
+<a href="${link}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Pagar agora</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
+
+function cobrancaAtrasadaTemplate(nome: string, orgName: string, descricao: string, valorFmt: string, dateFmt: string, link: string | null) {
+  return {
+    subject: `Pagamento em atraso — ${descricao}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pagamento em atraso</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Identificamos que o pagamento de <span style="color:#111111;font-weight:600;">${descricao}</span> (${valorFmt}), que venceu em ${dateFmt}, ainda nao foi regularizado com ${orgName}.
+</p>
+${link ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#dc2626" style="background-color:#dc2626;border-radius:6px;padding:13px 28px;">
+<a href="${link}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Regularizar agora</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>` : ""}
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;line-height:1.6;">
+Regularize o quanto antes para manter seu acesso ativo.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -207,6 +401,30 @@ Deno.serve(async (req) => {
         return json({ error: "Missing fields: name, orgName, coachName, role, inviteUrl" }, 400);
       }
       const tpl = conviteColaboradorTemplate(name, orgName, coachName, role, inviteUrl);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "boas_vindas_treinador") {
+      const { nome, orgName, appUrl } = data;
+      if (!nome || !orgName || !appUrl) {
+        return json({ error: "Missing fields: nome, orgName, appUrl" }, 400);
+      }
+      const tpl = boasVindasTreinadorTemplate(nome, orgName, appUrl);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "cobranca_gerada") {
+      const { nome, orgName, descricao, valorFmt, dateFmt, link } = data;
+      if (!nome || !orgName || !descricao || !valorFmt || !dateFmt || !link) {
+        return json({ error: "Missing fields: nome, orgName, descricao, valorFmt, dateFmt, link" }, 400);
+      }
+      const tpl = cobrancaGeradaTemplate(nome, orgName, descricao, valorFmt, dateFmt, link);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "cobranca_atrasada") {
+      const { nome, orgName, descricao, valorFmt, dateFmt, link } = data;
+      if (!nome || !orgName || !descricao || !valorFmt || !dateFmt) {
+        return json({ error: "Missing fields: nome, orgName, descricao, valorFmt, dateFmt" }, 400);
+      }
+      const tpl = cobrancaAtrasadaTemplate(nome, orgName, descricao, valorFmt, dateFmt, link ?? null);
       subject = tpl.subject;
       html    = tpl.html;
     } else {

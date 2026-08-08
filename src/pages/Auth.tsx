@@ -191,7 +191,7 @@ const Auth = () => {
           <div className="flex justify-center mb-8">
             <img
               src="/logos/orbi-logo-horizontal-dark.svg"
-              alt="ORBI Pro"
+              alt="ORBI Health"
               className="h-16 w-auto object-contain drop-shadow-2xl"
             />
           </div>
@@ -239,7 +239,7 @@ const Auth = () => {
 
           <div className="flex items-center justify-between mt-6 px-1">
             <p className="text-white/20 text-xs tracking-widest uppercase">
-              ORBI Pro
+              ORBI Health
             </p>
             <Link
               to="/cadastro"

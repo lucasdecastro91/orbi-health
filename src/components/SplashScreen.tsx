@@ -12,7 +12,7 @@ const SplashScreen = ({ isGetShape = false, iconUrl }: SplashScreenProps) => {
       ? "/splash-getshape.png"
       : "/logos/orbi-balance-icon-hd.png";
 
-  const alt = isGetShape ? "Get Shape Training" : "ORBI Pro";
+  const alt = isGetShape ? "Get Shape Training" : "ORBI Health";
 
   return (
     <div className="min-h-screen w-full bg-black flex items-center justify-center">

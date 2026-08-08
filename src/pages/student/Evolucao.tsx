@@ -4,11 +4,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
-  Weight, Plus, TrendingUp, TrendingDown, Minus, Loader2, Trash2,
+  Weight, Plus, Activity, TrendingDown, Minus, Loader2, Trash2,
   Camera, ImagePlus, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import BodyMeasurementsList, { EMPTY_BODY_MEASUREMENTS, buildBodyMeasurements, hasAnyMeasurement, type BodyMeasurements } from "@/components/BodyMeasurements";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -256,6 +257,10 @@ const Evolucao = () => {
   const uploadingSlot       = useRef<Slot | null>(null);
   const [photoPickerSlot,   setPhotoPickerSlot] = useState<Slot | null>(null);
 
+  // Medidas corporais — última avaliação física com alguma medida
+  // preenchida, comparada com a anterior a ela.
+  const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurements>(EMPTY_BODY_MEASUREMENTS);
+
   useEffect(() => { loadAll(); }, []);
 
   // ── Data loaders ─────────────────────────────────────────
@@ -292,6 +297,24 @@ const Evolucao = () => {
 
       if (weightRes.error) throw weightRes.error;
       setRegistros(weightRes.data as Registro[]);
+
+      // Medidas corporais — precisa do aluno_id (diferente do user_id usado
+      // acima) pra buscar as avaliações físicas com medidas.
+      try {
+        const { data: alunoRow } = await supabase.from("alunos").select("id").eq("user_id", session.user.id).maybeSingle();
+        if (alunoRow) {
+          const { data: avaliacoes } = await supabase
+            .from("avaliacoes_fisicas")
+            .select("data_avaliacao, medida_biceps_dir, medida_biceps_esq, medida_peitoral, medida_cintura, medida_quadril, medida_coxa_dir, medida_coxa_esq, medida_panturrilha_dir, medida_panturrilha_esq")
+            .eq("aluno_id", alunoRow.id)
+            .order("data_avaliacao", { ascending: false });
+          const comMedida = (avaliacoes ?? []).filter((a: any) =>
+            a.medida_biceps_dir != null || a.medida_biceps_esq != null || a.medida_peitoral != null ||
+            a.medida_cintura != null || a.medida_quadril != null || a.medida_coxa_dir != null ||
+            a.medida_coxa_esq != null || a.medida_panturrilha_dir != null || a.medida_panturrilha_esq != null);
+          setBodyMeasurements(buildBodyMeasurements(comMedida[0] ?? null, comMedida[1] ?? null));
+        }
+      } catch { /* medidas ficam vazias se falhar — não bloqueia o resto da tela */ }
 
       // Fotos do bucket público (evolution_photos) — fonte primária
       const primaryPhotos: EvoPhoto[] = photoRes.error ? [] : (photoRes.data as any[]).map((p) => ({
@@ -605,7 +628,7 @@ const Evolucao = () => {
 
         {/* ── Weight header ─────────────────────────────── */}
         <div className="flex items-center gap-3">
-          <TrendingUp className="w-5 h-5 text-green-500" />
+          <Activity className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
           <div>
             <h1 className="text-xl font-bold text-foreground">Evolução</h1>
             <p className="text-muted-foreground text-sm">Peso e fotos de progresso</p>
@@ -644,16 +667,32 @@ const Evolucao = () => {
           <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Gráfico de peso</p>
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                <YAxis domain={["auto", "auto"]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} />
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="pesoAreaFillFull" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--cp-500)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--cp-500)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="peso" stroke="var(--cp-500)" strokeWidth={2.5}
+                <Area type="monotone" dataKey="peso" stroke="var(--cp-500)" strokeWidth={2.5}
+                  fill="url(#pesoAreaFillFull)"
                   dot={{ r: 3, fill: "var(--cp-500)", strokeWidth: 0 }}
                   activeDot={{ r: 5, fill: "var(--cp-500)" }} />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Medidas corporais */}
+        {hasAnyMeasurement(bodyMeasurements) && (
+          <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Medidas corporais</p>
+            <p className="text-[11px] text-muted-foreground opacity-70 mb-3">Da última avaliação física feita pelo seu treinador</p>
+            <BodyMeasurementsList measurements={bodyMeasurements} />
           </div>
         )}
 

@@ -220,7 +220,7 @@ const CheckIn = () => {
       // Best-effort: trigger AI analysis + notify trainer
       if (inserted?.id) {
         supabase.functions.invoke("analisar-checkin", {
-          body: { check_in_id: inserted.id },
+          body: { checkin_id: inserted.id },
         }).catch(() => { /* ignore */ });
       }
       if (treinadorId && orgId) {

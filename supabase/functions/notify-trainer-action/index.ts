@@ -106,26 +106,18 @@ serve(async (req) => {
 
   const notif = buildNotification(body);
 
-  // Envia via send-push
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint, p256dh, auth")
-    .eq("user_id", body.student_id);
-
-  if (subs?.length) {
-    await supabase.functions.invoke("send-push", {
-      body: {
-        subscriptions: subs.map((s: { endpoint: string; p256dh: string; auth: string }) => ({
-          endpoint: s.endpoint,
-          keys: { p256dh: s.p256dh, auth: s.auth },
-        })),
-        title: notif.title,
-        body: notif.body,
-        icon: "/icon-192.png",
-        tag: notif.tag,
-      },
-    });
-  }
+  // Envia via send-push — a própria função busca a subscription internamente,
+  // já espera { user_ids, title, body, ... } (ver supabase/functions/send-push/index.ts).
+  const pushRes = await supabase.functions.invoke("send-push", {
+    body: {
+      user_ids: [body.student_id],
+      title: notif.title,
+      body: notif.body,
+      icon: "/icon-192.png",
+      tag: notif.tag,
+    },
+  });
+  const sentCount = (pushRes.data as { sent?: number } | null)?.sent ?? 0;
 
   // Loga
   await supabase.from("notification_logs").insert({
@@ -136,10 +128,10 @@ serve(async (req) => {
     title: notif.title,
     body: notif.body,
     tag: notif.tag,
-    delivered: (subs?.length ?? 0) > 0,
+    delivered: sentCount > 0,
   });
 
-  return new Response(JSON.stringify({ ok: true, sent: subs?.length ?? 0 }), {
+  return new Response(JSON.stringify({ ok: true, sent: sentCount }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
     status: 200,
   });

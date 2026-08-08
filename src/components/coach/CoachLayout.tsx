@@ -2,10 +2,14 @@
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   Users, BookOpen, FileText, Settings, LogOut, ShieldCheck,
   Apple, Database, ChevronDown, Calendar, MessageSquare,
   AlertCircle, Crown, Bell, ListOrdered, ClipboardList, ClipboardCheck, Package,
-  LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2,
+  LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2, Trophy,
+  User, CreditCard, Sun, Moon, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
@@ -13,6 +17,10 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
 import { useToast } from "@/hooks/use-toast";
 import NotificationBell from "@/components/NotificationBell";
+import SupportAgentBubble from "@/components/coach/SupportAgentBubble";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const SUPERADMIN_EMAIL = "lucas.melo1991@gmail.com";
 
@@ -40,40 +48,119 @@ function applyAmber() {
   el.style.setProperty("--cp-text",     AMBER.textOn);
 }
 
-// Cores da sidebar — sempre dark, independente do tema da org
+// Cores da sidebar — sempre dark, independente do tema da org.
+// (Tentativa de tingir bg/gradiente com a cor primária via color-mix() foi
+// testada e abortada em 2026-08-03 — ficou "sujo"/marrom em vez de rico.
+// Voltou pros hex sólidos originais.)
 const S = {
   bg:          "#0f0f11",
+  bgGradientTop:    "#1e1e23",
+  bgGradientBottom: "#0e0e10",
   bgHover:     "rgba(255,255,255,0.05)",
   bgActive:    "rgba(255,255,255,0.06)",
   border:      "rgba(255,255,255,0.07)",
   textPrimary: "#ffffff",
-  textMuted:   "rgba(255,255,255,0.55)",
+  textMuted:   "#ffffff",
   textDim:     "rgba(255,255,255,0.35)",
 } as const;
+
+// Formato compacto (R$0, R$10K) pra caber na barrinha de meta do topo
+const fmtCompact = (v: number) => {
+  if (v >= 1000) {
+    const k = v / 1000;
+    return `R$${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+  }
+  return `R$${Math.round(v)}`;
+};
+
+// Wordmark genérico (ícone + nome da org + "Painel Profissional") — fallback
+// pra qualquer org sem logo_url configurado em Identidade Visual. Usa o
+// `icon_url` da própria org (o mesmo favicon já configurável em Configurações
+// → Aparência) e o `name` real, na fonte base do app — nada hardcoded.
+const OrgWordmark = ({ emblemSize, iconUrl, name }: { emblemSize: number; iconUrl?: string | null; name: string }) => (
+  <div className="flex items-center gap-2.5 min-w-0">
+    <img
+      src={iconUrl || "/logos/orbi-logo-icon.svg"}
+      alt=""
+      className="object-contain shrink-0 rounded-md"
+      style={{ height: emblemSize, width: emblemSize }}
+    />
+    <div className="leading-tight min-w-0">
+      <p className="font-extrabold text-white text-sm tracking-tight truncate">{name}</p>
+      <p className="text-[11px] text-white/50 truncate">Painel Profissional</p>
+    </div>
+  </div>
+);
 
 const CoachLayout = () => {
   const [profileName, setProfileName]     = useState("");
   const [profileAvatar, setProfileAvatar] = useState("");
   const [userEmail, setUserEmail]         = useState("");
-  const [clientesOpen,  setClientesOpen]  = useState(false);
   const [alimentosOpen, setAlimentosOpen] = useState(false);
   const [configOpen,    setConfigOpen]    = useState(false);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [orgStatus, setOrgStatus]         = useState<string>("trial");
+  const [recebidoMes, setRecebidoMes]     = useState(0);
+  const [metaInput,   setMetaInput]       = useState("");
+  const [savingMeta,  setSavingMeta]      = useState(false);
+  const [metaPopoverOpen, setMetaPopoverOpen] = useState(false);
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { slug, org, orgId, isGetShapeOrg } = useTenantContext();
-  const { hasDiet, hasTraining, planType }  = usePlanFeatures();
+  const { slug, org, orgId, isGetShapeOrg, reload } = useTenantContext();
+  const { hasDiet, hasTraining, planType, hasAvaliacaoPostural }  = usePlanFeatures();
   const { isCollaborator, can }             = useCollaboratorPermissions();
   const { toast }                           = useToast();
   const base = `/${slug}/treinador`;
 
   useEffect(() => { loadProfile(); }, []);
 
+  // Meta de faturamento (barra no topo) — recebido do mês atual, mesma
+  // lógica de período já usada em Financeiro.tsx (data_pagamento no mês corrente).
+  useEffect(() => {
+    if (!orgId || !can("gestao", "financeiro")) return;
+    (async () => {
+      const now = new Date();
+      const mesPfx = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const { data } = await supabase
+        .from("cobrancas")
+        .select("valor, status, data_pagamento")
+        .eq("org_id", orgId)
+        .in("status", ["RECEIVED", "CONFIRMED"]);
+      const total = (data ?? [])
+        .filter((c) => c.data_pagamento?.startsWith(mesPfx))
+        .reduce((s, c) => s + Number(c.valor || 0), 0);
+      setRecebidoMes(total);
+    })();
+  }, [orgId]);
+
+  const handleSaveMeta = async () => {
+    const val = parseFloat(metaInput.replace(",", "."));
+    if (isNaN(val) || val <= 0) {
+      toast({ title: "Informe um valor válido", variant: "destructive" });
+      return;
+    }
+    setSavingMeta(true);
+    try {
+      const { error } = await supabase.from("organizations").update({ meta_faturamento: val }).eq("id", orgId);
+      if (error) throw error;
+      reload();
+      setMetaPopoverOpen(false);
+      toast({ title: "Meta atualizada!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingMeta(false);
+    }
+  };
+
   // Carrega status de assinatura da org
   useEffect(() => {
     if (!org) return;
+    // Conta oficial da casa (Get Shape Training) nunca é sujeita a
+    // trial/cobrança — é a org de referência do próprio Lucas, não uma
+    // cliente pagante do Fluxo B.
+    if (isGetShapeOrg) return;
     const status = (org as any).subscription_status ?? "trial";
     setOrgStatus(status);
 
@@ -88,18 +175,11 @@ const CoachLayout = () => {
       }
     }
 
-    // Suspensa além da carência → redireciona
-    if (status === "suspended" && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar")) {
+    // Suspensa (carência esgotada) ou cancelada (assinatura removida na Asaas) → redireciona
+    if ((status === "suspended" || status === "cancelled") && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar")) {
       navigate(`/assinar?org=${orgId}&slug=${slug}`);
     }
-  }, [org]);
-
-  // Auto-expand Clientes section if we're on the clientes page
-  useEffect(() => {
-    if (location.pathname.includes("/clientes")) {
-      setClientesOpen(true);
-    }
-  }, [location.pathname]);
+  }, [org, isGetShapeOrg]);
 
   // Auto-expand Alimentos section if we're on a food page
   useEffect(() => {
@@ -170,6 +250,24 @@ const CoachLayout = () => {
     navigate(slug ? `/entrar/${slug}` : "/auth");
   };
 
+  // Atalho de tema no menu do avatar — mesma lógica de Settings.tsx
+  // (handleSaveTheme), duplicada aqui a pedido do Lucas (2026-08-03).
+  const handleToggleTheme = async () => {
+    if (!orgId) return;
+    const newTheme = org?.theme === "light" ? "dark" : "light";
+    document.documentElement.classList.toggle("light", newTheme === "light");
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+    try {
+      const { error } = await supabase.from("organizations").update({ theme: newTheme }).eq("id", orgId);
+      if (error) throw error;
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao trocar tema", description: err.message, variant: "destructive" });
+      document.documentElement.classList.toggle("light", org?.theme === "light");
+      document.documentElement.classList.toggle("dark", org?.theme !== "light");
+    }
+  };
+
   // isSuperAdmin: verdadeiro se o usuário logado É o dono (lucas) OU se
   // isGetShapeOrg está ativo (cobre co-coaches da mesma org no futuro).
   const isSuperAdmin = userEmail === SUPERADMIN_EMAIL || isGetShapeOrg;
@@ -208,6 +306,7 @@ const CoachLayout = () => {
   const midItems = [
     { icon: Calendar,      label: "Agenda",                  path: `${base}/agenda`,    badge: 0,           exact: false, permCat: "treino" as const,  permKey: "agenda"            },
     { icon: MessageSquare, label: "Mensagens",               path: `${base}/mensagens`, badge: unreadCount,  exact: false, permCat: "gestao" as const,  permKey: "mensagens"         },
+    { icon: Trophy,        label: "Ranking",                path: `${base}/ranking`,    badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "ranking"           },
     { icon: Target,        label: "Leads / CRM",            path: `${base}/leads`,      badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "leads_crm"         },
     { icon: Wallet,        label: "Financeiro",             path: `${base}/financeiro`, badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "financeiro"        },
     { icon: Package,       label: "Produtos / Planos",       path: `${base}/produtos`,  badge: 0,           exact: false, permCat: "gestao" as const,  permKey: "produtos_planos"   },
@@ -221,13 +320,6 @@ const CoachLayout = () => {
     { icon: Bell, label: "Notificações", path: `${base}/notificacoes`, badge: 0, exact: false, permCat: "gestao" as const, permKey: "notificacoes" },
   ];
 
-  // Meus Clientes sub-items
-  const clientesItems = [
-    { label: "Todos",     path: `${base}/clientes`,                  dot: "rgba(255,255,255,0.3)" },
-    { label: "Ativos",   path: `${base}/clientes?filter=ativos`,    dot: "rgb(74,222,128)" },
-    { label: "Inativos", path: `${base}/clientes?filter=inativos`,  dot: "rgba(255,255,255,0.3)" },
-  ];
-
   // Alimentos sub-items
   const alimentosItems = [
     { icon: Database,      label: "Banco de Alimentos",    path: `${base}/alimentos` },
@@ -239,9 +331,9 @@ const CoachLayout = () => {
 
   // Configurações sub-items
   const configItems = [
-    { icon: Settings,      label: "Configurações",            path: `${base}/configuracoes`          },
+    { icon: Settings,      label: "Geral",                    path: `${base}/configuracoes`          },
     { icon: ClipboardCheck, label: "Anamnese",                path: `${base}/anamnese-builder`       },
-    { icon: ScanLine,      label: "Avaliação Postural",        path: `${base}/postural-eval-builder`  },
+    ...(hasAvaliacaoPostural ? [{ icon: ScanLine, label: "Avaliação Postural", path: `${base}/postural-eval-builder` }] : []),
     { icon: ClipboardList, label: "Formulário de Atualização", path: `${base}/formulario`            },
     // Colaboradores: só visível para owners (não colaboradores)
     ...(!isCollaborator ? [{ icon: Users2, label: "Colaboradores", path: `${base}/colaboradores` }] : []),
@@ -260,6 +352,82 @@ const CoachLayout = () => {
 
   const notifyNoAccess = () =>
     toast({ title: "Acesso restrito", description: "Você não tem acesso a esta seção. Solicite ao administrador." });
+
+  // Menu de conta (avatar) — canto superior direito do conteúdo, desktop.
+  // Sempre dark (mesmo padrão de S/sidebar), independente do tema da org.
+  const AccountMenu = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="rounded-full shrink-0 transition-opacity hover:opacity-80">
+          <Avatar className="h-9 w-9" style={{ boxShadow: "0 0 0 2px rgba(var(--cp-rgb),0.3)" }}>
+            <AvatarImage src={profileAvatar} alt={profileName} />
+            <AvatarFallback className="text-white text-sm font-bold" style={{ background: "var(--cp-gradient)" }}>
+              {profileName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-white/8 rounded-xl">
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium text-white truncate">{profileName}</p>
+          <p className="text-xs text-white/50">Treinador</p>
+        </div>
+        <DropdownMenuSeparator className="bg-white/8" />
+
+        <DropdownMenuItem
+          className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+          onClick={() => navigate(`${base}/configuracoes?tab=perfil`)}
+        >
+          <User className="h-4 w-4 mr-2" />Perfil
+        </DropdownMenuItem>
+
+        {hideItem("gestao", "financeiro") ? null : showLocked("gestao", "financeiro") ? (
+          <DropdownMenuItem className="text-white/30 rounded-lg cursor-pointer" onClick={notifyNoAccess}>
+            <Wallet className="h-4 w-4 mr-2" />Financeiro
+            <Lock className="h-3.5 w-3.5 ml-auto opacity-40" />
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+            onClick={() => navigate(`${base}/financeiro`)}
+          >
+            <Wallet className="h-4 w-4 mr-2" />Financeiro
+          </DropdownMenuItem>
+        )}
+
+        {hideItem("administracao", "configuracoes") ? null : showLocked("administracao", "configuracoes") ? (
+          <DropdownMenuItem className="text-white/30 rounded-lg cursor-pointer" onClick={notifyNoAccess}>
+            <Settings className="h-4 w-4 mr-2" />Configurações
+            <Lock className="h-3.5 w-3.5 ml-auto opacity-40" />
+          </DropdownMenuItem>
+        ) : (
+          <>
+            <DropdownMenuItem
+              className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+              onClick={() => navigate(`${base}/configuracoes?tab=aparencia`)}
+            >
+              <Settings className="h-4 w-4 mr-2" />Configurações
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+              onClick={() => navigate(`${base}/configuracoes?tab=assinatura`)}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />Assinatura
+            </DropdownMenuItem>
+          </>
+        )}
+
+        <DropdownMenuSeparator className="bg-white/8" />
+        <DropdownMenuItem
+          className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+          onClick={handleToggleTheme}
+        >
+          {org?.theme === "light" ? <Moon className="h-4 w-4 mr-2" /> : <Sun className="h-4 w-4 mr-2" />}
+          Tema {org?.theme === "light" ? "escuro" : "claro"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const isActive = (path: string, exact = false) =>
     exact || path === base
@@ -292,11 +460,11 @@ const CoachLayout = () => {
         className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 flex items-center justify-between px-4 backdrop-blur-sm"
         style={{ backgroundColor: S.bg, borderBottom: `1px solid ${S.border}` }}
       >
-        <img
-          src={org?.logo_url ?? (isSuperAdmin ? "/logo-gs.png" : "/logos/orbi-logo-horizontal-dark.svg")}
-          alt={org?.name ?? (isSuperAdmin ? "Get Shape Training" : "ORBI Pro")}
-          className="h-9 w-auto object-contain"
-        />
+        {org?.logo_url ? (
+          <img src={org.logo_url} alt={org?.name ?? "ORBI Health"} className="h-[44px] w-auto object-contain" />
+        ) : (
+          <OrgWordmark emblemSize={34} iconUrl={org?.icon_url} name={org?.name ?? "ORBI Health"} />
+        )}
         <div className="flex items-center gap-2">
           <NotificationBell role="coach" />
           <button
@@ -347,50 +515,27 @@ const CoachLayout = () => {
       ═══════════════════════════════════════════ */}
 
       <aside
-        className="hidden lg:flex flex-col w-64 min-h-screen fixed top-0 left-0 bottom-0 z-30"
-        style={{ backgroundColor: S.bg, borderRight: `1px solid ${S.border}` }}
+        className="hidden lg:flex flex-col w-64 fixed top-3 left-3 bottom-3 z-30 rounded-2xl overflow-hidden"
+        style={{
+          background: `linear-gradient(180deg, ${S.bgGradientTop}, ${S.bgGradientBottom})`,
+          border: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 10px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.3)",
+        }}
       >
 
-        {/* Logo + bell */}
+        {/* Logo — altura/padding calibrados pra bater com a altura da barra
+            superior do conteúdo (sino/avatar h-9 + py-5 = 76px), já descontado
+            o gap de 12px (top-3) que a sidebar flutuante tem e o conteúdo não
+            — assim as duas linhas divisórias ficam alinhadas. */}
         <div
-          className="px-6 pt-6 pb-5 flex items-center justify-between"
+          className="px-6 py-3 flex items-center justify-start"
           style={{ borderBottom: `1px solid ${S.border}` }}
         >
-          <img
-            src={org?.logo_url ?? (isSuperAdmin ? "/logo-gs.png" : "/logos/orbi-logo-horizontal-dark.svg")}
-            alt={org?.name ?? (isSuperAdmin ? "Get Shape Training" : "ORBI Pro")}
-            className="h-10 w-auto max-w-[160px] object-contain"
-          />
-          <NotificationBell role="coach" />
-        </div>
-
-        {/* Profile */}
-        <div
-          className="px-4 py-4"
-          style={{ borderBottom: `1px solid ${S.border}` }}
-        >
-          <div
-            className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors cursor-default"
-            style={{ backgroundColor: S.bgActive }}
-          >
-            <Avatar className="h-9 w-9 shrink-0" style={{ boxShadow: "0 0 0 2px rgba(var(--cp-rgb),0.3)" }}>
-              <AvatarImage src={profileAvatar} alt={profileName} />
-              <AvatarFallback
-                className="text-white text-sm font-bold"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                {profileName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate" style={{ color: S.textPrimary }}>
-                {profileName}
-              </p>
-              <p className="text-xs tracking-wide" style={{ color: S.textMuted }}>
-                Treinador
-              </p>
-            </div>
-          </div>
+          {org?.logo_url ? (
+            <img src={org.logo_url} alt={org?.name ?? "ORBI Health"} className="h-10 w-auto max-w-[160px] object-contain" />
+          ) : (
+            <OrgWordmark emblemSize={38} iconUrl={org?.icon_url} name={org?.name ?? "ORBI Health"} />
+          )}
         </div>
 
         {/* Nav items */}
@@ -424,7 +569,7 @@ const CoachLayout = () => {
             );
           })}
 
-          {/* ── Meus Clientes (expandable section) ── */}
+          {/* ── Meus Clientes ── */}
           {hideItem("treino", "clientes") ? null : showLocked("treino", "clientes") ? (
             <button type="button" className="w-full text-left" onClick={notifyNoAccess}>
               <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -433,62 +578,33 @@ const CoachLayout = () => {
                 <Lock className="w-3.5 h-3.5 opacity-40" />
               </div>
             </button>
-          ) : <div>
-            <button
-              onClick={() => setClientesOpen((v) => !v)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
-              style={
-                isClientesActive && !clientesOpen
-                  ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
-                  : { color: isClientesActive ? S.textPrimary : S.textMuted }
-              }
-              onMouseEnter={(e) => {
-                if (!isClientesActive || clientesOpen) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
-                  (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+          ) : (
+            <Link to={`${base}/clientes`}>
+              <div
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+                style={
+                  isClientesActive
+                    ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 12px rgba(var(--cp-rgb), 0.25)" }
+                    : { color: S.textMuted }
                 }
-              }}
-              onMouseLeave={(e) => {
-                if (!isClientesActive || clientesOpen) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                  (e.currentTarget as HTMLElement).style.color = isClientesActive ? S.textPrimary : S.textMuted;
-                }
-              }}
-            >
-              <Users className="w-4 h-4 shrink-0" />
-              <span className="flex-1 text-left">Meus Clientes</span>
-              <ChevronDown
-                className="w-3.5 h-3.5 transition-transform duration-200"
-                style={{ transform: clientesOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-              />
-            </button>
-            {clientesOpen && (
-              <div className="mt-0.5 ml-3 pl-3 space-y-0.5" style={{ borderLeft: `1px solid ${S.border}` }}>
-                {clientesItems.map((item) => {
-                  const active = location.pathname + location.search === item.path ||
-                    (item.path === `${base}/clientes` && location.pathname === `${base}/clientes` && !location.search);
-                  return (
-                    <Link key={item.path} to={item.path}>
-                      <div
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-                        style={active
-                          ? { background: "var(--cp-gradient)", color: "#ffffff", boxShadow: "0 2px 8px rgba(var(--cp-rgb), 0.2)" }
-                          : { color: S.textMuted }}
-                        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover; (e.currentTarget as HTMLElement).style.color = S.textPrimary; } }}
-                        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; (e.currentTarget as HTMLElement).style.color = S.textMuted; } }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: active ? "rgba(255,255,255,0.7)" : item.dot }}
-                        />
-                        {item.label}
-                      </div>
-                    </Link>
-                  );
-                })}
+                onMouseEnter={(e) => {
+                  if (!isClientesActive) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = S.bgHover;
+                    (e.currentTarget as HTMLElement).style.color = S.textPrimary;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isClientesActive) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                    (e.currentTarget as HTMLElement).style.color = S.textMuted;
+                  }
+                }}
+              >
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="flex-1">Meus Clientes</span>
               </div>
-            )}
-          </div>}
+            </Link>
+          )}
 
           {/* ── Mid items: Agenda, Mensagens, Produtos, Biblioteca, Modelos ── */}
           {midItems.map((item) => {
@@ -716,7 +832,106 @@ const CoachLayout = () => {
       {/* ═══════════════════════════════════════════
           CONTEÚDO PRINCIPAL — segue o tema
       ═══════════════════════════════════════════ */}
-      <main className="min-h-screen pt-14 pb-20 lg:pt-0 lg:pb-0 lg:ml-64 bg-background">
+      <main className="min-h-screen pt-14 pb-20 lg:pt-0 lg:pb-0 lg:ml-[280px] bg-background">
+        {/* Barra superior (desktop) — atalho de mensagens + sino + menu de
+            conta no canto superior direito. Mensagens usa o mesmo padrão de
+            ícone+badge já usado no header mobile do aluno (StudentLayout.tsx). */}
+        <div className="hidden lg:flex items-center justify-end gap-3 px-6 py-5 sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
+          {can("gestao", "financeiro") && (
+            <div className="flex items-center gap-2.5 h-9 shrink-0">
+              <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs font-bold text-foreground shrink-0">{fmtCompact(recebidoMes)}</span>
+
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/financeiro`)}
+                className="relative w-36 h-1.5 shrink-0"
+                title="Ver financeiro"
+              >
+                <span className="absolute inset-0 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.12)" }}>
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${org?.meta_faturamento ? Math.min(100, (recebidoMes / org.meta_faturamento) * 100) : 0}%`,
+                      background: "var(--cp-gradient)",
+                    }}
+                  />
+                </span>
+                <span
+                  className="absolute top-1/2 w-3.5 h-3.5 rounded-full border-2 shadow-sm"
+                  style={{
+                    left: `${org?.meta_faturamento ? Math.min(100, (recebidoMes / org.meta_faturamento) * 100) : 0}%`,
+                    transform: "translate(-50%, -50%)",
+                    background: "var(--cp-500)",
+                    borderColor: "hsl(var(--background))",
+                  }}
+                />
+              </button>
+
+              <Popover
+                open={metaPopoverOpen}
+                onOpenChange={(o) => {
+                  setMetaPopoverOpen(o);
+                  if (o) setMetaInput(String(org?.meta_faturamento ?? 10000));
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-foreground/45 hover:text-foreground transition-colors shrink-0"
+                    title="Editar meta de faturamento"
+                  >
+                    {fmtCompact(org?.meta_faturamento ?? 10000)}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 space-y-2.5">
+                <p className="text-xs font-semibold text-foreground">Meta de faturamento mensal</p>
+                <p className="text-[11px] text-foreground/40">
+                  Recebido este mês: {recebidoMes.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={metaInput}
+                    onChange={(e) => setMetaInput(e.target.value)}
+                    placeholder="10000"
+                    inputMode="decimal"
+                    className="h-9 text-sm"
+                  />
+                  <Button
+                    onClick={handleSaveMeta}
+                    disabled={savingMeta}
+                    className="h-9 px-3 shrink-0 text-white font-semibold"
+                    style={{ background: "var(--cp-gradient)" }}
+                  >
+                    {savingMeta ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Salvar"}
+                  </Button>
+                </div>
+              </PopoverContent>
+              </Popover>
+            </div>
+          )}
+          {can("gestao", "mensagens") && (
+            <button
+              type="button"
+              onClick={() => navigate(`${base}/mensagens`)}
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-colors text-foreground/60 hover:text-foreground hover:bg-foreground/5"
+              title="Mensagens"
+            >
+              <MessageSquare className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none"
+                  style={{ backgroundColor: "hsl(0 70% 55%)", color: "#fff" }}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+          <NotificationBell role="coach" />
+          <AccountMenu />
+        </div>
+
         {/* Banner de trial */}
         {orgStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 7 && (
           <div
@@ -748,6 +963,9 @@ const CoachLayout = () => {
         )}
         <Outlet />
       </main>
+
+      {/* Agente de IA de suporte — só o dono da org, não colaboradores */}
+      {!isCollaborator && <SupportAgentBubble />}
 
     </div>
   );

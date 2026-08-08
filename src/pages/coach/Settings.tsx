@@ -1,11 +1,11 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar, Camera, Trash2, GripVertical, Plus, X } from "lucide-react";
+import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar, Camera, Trash2, GripVertical, Plus, X, ChevronDown, MessageCircle, User, Palette } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { COLOR_PALETTE, ColorEntry } from "@/lib/colors";
@@ -66,10 +66,157 @@ const SlotInput = ({
   );
 };
 
+// ── Seção reutilizável ─────────────────────────────────────────
+// Definida fora do Settings de propósito: um componente declarado dentro do
+// corpo de outro é recriado (novo "tipo") a cada render do pai — o React
+// desmonta e remonta seus filhos, e qualquer <input> dentro perde o foco a
+// cada tecla digitada. Já aconteceu antes neste mesmo arquivo (ver SlotInput
+// acima, workaround via onBlur para o PhotoSlotsSection) e de novo no
+// ProfileForm (campo "Nome"), corrigido hoisteando os dois pra cá.
+const Section = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
+  <div className="rounded-2xl overflow-hidden"
+    style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+    <div className="px-6 py-4 border-b border-white/6">
+      <h2 className="text-sm font-semibold text-white">{title}</h2>
+      {subtitle && <p className="text-xs text-white/40 mt-0.5">{subtitle}</p>}
+    </div>
+    <div className="px-6 py-5">{children}</div>
+  </div>
+);
+
+const ProfileForm = ({
+  nome, setNome, email, avatarUrl, uploading, savingProfile,
+  fileInputRef, handleAvatarChange, handleSaveProfile,
+}: {
+  nome: string;
+  setNome: (v: string) => void;
+  email: string;
+  avatarUrl: string;
+  uploading: boolean;
+  savingProfile: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  handleAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSaveProfile: (e: React.FormEvent) => void;
+}) => (
+  <Section title="Perfil do Treinador" subtitle="Suas informações pessoais">
+    <form onSubmit={handleSaveProfile} className="space-y-5">
+      {/* Avatar */}
+      <div className="flex items-center gap-5">
+        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+          <Avatar className="w-20 h-20 ring-2 ring-white/10 group-hover:ring-green-600/40 transition-premium">
+            <AvatarImage src={avatarUrl} alt={nome} className="object-cover" />
+            <AvatarFallback
+              className="text-white text-2xl font-bold"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              {nome.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-premium flex items-center justify-center">
+            {uploading
+              ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+              : <Upload className="w-5 h-5 text-white" />
+            }
+          </div>
+        </div>
+        <div>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleAvatarChange} className="hidden" />
+          <p className="text-sm text-white/70 font-medium">Foto de perfil</p>
+          <p className="text-xs text-white/40 mt-0.5">Para melhor resultado, use foto quadrada (1:1).</p>
+          <p className="text-xs text-white/40 mt-0.5">JPG, PNG ou GIF · máx 2MB.</p>
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="text-xs text-green-500 hover:text-green-400 mt-1.5 transition-premium disabled:opacity-40">
+            {uploading ? "Enviando..." : "Alterar foto"}
+          </button>
+        </div>
+      </div>
+
+      {/* Nome */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-white/55 uppercase tracking-wider">Nome</Label>
+        <Input value={nome} onChange={(e) => setNome(e.target.value)} required
+          className="bg-white/5 border-white/10 text-white rounded-xl h-11 focus:border-green-600/50" />
+      </div>
+
+      {/* Email */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-white/55 uppercase tracking-wider">E-mail</Label>
+        <Input type="email" value={email} disabled
+          className="bg-white/3 border-white/6 text-white/35 rounded-xl h-11 cursor-not-allowed" />
+        <p className="text-xs text-white/35">O e-mail não pode ser alterado</p>
+      </div>
+
+      <Button type="submit" disabled={savingProfile}
+        className="h-10 px-5 rounded-xl text-white font-semibold text-sm"
+        style={{ background: "var(--cp-gradient)" }}>
+        {savingProfile ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : "Salvar alterações"}
+      </Button>
+    </form>
+  </Section>
+);
+
+// Hoisted pro escopo do módulo — evita o bug de "campo perde foco/rola pro
+// topo a cada tecla" (componente inline no corpo de Settings seria recriado
+// a cada render; ver memória "inline-component-focus-loss-bug").
+const OrgNameSection = ({
+  orgName, setOrgName, savingOrgName, currentName, handleSaveOrgName,
+}: {
+  orgName: string;
+  setOrgName: (v: string) => void;
+  savingOrgName: boolean;
+  currentName: string;
+  handleSaveOrgName: () => void;
+}) => (
+  <Section title="Nome exibido" subtitle="Aparece na sidebar/header do app (junto do ícone) quando não há uma Logo completa enviada, e em e-mails automáticos">
+    <Label className="text-xs text-white/50 uppercase tracking-wider">Nome da organização</Label>
+    <Input
+      value={orgName}
+      onChange={(e) => setOrgName(e.target.value)}
+      className="bg-white/5 border-white/10 text-white rounded-xl h-11 focus:border-amber-500/50 mt-2 mb-4"
+      placeholder="Ex: Get Shape"
+    />
+    <Button
+      type="button"
+      onClick={handleSaveOrgName}
+      disabled={savingOrgName || orgName.trim() === currentName}
+      className="h-10 px-5 rounded-xl text-white font-semibold text-sm"
+      style={{ background: "var(--cp-gradient)" }}
+    >
+      {savingOrgName
+        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</>
+        : "Salvar nome"
+      }
+    </Button>
+  </Section>
+);
+
+// Sub-navegação da tela de Configurações (desktop). Agrupa por "o que o
+// treinador está tentando fazer", não por componente: Tema/Cor/Logo/Ícone/Slots
+// são todos "como a plataforma se parece", então caem juntos em "Aparência".
+const SETTINGS_NAV = [
+  { key: "perfil"     as const, label: "Perfil",     icon: User },
+  { key: "aparencia"  as const, label: "Aparência",  icon: Palette },
+  { key: "whatsapp"   as const, label: "WhatsApp",   icon: MessageCircle },
+  { key: "assinatura" as const, label: "Assinatura", icon: CreditCard },
+  { key: "seguranca"  as const, label: "Segurança",  icon: Lock },
+];
+
+const VALID_SETTINGS_TABS = ["perfil", "aparencia", "whatsapp", "assinatura", "seguranca"] as const;
+type SettingsTab = typeof VALID_SETTINGS_TABS[number];
+
 const Settings = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { slug, orgId, org, reload } = useTenantContext();
+  const { slug, orgId, org, reload, isGetShapeOrg } = useTenantContext();
+
+  // Sub-navegação da tela (só desktop — mobile continua rolando tudo empilhado).
+  // Aceita ?tab= na URL (atalhos do menu de conta no avatar, CoachLayout.tsx).
+  const tabParam = searchParams.get("tab");
+  const initialTab: SettingsTab = (VALID_SETTINGS_TABS as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as SettingsTab)
+    : "perfil";
+  const [activeSection, setActiveSection] = useState<SettingsTab>(initialTab);
 
   // Perfil
   const [nome, setNome]         = useState("");
@@ -93,6 +240,10 @@ const Settings = () => {
   // Cor primária
   const [primaryColor,  setPrimaryColor]  = useState<string>("#16a34a");
   const [savingColor,   setSavingColor]   = useState(false);
+
+  // Nome exibido (sidebar/header) — organizations.name, editável (2026-08-03)
+  const [orgName,        setOrgName]        = useState("");
+  const [savingOrgName,  setSavingOrgName]  = useState(false);
 
   // Logo da org
   const [logoUrl,         setLogoUrl]         = useState<string | null>(null);
@@ -183,6 +334,7 @@ const Settings = () => {
   // Assinatura / Billing
   interface SubscriptionData {
     plan: string;
+    plan_type: string | null;
     status: string;
     next_billing_date: string | null;
     grace_until: string | null;
@@ -197,8 +349,18 @@ const Settings = () => {
   }
   const [subscription, setSubscription]     = useState<SubscriptionData | null>(null);
   const [paymentEvents, setPaymentEvents]   = useState<PaymentEventData[]>([]);
+  const [showFullHistory, setShowFullHistory] = useState(false);
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [cancellingPlan, setCancellingPlan] = useState(false);
+
+  // WhatsApp (Evolution API)
+  type WaStatus = "disconnected" | "connecting" | "connected" | "banned";
+  const [waStatus, setWaStatus]       = useState<WaStatus>("disconnected");
+  const [waConnectedAt, setWaConnectedAt] = useState<string | null>(null);
+  const [waQrCode, setWaQrCode]       = useState<string | null>(null);
+  const [waModalOpen, setWaModalOpen] = useState(false);
+  const [waLoading, setWaLoading]     = useState(false);
+  const waPollRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -218,6 +380,10 @@ const Settings = () => {
   }, [org?.primary_color]);
 
   useEffect(() => {
+    setOrgName(org?.name ?? "");
+  }, [org?.name]);
+
+  useEffect(() => {
     setLogoUrl(org?.logo_url ?? null);
   }, [org?.logo_url]);
 
@@ -225,13 +391,23 @@ const Settings = () => {
     setIconUrl(org?.icon_url ?? null);
   }, [org?.icon_url]);
 
+  useEffect(() => {
+    setWaStatus(((org as any)?.whatsapp_status as WaStatus) ?? "disconnected");
+    setWaConnectedAt((org as any)?.whatsapp_connected_at ?? null);
+  }, [org]);
+
+  // Para de perguntar o status quando o componente desmonta (troca de página)
+  useEffect(() => () => {
+    if (waPollRef.current) window.clearInterval(waPollRef.current);
+  }, []);
+
 
   const loadSubscription = async (oid: string) => {
     setLoadingBilling(true);
     try {
       const { data: sub } = await supabase
         .from("subscriptions")
-        .select("plan, status, next_billing_date, grace_until")
+        .select("plan, plan_type, status, next_billing_date, grace_until")
         .eq("organization_id", oid)
         .maybeSingle();
       setSubscription(sub ?? null);
@@ -272,6 +448,75 @@ const Settings = () => {
     } finally {
       setCancellingPlan(false);
     }
+  };
+
+  // ── WhatsApp (Evolution API) ────────────────────────────────────
+  // A função usa o header "x-orbi-auth" em vez de "Authorization" porque a
+  // borda do Supabase rejeita tokens de sessão atuais (ES256) nesse header
+  // específico — bug de plataforma, ver CLAUDE.md seção 14/15. Enquanto isso
+  // não for corrigido pelo Supabase, chamamos essa função via fetch direto.
+  const callWhatsappInstance = async (method: "GET" | "POST" | "DELETE", oid: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? "";
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-instance?org_id=${oid}`,
+      { method, headers: { "x-orbi-auth": token, "Content-Type": "application/json" } },
+    );
+    return res.json();
+  };
+
+  const startWaPolling = (oid: string) => {
+    if (waPollRef.current) window.clearInterval(waPollRef.current);
+    waPollRef.current = window.setInterval(async () => {
+      const data = await callWhatsappInstance("GET", oid);
+      if (data.status === "connected") {
+        setWaStatus("connected");
+        setWaModalOpen(false);
+        if (waPollRef.current) window.clearInterval(waPollRef.current);
+        toast({ title: "WhatsApp conectado!" });
+        reload();
+      }
+    }, 3000);
+  };
+
+  const handleConnectWhatsapp = async () => {
+    if (!orgId) return;
+    setWaLoading(true);
+    try {
+      const data = await callWhatsappInstance("POST", orgId);
+      if (data.qrcode) {
+        setWaQrCode(data.qrcode);
+        setWaModalOpen(true);
+        setWaStatus("connecting");
+        startWaPolling(orgId);
+      } else {
+        toast({ title: "Erro ao gerar QR code", description: data.error ?? "Tente novamente.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao conectar WhatsApp", description: err.message, variant: "destructive" });
+    } finally {
+      setWaLoading(false);
+    }
+  };
+
+  const handleDisconnectWhatsapp = async () => {
+    if (!orgId) return;
+    setWaLoading(true);
+    try {
+      await callWhatsappInstance("DELETE", orgId);
+      setWaStatus("disconnected");
+      toast({ title: "WhatsApp desconectado" });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao desconectar", description: err.message, variant: "destructive" });
+    } finally {
+      setWaLoading(false);
+    }
+  };
+
+  const closeWaModal = () => {
+    setWaModalOpen(false);
+    if (waPollRef.current) window.clearInterval(waPollRef.current);
   };
 
   const loadProfile = async () => {
@@ -371,6 +616,27 @@ const Settings = () => {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  // ── Salva nome exibido da org (sidebar/header/e-mails) ───────────
+  const handleSaveOrgName = async () => {
+    if (!orgId) return;
+    const trimmed = orgName.trim();
+    if (!trimmed) {
+      toast({ title: "Nome não pode ficar vazio", variant: "destructive" });
+      return;
+    }
+    setSavingOrgName(true);
+    try {
+      const { error } = await supabase.from("organizations").update({ name: trimmed }).eq("id", orgId);
+      if (error) throw error;
+      toast({ title: "Nome atualizado!" });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar nome", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingOrgName(false);
     }
   };
 
@@ -672,76 +938,6 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
     </Section>
   );
 
-  // ── Seção reutilizável ─────────────────────────────────────────
-  const Section = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
-    <div className="rounded-2xl border border-white/6 bg-white/3 overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/6">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        {subtitle && <p className="text-xs text-white/40 mt-0.5">{subtitle}</p>}
-      </div>
-      <div className="px-6 py-5">{children}</div>
-    </div>
-  );
-
-  // ── Sub-components reutilizáveis ──────────────────────────
-  const ProfileForm = () => (
-    <Section title="Perfil do Treinador" subtitle="Suas informações pessoais">
-      <form onSubmit={handleSaveProfile} className="space-y-5">
-        {/* Avatar */}
-        <div className="flex items-center gap-5">
-          <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-            <Avatar className="w-20 h-20 ring-2 ring-white/10 group-hover:ring-green-600/40 transition-premium">
-              <AvatarImage src={avatarUrl} alt={nome} className="object-cover" />
-              <AvatarFallback
-                className="text-white text-2xl font-bold"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                {nome.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-premium flex items-center justify-center">
-              {uploading
-                ? <Loader2 className="w-5 h-5 text-white animate-spin" />
-                : <Upload className="w-5 h-5 text-white" />
-              }
-            </div>
-          </div>
-          <div>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handleAvatarChange} className="hidden" />
-            <p className="text-sm text-white/70 font-medium">Foto de perfil</p>
-            <p className="text-xs text-white/40 mt-0.5">Para melhor resultado, use foto quadrada (1:1).</p>
-            <p className="text-xs text-white/40 mt-0.5">JPG, PNG ou GIF · máx 2MB.</p>
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-              className="text-xs text-green-500 hover:text-green-400 mt-1.5 transition-premium disabled:opacity-40">
-              {uploading ? "Enviando..." : "Alterar foto"}
-            </button>
-          </div>
-        </div>
-
-        {/* Nome */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-white/55 uppercase tracking-wider">Nome</Label>
-          <Input value={nome} onChange={(e) => setNome(e.target.value)} required
-            className="bg-white/5 border-white/10 text-white rounded-xl h-11 focus:border-green-600/50" />
-        </div>
-
-        {/* Email */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-white/55 uppercase tracking-wider">E-mail</Label>
-          <Input type="email" value={email} disabled
-            className="bg-white/3 border-white/6 text-white/35 rounded-xl h-11 cursor-not-allowed" />
-          <p className="text-xs text-white/35">O e-mail não pode ser alterado</p>
-        </div>
-
-        <Button type="submit" disabled={savingProfile}
-          className="h-10 px-5 rounded-xl text-white font-semibold text-sm"
-          style={{ background: "var(--cp-gradient)" }}>
-          {savingProfile ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : "Salvar alterações"}
-        </Button>
-      </form>
-    </Section>
-  );
-
   const ThemeSelector = () => (
     <Section title="Tema da Organização" subtitle="Aparência aplicada para todos que acessam sua plataforma">
       <div className="grid grid-cols-2 gap-3">
@@ -840,7 +1036,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
       {/* Live preview */}
       <div
         className="rounded-xl p-4 mb-4 space-y-3"
-        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+        style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
       >
         <p className="text-[10px] text-white/30 uppercase tracking-wider">Preview</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -885,7 +1081,11 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
   );
 
   const LogoSection = () => {
-    const displaySrc = logoPreview ?? logoUrl;
+    // GS brand sem logo próprio enviado: o app mostra o logo padrão do Get Shape
+    // (ver StudentLayout.tsx/CoachLayout.tsx) — a prévia aqui precisa refletir isso,
+    // senão parece que "não tem logo nenhum" quando na verdade tem um aplicado.
+    const usingGsFallback = isGetShapeOrg && !logoPreview && !logoUrl;
+    const displaySrc = logoPreview ?? logoUrl ?? (usingGsFallback ? "/logo-gs.png" : null);
     return (
       <Section title="Identidade Visual" subtitle="Logo exibida no sidebar e header do app">
         <div className="space-y-4">
@@ -935,6 +1135,11 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
           <p className="text-xs text-muted-foreground">
             Use PNG com fundo transparente, preferencialmente 600x170px. Máx 2MB.
           </p>
+          {usingGsFallback && (
+            <p className="text-xs" style={{ color: "var(--cp-400)" }}>
+              Nenhum logo próprio enviado — usando o padrão do Get Shape. Envie o seu pra substituir.
+            </p>
+          )}
 
           {/* Botões */}
           <div className="flex flex-wrap gap-2">
@@ -1083,6 +1288,84 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
     );
   };
 
+  const WA_BADGE: Record<WaStatus, { label: string; bg: string; color: string }> = {
+    disconnected: { label: "Desconectado",       bg: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" },
+    connecting:   { label: "Aguardando leitura", bg: "rgba(186,117,23,0.18)",  color: "#FAC775" },
+    connected:    { label: "Conectado",          bg: "rgba(29,158,117,0.18)",  color: "#5DCAA5" },
+    banned:       { label: "Bloqueado",          bg: "rgba(226,75,74,0.18)",   color: "#F09595" },
+  };
+
+  const WhatsAppSection = () => {
+    const badge = WA_BADGE[waStatus];
+    return (
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          backgroundColor: "#141417",
+          border: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+        }}
+      >
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4 text-white/70" />
+              <h2 className="text-sm font-semibold text-white">WhatsApp</h2>
+            </div>
+            <span
+              className="text-[11px] px-2.5 py-1 rounded-full font-medium"
+              style={{ background: badge.bg, color: badge.color }}
+            >
+              {badge.label}
+            </span>
+          </div>
+          <p className="text-xs text-white/45 mt-1 mb-4">
+            Conecte o WhatsApp da sua conta pra enviar lembretes e conversar com alunos e leads direto pelo ORBI.
+          </p>
+
+          {waStatus === "connected" ? (
+            <div className="space-y-3">
+              <div
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+              >
+                <Check className="w-4 h-4" style={{ color: "#5DCAA5" }} />
+                <span className="text-xs text-white">
+                  {waConnectedAt
+                    ? `Conectado desde ${new Date(waConnectedAt).toLocaleDateString("pt-BR")}`
+                    : "Conectado"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDisconnectWhatsapp}
+                disabled={waLoading}
+                className="h-9 px-4 rounded-xl text-xs font-semibold w-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                {waLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Desconectar"}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConnectWhatsapp}
+              disabled={waLoading}
+              className="h-10 w-full rounded-xl text-sm font-semibold flex items-center justify-center"
+              style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
+            >
+              {waLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Conectar WhatsApp"}
+            </button>
+          )}
+
+          <p className="text-[11px] text-white/25 mt-3 text-center">
+            Use o WhatsApp do seu atendimento — evite conectar seu número pessoal.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   const PLAN_INFO: Record<string, { label: string; description: string; badge?: string }> = {
     motion:  { label: "Orbi Motion",  description: "Gestão de treinos"                  },
     pro:     { label: "Orbi Pro",     description: "Treinos + Dieta"                    },
@@ -1136,14 +1419,36 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
       cancelled: "text-white/40",
       pending: "text-amber-400",
     };
+    // Só os eventos que contam uma história real pro treinador ("paguei",
+    // "venceu", "cancelei") aparecem no histórico — eventos internos como
+    // SUBSCRIPTION_CREATED são registrados no banco (payment_events) só
+    // pra auditoria/debug, sem interesse nenhum pra quem tá vendo a tela.
     const eventLabel: Record<string, string> = {
       PAYMENT_CONFIRMED: "Pagamento confirmado",
+      PAYMENT_RECEIVED: "Pagamento recebido",
       PAYMENT_OVERDUE: "Pagamento vencido",
       PAYMENT_DELETED: "Pagamento removido",
-      SUBSCRIPTION_CANCELLED: "Assinatura cancelada",
+      SUBSCRIPTION_DELETED: "Assinatura cancelada",
     };
+    const visibleEvents = paymentEvents.filter((ev) => ev.event_type in eventLabel);
+    const EventRow = ({ ev }: { ev: PaymentEventData }) => (
+      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl"
+        style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
+        <div>
+          <p className="text-xs font-medium text-white/70">{eventLabel[ev.event_type] ?? ev.event_type}</p>
+          <p className="text-[11px] text-white/30">
+            {new Date(ev.created_at).toLocaleDateString("pt-BR")}
+          </p>
+        </div>
+        {ev.amount && (
+          <span className="text-xs font-semibold text-white/60">
+            R$ {ev.amount.toFixed(2).replace(".", ",")}
+          </span>
+        )}
+      </div>
+    );
 
-    const orgStatus = org?.subscription_status ?? "trial";
+    const orgStatus = (org as any)?.subscription_status ?? "trial";
     const trialEndsAt = (org as any)?.trial_ends_at;
     const trialDaysLeft = trialEndsAt
       ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
@@ -1159,12 +1464,14 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
           <div className="space-y-4">
             {/* Status card */}
             <div className="rounded-xl p-4 space-y-3"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Crown className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
                   <span className="text-sm font-semibold text-white">
-                    {subscription ? (subscription.plan === "mensal" ? "Plano Mensal" : "Plano Anual") : "Trial gratuito"}
+                    {subscription
+                      ? `${subscription.plan_type === "pro" ? "ORBI Pro" : "ORBI Motion"} — ${subscription.plan === "mensal" ? "Mensal" : "Anual"}`
+                      : "Trial gratuito"}
                   </span>
                 </div>
                 <span className={`text-xs font-semibold ${statusColor[orgStatus] ?? "text-white/40"}`}>
@@ -1225,32 +1532,34 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
               )}
             </div>
 
-            {/* Histórico de pagamentos */}
-            {paymentEvents.length > 0 && (
+            {/* Histórico de pagamentos — sempre mostra só o evento mais recente;
+                o resto fica atrás do "Ver tudo" pra não empurrar a página pra baixo
+                conforme os meses passam. */}
+            {visibleEvents.length > 0 && (
               <div>
-                <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Histórico de pagamentos</p>
+                {visibleEvents.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullHistory((v) => !v)}
+                    className="flex items-center justify-between w-full mb-2"
+                  >
+                    <span className="text-xs text-white/40 uppercase tracking-wider">Histórico de pagamentos</span>
+                    <span className="flex items-center gap-1 text-[11px] text-white/30">
+                      {showFullHistory ? "Ver menos" : `Ver tudo (${visibleEvents.length})`}
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showFullHistory ? "rotate-180" : ""}`} />
+                    </span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Histórico de pagamentos</p>
+                )}
                 <div className="space-y-1.5">
-                  {paymentEvents.map((ev) => (
-                    <div key={ev.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl"
-                      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div>
-                        <p className="text-xs font-medium text-white/70">{eventLabel[ev.event_type] ?? ev.event_type}</p>
-                        <p className="text-[11px] text-white/30">
-                          {new Date(ev.created_at).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                      {ev.amount && (
-                        <span className="text-xs font-semibold text-white/60">
-                          R$ {ev.amount.toFixed(2).replace(".", ",")}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                  <EventRow ev={visibleEvents[0]} />
+                  {showFullHistory && visibleEvents.slice(1).map((ev) => <EventRow key={ev.id} ev={ev} />)}
                 </div>
               </div>
             )}
 
-            {paymentEvents.length === 0 && subscription && (
+            {visibleEvents.length === 0 && subscription && (
               <p className="text-xs text-white/25">Nenhum evento de pagamento ainda.</p>
             )}
           </div>
@@ -1273,14 +1582,24 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
     <div className="min-h-screen bg-zinc-950">
       <div className="px-6 lg:px-8 py-6 lg:py-8">
 
-        <div className="mb-8">
+        <div className="mb-8 lg:max-w-xl lg:mx-auto">
           <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Configurações</h1>
           <p className="text-white/50 mt-1 text-sm">Gerencie seu perfil e preferências da plataforma</p>
         </div>
 
         {/* ── Mobile: coluna única ── Desktop: 2 colunas ─────── */}
         <div className="block lg:hidden max-w-xl space-y-4">
-          <ProfileForm />
+          <ProfileForm
+            nome={nome} setNome={setNome} email={email} avatarUrl={avatarUrl}
+            uploading={uploading} savingProfile={savingProfile}
+            fileInputRef={fileInputRef} handleAvatarChange={handleAvatarChange}
+            handleSaveProfile={handleSaveProfile}
+          />
+          <WhatsAppSection />
+          <OrgNameSection
+            orgName={orgName} setOrgName={setOrgName} savingOrgName={savingOrgName}
+            currentName={org?.name ?? ""} handleSaveOrgName={handleSaveOrgName}
+          />
           <LogoSection />
           <IconSection />
           <ThemeSelector />
@@ -1291,23 +1610,109 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
           <SecuritySection />
         </div>
 
-        <div className="hidden lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:items-start lg:max-w-5xl">
-          {/* Coluna esquerda — Perfil */}
-          <ProfileForm />
+        {/* Desktop: barra de navegação horizontal (mesmo padrão das abas do
+            perfil do aluno, StudentDetails.tsx) + painel da seção ativa */}
+        <div className="hidden lg:block">
+          <div className="flex items-center gap-1 border-b mb-6 overflow-x-auto scrollbar-none max-w-xl mx-auto"
+            style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+            {SETTINGS_NAV.map((item) => {
+              const active = activeSection === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveSection(item.key)}
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
+                  style={{
+                    color: active ? "#ffffff" : "rgba(255,255,255,0.45)",
+                    borderBottomColor: active ? "var(--cp-500)" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.75)"; }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.45)"; }}
+                >
+                  <item.icon
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: active ? "var(--cp-500)" : undefined }}
+                  />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Coluna direita — Logo + Ícone + Tema + Cor + Slots + Billing + Segurança */}
-          <div className="space-y-4">
-            <LogoSection />
-            <IconSection />
-            <ThemeSelector />
-            <ColorPicker />
-            <PhotoSlotsSection />
-            <BillingSection />
-            <SecuritySection />
+          <div className="space-y-4 min-w-0 max-w-xl mx-auto">
+            {activeSection === "perfil" && (
+              <ProfileForm
+                nome={nome} setNome={setNome} email={email} avatarUrl={avatarUrl}
+                uploading={uploading} savingProfile={savingProfile}
+                fileInputRef={fileInputRef} handleAvatarChange={handleAvatarChange}
+                handleSaveProfile={handleSaveProfile}
+              />
+            )}
+            {activeSection === "aparencia" && (
+              <>
+                <ThemeSelector />
+                <ColorPicker />
+                <OrgNameSection
+                  orgName={orgName} setOrgName={setOrgName} savingOrgName={savingOrgName}
+                  currentName={org?.name ?? ""} handleSaveOrgName={handleSaveOrgName}
+                />
+                <LogoSection />
+                <IconSection />
+                <PhotoSlotsSection />
+              </>
+            )}
+            {activeSection === "whatsapp" && <WhatsAppSection />}
+            {activeSection === "assinatura" && (
+              <>
+                <PlanSection />
+                <BillingSection />
+              </>
+            )}
+            {activeSection === "seguranca" && <SecuritySection />}
           </div>
         </div>
 
       </div>
+
+      {/* ── Modal de QR code do WhatsApp ─────────────────────────────── */}
+      {waModalOpen && waQrCode && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
+            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <h2 className="text-base font-semibold text-white">Conectar WhatsApp</h2>
+              <p className="text-xs text-white/40 mt-0.5">Escaneie o código com o número que vai enviar os lembretes</p>
+            </div>
+
+            <div className="p-6 flex flex-col items-center">
+              <div className="bg-white p-3 rounded-xl">
+                <img src={waQrCode} alt="QR code do WhatsApp" width={220} height={220} />
+              </div>
+              <ol className="text-xs text-white/50 mt-4 space-y-1.5 list-decimal list-inside self-start">
+                <li>Abra o WhatsApp no celular</li>
+                <li>Toque em Mais opções → Dispositivos conectados</li>
+                <li>Toque em Conectar um dispositivo e escaneie</li>
+              </ol>
+            </div>
+
+            <div className="px-5 py-4 flex justify-end" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+              <button
+                type="button"
+                onClick={closeWaModal}
+                className="h-9 px-4 rounded-xl text-sm font-medium transition-colors"
+                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal de recorte de avatar ───────────────────────────────── */}
       {cropModalOpen && cropSrc && (

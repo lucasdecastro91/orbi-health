@@ -4,7 +4,7 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   Download, ChevronDown, ChevronUp, Loader2,
-  User, Calendar, ImageIcon, ClipboardList, Filter,
+  User, Calendar, ImageIcon, ClipboardList, Filter, Check,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ interface Resposta {
   submitted_at: string;
   student_nome: string;
   student_avatar: string | null;
+  concluida: boolean;
   valores: Valor[];
   arquivos: Arquivo[];
 }
@@ -65,7 +66,7 @@ const AtualizacoesCoach = () => {
       const { data, error } = await supabase
         .from("atualizacao_respostas")
         .select(`
-          id, student_id, submitted_at,
+          id, student_id, submitted_at, concluida,
           profiles!student_id (nome, avatar_url),
           atualizacao_resposta_valores (
             id, campo_id, valor_texto, valor_numero, valor_opcoes,
@@ -84,6 +85,7 @@ const AtualizacoesCoach = () => {
         submitted_at: r.submitted_at,
         student_nome: r.profiles?.nome ?? "Aluno",
         student_avatar: r.profiles?.avatar_url ?? null,
+        concluida: r.concluida ?? false,
         arquivos: r.atualizacao_resposta_arquivos ?? [],
         valores: (r.atualizacao_resposta_valores ?? [])
           .map((v: any) => ({
@@ -102,6 +104,25 @@ const AtualizacoesCoach = () => {
       toast({ title: "Erro ao carregar atualizações", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Marcar como concluída ─────────────────────────────────────
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const toggleConcluida = async (resp: Resposta) => {
+    setTogglingId(resp.id);
+    try {
+      const { error } = await supabase
+        .from("atualizacao_respostas")
+        .update({ concluida: !resp.concluida })
+        .eq("id", resp.id);
+      if (error) throw error;
+      setRespostas((rs) => rs.map((r) => r.id === resp.id ? { ...r, concluida: !resp.concluida } : r));
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar status", description: e.message, variant: "destructive" });
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -212,36 +233,53 @@ const AtualizacoesCoach = () => {
             style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--surface-1)" }}
           >
             {/* Row header */}
-            <button
-              onClick={() => toggleExpand(resp.id, resp.arquivos)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/3 transition-colors"
-            >
-              {/* Avatar */}
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
-                style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+            <div className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/3 transition-colors">
+              <button
+                onClick={() => toggleExpand(resp.id, resp.arquivos)}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left"
               >
-                {resp.student_nome[0]?.toUpperCase()}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{resp.student_nome}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Calendar className="w-3 h-3 text-white/30" />
-                  <span className="text-xs text-white/40">{fmtDate(resp.submitted_at)}</span>
-                  {nFotos > 0 && (
-                    <span className="flex items-center gap-1 text-xs" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
-                      <ImageIcon className="w-3 h-3" /> {nFotos} foto{nFotos !== 1 ? "s" : ""}
-                    </span>
-                  )}
+                {/* Avatar */}
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
+                  style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+                >
+                  {resp.student_nome[0]?.toUpperCase()}
                 </div>
-              </div>
 
-              {isOpen
-                ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
-                : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />
-              }
-            </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{resp.student_nome}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Calendar className="w-3 h-3 text-white/30" />
+                    <span className="text-xs text-white/40">{fmtDate(resp.submitted_at)}</span>
+                    {nFotos > 0 && (
+                      <span className="flex items-center gap-1 text-xs" style={{ color: "var(--cp-400)", opacity: 0.7 }}>
+                        <ImageIcon className="w-3 h-3" /> {nFotos} foto{nFotos !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {isOpen
+                  ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />
+                }
+              </button>
+
+              <button
+                onClick={() => toggleConcluida(resp)}
+                disabled={togglingId === resp.id}
+                title={resp.concluida ? "Marcar como pendente" : "Marcar como concluída"}
+                className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 h-7 rounded-lg shrink-0 transition-colors disabled:opacity-40"
+                style={resp.concluida
+                  ? { backgroundColor: "rgba(74,222,128,0.12)", color: "#4ade80" }
+                  : { backgroundColor: "rgba(251,191,36,0.12)", color: "rgb(251,191,36)" }}
+              >
+                {togglingId === resp.id
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : resp.concluida ? <Check className="w-3 h-3" /> : null}
+                {resp.concluida ? "Concluída" : "Pendente"}
+              </button>
+            </div>
 
             {/* Conteúdo expandido */}
             {isOpen && (

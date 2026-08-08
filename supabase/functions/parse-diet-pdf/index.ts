@@ -2,8 +2,8 @@
 /**
  * parse-diet-pdf — Edge Function
  *
- * Recebe um PDF (multipart/form-data, campo "file"),
- * envia para a API da Anthropic (claude-sonnet-4-20250514)
+ * Recebe um PDF ou uma imagem/print (multipart/form-data, campo "file"),
+ * envia para a API da Anthropic
  * e retorna o JSON estruturado da dieta extraída.
  */
 
@@ -102,7 +102,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Content-Type deve ser multipart/form-data ou application/json" }, { status: 400 });
     }
 
-    // Chama a API da Anthropic com o PDF como documento
+    const isImage = mediaType.startsWith("image/");
+
+    // Chama a API da Anthropic com o PDF (document) ou print (image) do plano alimentar
     const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -112,7 +114,7 @@ Deno.serve(async (req) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-5",
+        model: "claude-opus-4-8",
         max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [
@@ -120,7 +122,7 @@ Deno.serve(async (req) => {
             role: "user",
             content: [
               {
-                type: "document",
+                type: isImage ? "image" : "document",
                 source: {
                   type: "base64",
                   media_type: mediaType,
@@ -129,7 +131,9 @@ Deno.serve(async (req) => {
               },
               {
                 type: "text",
-                text: "Extraia a dieta estruturada deste documento e retorne o JSON conforme instruído.",
+                text: isImage
+                  ? "Extraia a dieta estruturada deste print/imagem do plano alimentar e retorne o JSON conforme instruído."
+                  : "Extraia a dieta estruturada deste documento e retorne o JSON conforme instruído.",
               },
             ],
           },
@@ -146,7 +150,7 @@ Deno.serve(async (req) => {
     }
 
     const anthropicData = await anthropicResponse.json();
-    const rawText: string = anthropicData?.content?.[0]?.text ?? "";
+    const rawText: string = anthropicData?.content?.find((c: any) => c.type === "text")?.text ?? "";
 
     // Tenta fazer parse do JSON retornado
     let parsed: any;

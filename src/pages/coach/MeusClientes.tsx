@@ -5,8 +5,9 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, User, MoreVertical, Pencil, Power, Trash2, Users, Dumbbell, Utensils, HeartPulse, ClipboardCheck, Clock } from "lucide-react";
+import { Plus, User, MoreVertical, Pencil, Power, Trash2, Users, Dumbbell, Utensils, HeartPulse, ClipboardCheck, Clock, Search } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -23,6 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
 import { getSessionDirect, getAccessTokenDirect } from "@/lib/sessionUtils";
 import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
+
+// Mesmo tratamento "alto relevo" já usado no Dashboard do treinador — fundo
+// um pouco mais claro que o zinc-950 da página + sombra em camadas.
+const CARD_BG     = "#141417";
+const CARD_BORDER = "rgba(255,255,255,0.09)";
+const CARD_SHADOW = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
 
 const studentSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email muito longo"),
@@ -62,14 +69,16 @@ const MeusClientes = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState("");
+  const [reusedAccount, setReusedAccount] = useState(false);
   const [novoAluno, setNovoAluno] = useState({ email: "", nome: "", observacoes: "" });
   const [editingAluno, setEditingAluno] = useState<Aluno | null>(null);
   const [deletingAlunoId, setDeletingAlunoId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [search, setSearch] = useState("");
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { slug } = useTenantContext();
+  const { slug, orgId } = useTenantContext();
   const { hasDiet, hasTraining } = usePlanFeatures();
   const { isCollaborator, loading: collabLoading } = useCollaboratorPermissions();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,6 +107,7 @@ const MeusClientes = () => {
         .select(`id, user_id, observacoes, ativo, data_inicio, data_fim, profiles!alunos_user_id_fkey(nome)`);
       if (error) throw error;
       const rows = (data || []) as Aluno[];
+      rows.sort((a, b) => a.profiles.nome.localeCompare(b.profiles.nome, "pt-BR"));
       setAlunos(rows);
       if (rows.length > 0) loadStatus(rows);
     } catch (error: any) {
@@ -145,6 +155,10 @@ const MeusClientes = () => {
         observacoes: novoAluno.observacoes || undefined,
       });
       if (!validation.success) throw new Error(validation.error.errors[0].message);
+      // org_id explícito é obrigatório: sem ele, create-student caía num fallback
+      // não-determinístico que podia vincular o aluno à org errada quando o
+      // treinador é dono de mais de uma org (bug real: Nelbinho/Eduardo).
+      if (!orgId) throw new Error("Organização ainda carregando — tente novamente em instantes.");
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-student`,
         {
@@ -154,12 +168,13 @@ const MeusClientes = () => {
             "Content-Type": "application/json",
             "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
-          body: JSON.stringify(validation.data),
+          body: JSON.stringify({ ...validation.data, org_id: orgId }),
         }
       );
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok) throw new Error(data?.error || data?.message || `Erro ${resp.status}`);
-      setGeneratedPassword(data.password);
+      setGeneratedPassword(data.password ?? "");
+      setReusedAccount(!!data.reused_existing_account);
       setPasswordModalOpen(true);
       setDialogOpen(false);
       setNovoAluno({ email: "", nome: "", observacoes: "" });
@@ -217,9 +232,12 @@ const MeusClientes = () => {
   };
 
   // ── Filtered list ──────────────────────────────────────────
-  const filtered = filter === "ativos"   ? alunos.filter((a) => a.ativo)
-                 : filter === "inativos" ? alunos.filter((a) => !a.ativo)
-                 : alunos;
+  const byStatus = filter === "ativos"   ? alunos.filter((a) => a.ativo)
+                  : filter === "inativos" ? alunos.filter((a) => !a.ativo)
+                  : alunos;
+  const filtered = search.trim()
+    ? byStatus.filter((a) => a.profiles.nome.toLowerCase().includes(search.trim().toLowerCase()))
+    : byStatus;
 
   if (loading) {
     return (
@@ -287,6 +305,16 @@ const MeusClientes = () => {
           </Dialog>
         </div>
 
+        {/* Search */}
+        {alunos.length > 0 && (
+          <div className="relative mb-4 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente..."
+              className="bg-white/5 border-white/10 text-white rounded-xl h-10 pl-9 text-sm" />
+          </div>
+        )}
+
         {/* Filter tabs */}
         {alunos.length > 0 && (
           <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ backgroundColor: "var(--toggle-bg)", width: "fit-content" }}>
@@ -319,7 +347,8 @@ const MeusClientes = () => {
             return (
               <div
                 key={aluno.id}
-                className="group relative rounded-2xl border border-white/6 bg-white/3 hover:bg-white/5 hover:border-white/10 transition-premium cursor-pointer overflow-hidden"
+                className="group relative rounded-2xl cursor-pointer overflow-hidden hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}
                 onClick={() => navigate(`/${slug}/treinador/aluno/${aluno.id}`)}
               >
                 <div className={`absolute left-0 top-0 bottom-0 w-0.5 transition-premium ${
@@ -328,84 +357,113 @@ const MeusClientes = () => {
 
                 <div className="p-4 pl-5">
                   <div className="flex items-start gap-3">
-                    <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-sm"
-                      style={aluno.ativo ? { background: "var(--cp-gradient)" } : { background: "hsl(0 0% 18%)" }}
-                    >
-                      <span className={aluno.ativo ? "text-white" : "text-white/30"}>{initials}</span>
-                    </div>
+                    {(() => {
+                      const badges = [
+                        { key: "treino",   label: "Treino",   icon: Dumbbell,       ok: st?.treino,   show: hasTraining },
+                        { key: "dieta",    label: "Dieta",    icon: Utensils,       ok: st?.dieta,    show: hasDiet     },
+                        { key: "cardio",   label: "Cardio",   icon: HeartPulse,     ok: st?.cardio,   show: true        },
+                        { key: "anamnese", label: "Anamnese", icon: ClipboardCheck, ok: st?.anamnese, show: true        },
+                      ].filter((b) => b.show);
+                      const done = badges.filter((b) => b.ok).length;
+                      const total = badges.length || 1;
+                      const r = 21;
+                      const circ = 2 * Math.PI * r;
+                      const ringColor = done === total ? "#4ade80" : "var(--cp-500, #fbbf24)";
+                      return (
+                        <>
+                          <div className="relative w-12 h-12 shrink-0">
+                            {st && (
+                              <svg viewBox="0 0 48 48" className="absolute inset-0" style={{ transform: "rotate(-90deg)" }}>
+                                <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                                <circle
+                                  cx="24" cy="24" r={r} fill="none" stroke={ringColor} strokeWidth="3" strokeLinecap="round"
+                                  strokeDasharray={`${(done / total) * circ} ${circ}`}
+                                />
+                              </svg>
+                            )}
+                            <div
+                              className="absolute inset-1 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                              style={aluno.ativo ? { background: "var(--cp-gradient)" } : { background: "hsl(0 0% 18%)" }}
+                            >
+                              <span className={aluno.ativo ? "text-white" : "text-white/30"}>{initials}</span>
+                            </div>
+                          </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-white text-sm leading-tight truncate">{aluno.profiles.nome}</p>
-                        {!aluno.ativo && (
-                          <Badge variant="secondary" className="text-[10px] bg-white/8 text-white/45 border-0 px-1.5 py-0">
-                            Inativo
-                          </Badge>
-                        )}
-                      </div>
-                      {dias !== null && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Clock className="w-3 h-3 shrink-0" style={{ color: dias <= 7 ? "#f87171" : dias <= 30 ? "#fbbf24" : "#4ade80" }} />
-                          <span className="text-[11px] font-medium" style={{ color: dias <= 7 ? "#f87171" : dias <= 30 ? "#fbbf24" : "#4ade80" }}>
-                            {dias <= 0 ? "Plano encerrado" : `${dias} dias restantes`}
-                          </span>
-                        </div>
-                      )}
-                      {!aluno.data_fim && aluno.observacoes && (
-                        <p className="text-xs text-white/50 mt-0.5 truncate">{aluno.observacoes}</p>
-                      )}
-                    </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-white text-sm leading-tight truncate">{aluno.profiles.nome}</p>
+                              {!aluno.ativo && (
+                                <Badge variant="secondary" className="text-[10px] bg-white/8 text-white/45 border-0 px-1.5 py-0">
+                                  Inativo
+                                </Badge>
+                              )}
+                            </div>
+                            {dias !== null && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <Clock className="w-3 h-3 shrink-0" style={{ color: dias <= 7 ? "#f87171" : dias <= 30 ? "#fbbf24" : "#4ade80" }} />
+                                <span className="text-[11px] font-medium" style={{ color: dias <= 7 ? "#f87171" : dias <= 30 ? "#fbbf24" : "#4ade80" }}>
+                                  {dias <= 0 ? "Plano encerrado" : `${dias} dias restantes`}
+                                </span>
+                              </div>
+                            )}
+                            {!aluno.data_fim && aluno.observacoes && (
+                              <p className="text-xs text-white/50 mt-0.5 truncate">{aluno.observacoes}</p>
+                            )}
+                          </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm"
-                          className="h-7 w-7 p-0 text-white/20 hover:text-white/70 hover:bg-white/8 rounded-lg opacity-0 group-hover:opacity-100 transition-premium">
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-zinc-950 border-white/8 rounded-xl">
-                        <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
-                          onClick={() => navigate(`/${slug}/treinador/aluno/${aluno.id}`)}>
-                          <User className="h-4 w-4 mr-2" />Ver detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
-                          onClick={() => { setEditingAluno(aluno); setEditDialogOpen(true); }}>
-                          <Pencil className="h-4 w-4 mr-2" />Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
-                          onClick={() => handleToggleAtivo(aluno.id, aluno.ativo)}>
-                          <Power className="h-4 w-4 mr-2" />{aluno.ativo ? "Desativar" : "Ativar"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-400 hover:text-red-300 focus:text-red-300 rounded-lg cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); setDeletingAlunoId(aluno.id); setDeleteDialogOpen(true); }}>
-                          <Trash2 className="h-4 w-4 mr-2" />Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {st && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {badges.map(({ key, label, icon: Icon, ok }) => (
+                                <Tooltip key={key}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-6 h-6 rounded-lg flex items-center justify-center"
+                                      style={{
+                                        backgroundColor: ok ? "var(--tag-success-bg)" : "var(--tag-inactive-bg)",
+                                        color: ok ? "var(--tag-success-color)" : "var(--tag-inactive-color)",
+                                        border: `1px solid ${ok ? "var(--tag-success-border)" : "var(--tag-inactive-border)"}`,
+                                      }}
+                                    >
+                                      <Icon className="w-3.5 h-3.5" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">{label}</TooltipContent>
+                                </Tooltip>
+                              ))}
+                            </div>
+                          )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="sm"
+                                className="h-7 w-7 p-0 text-white/20 hover:text-white/70 hover:bg-white/8 rounded-lg opacity-0 group-hover:opacity-100 transition-premium">
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-zinc-950 border-white/8 rounded-xl">
+                              <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+                                onClick={() => navigate(`/${slug}/treinador/aluno/${aluno.id}`)}>
+                                <User className="h-4 w-4 mr-2" />Ver detalhes
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+                                onClick={() => { setEditingAluno(aluno); setEditDialogOpen(true); }}>
+                                <Pencil className="h-4 w-4 mr-2" />Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-white/70 hover:text-white focus:text-white rounded-lg cursor-pointer"
+                                onClick={() => handleToggleAtivo(aluno.id, aluno.ativo)}>
+                                <Power className="h-4 w-4 mr-2" />{aluno.ativo ? "Desativar" : "Ativar"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-400 hover:text-red-300 focus:text-red-300 rounded-lg cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); setDeletingAlunoId(aluno.id); setDeleteDialogOpen(true); }}>
+                                <Trash2 className="h-4 w-4 mr-2" />Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
+                      );
+                    })()}
                   </div>
-
-                  {st && (
-                    <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                      {[
-                        { key: "treino",   label: "Treino",   icon: Dumbbell,       ok: st.treino,   show: hasTraining },
-                        { key: "dieta",    label: "Dieta",    icon: Utensils,       ok: st.dieta,    show: hasDiet     },
-                        { key: "cardio",   label: "Cardio",   icon: HeartPulse,     ok: st.cardio,   show: true        },
-                        { key: "anamnese", label: "Anamnese", icon: ClipboardCheck, ok: st.anamnese, show: true        },
-                      ].filter(b => b.show).map(({ key, label, icon: Icon, ok }) => (
-                        <div key={key}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                          style={{
-                            backgroundColor: ok ? "var(--tag-success-bg)" : "var(--tag-inactive-bg)",
-                            color: ok ? "var(--tag-success-color)" : "var(--tag-inactive-color)",
-                            border: `1px solid ${ok ? "var(--tag-success-border)" : "var(--tag-inactive-border)"}`,
-                          }}
-                        >
-                          <Icon className="w-2.5 h-2.5" />{label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -429,7 +487,11 @@ const MeusClientes = () => {
         )}
         {alunos.length > 0 && filtered.length === 0 && (
           <div className="py-16 text-center">
-            <p className="text-white/30 text-sm">Nenhum cliente {filter === "ativos" ? "ativo" : "inativo"} encontrado.</p>
+            <p className="text-white/30 text-sm">
+              {search.trim()
+                ? "Nenhum cliente encontrado para essa busca."
+                : `Nenhum cliente ${filter === "ativos" ? "ativo" : "inativo"} encontrado.`}
+            </p>
           </div>
         )}
 
@@ -482,26 +544,34 @@ const MeusClientes = () => {
         <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
           <DialogContent className="bg-zinc-950 border-white/8 rounded-2xl sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-white">Cliente criado com sucesso!</DialogTitle>
-              <DialogDescription className="text-white/40">Copie a senha abaixo e envie ao cliente.</DialogDescription>
+              <DialogTitle className="text-white">
+                {reusedAccount ? "Cliente vinculado com sucesso!" : "Cliente criado com sucesso!"}
+              </DialogTitle>
+              <DialogDescription className="text-white/40">
+                {reusedAccount
+                  ? "Esse e-mail já tinha uma conta na ORBI — o cliente já pode acessar com a senha que já usa."
+                  : "Copie a senha abaixo e envie ao cliente."}
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="bg-white/5 border border-white/8 rounded-xl p-4">
-                <p className="text-xs text-white/50 mb-2 uppercase tracking-wider">Senha gerada</p>
-                <p className="text-lg font-mono font-bold text-white tracking-widest">{generatedPassword}</p>
+            {!reusedAccount && (
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/8 rounded-xl p-4">
+                  <p className="text-xs text-white/50 mb-2 uppercase tracking-wider">Senha gerada</p>
+                  <p className="text-lg font-mono font-bold text-white tracking-widest">{generatedPassword}</p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(generatedPassword);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="w-full rounded-xl h-10 text-white font-semibold"
+                  style={{ background: "var(--cp-gradient)" }}
+                >
+                  {copied ? "Copiado!" : "Copiar senha"}
+                </Button>
               </div>
-              <Button
-                onClick={async () => {
-                  await navigator.clipboard.writeText(generatedPassword);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="w-full rounded-xl h-10 text-white font-semibold"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                {copied ? "Copiado!" : "Copiar senha"}
-              </Button>
-            </div>
+            )}
           </DialogContent>
         </Dialog>
 

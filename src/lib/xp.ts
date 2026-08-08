@@ -5,14 +5,31 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
-export type XpSource = "workout_complete" | "diet_day" | "checkin" | "streak_bonus" | "manual";
+export type XpSource =
+  | "workout_complete"
+  | "diet_day"
+  | "agua_day"
+  | "cardio_complete"
+  | "checkin_on_time"
+  | "checkin_late"
+  | "streak_3"
+  | "streak_7"
+  | "streak_14"
+  | "streak_30"
+  | "manual";
 
 export const XP_VALUES: Record<XpSource, number> = {
-  workout_complete: 50,
-  diet_day:        30,
-  checkin:         20,
-  streak_bonus:    25,
-  manual:          0,   // manual = trainer sets own value
+  workout_complete: 30,
+  diet_day:         30,
+  agua_day:         15,
+  cardio_complete:  20,
+  checkin_on_time:  60,
+  checkin_late:     30,
+  streak_3:         60,
+  streak_7:         120,
+  streak_14:        250,
+  streak_30:        400,
+  manual:           0,   // manual = trainer sets own value
 };
 
 /** Brazil local date YYYY-MM-DD */

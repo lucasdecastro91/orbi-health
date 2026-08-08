@@ -325,7 +325,7 @@ const FormBuilder = () => {
     <div
       key={c._id}
       className="rounded-xl border p-4 space-y-3"
-      style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}
+      style={{ borderColor: "var(--section-card-border)", backgroundColor: "#1b1c21", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
     >
       {/* Header do campo */}
       <div className="flex items-start gap-2">
@@ -485,7 +485,7 @@ const FormBuilder = () => {
       {/* Título do form */}
       <div
         className="rounded-2xl border p-4 space-y-3"
-        style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}
+        style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
       >
         <div>
           <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Título do formulário</p>
@@ -534,7 +534,7 @@ const FormBuilder = () => {
         <section
           key={s._id}
           className="rounded-2xl border p-4 space-y-4"
-          style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}
+          style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
         >
           {/* Header da seção */}
           <div className="flex items-start gap-2">

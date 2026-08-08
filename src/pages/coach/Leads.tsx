@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -6,10 +6,14 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  DndContext, useDraggable, useDroppable, useSensor, useSensors,
+  PointerSensor, TouchSensor, pointerWithin, type DragEndEvent,
+} from "@dnd-kit/core";
+import {
   Target, Plus, Search, X, Phone, Instagram, ChevronRight,
   Calendar, Clock, Copy, Check, MessageSquare, Pencil,
   Trash2, FileText, UserPlus, AlertTriangle, CheckCircle2,
-  SlidersHorizontal, ChevronDown, Loader2, RotateCcw,
+  SlidersHorizontal, ChevronDown, Loader2, RotateCcw, GripVertical, Send,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -223,10 +227,10 @@ const LeadFormModal = ({ orgId, treinadorId, lead, onClose, onSaved }: LeadFormP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
+      <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh] sm:max-h-[85vh]"
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)", boxShadow: "var(--dash-card-shadow)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -416,10 +420,10 @@ const WhatsappTemplatesModal = ({ orgId, onClose, onSaved }: TemplatesModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center"
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
+      <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh] sm:max-h-[85vh]"
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)", boxShadow: "var(--dash-card-shadow)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -699,10 +703,10 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
         }}
       />
     )}
-    <div className="fixed inset-0 z-50 flex items-end justify-center"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
+      <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh] sm:max-h-[85vh]"
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)", boxShadow: "var(--dash-card-shadow)" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
@@ -849,6 +853,148 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LeadChatBox — histórico de WhatsApp em tempo real (Supabase Realtime)
+// ─────────────────────────────────────────────────────────────────────────────
+interface WaMessage {
+  id: string;
+  direction: "inbound" | "outbound";
+  content: string;
+  created_at: string;
+}
+
+const LeadChatBox = ({ lead, orgId }: { lead: Lead; orgId: string }) => {
+  const { toast } = useToast();
+  const [messages, setMessages] = useState<WaMessage[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [text,     setText]     = useState("");
+  const [sending,  setSending]  = useState(false);
+  const bottomRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("whatsapp_messages")
+        .select("id, direction, content, created_at")
+        .eq("lead_id", lead.id)
+        .order("created_at", { ascending: true });
+      if (active) { setMessages((data as WaMessage[]) ?? []); setLoading(false); }
+    })();
+
+    const channel = supabase
+      .channel(`wa-messages-lead-${lead.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `lead_id=eq.${lead.id}` },
+        (payload) => {
+          const msg = payload.new as WaMessage;
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+        },
+      )
+      .subscribe();
+
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [lead.id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, bottomRef]);
+
+  const handleSend = async () => {
+    const content = text.trim();
+    if (!content) return;
+    setSending(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-send-message`, {
+        method: "POST",
+        headers: { "x-orbi-auth": token, "Content-Type": "application/json" },
+        body: JSON.stringify({ org_id: orgId, lead_id: lead.id, content }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        const messages: Record<string, string> = {
+          whatsapp_not_connected: "Conecte o WhatsApp da org em Configurações antes de enviar.",
+          no_phone_on_file: "Esse lead não tem número de WhatsApp cadastrado.",
+        };
+        throw new Error(messages[data.error] ?? data.error ?? "Erro ao enviar");
+      }
+      setText("");
+      if (data.message) {
+        setMessages((prev) => (prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]));
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar mensagem", description: err.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!lead.whatsapp) {
+    return (
+      <div>
+        <p className="text-[11px] text-white/40 uppercase tracking-wider font-medium mb-3">Conversa no WhatsApp</p>
+        <p className="text-xs text-white/25 py-3">Esse lead não tem WhatsApp cadastrado.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-[11px] text-white/40 uppercase tracking-wider font-medium mb-3">Conversa no WhatsApp</p>
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)" }}
+      >
+        <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 260 }}>
+          {loading ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-white/20" /></div>
+          ) : messages.length === 0 ? (
+            <p className="text-xs text-white/25 text-center py-4">Nenhuma mensagem ainda.</p>
+          ) : (
+            messages.map((m) => (
+              <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className="max-w-[75%] rounded-2xl px-3 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap"
+                  style={m.direction === "outbound"
+                    ? { background: "var(--cp-gradient)", color: "var(--cp-text)", borderBottomRightRadius: 4 }
+                    : { backgroundColor: "#1b1c21", color: "rgba(255,255,255,0.85)", borderBottomLeftRadius: 4 }}
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={(el) => { bottomRef.current = el; }} />
+        </div>
+        <div className="flex gap-2 p-3" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Digite uma mensagem"
+            className="flex-1 h-9 rounded-xl px-3 text-xs text-white outline-none"
+            style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.1)" }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={sending || !text.trim()}
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
+            style={{ background: "var(--cp-gradient)" }}
+          >
+            {sending
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "var(--cp-text)" }} />
+              : <Send className="w-3.5 h-3.5" style={{ color: "var(--cp-text)" }} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LeadDetailSheet — full detail with interactions & calls
 // ─────────────────────────────────────────────────────────────────────────────
 interface DetailSheetProps {
@@ -961,10 +1107,10 @@ const LeadDetailSheet = ({
         />
       )}
 
-      <div className="fixed inset-0 z-40 flex items-end justify-center"
+      <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4"
         style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
-        <div className="w-full max-w-lg rounded-t-3xl pb-8 overflow-y-auto"
-          style={{ maxHeight: "92vh", backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
+        <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl pb-8 overflow-y-auto"
+          style={{ maxHeight: "92vh", backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)", boxShadow: "var(--dash-card-shadow)" }}
           onClick={(e) => e.stopPropagation()}>
 
           <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mt-5 mb-4" />
@@ -1036,6 +1182,9 @@ const LeadDetailSheet = ({
           </div>
 
           <div className="px-5 pt-4 space-y-6">
+
+            {/* Conversa WhatsApp (tempo real) */}
+            <LeadChatBox lead={lead} orgId={orgId} />
 
             {/* Calls */}
             <div>
@@ -1231,100 +1380,171 @@ interface LeadCardProps {
   lead: Lead;
   nextCall?: LeadCall;
   onDetail: (lead: Lead) => void;
-  onScheduleCall: (lead: Lead) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
-const LeadCard = ({ lead, nextCall, onDetail, onScheduleCall }: LeadCardProps) => {
-  const cfg    = STATUS_CFG[lead.status];
+// Card minimalista pro Kanban — nome + origem só, mesmo "alto relevo" já usado
+// no resto do painel (Dashboard/Meus Clientes/Agenda). Clique abre o detalhe
+// completo (LeadDetailSheet); o drag-handle não propaga o clique.
+const LeadCard = ({ lead, nextCall, onDetail, dragHandleProps }: LeadCardProps) => {
   const origem = ORIGEM_CFG[lead.origem] ?? ORIGEM_CFG.outro;
   const callPerdida = nextCall?.status === "perdida";
 
   return (
-    <div className="rounded-2xl border overflow-hidden transition-all"
+    <div
+      onClick={() => onDetail(lead)}
+      className="rounded-xl p-3 cursor-pointer transition-all hover:-translate-y-0.5"
       style={{
-        backgroundColor: "var(--surface-1)",
-        borderColor: callPerdida ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.07)",
-      }}>
-
-      {/* Overdue call banner */}
-      {callPerdida && (
-        <div className="flex items-center gap-2 px-4 py-2"
-          style={{ backgroundColor: "rgba(239,68,68,0.1)" }}>
-          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-          <p className="text-xs font-semibold text-red-400">
-            Call perdida — {fmtDate(nextCall!.data_hora)} às {fmtHora(nextCall!.data_hora)}
-          </p>
-        </div>
-      )}
-
-      <div className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Avatar */}
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-            style={{ background: "var(--cp-gradient)" }}>
-            {lead.nome.charAt(0).toUpperCase()}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-semibold text-white truncate">{lead.nome}</p>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-                style={{ backgroundColor: cfg.bg, color: cfg.text }}>
-                {cfg.label}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              {lead.whatsapp && (
-                <span className="flex items-center gap-1 text-[11px] text-white/35">
-                  <Phone className="w-2.5 h-2.5" />{lead.whatsapp}
-                </span>
-              )}
-              {lead.instagram && (
-                <span className="flex items-center gap-1 text-[11px] text-white/35">
-                  <Instagram className="w-2.5 h-2.5" />{lead.instagram}
-                </span>
-              )}
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)", color: origem.color }}>
-                {origem.label}
-              </span>
-            </div>
-
-            {lead.objetivo && (
-              <p className="text-xs text-white/30 mt-1 truncate italic">"{lead.objetivo}"</p>
-            )}
-
-            {/* Next upcoming call */}
-            {nextCall && nextCall.status === "agendada" && (
-              <div className="flex items-center gap-1.5 mt-2">
-                <Calendar className="w-3 h-3 text-purple-400" />
-                <p className="text-[11px] text-purple-400 font-medium">
-                  Call: {fmtDate(nextCall.data_hora)} às {fmtHora(nextCall.data_hora)}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2 mt-3 pt-3"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <button onClick={() => onScheduleCall(lead)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold transition-colors"
-            style={{ backgroundColor: "rgba(168,85,247,0.12)", color: "#9333ea" }}>
-            <Calendar className="w-3 h-3" />
-            Agendar Call
+        backgroundColor: "var(--dash-card-bg)",
+        border: `1px solid ${callPerdida ? "rgba(239,68,68,0.4)" : "var(--dash-card-border)"}`,
+        boxShadow: "var(--dash-card-shadow)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-white truncate">{lead.nome}</p>
+        {dragHandleProps && (
+          <button
+            {...dragHandleProps}
+            onClick={(e) => e.stopPropagation()}
+            title="Arrastar"
+            className="shrink-0 w-5 h-5 rounded flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+          >
+            <GripVertical className="w-3.5 h-3.5 text-white/20" />
           </button>
-          <button onClick={() => onDetail(lead)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold transition-colors ml-auto"
-            style={{ backgroundColor: "var(--btn-ghost-bg)", color: "var(--btn-ghost-color)" }}>
-            Ver detalhes
-            <ChevronRight className="w-3 h-3" />
-          </button>
-        </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: `${origem.color}22`, color: origem.color }}>
+          {origem.label}
+        </span>
+        {callPerdida ? (
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-red-400">
+            <AlertTriangle className="w-3 h-3" /> Call perdida
+          </span>
+        ) : nextCall?.status === "agendada" ? (
+          <span className="text-[10px] text-purple-400 font-medium">
+            {fmtDate(nextCall.data_hora)} · {fmtHora(nextCall.data_hora)}
+          </span>
+        ) : null}
       </div>
     </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kanban board — drag-and-drop pipeline (Kommo/Pipedrive style)
+// ─────────────────────────────────────────────────────────────────────────────
+const DraggableLeadCard = (props: LeadCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: props.lead.id,
+  });
+  const style: React.CSSProperties = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.4 : 1,
+        position: "relative",
+      }
+    : {};
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <LeadCard {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+};
+
+const KanbanColumn = ({
+  status, leads, callMap, onDetail,
+}: {
+  status: LeadStatus;
+  leads: Lead[];
+  callMap: Record<string, LeadCall>;
+  onDetail: (lead: Lead) => void;
+}) => {
+  const cfg = STATUS_CFG[status];
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex flex-col shrink-0 w-[260px] rounded-2xl p-2 transition-colors"
+      style={{ backgroundColor: isOver ? "rgba(255,255,255,0.04)" : "transparent" }}
+    >
+      <div className="flex items-center justify-between px-2 py-1.5 mb-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: cfg.text }}>
+          {cfg.label.replace(" ✓", "")}
+        </span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+          style={{ backgroundColor: cfg.bg, color: cfg.text }}>
+          {leads.length}
+        </span>
+      </div>
+      <div className="flex-1 space-y-2 min-h-[80px]">
+        {leads.map((lead) => (
+          <DraggableLeadCard
+            key={lead.id}
+            lead={lead}
+            nextCall={callMap[lead.id]}
+            onDetail={onDetail}
+          />
+        ))}
+        {leads.length === 0 && (
+          <div className="rounded-xl border border-dashed border-white/8 py-6 text-center">
+            <p className="text-[11px] text-white/20">Nenhum lead</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const KanbanBoard = ({
+  leads, callMap, onDetail, onStatusChange,
+}: {
+  leads: Lead[];
+  callMap: Record<string, LeadCall>;
+  onDetail: (lead: Lead) => void;
+  onStatusChange: (id: string, status: LeadStatus) => void;
+}) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+
+  const grouped = useMemo(() => {
+    const map = Object.fromEntries(STATUS_ORDER.map((s) => [s, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
+    leads.forEach((l) => { map[l.status]?.push(l); });
+    return map;
+  }, [leads]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const leadId    = String(active.id);
+    const newStatus = over.id as LeadStatus;
+    const lead      = leads.find((l) => l.id === leadId);
+    if (lead && lead.status !== newStatus) {
+      onStatusChange(leadId, newStatus);
+    }
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
+        {STATUS_ORDER.map((s) => (
+          <KanbanColumn
+            key={s}
+            status={s}
+            leads={grouped[s]}
+            callMap={callMap}
+            onDetail={onDetail}
+          />
+        ))}
+      </div>
+    </DndContext>
   );
 };
 
@@ -1341,13 +1561,11 @@ const Leads = () => {
   const [loading,     setLoading]     = useState(true);
   const [treinadorId, setTreinadorId] = useState<string>("");
   const [search,      setSearch]      = useState("");
-  const [statusFilter, setStatusFilter] = useState<LeadStatus | "todos">("todos");
 
   // Modal states
   const [addOpen,      setAddOpen]      = useState(false);
   const [editLead,     setEditLead]     = useState<Lead | null>(null);
   const [detailLead,   setDetailLead]   = useState<Lead | null>(null);
-  const [callTarget,   setCallTarget]   = useState<Lead | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -1414,22 +1632,15 @@ const Leads = () => {
     return map;
   }, [calls]);
 
-  // Filtered leads
+  // Filtered leads (search only — status is now expressed by Kanban column)
   const filtered = leads.filter((l) => {
-    if (statusFilter !== "todos" && l.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return l.nome.toLowerCase().includes(q) ||
-        (l.whatsapp ?? "").includes(q) ||
-        (l.instagram ?? "").toLowerCase().includes(q) ||
-        (l.objetivo ?? "").toLowerCase().includes(q);
-    }
-    return true;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return l.nome.toLowerCase().includes(q) ||
+      (l.whatsapp ?? "").includes(q) ||
+      (l.instagram ?? "").toLowerCase().includes(q) ||
+      (l.objetivo ?? "").toLowerCase().includes(q);
   });
-
-  // Count per status for badges
-  const countByStatus: Record<string, number> = { todos: leads.length };
-  leads.forEach((l) => { countByStatus[l.status] = (countByStatus[l.status] ?? 0) + 1; });
 
   const callMap = callByLead();
 
@@ -1465,27 +1676,11 @@ const Leads = () => {
           onConverted={handleConverted}
         />
       )}
-      {callTarget && treinadorId && orgId && (
-        <CallModal
-          lead={callTarget} orgId={orgId} treinadorId={treinadorId}
-          onClose={() => setCallTarget(null)}
-          onSaved={(c) => {
-            setCalls((prev) => [...prev, c]);
-            setLeads((prev) => prev.map((l) =>
-              l.id === callTarget.id && ["novo","contato_feito"].includes(l.status)
-                ? { ...l, status: "call_agendada" as LeadStatus }
-                : l
-            ));
-            setCallTarget(null);
-          }}
-        />
-      )}
-
       <div className="min-h-screen pb-24">
-        <div className="px-4 lg:px-6 max-w-3xl mx-auto">
+        <div className="px-4 lg:px-6">
 
           {/* Header */}
-          <div className="flex items-center justify-between pt-6 pb-4">
+          <div className="flex items-center justify-between pt-6 pb-4 flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
                 style={{ background: "var(--cp-gradient)" }}>
@@ -1496,101 +1691,51 @@ const Leads = () => {
                 <p className="text-xs text-white/40 mt-0.5">{leads.length} prospect{leads.length !== 1 ? "s" : ""} no total</p>
               </div>
             </div>
-            <button onClick={() => setAddOpen(true)}
-              className="flex items-center gap-2 h-10 px-4 rounded-xl font-semibold text-sm text-white transition-all active:scale-95"
-              style={{ background: "var(--cp-gradient)" }}>
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Novo Lead</span>
-            </button>
-          </div>
-
-          {/* Pipeline summary */}
-          {leads.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
-              {STATUS_ORDER.map((s) => {
-                const count = countByStatus[s] ?? 0;
-                if (count === 0) return null;
-                const sc = STATUS_CFG[s];
-                return (
-                  <button key={s} onClick={() => setStatusFilter(s === statusFilter ? "todos" : s)}
-                    className="rounded-xl py-2 px-1 text-center transition-all"
-                    style={{
-                      backgroundColor: statusFilter === s ? sc.bg : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${statusFilter === s ? sc.dot + "40" : "transparent"}`,
-                    }}>
-                    <p className="text-base font-bold" style={{ color: statusFilter === s ? sc.text : "rgba(255,255,255,0.6)" }}>{count}</p>
-                    <p className="text-[9px] font-medium mt-0.5 leading-tight"
-                      style={{ color: statusFilter === s ? sc.text : "rgba(255,255,255,0.3)" }}>
-                      {sc.label.replace(" ✓","").slice(0,8)}
-                    </p>
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                <input
+                  value={search} onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar lead..."
+                  className="w-full sm:w-64 h-10 pl-10 pr-4 rounded-xl text-sm text-white placeholder-white/25 outline-none"
+                  style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                />
+                {search && (
+                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <X className="w-4 h-4 text-white/30" />
                   </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
-            <input
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome, WhatsApp, objetivo..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X className="w-4 h-4 text-white/30" />
+                )}
+              </div>
+              <button onClick={() => setAddOpen(true)}
+                className="flex items-center gap-2 h-10 px-4 rounded-xl font-semibold text-sm text-white transition-all active:scale-95 shrink-0"
+                style={{ background: "var(--cp-gradient)" }}>
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Novo Lead</span>
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Status filter tabs (horizontal scroll) */}
-          <div className="flex gap-2 overflow-x-auto pb-1 mb-4 hide-scrollbar">
-            {(["todos", ...STATUS_ORDER] as (LeadStatus | "todos")[]).map((s) => {
-              const count = countByStatus[s] ?? 0;
-              const sc    = s !== "todos" ? STATUS_CFG[s] : null;
-              const active = statusFilter === s;
-              return (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-                  style={{
-                    backgroundColor: active ? (sc ? sc.bg : "rgba(var(--cp-rgb),0.15)") : "rgba(255,255,255,0.06)",
-                    color: active ? (sc ? sc.text : "var(--cp-400)") : "rgba(255,255,255,0.4)",
-                    border: `1px solid ${active ? (sc ? sc.dot + "30" : "rgba(var(--cp-rgb),0.3)") : "transparent"}`,
-                  }}>
-                  {s === "todos" ? "Todos" : STATUS_CFG[s].label}
-                  {count > 0 && <span className="text-[9px] font-bold opacity-70">{count}</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Lead list */}
-          {filtered.length === 0 ? (
+          {/* Kanban pipeline */}
+          {leads.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/8 px-4 py-14 text-center mt-4">
               <Target className="w-9 h-9 text-white/10 mx-auto mb-3" />
-              <p className="text-sm font-medium text-white/50 mb-1">
-                {leads.length === 0 ? "Nenhum lead ainda" : "Nenhum resultado"}
-              </p>
-              <p className="text-xs text-white/25">
-                {leads.length === 0
-                  ? 'Clique em "Novo Lead" para começar a capturar prospects.'
-                  : "Tente ajustar o filtro ou a busca."}
-              </p>
+              <p className="text-sm font-medium text-white/50 mb-1">Nenhum lead ainda</p>
+              <p className="text-xs text-white/25">Clique em "Novo Lead" para começar a capturar prospects.</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/8 px-4 py-14 text-center mt-4">
+              <Target className="w-9 h-9 text-white/10 mx-auto mb-3" />
+              <p className="text-sm font-medium text-white/50 mb-1">Nenhum resultado</p>
+              <p className="text-xs text-white/25">Tente ajustar a busca.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.map((lead) => (
-                <LeadCard
-                  key={lead.id}
-                  lead={lead}
-                  nextCall={callMap[lead.id]}
-                  onDetail={setDetailLead}
-                  onScheduleCall={setCallTarget}
-                />
-              ))}
-            </div>
+            <KanbanBoard
+              leads={filtered}
+              callMap={callMap}
+              onDetail={setDetailLead}
+              onStatusChange={handleStatusChange}
+            />
           )}
 
         </div>

@@ -1,4 +1,8 @@
-﻿import { useEffect, useRef, useState, useCallback } from "react";
+﻿import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import {
+  DndContext, DragOverlay, useDraggable, useDroppable, useSensor, useSensors,
+  PointerSensor, TouchSensor, pointerWithin, type DragEndEvent, type DragStartEvent,
+} from "@dnd-kit/core";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,9 +16,97 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Trash2, Loader2, Check, Pencil, FileUp,
   Search, X, Clock, Copy, ChevronUp, ChevronDown, RefreshCw, Shuffle,
-  ListOrdered,
+  ListOrdered, Calculator, GripVertical,
 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+
+
+/** Ajuste do indicador nativo de <input type="time"> — vem escuro no dark */
+/** Campo de horário. Só digitação, com máscara.
+ *
+ *  Digitar `0930` vira `09:30` — não é preciso teclar o `:`, que era o incômodo
+ *  original. A máscara também valida: hora acima de 23 e minuto acima de 59 são
+ *  cortados, coisa que o campo de texto livre anterior aceitava.
+ *
+ *  Aqui houve <input type="time"> e depois uma lista de horários; ambos saíram.
+ *  O nativo abre um popup branco no dark que NÃO é estilizável (shadow DOM
+ *  fechado do Chrome). A lista de 96 opções tapava as refeições de baixo e
+ *  exigia rolar até o horário — mais lento que as 4 teclas da digitação. */
+const maskTime = (raw: string): string => {
+  const d = raw.replace(/\D/g, "").slice(0, 4);
+  if (d.length <= 2) return d;
+  const h = Math.min(23, parseInt(d.slice(0, 2), 10) || 0);
+  // Com 3 dígitos o minuto ainda está incompleto (ex: `093`), então preserva o
+  // que foi digitado em vez de completar — senão não dá pra chegar em `09:35`.
+  const mm = d.length === 3 ? d.slice(2) : String(Math.min(59, parseInt(d.slice(2), 10) || 0)).padStart(2, "0");
+  return `${String(h).padStart(2, "0")}:${mm}`;
+};
+
+const TimeField = ({
+  value, onChange, className, placeholder = "--:--",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) => (
+  <Input
+    value={value}
+    onChange={(e) => onChange(maskTime(e.target.value))}
+    placeholder={placeholder}
+    inputMode="numeric"
+    maxLength={5}
+    className={className}
+  />
+);
+
+
+/** Bloco arrastável de alimento: o principal MAIS seus substitutos e grupos.
+ *
+ *  Como o JSX já agrupa pai e filhos no mesmo `<div>`, arrastar esse bloco leva
+ *  tudo junto — a hierarquia não é o problema que parecia.
+ *
+ *  Usa render prop pra entregar o handle: o conteúdo da linha depende de muitas
+ *  closures do componente pai (macros, substitutos, grupos), e extrair tudo pra
+ *  cá exigiria dezenas de props. Definido no nível do módulo de propósito —
+ *  componente declarado inline remonta a cada render e derruba o arraste. */
+const FoodBlock = ({
+  id, children,
+}: {
+  id: string;
+  children: (handle: {
+    attributes: ReturnType<typeof useDraggable>["attributes"];
+    listeners: ReturnType<typeof useDraggable>["listeners"];
+  }) => ReactNode;
+}) => {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id, data: { foodKey: id },
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `fooddrop:${id}`, data: { foodKey: id },
+  });
+  const setRefs = (n: HTMLElement | null) => { setDragRef(n); setDropRef(n); };
+
+  return (
+    <div
+      ref={setRefs}
+      className="rounded-lg mb-1.5 last:mb-0 overflow-hidden transition-colors"
+      style={{
+        // Superfície própria + relevo: antes eram linhas separadas só por borda,
+        // sem volume. mb-1.5 é o mínimo pra sombra aparecer entre os blocos.
+        backgroundColor: "#141417",
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow: "0 3px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        // Sem transform: quem segue o cursor é o DragOverlay, imune ao scroll
+        // interno do dialog. Aqui só marcamos origem e destino.
+        opacity: isDragging ? 0.35 : 1,
+        borderTop: isOver ? "2px solid var(--cp-500)" : "1px solid rgba(255,255,255,0.07)",
+      }}
+    >
+      {children({ attributes, listeners })}
+    </div>
+  );
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +116,8 @@ interface Alimento {
   source?: string | null;
   porcao_descricao: string | null;
   porcao_gramas: number | null;
+  unidade?: string | null;
+  gramas_por_unidade?: number | null;
   kcal: number | null;
   proteina_g: number | null;
   carb_g: number | null;
@@ -73,6 +167,7 @@ interface DietForm {
   observacoes: string;
   refeicao_livre: string;
   info_adicional: string;
+  meta_agua_ml: string;
 }
 
 // ─── Alternative types ────────────────────────────────────────────────────────
@@ -120,6 +215,7 @@ interface ActiveDiet {
   observacoes: string | null;
   refeicao_livre: string | null;
   info_adicional: string | null;
+  meta_agua_ml: number | null;
   diet_meals: {
     id: string;
     name: string;
@@ -142,6 +238,13 @@ interface DietManagerProps {
 
 const uid = () => crypto.randomUUID();
 
+// Mapeia a unidade "livre" do alimento (g, ml, unidade, fatia, col. sopa...) pras
+// 3 opções do seletor por refeição (g/ml/un) — qualquer coisa que não seja
+// literalmente g/ml é tratada como contagem ("un"), já que o cálculo de macros
+// (quantidade / porcao_gramas) é neutro em relação à unidade escolhida.
+const toMealUnit = (unidade?: string | null): string =>
+  unidade === "g" || unidade === "ml" ? unidade : "un";
+
 const emptyFood = (order = 0, parent_key: string | null = null): FoodRow => ({
   _key: uid(), alimento_id: null, alimento: null,
   nome_display: "", quantidade: "100", unidade: "g", order_index: order,
@@ -154,7 +257,7 @@ const emptyMeal = (order = 0): MealRow => ({
   observacoes_receita: "", modo_preparo: "",
   order_index: order, foods: [emptyFood()],
 });
-const emptyForm = (): DietForm => ({ title: "", meals: [emptyMeal()], dias_semana: [], observacoes: "", refeicao_livre: "", info_adicional: "" });
+const emptyForm = (): DietForm => ({ title: "", meals: [emptyMeal()], dias_semana: [], observacoes: "", refeicao_livre: "", info_adicional: "", meta_agua_ml: "" });
 
 interface Macros { kcal: number; prot: number; carb: number; gord: number; fibra: number }
 const ZERO: Macros = { kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0 };
@@ -197,13 +300,13 @@ const getFoodName = (food: Pick<FoodRow, "alimento" | "nome_display">) =>
 const getFoodAmount = (food: Pick<FoodRow, "quantidade" | "unidade">) =>
   food.quantidade ? `${food.quantidade}${food.unidade || "g"}` : "";
 
-const ACTIVE_DIET_SELECT = `id, title, calories, is_active, dias_semana, observacoes, refeicao_livre, info_adicional,
+const ACTIVE_DIET_SELECT = `id, title, calories, is_active, dias_semana, observacoes, refeicao_livre, info_adicional, meta_agua_ml,
   diet_meals (
     id, name, time_suggestion, order_index, notes, observacoes_receita, modo_preparo,
     diet_meal_foods (
       id, name, portion, order_index, quantidade, unidade, alimento_id, parent_food_id,
       lista_subst_grupo_id, lista_subst_porcoes,
-      alimentos ( id, nome, porcao_descricao, porcao_gramas, kcal, proteina_g, carb_g, gordura_g, fibra_g )
+      alimentos ( id, nome, porcao_descricao, porcao_gramas, unidade, gramas_por_unidade, kcal, proteina_g, carb_g, gordura_g, fibra_g )
     )
   )`;
 
@@ -277,7 +380,7 @@ const FoodSearchInput = ({ food, orgId, onSelect, onNameChange, onClear, onAddNe
       try {
         let q = supabase
           .from("alimentos")
-          .select("id, nome, porcao_descricao, porcao_gramas, kcal, proteina_g, carb_g, gordura_g, fibra_g, sodio_mg")
+          .select("id, nome, porcao_descricao, porcao_gramas, unidade, gramas_por_unidade, kcal, proteina_g, carb_g, gordura_g, fibra_g, sodio_mg")
           .ilike("nome", `%${query.trim()}%`)
           .eq("status", "aprovado")
           .limit(10);
@@ -436,6 +539,7 @@ const NovoAlimentoModal = ({ open, nomeInicial, orgId, onClose, onCreated }: Nov
     porcao_qty:   "100",   // quantidade numérica da porção
     porcao_unit:  "g",     // unidade da porção
     porcao_outro: "",      // usado quando unit = "outro"
+    gramas_por_unidade: "", // opcional, só quando porcao_unit = "unidade"
     kcal: "", proteina_g: "", carb_g: "", gordura_g: "", fibra_g: "", sodio_mg: "",
   });
 
@@ -455,10 +559,14 @@ const NovoAlimentoModal = ({ open, nomeInicial, orgId, onClose, onCreated }: Nov
     if (!orgId) { toast({ title: "Org não encontrada", variant: "destructive" }); return; }
     setSaving(true);
     try {
+      const unidadeFinal = form.porcao_unit === "outro" ? (form.porcao_outro.trim() || "porção") : form.porcao_unit;
       const { data, error } = await supabase.from("alimentos").insert({
         nome:             form.nome.trim(),
         porcao_descricao: buildPorcaoDesc(),
         porcao_gramas:    parseFloat(form.porcao_qty) || 100,
+        unidade:          unidadeFinal,
+        gramas_por_unidade: unidadeFinal === "unidade" && form.gramas_por_unidade
+          ? parseFloat(form.gramas_por_unidade) : null,
         kcal:             form.kcal       ? parseFloat(form.kcal)       : null,
         proteina_g:       form.proteina_g ? parseFloat(form.proteina_g) : null,
         carb_g:           form.carb_g     ? parseFloat(form.carb_g)     : null,
@@ -466,7 +574,7 @@ const NovoAlimentoModal = ({ open, nomeInicial, orgId, onClose, onCreated }: Nov
         fibra_g:          form.fibra_g    ? parseFloat(form.fibra_g)    : null,
         sodio_mg:         form.sodio_mg   ? parseFloat(form.sodio_mg)   : null,
         fonte: "org", org_id: orgId, status: "pendente",
-      }).select("id, nome, porcao_descricao, porcao_gramas, kcal, proteina_g, carb_g, gordura_g, fibra_g, sodio_mg").single();
+      }).select("id, nome, porcao_descricao, porcao_gramas, unidade, gramas_por_unidade, kcal, proteina_g, carb_g, gordura_g, fibra_g, sodio_mg").single();
       if (error) throw error;
       toast({ title: "Alimento criado!", description: "Disponível para sua organização." });
       onCreated(data as Alimento);
@@ -543,6 +651,18 @@ const NovoAlimentoModal = ({ open, nomeInicial, orgId, onClose, onCreated }: Nov
                 placeholder="Ex: sachê, scoop, tablete..."
                 className="bg-white/5 border-white/10 text-white text-sm rounded-md h-9 placeholder:text-white/20 mt-1.5"
               />
+            )}
+            {form.porcao_unit === "unidade" && (
+              <div className="mt-1.5">
+                <Input
+                  type="number"
+                  value={form.gramas_por_unidade}
+                  onChange={(e) => setForm((f) => ({ ...f, gramas_por_unidade: e.target.value }))}
+                  placeholder="Ex: 50"
+                  className="bg-white/5 border-white/10 text-white text-sm rounded-md h-9 placeholder:text-white/20"
+                />
+                <p className="text-[10px] text-white/25 mt-1">Quantos gramas equivalem a 1 unidade (opcional, só informativo)</p>
+              </div>
             )}
             {/* Preview da descrição */}
             <p className="text-[10px] text-white/25 pt-0.5">
@@ -629,46 +749,44 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
     // Also remove any substitutes that reference this food
     setLocalMeal((m) => ({ ...m, foods: m.foods.filter((f) => f._key !== fkey && f.parent_key !== fkey) }));
 
-  const moveFoodUp = (fkey: string) =>
+  /** Reordena um alimento principal levando junto seus substitutos e grupos.
+   *  Substituiu as setas ↑/↓ (que tinham 10px e sumiam quando desabilitadas). */
+  const reorderFoods = (fromKey: string, toKey: string) =>
     setLocalMeal((m) => {
-      const mainFoods = m.foods.filter((f) => !f.parent_key);
-      const idx = mainFoods.findIndex((f) => f._key === fkey);
-      if (idx <= 0) return m;
-      // Swap the two main foods in the array
-      [mainFoods[idx - 1], mainFoods[idx]] = [mainFoods[idx], mainFoods[idx - 1]];
-      // Rebuild full foods list: main foods + their subs
-      const newFoods: FoodRow[] = [];
-      for (const main of mainFoods) {
-        newFoods.push(main);
-        const subs = m.foods.filter((f) => f.parent_key === main._key);
-        newFoods.push(...subs);
-      }
-      return { ...m, foods: newFoods };
+      const principais = m.foods.filter((f) => !f.parent_key);
+      // Cada bloco = alimento principal + tudo que pendura nele
+      const blocos = principais.map((p) => [p, ...m.foods.filter((f) => f.parent_key === p._key)]);
+      const de = blocos.findIndex((b) => b[0]._key === fromKey);
+      const para = blocos.findIndex((b) => b[0]._key === toKey);
+      if (de === -1 || para === -1 || de === para) return m;
+      const next = [...blocos];
+      const [movido] = next.splice(de, 1);
+      next.splice(para, 0, movido);
+      // order_index sequencial sobre a lista achatada, como o resto do arquivo espera
+      return { ...m, foods: next.flat().map((f, i) => ({ ...f, order_index: i })) };
     });
 
-  const moveFoodDown = (fkey: string) =>
-    setLocalMeal((m) => {
-      const mainFoods = m.foods.filter((f) => !f.parent_key);
-      const idx = mainFoods.findIndex((f) => f._key === fkey);
-      if (idx >= mainFoods.length - 1) return m;
-      // Swap the two main foods in the array
-      [mainFoods[idx], mainFoods[idx + 1]] = [mainFoods[idx + 1], mainFoods[idx]];
-      // Rebuild full foods list: main foods + their subs
-      const newFoods: FoodRow[] = [];
-      for (const main of mainFoods) {
-        newFoods.push(main);
-        const subs = m.foods.filter((f) => f.parent_key === main._key);
-        newFoods.push(...subs);
-      }
-      return { ...m, foods: newFoods };
-    });
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+  const [dragFoodKey, setDragFoodKey] = useState<string | null>(null);
+
+  const onFoodDragStart = (e: DragStartEvent) => setDragFoodKey(String(e.active.id));
+  const onFoodDragEnd = (e: DragEndEvent) => {
+    setDragFoodKey(null); // antes dos returns: o overlay some em qualquer saída
+    const { active, over } = e;
+    if (!over) return;
+    const destino = (over.data.current as { foodKey?: string } | undefined)?.foodKey;
+    if (destino) reorderFoods(String(active.id), destino);
+  };
 
   const totals = mealMacros(localMeal);
   const mainFoodsCount = localMeal.foods.filter((f) => !f.parent_key).length;
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/80" style={{ zIndex: 40 }} onClick={onClose} />
@@ -690,10 +808,10 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
               {/* Horário */}
               <div className="flex items-center gap-1.5 text-white/50 shrink-0">
                 <Clock className="w-3.5 h-3.5" />
-                <Input value={localMeal.time_suggestion}
-                  onChange={(e) => setLocalMeal((m) => ({ ...m, time_suggestion: e.target.value }))}
-                  placeholder="00:00"
-                  className="bg-white/5 border-white/10 text-white/70 text-xs rounded-md h-7 w-16 text-center placeholder:text-white/25 focus:border-green-600/40" />
+                <TimeField
+                  value={localMeal.time_suggestion}
+                  onChange={(v) => setLocalMeal((m) => ({ ...m, time_suggestion: v }))}
+                  className="bg-white/5 border-white/10 text-white/70 text-xs rounded-md h-7 w-20 text-center placeholder:text-white/25 focus:border-green-600/40 cursor-pointer" />
               </div>
 
               {/* Botão fechar */}
@@ -711,30 +829,50 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={addFood} size="sm"
-                className="rounded-md h-8 px-3 text-white font-semibold text-xs"
-                style={{ background: "var(--cp-gradient)" }}>
+                className="rounded-md h-8 px-3 font-semibold text-xs shadow-[0_4px_12px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.18)]"
+                style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
                 <Plus className="w-3.5 h-3.5 mr-1.5" />Adicionar Alimento
               </Button>
+              {/* Ação secundária: mesmo relevo dos cards, em vez de fundo
+                  transparente que sumia contra o fundo do dialog */}
               <Button type="button" size="sm" variant="outline"
                 onClick={() => setNewAlimentoModal({ open: true, nome: "", foodKey: "" })}
-                className="rounded-md h-8 px-3 text-xs border-white/15 text-white/60 hover:text-white hover:bg-white/5 bg-transparent">
+                className="rounded-md h-8 px-3 text-xs border-white/[0.09] text-white/70 hover:text-white hover:brightness-125 bg-[#141417] shadow-[0_3px_10px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <Plus className="w-3.5 h-3.5 mr-1.5" />Criar Novo Alimento
               </Button>
             </div>
 
-            {/* Foods list — agrupado por alimento principal + substitutos */}
-            <div className="rounded-lg border border-white/8 overflow-visible">
+            {/* Foods list — agrupado por alimento principal + substitutos.
+                Container no mesmo padrão da coluna de sessão do kanban: mais
+                escuro que os cards que abriga, com borda e sombra. Os blocos de
+                alimento (#141417) avançam sobre ele, como os exercícios fazem
+                sobre a coluna na aba de Treinos. */}
+            <div
+              className="rounded-lg overflow-visible p-1.5"
+              style={{
+                backgroundColor: "#0f0f12",
+                border: "1px solid rgba(255,255,255,0.09)",
+                boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+              }}
+            >
 
+              <DndContext
+                sensors={dndSensors}
+                collisionDetection={pointerWithin}
+                onDragStart={onFoodDragStart}
+                onDragEnd={onFoodDragEnd}
+                onDragCancel={() => setDragFoodKey(null)}
+              >
               {/* Column header */}
-              <div className="flex items-center gap-1 bg-white/4 border-b border-white/8 px-2 py-1.5 text-[10px] text-white/50 uppercase tracking-wider font-medium">
+              <div className="flex items-center gap-1 px-2 py-1.5 mb-1 text-[10px] text-white/40 uppercase tracking-wider font-medium">
                 <span className="w-5 shrink-0" />
                 <span className="flex-1">Alimento</span>
                 <span className="w-14 text-center shrink-0">QTD</span>
                 <span className="w-10 text-center shrink-0">UND</span>
-                <span className="w-10 text-center shrink-0">C</span>
-                <span className="w-10 text-center shrink-0">P</span>
-                <span className="w-10 text-center shrink-0">G</span>
-                <span className="w-12 text-center shrink-0">KCAL</span>
+                <span className="w-10 text-center shrink-0 text-orange-400/70">C</span>
+                <span className="w-10 text-center shrink-0 text-red-400/70">P</span>
+                <span className="w-10 text-center shrink-0 text-blue-400/70">G</span>
+                <span className="w-12 text-center shrink-0" style={{ color: "rgba(var(--cp-rgb), 0.7)" }}>KCAL</span>
                 <span className="w-5 shrink-0" />
               </div>
 
@@ -744,33 +882,27 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                 const mainFoods = localMeal.foods.filter((f) => !f.parent_key && f.lista_subst_grupo_id === null);
 
                 return (
-                  <div key={food._key} className="border-b border-white/5 last:border-0">
+                  <FoodBlock key={food._key} id={food._key}>
+                    {({ attributes, listeners }) => (
+                    <>
                     {/* ── Main food row ── */}
                     <div className="flex items-center gap-1 px-2 py-1 hover:bg-white/3 transition-colors group">
-                      {/* Reorder arrows */}
-                      {(() => {
-                        const allMainFoods = localMeal.foods.filter((f) => !f.parent_key);
-                        const allIdx = allMainFoods.findIndex((f) => f._key === food._key);
-                        return (
-                          <div className="flex flex-col items-center shrink-0 w-5">
-                            <button type="button" onClick={() => moveFoodUp(food._key)}
-                              disabled={allIdx === 0}
-                              className="text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors p-px">
-                              <ChevronUp className="w-2.5 h-2.5" />
-                            </button>
-                            <button type="button" onClick={() => moveFoodDown(food._key)}
-                              disabled={allIdx === allMainFoods.length - 1}
-                              className="text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors p-px">
-                              <ChevronDown className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        );
-                      })()}
+                      {/* Handle de arraste — dedicado, pra não roubar a seleção
+                          de texto dos inputs da própria linha */}
+                      <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        title="Arrastar para reordenar"
+                        className="shrink-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none text-white/20 hover:text-white/60 transition-colors"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </button>
 
                       {/* Food search */}
                       <div className="flex-1 min-w-0">
                         <FoodSearchInput food={food} orgId={orgId}
-                          onSelect={(a) => updateFood(food._key, { alimento_id: a.id, alimento: a, nome_display: a.nome, quantidade: a.porcao_gramas?.toString() ?? "100", unidade: "g" })}
+                          onSelect={(a) => updateFood(food._key, { alimento_id: a.id, alimento: a, nome_display: a.nome, quantidade: a.porcao_gramas?.toString() ?? "100", unidade: toMealUnit(a.unidade) })}
                           onNameChange={(n) => updateFood(food._key, { nome_display: n, alimento_id: null, alimento: null })}
                           onClear={() => updateFood(food._key, { alimento_id: null, alimento: null })}
                           onAddNew={(nome) => setNewAlimentoModal({ open: true, nome, foodKey: food._key })}
@@ -792,10 +924,10 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                       </select>
 
                       {/* Macros */}
-                      <span className="w-10 text-center text-xs text-white/50 shrink-0">{mainMacros.carb > 0 ? `${mainMacros.carb}g` : <span className="text-white/20">—</span>}</span>
-                      <span className="w-10 text-center text-xs text-white/50 shrink-0">{mainMacros.prot > 0 ? `${mainMacros.prot}g` : <span className="text-white/20">—</span>}</span>
-                      <span className="w-10 text-center text-xs text-white/50 shrink-0">{mainMacros.gord > 0 ? `${mainMacros.gord}g` : <span className="text-white/20">—</span>}</span>
-                      <span className="w-12 text-center text-xs font-medium text-white/65 shrink-0">{mainMacros.kcal > 0 ? mainMacros.kcal : <span className="text-white/20 font-normal">—</span>}</span>
+                      <span className="w-10 text-center text-xs font-semibold text-orange-400/90 tabular-nums shrink-0">{mainMacros.carb > 0 ? `${mainMacros.carb}g` : <span className="text-white/15 font-normal">—</span>}</span>
+                      <span className="w-10 text-center text-xs font-semibold text-red-400/90 tabular-nums shrink-0">{mainMacros.prot > 0 ? `${mainMacros.prot}g` : <span className="text-white/15 font-normal">—</span>}</span>
+                      <span className="w-10 text-center text-xs font-semibold text-blue-400/90 tabular-nums shrink-0">{mainMacros.gord > 0 ? `${mainMacros.gord}g` : <span className="text-white/15 font-normal">—</span>}</span>
+                      <span className="w-12 text-center text-[13px] font-bold tabular-nums shrink-0" style={{ color: "var(--cp-400)" }}>{mainMacros.kcal > 0 ? mainMacros.kcal : <span className="text-white/15 font-normal">—</span>}</span>
 
                       {/* Delete */}
                       <button type="button" onClick={() => removeFood(food._key)}
@@ -865,7 +997,7 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                           </div>
                           <div className="flex-1 min-w-0">
                             <FoodSearchInput food={sub} orgId={orgId}
-                              onSelect={(a) => updateFood(sub._key, { alimento_id: a.id, alimento: a, nome_display: a.nome, quantidade: a.porcao_gramas?.toString() ?? "100", unidade: "g" })}
+                              onSelect={(a) => updateFood(sub._key, { alimento_id: a.id, alimento: a, nome_display: a.nome, quantidade: a.porcao_gramas?.toString() ?? "100", unidade: toMealUnit(a.unidade) })}
                               onNameChange={(n) => updateFood(sub._key, { nome_display: n, alimento_id: null, alimento: null })}
                               onClear={() => updateFood(sub._key, { alimento_id: null, alimento: null })}
                               onAddNew={(nome) => setNewAlimentoModal({ open: true, nome, foodKey: sub._key })}
@@ -881,14 +1013,22 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                             <option value="ml">ml</option>
                             <option value="un">un</option>
                           </select>
-                          <span className="w-10 text-center text-xs text-white/40 shrink-0">{subMacros.carb > 0 ? `${subMacros.carb}g` : <span className="text-white/15">—</span>}</span>
-                          <span className="w-10 text-center text-xs text-white/40 shrink-0">{subMacros.prot > 0 ? `${subMacros.prot}g` : <span className="text-white/15">—</span>}</span>
-                          <span className="w-10 text-center text-xs text-white/40 shrink-0">{subMacros.gord > 0 ? `${subMacros.gord}g` : <span className="text-white/15">—</span>}</span>
-                          <div className="w-12 flex flex-col items-center shrink-0">
-                            <span className="text-xs font-medium text-white/55">{subMacros.kcal > 0 ? subMacros.kcal : <span className="text-white/15">—</span>}</span>
+                          <span className="w-10 text-center text-xs text-orange-400/55 tabular-nums shrink-0">{subMacros.carb > 0 ? `${subMacros.carb}g` : <span className="text-white/15">—</span>}</span>
+                          <span className="w-10 text-center text-xs text-red-400/55 tabular-nums shrink-0">{subMacros.prot > 0 ? `${subMacros.prot}g` : <span className="text-white/15">—</span>}</span>
+                          <span className="w-10 text-center text-xs text-blue-400/55 tabular-nums shrink-0">{subMacros.gord > 0 ? `${subMacros.gord}g` : <span className="text-white/15">—</span>}</span>
+                          {/* kcal + diferença em relação ao alimento principal.
+                              Lado a lado, não empilhado: na vertical o diff
+                              grudava no número e parecia parte dele. Os
+                              parênteses separam os dois papéis — sem eles, o
+                              verde do diff se confundiria com o verde do kcal. */}
+                          <div className="w-12 flex items-baseline justify-center gap-0.5 shrink-0">
+                            <span className="text-xs font-semibold tabular-nums" style={{ color: "rgba(var(--cp-rgb), 0.6)" }}>{subMacros.kcal > 0 ? subMacros.kcal : <span className="text-white/15">—</span>}</span>
                             {diffKcal !== null && (
-                              <span className={`text-[9px] font-bold leading-tight ${diffKcal < 0 ? "text-green-500" : diffKcal > 0 ? "text-red-400" : "text-white/30"}`}>
-                                {diffKcal > 0 ? "+" : ""}{diffKcal}
+                              <span
+                                className={`text-[9px] font-bold tabular-nums leading-none ${diffKcal < 0 ? "text-emerald-400" : diffKcal > 0 ? "text-red-400" : "text-white/30"}`}
+                                title={`${Math.abs(diffKcal)} kcal ${diffKcal < 0 ? "a menos" : "a mais"} que o alimento principal`}
+                              >
+                                ({diffKcal > 0 ? "+" : "−"}{Math.abs(diffKcal)})
                               </span>
                             )}
                           </div>
@@ -901,37 +1041,53 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                     })}
 
                     {/* ── Add substitute buttons ── */}
-                    <div className="border-t border-white/4 flex items-center divide-x divide-white/6">
+                    <div className="border-t border-white/[0.07] flex items-center divide-x divide-white/[0.07] bg-white/[0.02]">
                       <button type="button" onClick={() => addSubstitute(food._key)}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] text-white/20 hover:text-white/50 transition-colors">
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] text-white/45 hover:text-white/80 hover:bg-white/[0.04] transition-colors">
                         <Plus className="w-3 h-3" />
                         Alimento substituto
                       </button>
                       {grupos.length > 0 && (
                         <button type="button" onClick={() => addListaRefSub(food._key)}
-                          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] text-white/20 hover:text-white/50 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] text-white/45 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
                           style={{ color: grupos.length > 0 ? undefined : "transparent" }}>
                           <ListOrdered className="w-3 h-3" />
                           Grupo da Lista
                         </button>
                       )}
                     </div>
-                  </div>
+                    </>
+                    )}
+                  </FoodBlock>
                 );
               })}
 
               {/* Totals row */}
-              <div className="flex items-center gap-1 bg-white/4 border-t border-white/8 px-2 py-2">
+              <div className="flex items-center gap-1 px-2 py-2 mt-1.5 rounded-lg" style={{ backgroundColor: "#17181c", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 3px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
                 <span className="w-5 shrink-0" />
                 <span className="flex-1 text-xs text-white/40 font-medium">Totais da refeição</span>
                 <span className="w-14 shrink-0" />
                 <span className="w-10 shrink-0" />
-                <span className="w-10 text-center text-xs font-semibold text-white/55 shrink-0">{totals.carb > 0 ? `${totals.carb}g` : "—"}</span>
-                <span className="w-10 text-center text-xs font-semibold text-white/55 shrink-0">{totals.prot > 0 ? `${totals.prot}g` : "—"}</span>
-                <span className="w-10 text-center text-xs font-semibold text-white/55 shrink-0">{totals.gord > 0 ? `${totals.gord}g` : "—"}</span>
-                <span className="w-12 text-center text-xs font-bold text-white/75 shrink-0">{totals.kcal > 0 ? totals.kcal : "—"}</span>
+                <span className="w-10 text-center text-xs font-bold text-orange-400 tabular-nums shrink-0">{totals.carb > 0 ? `${totals.carb}g` : "—"}</span>
+                <span className="w-10 text-center text-xs font-bold text-red-400 tabular-nums shrink-0">{totals.prot > 0 ? `${totals.prot}g` : "—"}</span>
+                <span className="w-10 text-center text-xs font-bold text-blue-400 tabular-nums shrink-0">{totals.gord > 0 ? `${totals.gord}g` : "—"}</span>
+                <span className="w-12 text-center text-sm font-bold tabular-nums shrink-0" style={{ color: "var(--cp-400)" }}>{totals.kcal > 0 ? totals.kcal : "—"}</span>
                 <span className="w-5 shrink-0" />
               </div>
+              <DragOverlay dropAnimation={null}>
+                {dragFoodKey ? (
+                  <div className="px-3 py-2 rounded-lg text-sm text-white pointer-events-none"
+                    style={{
+                      backgroundColor: "#17181c",
+                      border: "1px solid var(--cp-500)",
+                      boxShadow: "0 14px 34px rgba(0,0,0,0.6)",
+                      cursor: "grabbing",
+                    }}>
+                    {localMeal.foods.find((f) => f._key === dragFoodKey)?.nome_display || "Alimento"}
+                  </div>
+                ) : null}
+              </DragOverlay>
+              </DndContext>
             </div>
 
             {/* ── Refeições Alternativas (só aparece quando a dieta já existe no banco) ── */}
@@ -1019,7 +1175,8 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
           }
         }}
       />
-    </>
+    </>,
+    document.body
   );
 };
 
@@ -1250,7 +1407,7 @@ const AlternativesModal = ({ open, mealDbId, mealName, mainMacros, orgId, onClos
                             orgId={orgId}
                             onSelect={(a) => updateAltFood(alt._key, food._key, {
                               alimento_id: a.id, alimento: a, nome_display: a.nome,
-                              quantidade: a.porcao_gramas?.toString() ?? "100", unidade: "g",
+                              quantidade: a.porcao_gramas?.toString() ?? "100", unidade: toMealUnit(a.unidade),
                             })}
                             onNameChange={(n) => updateAltFood(alt._key, food._key, { nome_display: n, alimento_id: null, alimento: null })}
                             onClear={() => updateAltFood(alt._key, food._key, { alimento_id: null, alimento: null })}
@@ -1332,7 +1489,7 @@ interface MacroCardProps {
   color: string; perKg?: number | null;
 }
 const MacroCard = ({ label, value, unit, color, perKg }: MacroCardProps) => (
-  <div className="flex-1 min-w-0 rounded-lg border border-border bg-card px-3 py-3 text-center dark:border-white/10 dark:bg-white/4">
+  <div className="flex-1 min-w-0 rounded-lg border border-border bg-card px-3 py-3 text-center dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
     <p className={`text-2xl font-bold ${color}`}>{value}</p>
     <p className="text-[11px] text-muted-foreground mt-0.5 dark:text-white/60">{label}</p>
     <p className={`text-[11px] ${color} mt-0.5 opacity-80`}>{value} {unit}</p>
@@ -1385,7 +1542,7 @@ const NutritionalAnalysis = ({ macros, studentWeight, weightDate }: NutritionalA
       {/* Chart + patient info */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Donut chart */}
-        <div className="rounded-lg border border-border bg-card px-4 py-4 dark:border-white/8 dark:bg-white/3">
+        <div className="rounded-lg border border-border bg-card px-4 py-4 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
           <p className="text-xs text-foreground font-medium mb-3 dark:text-white/65">Distribuição de Macronutrientes</p>
           {hasData ? (
             <div className="flex items-center gap-4">
@@ -1427,7 +1584,7 @@ const NutritionalAnalysis = ({ macros, studentWeight, weightDate }: NutritionalA
         </div>
 
         {/* Patient info */}
-        <div className="rounded-lg border border-border bg-card px-4 py-4 dark:border-white/8 dark:bg-white/3">
+        <div className="rounded-lg border border-border bg-card px-4 py-4 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
           <p className="text-xs text-foreground font-medium mb-3 dark:text-white/65">Informações do Paciente</p>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -1816,6 +1973,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
     observacoes: diet.observacoes ?? "",
     refeicao_livre: diet.refeicao_livre ?? "",
     info_adicional: diet.info_adicional ?? "",
+    meta_agua_ml: diet.meta_agua_ml != null ? String(diet.meta_agua_ml) : "",
     meals: [...diet.diet_meals]
       .sort((a, b) => a.order_index - b.order_index)
       .map((m) => {
@@ -1860,35 +2018,125 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
   const openEditForm = () => { if (!activeDiet) return; setForm(dietToForm(activeDiet)); setView("form"); };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || file.type !== "application/pdf") { toast({ title: "Selecione um PDF", variant: "destructive" }); return; }
+    const files = Array.from(e.target.files ?? []);
+    const allValid = files.length > 0 && files.every((f) => f.type === "application/pdf" || f.type.startsWith("image/"));
+    if (!allValid) { toast({ title: "Selecione um ou mais PDFs ou imagens/prints", variant: "destructive" }); return; }
     setPdfLoading(true);
     try {
-      // Convert to base64 in chunks to avoid stack overflow on large files
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
-      }
-      const base64 = btoa(binary);
+      // Convert each file to base64 in chunks to avoid stack overflow on large files
+      const toBase64 = async (file: File): Promise<string> => {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+        }
+        return btoa(binary);
+      };
+      const encodedFiles = await Promise.all(files.map(async (f) => ({ base64: await toBase64(f), mediaType: f.type })));
+
       const { data, error } = await supabase.functions.invoke("parse-diet-pdf", {
-        body: { base64, mediaType: "application/pdf" },
+        body: { files: encodedFiles },
       });
       if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Erro no parse");
       const d = data.diet;
-      setForm({
-        title: d.title ?? "",
-        meals: (d.meals ?? []).map((m: any) => ({
+
+      // Interpreta a porção extraída do PDF (ex: "200g", "1 unidade", "2 fatias")
+      // em gramas/ml. Peso explícito (g/ml/kg/l) é usado direto; quantidade sem
+      // peso (unidade/fatia/etc.) é multiplicada pelo peso de 1 unidade do
+      // alimento vinculado — se soubermos (depende do cadastro ter essa info,
+      // como já acontece em "Ovo cozido inteiro" = 50g/unidade).
+      const parsePortionGrams = (portion: string | null | undefined, gramsPerUnit: number | null): number | null => {
+        if (!portion) return null;
+        const s = portion.toLowerCase().replace(",", ".");
+        const m = s.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l)?/);
+        if (!m) return null;
+        const num = parseFloat(m[1]);
+        if (isNaN(num)) return null;
+        const unit = m[2];
+        if (unit === "kg" || unit === "l") return num * 1000;
+        if (unit === "g" || unit === "ml") return num;
+        return gramsPerUnit != null ? num * gramsPerUnit : null;
+      };
+
+      // Constrói uma linha de alimento (principal ou substituto nomeado) já
+      // tentando vincular ao cadastro por similaridade (pg_trgm) e aplicando
+      // a quantidade real do PDF — é só uma sugestão pra poupar trabalho
+      // manual na revisão; se falhar por qualquer motivo, segue sem vínculo.
+      const buildFoodRow = async (name: string, portion: string | null | undefined, orderIndex: number, parentKey: string | null) => {
+        const food = {
+          _key: uid(), alimento_id: null as string | null, alimento: null as Alimento | null,
+          nome_display: name ?? "", quantidade: "100", unidade: "g", order_index: orderIndex,
+          parent_key: parentKey, lista_subst_grupo_id: null as string | null, lista_subst_porcoes: "1",
+        };
+        try {
+          const { data: matches } = await supabase.rpc("match_alimento", { termo: food.nome_display });
+          const best = matches?.[0];
+          if (best) {
+            food.alimento_id = best.id;
+            food.alimento = best;
+            food.nome_display = best.nome;
+          }
+          const grams = parsePortionGrams(portion, best?.porcao_gramas ?? null);
+          food.quantidade = grams != null ? String(grams)
+            : (best?.porcao_gramas != null ? String(best.porcao_gramas) : food.quantidade);
+        } catch { /* sem vínculo automático — segue com o alimento como extraído */ }
+        return food;
+      };
+
+      // Busca o id do grupo da lista de substituição pelo número, dentro da
+      // própria org (RLS já garante isso) — cacheado pra não repetir a mesma
+      // consulta quando o mesmo grupo é citado várias vezes na dieta.
+      const groupCache = new Map<number, string | null>();
+      const findGroupId = async (numero: number): Promise<string | null> => {
+        if (groupCache.has(numero)) return groupCache.get(numero)!;
+        let id: string | null = null;
+        try {
+          const { data: grupo } = await supabase.from("lista_subst_grupos")
+            .select("id").eq("org_id", orgId).eq("numero", numero).maybeSingle();
+          id = grupo?.id ?? null;
+        } catch { /* sem grupo encontrado — segue sem vincular */ }
+        groupCache.set(numero, id);
+        return id;
+      };
+
+      const parsedMeals = await Promise.all((d.meals ?? []).map(async (m: any) => {
+        const foods: any[] = [];
+        let orderIndex = 0;
+        for (const f of (m.foods ?? [])) {
+          const mainFood = await buildFoodRow(f.name, f.portion, orderIndex++, null);
+          foods.push(mainFood);
+          for (const sub of (f.substitutions ?? [])) {
+            try {
+              if (sub.type === "group" && sub.numero != null) {
+                const groupId = await findGroupId(Number(sub.numero));
+                if (groupId) {
+                  foods.push({
+                    _key: uid(), alimento_id: null, alimento: null,
+                    nome_display: "", quantidade: "0", unidade: "g", order_index: orderIndex++,
+                    parent_key: mainFood._key, lista_subst_grupo_id: groupId,
+                    lista_subst_porcoes: sub.porcoes != null ? String(sub.porcoes) : "1",
+                  });
+                }
+              } else if (sub.type === "food" && sub.name) {
+                foods.push(await buildFoodRow(sub.name, sub.portion, orderIndex++, mainFood._key));
+              }
+            } catch { /* substituição individual falhou — segue sem ela */ }
+          }
+        }
+        return {
           _key: uid(), name: m.name ?? "",
           time_suggestion: m.time_suggestion ?? "", notes: m.notes ?? "",
           order_index: m.order_index ?? 0,
-          foods: (m.foods ?? []).map((f: any, fi: number) => ({
-            _key: uid(), alimento_id: null, alimento: null,
-            nome_display: f.name ?? "", quantidade: "100", unidade: "g", order_index: fi,
-          })),
-        })),
+          foods,
+        };
+      }));
+
+      setForm({
+        ...emptyForm(),
+        title: d.title ?? "",
+        meals: parsedMeals,
       });
       setView("pdf-preview");
     } catch (err: any) {
@@ -1919,6 +2167,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
           observacoes: form.observacoes.trim() || null,
           refeicao_livre: form.refeicao_livre.trim() || null,
           info_adicional: form.info_adicional.trim() || null,
+          meta_agua_ml: form.meta_agua_ml ? Number(form.meta_agua_ml) : null,
         })
         .select("id, is_active").single();
       if (dietErr) throw dietErr;
@@ -1929,6 +2178,38 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
           .insert({ diet_id: newDiet.id, name: meal.name || `Refeição ${mi + 1}`, time_suggestion: meal.time_suggestion || null, notes: meal.notes || null, observacoes_receita: meal.observacoes_receita || null, modo_preparo: meal.modo_preparo || null, order_index: mi })
           .select("id").single();
         if (mealErr) throw mealErr;
+
+        // Migra refeições alternativas da versão anterior desta refeição — todo save
+        // recria diet_meals com IDs novos, então sem isso as alternativas (presas no
+        // meal_id antigo) ficavam órfãs na versão desativada e "sumiam" da dieta ativa.
+        if (meal.dbId) {
+          const { data: oldAlts, error: oldAltsErr } = await supabase
+            .from("meal_alternatives")
+            .select("nome, ordem, meal_alternative_foods (alimento_id, nome_display, ordem, quantidade, unidade)")
+            .eq("meal_id", meal.dbId)
+            .order("ordem");
+          if (oldAltsErr) throw oldAltsErr;
+          for (const alt of oldAlts ?? []) {
+            const { data: newAlt, error: newAltErr } = await supabase.from("meal_alternatives")
+              .insert({ meal_id: newMeal.id, nome: alt.nome, ordem: alt.ordem })
+              .select("id").single();
+            if (newAltErr) throw newAltErr;
+            const altFoods = (alt.meal_alternative_foods ?? []) as { alimento_id: string | null; nome_display: string | null; ordem: number; quantidade: number | null; unidade: string | null }[];
+            if (altFoods.length > 0) {
+              const { error: newFoodsErr } = await supabase.from("meal_alternative_foods").insert(
+                altFoods.map((f) => ({
+                  alternative_id: newAlt.id,
+                  alimento_id: f.alimento_id,
+                  nome_display: f.nome_display,
+                  ordem: f.ordem,
+                  quantidade: f.quantidade,
+                  unidade: f.unidade,
+                }))
+              );
+              if (newFoodsErr) throw newFoodsErr;
+            }
+          }
+        }
 
         // Save main foods first (parent_key === null), get their DB IDs
         const mainFoods = meal.foods.filter((f) => !f.parent_key && (
@@ -2114,12 +2395,12 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
             </Button>
           )}
           <label>
-            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfUpload} />
+            <input ref={fileInputRef} type="file" accept="application/pdf,image/*" multiple className="hidden" onChange={handlePdfUpload} />
             <Button size="sm" type="button" variant="ghost" disabled={pdfLoading}
               onClick={() => fileInputRef.current?.click()}
               className="rounded-md h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-xs bg-transparent dark:border-white/10 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/5">
               {pdfLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5 mr-1.5" />}
-              {pdfLoading ? "Processando..." : "Importar PDF"}
+              {pdfLoading ? "Processando..." : "Importar PDF ou print"}
             </Button>
           </label>
           {allDiets.length > 1 && (() => {
@@ -2273,7 +2554,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
             </div>
 
             {/* Diet header */}
-            <div className="rounded-lg border border-border bg-card overflow-hidden dark:border-white/8 dark:bg-white/3">
+            <div className="rounded-lg border border-border bg-card overflow-hidden dark:bg-[#121216] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
               <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3 dark:border-white/6">
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -2319,7 +2600,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
                       .filter((f) => !f.parent_key)
                       .sort((a, b) => a.order_index - b.order_index);
                     return (
-                      <div key={meal.id} className="px-4 py-3 hover:bg-muted/60 transition-colors group dark:hover:bg-white/3">
+                      <div key={meal.id} className="px-4 py-3 transition-colors group hover:bg-muted/60 dark:bg-[#141417] dark:hover:bg-[#17181c]">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -2385,23 +2666,30 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
 
             <NutritionalAnalysis macros={summaryMacros} studentWeight={studentWeight} weightDate={weightDate} />
 
+            {activeDiet.meta_agua_ml != null && (
+              <div className="rounded-lg border border-border bg-card p-3 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 dark:text-white/40">Meta de água diária</p>
+                <p className="text-sm text-foreground/80 dark:text-white/70">{(activeDiet.meta_agua_ml / 1000).toFixed(1)}L ({activeDiet.meta_agua_ml}ml)</p>
+              </div>
+            )}
+
             {/* Observações / refeição livre */}
             {(activeDiet.observacoes || activeDiet.refeicao_livre || activeDiet.info_adicional) && (
               <div className="space-y-2">
                 {activeDiet.observacoes && (
-                  <div className="rounded-lg border border-border bg-card p-3 dark:border-white/8 dark:bg-white/3">
+                  <div className="rounded-lg border border-border bg-card p-3 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 dark:text-white/40">Observações gerais</p>
                     <p className="text-sm text-foreground/80 dark:text-white/70 whitespace-pre-wrap">{activeDiet.observacoes}</p>
                   </div>
                 )}
                 {activeDiet.refeicao_livre && (
-                  <div className="rounded-lg border border-border bg-card p-3 dark:border-white/8 dark:bg-white/3">
+                  <div className="rounded-lg border border-border bg-card p-3 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 dark:text-white/40">Refeição livre</p>
                     <p className="text-sm text-foreground/80 dark:text-white/70">{activeDiet.refeicao_livre}</p>
                   </div>
                 )}
                 {activeDiet.info_adicional && (
-                  <div className="rounded-lg border border-border bg-card p-3 dark:border-white/8 dark:bg-white/3">
+                  <div className="rounded-lg border border-border bg-card p-3 dark:bg-[#141417] dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06),inset_0_-1px_0_rgba(0,0,0,0.25)]">
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 dark:text-white/40">Informações adicionais</p>
                     <p className="text-sm text-foreground/80 dark:text-white/70 whitespace-pre-wrap">{activeDiet.info_adicional}</p>
                   </div>
@@ -2506,18 +2794,20 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
             </button>
           </div>
 
-          <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border dark:border-white/8 dark:bg-white/3 dark:divide-white/5">
+          {/* Container recuado: as refeições agora são cards próprios, então o
+              divide-y saiu (redundante) e o fundo escurece pra elas avançarem. */}
+          <div className="rounded-lg border border-border bg-card p-2 space-y-2 dark:border-white/8 dark:bg-[#0f0f12]">
             {form.meals.map((meal, mi) => {
               const mm = mealMacros(meal);
               const foodCount = meal.foods.filter((f) => f.nome_display.trim() || f.alimento_id).length;
               return (
-                <div key={meal._key} className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/60 transition-colors group dark:hover:bg-white/3">
+                <div key={meal._key} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-card transition-colors group hover:bg-muted/60 dark:border-white/10 dark:bg-[#141417] dark:hover:bg-[#17181c] shadow-sm dark:shadow-[0_4px_14px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Time input */}
-                    <Input value={meal.time_suggestion}
-                      onChange={(e) => updateMeal(meal._key, { ...meal, time_suggestion: e.target.value })}
-                      placeholder="00:00"
-                      className="bg-transparent border-0 border-b border-border text-muted-foreground text-xs rounded-none h-7 w-12 p-0 text-center focus-visible:ring-0 placeholder:text-muted-foreground/60 focus:border-green-600/50 dark:border-white/10 dark:text-white/50 dark:placeholder:text-white/20" />
+                    <TimeField
+                      value={meal.time_suggestion}
+                      onChange={(v) => updateMeal(meal._key, { ...meal, time_suggestion: v })}
+                      className="bg-transparent border-0 border-b border-border text-muted-foreground text-xs rounded-none h-7 w-14 px-0 text-center focus-visible:ring-0 focus:border-green-600/50 placeholder:text-muted-foreground/50 dark:border-white/10 dark:text-white/60 cursor-pointer" />
 
                     {/* Name input */}
                     <Input value={meal.name}
@@ -2591,16 +2881,46 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
         <NutritionalAnalysis macros={totals} studentWeight={studentWeight} weightDate={weightDate} />
 
         {/* ── TMB/GET Calculator ──────────────────────────────────── */}
-        <div className="rounded-lg border border-border overflow-hidden dark:border-white/8">
+        {/* Antes era uma barra apagada com um "Calcular" em texto cinza à
+            direita — não se lia como algo clicável que expande. Agora: card com
+            relevo, ícone, subtítulo dizendo o que a ferramenta faz, chevron que
+            gira ao abrir e o "Calcular" como pílula na cor primária da org. */}
+        <div className="rounded-lg border border-border overflow-hidden dark:border-white/10 shadow-sm dark:shadow-[0_10px_28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] dark:bg-[#141417]">
           <button
             type="button"
             onClick={() => { setCalcOpen((o) => !o); setCalcResult(null); }}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors dark:hover:bg-white/3"
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors dark:hover:bg-white/[0.04]"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground dark:text-white">Análise de Gasto Energético (TMB/GET)</span>
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ backgroundColor: "rgba(var(--cp-rgb), 0.12)" }}
+              >
+                <Calculator className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground dark:text-white">
+                  Análise de Gasto Energético (TMB/GET)
+                </p>
+                <p className="text-[11px] text-muted-foreground dark:text-white/45 truncate">
+                  Estime as calorias que o aluno gasta por dia para ajustar a meta da dieta
+                </p>
+              </div>
             </div>
-            <span className="text-xs text-muted-foreground dark:text-white/40">{calcOpen ? "Fechar" : "Calcular"}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              {!calcOpen && (
+                <span
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: "rgba(var(--cp-rgb), 0.15)", color: "var(--cp-400)" }}
+                >
+                  Calcular
+                </span>
+              )}
+              <ChevronDown
+                className="w-4 h-4 text-muted-foreground dark:text-white/40 transition-transform duration-200"
+                style={{ transform: calcOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </div>
           </button>
 
           {calcOpen && (
@@ -2716,6 +3036,17 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
               )}
             </div>
           )}
+        </div>
+
+        {/* ── Meta de água ──────────────────────── */}
+        <div className="space-y-1.5">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider dark:text-white/60">Meta de água diária (ml)</Label>
+          <Input
+            type="number"
+            value={form.meta_agua_ml}
+            onChange={(e) => setForm((f) => ({ ...f, meta_agua_ml: e.target.value }))}
+            placeholder="Ex: 2500"
+            className="bg-background border-border text-foreground rounded-md h-9 placeholder:text-muted-foreground/60 focus:border-green-600/40 dark:bg-white/5 dark:border-white/10 dark:text-white dark:placeholder:text-white/20" />
         </div>
 
         {/* ── Observações / Refeição livre ──────────────────────── */}

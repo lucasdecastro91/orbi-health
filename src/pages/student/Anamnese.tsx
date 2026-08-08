@@ -151,11 +151,17 @@ const Anamnese = () => {
   const [studentId,    setStudentId]    = useState<string | null>(null);
   const [alunoNome,    setAlunoNome]    = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
+  const [autoSaving,   setAutoSaving]   = useState(false);
   const [done,         setDone]         = useState(false);
   const [loadingInit,  setLoading]      = useState(true);
   const [isEditing,    setIsEditing]    = useState(false);
   const fileRefs     = useRef<Record<string, HTMLInputElement | null>>({});
   const initialized  = useRef(false);
+  const mountedRef        = useRef(true);
+  const autosaveTimerRef  = useRef<number | null>(null);
+  const autosaveInFlightRef = useRef(false);
+  const autosavePendingRef = useRef(false);
+  const skipNextAutosaveRef = useRef(true); // não dispara no mount inicial (antes do init() carregar dados)
 
   // Re-runs whenever orgId becomes available (TenantContext may load after mount)
   useEffect(() => {
@@ -273,9 +279,11 @@ const Anamnese = () => {
   };
 
   // ── Save ─────────────────────────────────────────────────────
-  const saveProgress = async (final = false): Promise<boolean> => {
+  // `silent`: usado pelo autosave em segundo plano — não mexe no botão "Avançar"
+  // nem mostra toast de sucesso, mas continua avisando em caso de erro.
+  const saveProgress = async (final = false, silent = false): Promise<boolean> => {
     if (!studentId || !orgId) return false;
-    setSaving(true);
+    if (!silent) setSaving(true);
     try {
       let extras = { ...extrasAns };
 
@@ -352,10 +360,58 @@ const Anamnese = () => {
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
       return false;
-    } finally { setSaving(false); }
+    } finally { if (!silent) setSaving(false); }
   };
 
+  // ── Autosave em segundo plano ──────────────────────────────────
+  // Evita perder respostas quando o app é fechado/minimizado no meio de uma
+  // seção — antes só salvava ao clicar em "Avançar".
+  const runAutosave = async () => {
+    if (autosaveInFlightRef.current) { autosavePendingRef.current = true; return; }
+    autosaveInFlightRef.current = true;
+    if (mountedRef.current) setAutoSaving(true);
+    await saveProgress(false, true);
+    autosaveInFlightRef.current = false;
+    if (mountedRef.current) setAutoSaving(false);
+    if (autosavePendingRef.current) {
+      autosavePendingRef.current = false;
+      void runAutosave();
+    }
+  };
+  const runAutosaveRef = useRef(runAutosave);
+  runAutosaveRef.current = runAutosave;
+
+  const flushAutosave = () => {
+    if (autosaveTimerRef.current) { window.clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
+    void runAutosaveRef.current();
+  };
+
+  // Debounce: agenda um save ~1.5s depois da última alteração de campo
+  useEffect(() => {
+    if (skipNextAutosaveRef.current) { skipNextAutosaveRef.current = false; return; }
+    if (!studentId || !orgId || loadingInit || done) return;
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setTimeout(() => { void runAutosaveRef.current(); }, 1500);
+    return () => { if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current); };
+  }, [extrasAns, form]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush imediato quando o app vai pra segundo plano, a aba é trocada/fechada,
+  // ou o componente desmonta (navegação dentro do app) — cobre o caso real de
+  // interrupção no meio do preenchimento que causava perda silenciosa de dados.
+  useEffect(() => {
+    const onVisibility = () => { if (document.hidden) flushAutosave(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flushAutosave);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flushAutosave);
+      mountedRef.current = false;
+      flushAutosave();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleNext = async () => {
+    if (autosaveTimerRef.current) { window.clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
     const isLast = step === totalSteps;
     const ok = await saveProgress(isLast);
     if (!ok) return;
@@ -815,8 +871,12 @@ const Anamnese = () => {
         </button>
       </div>
 
-      <p className="text-center text-xs text-white/20 mt-4">
-        Suas respostas são salvas automaticamente a cada etapa.
+      <p className="text-center text-xs text-white/20 mt-4 flex items-center justify-center gap-1.5">
+        {autoSaving ? (
+          <><Loader2 className="w-3 h-3 animate-spin" /> Salvando...</>
+        ) : (
+          "Suas respostas são salvas automaticamente enquanto você digita."
+        )}
       </p>
     </div>
   );

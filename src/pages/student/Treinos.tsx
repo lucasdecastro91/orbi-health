@@ -3,9 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { grantXP } from "@/lib/xp";
+import { evaluateAndUpdateStreak } from "@/lib/streaks";
 import {
   Dumbbell, Calendar, ChevronDown, ChevronRight,
-  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X,
+  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X, History,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -22,6 +24,7 @@ interface Exercise {
   observacoes: string | null;
   ordem: number;
   series_detalhadas?: any;
+  conjugado_com_proximo?: boolean;
 }
 
 interface Training {
@@ -67,6 +70,42 @@ const formatDate = (date: string) =>
 
 const hasVideo = (url: string | null) => !!url;
 
+/** Brazil local date YYYY-MM-DD */
+const brazilToday = (): string => {
+  const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  return brazil.toISOString().slice(0, 10);
+};
+
+/** Quantas séries um exercício espera (série detalhada, ou fallback pro campo `series`) */
+const getExpectedSerieCount = (ex: Exercise): number => {
+  const raw = ex.series_detalhadas;
+  if (raw) {
+    const arr = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw); } catch { return null; } })();
+    if (Array.isArray(arr) && arr.length > 0) {
+      // Cada bloco pode valer por várias séries físicas (campo `quantidade`) — soma, não conta blocos
+      return arr.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1), 0);
+    }
+  }
+  const count = parseInt(ex.series);
+  return !count || count <= 0 ? 0 : count;
+};
+
+/** Progresso de séries concluídas hoje num treino inteiro (soma de todos os exercícios) */
+const getTrainingSerieProgress = (
+  training: Training,
+  serieCompletionCounts: Record<string, number>,
+): { done: number; total: number } => {
+  let done = 0;
+  let total = 0;
+  for (const ex of training.exercicios) {
+    const expected = getExpectedSerieCount(ex);
+    if (expected <= 0) continue; // exercício sem séries rastreáveis não bloqueia o treino
+    total += expected;
+    done += Math.min(serieCompletionCounts[ex.id] ?? 0, expected);
+  }
+  return { done, total };
+};
+
 /** Normalize DB tipo variants to canonical key */
 const normalizeTipo = (tipo: string): string => {
   switch ((tipo ?? '').trim().toLowerCase()) {
@@ -93,6 +132,23 @@ const getWorkSetSummary = (exercise: Exercise): string => {
   const repStr = uniqueReps.length === 1 ? uniqueReps[0] : uniqueReps.join('/');
   return `${totalQty}× ${repStr}`;
 };
+
+/** Agrupa exercícios encadeados por `conjugado_com_proximo` (bi-set/tri-set/giant-set) */
+const groupExercises = (exercicios: Exercise[]): Exercise[][] => {
+  const groups: Exercise[][] = [];
+  let current: Exercise[] = [];
+  for (const ex of exercicios) {
+    current.push(ex);
+    if (!ex.conjugado_com_proximo) {
+      groups.push(current);
+      current = [];
+    }
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+};
+
+const GROUP_LABEL: Record<number, string> = { 2: "Bi-set", 3: "Tri-set" };
 
 // ─────────────────────────────────────────────────────────────
 // Sub-components
@@ -123,7 +179,11 @@ const ExerciseRow = ({
         <span className="text-[11px] text-muted-foreground">
           {getWorkSetSummary(exercise)}
         </span>
-        {exercise.descanso && (
+        {exercise.conjugado_com_proximo ? (
+          <span className="text-[11px] font-medium" style={{ color: "var(--cp-400)" }}>
+            sem descanso ↓
+          </span>
+        ) : exercise.descanso && (
           <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
             <Clock className="w-2.5 h-2.5" />
             {exercise.descanso}s
@@ -155,6 +215,7 @@ const TrainingBlock = ({
   completedToday,
   onMarkComplete,
   completing,
+  serieCompletionCounts,
 }: {
   training: Training;
   isOpen: boolean;
@@ -163,7 +224,12 @@ const TrainingBlock = ({
   completedToday: boolean;
   onMarkComplete: (treinoId: string) => void;
   completing: boolean;
-}) => (
+  serieCompletionCounts: Record<string, number>;
+}) => {
+  const { done: seriesDone, total: seriesTotal } = getTrainingSerieProgress(training, serieCompletionCounts);
+  const seriesPending = seriesTotal > 0 && seriesDone < seriesTotal;
+
+  return (
   <div
     className="rounded-2xl border overflow-hidden transition-colors"
     style={{
@@ -221,23 +287,55 @@ const TrainingBlock = ({
           </div>
         )}
 
-        {/* Exercise list */}
+        {/* Exercise list — exercícios conjugados (bi-set/tri-set) ficam agrupados visualmente */}
         <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-          {training.exercicios.map((ex, idx) => (
-            <ExerciseRow
-              key={ex.id}
-              exercise={ex}
-              index={idx}
-              onClick={() => onExerciseClick(ex.id, undefined, training.id)}
-            />
-          ))}
+          {groupExercises(training.exercicios).map((group) => {
+            if (group.length === 1) {
+              const ex = group[0];
+              const idx = training.exercicios.findIndex((e) => e.id === ex.id);
+              return (
+                <ExerciseRow
+                  key={ex.id}
+                  exercise={ex}
+                  index={idx}
+                  onClick={() => onExerciseClick(ex.id, undefined, training.id)}
+                />
+              );
+            }
+            return (
+              <div key={group[0].id} className="flex py-1.5">
+                <div className="w-3 shrink-0 flex justify-center">
+                  <div className="w-0.5 rounded-full my-1" style={{ backgroundColor: "var(--cp-500)" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span
+                    className="inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ml-1 mb-1"
+                    style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)", color: "var(--cp-400)" }}
+                  >
+                    {GROUP_LABEL[group.length] ?? "Giant set"}
+                  </span>
+                  {group.map((ex) => {
+                    const idx = training.exercicios.findIndex((e) => e.id === ex.id);
+                    return (
+                      <ExerciseRow
+                        key={ex.id}
+                        exercise={ex}
+                        index={idx}
+                        onClick={() => onExerciseClick(ex.id, undefined, training.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* ── Mark complete button ── */}
         <div className="px-4 pt-2 pb-3">
           <button
             onClick={() => onMarkComplete(training.id)}
-            disabled={completing || completedToday}
+            disabled={completing || completedToday || seriesPending}
             className="w-full h-10 rounded-xl text-sm font-semibold transition-all active:scale-98 disabled:opacity-60 flex items-center justify-center gap-2"
             style={completedToday
               ? { backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }
@@ -250,11 +348,17 @@ const TrainingBlock = ({
             }
             {completedToday ? "Treino concluído hoje ✓" : "Marcar treino como concluído"}
           </button>
+          {!completedToday && seriesPending && (
+            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+              Conclua todas as séries para liberar ({seriesDone}/{seriesTotal})
+            </p>
+          )}
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 /** Collapsible week section */
 const WeekSection = ({
@@ -267,6 +371,7 @@ const WeekSection = ({
   completedTodayIds,
   onMarkComplete,
   completingId,
+  serieCompletionCounts,
 }: {
   week: Week;
   isOpen: boolean;
@@ -277,6 +382,7 @@ const WeekSection = ({
   completedTodayIds: string[];
   onMarkComplete: (treinoId: string) => void;
   completingId: string | null;
+  serieCompletionCounts: Record<string, number>;
 }) => (
   <div className="rounded-2xl border border-border overflow-hidden bg-card">
     {/* Week header */}
@@ -337,6 +443,7 @@ const WeekSection = ({
               completedToday={completedTodayIds.includes(treino.id)}
               onMarkComplete={onMarkComplete}
               completing={completingId === treino.id}
+              serieCompletionCounts={serieCompletionCounts}
             />
           ))}
         </div>
@@ -509,12 +616,14 @@ const Treinos = () => {
   const [stretchings,    setStretchings]    = useState<Stretching[]>([]);
   // Completion tracking
   const [alunoId,        setAlunoId]        = useState<string | null>(null);
+  const [studentUserId,  setStudentUserId]  = useState<string | null>(null);
   const [treinadorId,    setTreinadorId]    = useState<string | null>(null);
   const [alunoNome,      setAlunoNome]      = useState<string | null>(null);
   const [planoId,        setPlanoId]        = useState<string | null>(null);
   const [completedToday, setCompletedToday] = useState<string[]>([]); // treino_ids logged today
   const [monthCount,     setMonthCount]     = useState(0);            // total logs this month
   const [completingId,   setCompletingId]   = useState<string | null>(null);
+  const [serieCompletionCounts, setSerieCompletionCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadTrainingPlan();
@@ -525,6 +634,18 @@ const Treinos = () => {
   useEffect(() => {
     if (alunoId) loadCompletions(alunoId);
   }, [alunoId]);
+
+  // Recarrega as séries concluídas hoje sempre que entrar/voltar pra essa tela
+  // (ex: volta do detalhe de um exercício depois de marcar séries como feitas)
+  useEffect(() => {
+    if (studentUserId) loadSerieCompletionCounts(studentUserId);
+  }, [studentUserId, searchParams]);
+
+  useEffect(() => {
+    const onFocus = () => { if (studentUserId) loadSerieCompletionCounts(studentUserId); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [studentUserId]);
 
   // Auto-open week/training from query params (e.g., from notifications)
   useEffect(() => {
@@ -540,6 +661,7 @@ const Treinos = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/auth"); return; }
+      setStudentUserId(session.user.id);
 
       const { data: aluno } = await supabase
         .from("alunos")
@@ -573,7 +695,8 @@ const Treinos = () => {
             id, titulo_treino, dia_semana, descricao_geral, ordem,
             exercicios (
               id, nome_exercicio, series, repeticoes,
-              descanso, video_url, observacoes, ordem, series_detalhadas
+              descanso, video_url, observacoes, ordem, series_detalhadas,
+              conjugado_com_proximo
             )
           )
         `)
@@ -635,6 +758,21 @@ const Treinos = () => {
     } catch { /* table may not exist yet — fail silently */ }
   };
 
+  const loadSerieCompletionCounts = async (uid: string) => {
+    try {
+      const { data } = await supabase
+        .from('serie_completions')
+        .select('exercicio_id')
+        .eq('student_id', uid)
+        .eq('date', brazilToday());
+      if (data) {
+        const counts: Record<string, number> = {};
+        for (const row of data as any[]) counts[row.exercicio_id] = (counts[row.exercicio_id] ?? 0) + 1;
+        setSerieCompletionCounts(counts);
+      }
+    } catch { /* table may not exist yet — fail silently */ }
+  };
+
   const markComplete = async (treinoId: string) => {
     if (!alunoId || completedToday.includes(treinoId)) return;
     setCompletingId(treinoId);
@@ -649,7 +787,11 @@ const Treinos = () => {
       if (error) throw error;
       setCompletedToday(prev => [...prev, treinoId]);
       setMonthCount(prev => prev + 1);
-      toast({ title: 'Treino registrado!', description: 'Continue assim 💪' });
+      toast({ title: 'Treino registrado!', description: 'Continue assim' });
+      if (studentUserId && orgId) {
+        void grantXP(studentUserId, orgId, "workout_complete");
+        void evaluateAndUpdateStreak(studentUserId, orgId);
+      }
       if (treinadorId && alunoId && orgId) {
         const todayStr = new Date().toISOString().slice(0, 10);
         void (async () => {
@@ -766,12 +908,22 @@ const Treinos = () => {
     <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Dumbbell className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Treinos</h1>
-          <p className="text-sm text-muted-foreground">Seu plano de treino personalizado</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Dumbbell className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-foreground">Treinos</h1>
+            <p className="text-sm text-muted-foreground">Seu plano de treino personalizado</p>
+          </div>
         </div>
+        <button
+          onClick={() => navigate(`/${slug}/aluno/treinos/historico`)}
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
+          style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+          title="Ver histórico"
+        >
+          <History className="w-4 h-4 text-white/40" />
+        </button>
       </div>
 
       {/* Monthly completion stats */}
@@ -808,8 +960,8 @@ const Treinos = () => {
 
       {/* Plan info card */}
       <div
-        className="rounded-2xl border border-border px-4 py-4"
-        style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+        className="rounded-2xl px-4 py-4"
+        style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}
       >
         <div className="flex items-start gap-3">
           <div
@@ -867,6 +1019,7 @@ const Treinos = () => {
               completedTodayIds={completedToday}
               onMarkComplete={markComplete}
               completingId={completingId}
+              serieCompletionCounts={serieCompletionCounts}
             />
           ))}
         </div>

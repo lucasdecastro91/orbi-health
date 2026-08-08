@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import {
   AlertCircle, Camera, ChevronLeft, ChevronRight, X, RotateCcw, Check,
-  Loader2, CheckCircle2, Calendar, ZoomIn, Info, Timer,
+  Loader2, CheckCircle2, Calendar, ZoomIn, Info, Timer, Download,
 } from "lucide-react";
 
 // ─── Test definitions ─────────────────────────────────────────────────────────
@@ -16,173 +17,30 @@ interface TesteSlide {
   photoLabels: string[];          // one entry per photo
   instructions: string[];
   emoji: string;                  // placeholder until real ref images
+  imagens?: (string | null)[];    // URL própria da org (upload do treinador) — sobrepõe o fallback estático
+  videoUrl?: string | null;       // vídeo de demonstração do teste, se o treinador enviou
 }
 
-const TESTES_DEFAULT: TesteSlide[] = [
-  {
-    key: "frontal",
-    label: "Frontal",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
-      "Olhar para frente em direção ao horizonte",
-      "Pés no afastamento ideal (largura da Espinha Ilíaca Antero Superior)",
-      "Nivele a câmera e aponte-a para a cicatriz umbilical",
-    ],
-  },
-  {
-    key: "costas",
-    label: "Costas",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
-      "Olhar para frente em direção ao horizonte",
-      "Pés no afastamento ideal",
-      "Nivele a câmera e aponte-a para o meio das costas",
-    ],
-  },
-  {
-    key: "perfil",
-    label: "Perfil Esquerdo e Direito",
-    photoLabels: ["Perfil Esquerdo", "Perfil Direito"],
-    emoji: "",
-    instructions: [
-      "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
-      "Olhar para frente em direção ao horizonte",
-      "Pés no afastamento ideal",
-      "Nivele a câmera e aponte-a para o centro da barriga",
-    ],
-  },
-  {
-    key: "perfil_ombros",
-    label: "Ombros em Máxima Flexão",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera de perfil",
-      "Eleve os ombros em máxima flexão (braços apontando para cima)",
-      "Olhar para frente em direção ao horizonte",
-      "Pés no afastamento ideal",
-      "Nivele a câmera e aponte-a para o centro da barriga",
-    ],
-  },
-  {
-    key: "unipodal",
-    label: "Apoio Unipodal Esquerdo e Direito",
-    photoLabels: ["Pé Esquerdo", "Pé Direito"],
-    emoji: "",
-    instructions: [
-      "Deixe os braços relaxados ao lado do corpo — não force nenhuma postura",
-      "Olhar para frente em direção ao horizonte",
-      "Flexione o joelho livre a 90°",
-      "Nivele a câmera e aponte-a para a cicatriz umbilical",
-    ],
-  },
-  {
-    key: "agachamento_perfil",
-    label: "Agachamento de Perfil",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera de perfil",
-      "Mantenha os pés na largura dos ombros, levemente abduzidos",
-      "Estenda os braços horizontalmente à frente do corpo (altura dos ombros)",
-      "Desça o agachamento o máximo possível e pare",
-      "Tire a foto nessa posição",
-    ],
-  },
-  {
-    key: "agachamento_costas",
-    label: "Agachamento de Costas",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera atrás do indivíduo",
-      "Mantenha os pés na largura dos ombros, levemente abduzidos",
-      "Mantenha as mãos atrás do corpo",
-      "Desça o agachamento o máximo possível e pare",
-      "Tire a foto nessa posição",
-    ],
-  },
-  {
-    key: "ajoelhado",
-    label: "Ajoelhado de Perfil",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera de perfil",
-      "Ajoelhe-se sobre um joelho (posição de ajoelhado)",
-      "Estenda os braços horizontalmente à frente do corpo (altura dos ombros)",
-      "Tire a foto nessa posição",
-    ],
-  },
-  {
-    key: "flexao_quadril",
-    label: "Flexão de Quadril em Decúbito Dorsal",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Deite-se de costas (decúbito dorsal) com o corpo totalmente alinhado ao solo",
-      "Posicione a câmera de perfil ao nível do solo",
-      "Mantenha uma perna estendida e apoiada no chão",
-      "Eleve a outra perna com o joelho estendido o máximo possível",
-      "Tire a foto no limite da amplitude",
-    ],
-  },
-  {
-    key: "sentar_alcancar",
-    label: "Sentar e Alcançar Adaptado",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera de perfil",
-      "Sente com as pernas estendidas e juntas",
-      "Incline o tronco para frente estendendo os braços em direção aos pés",
-      "Ao chegar no limite, tire a foto",
-    ],
-  },
-  {
-    key: "flexao_coluna",
-    label: "Flexão da Coluna",
-    photoLabels: [""],
-    emoji: "",
-    instructions: [
-      "Posicione a câmera de perfil",
-      "Em pé, com os pés levemente afastados",
-      "Incline o tronco para baixo tentando alcançar a ponta dos pés",
-      "Mantenha os joelhos estendidos",
-      "Ao chegar no limite, tire a foto",
-    ],
-  },
-];
-
+// Não há mais fallback hardcoded aqui — o protocolo "padrão" (frontal, costas,
+// perfil...) vive só em coach/PosturalEvalBuilder.tsx (DEFAULT_TESTES) e só
+// chega no aluno se o treinador escolher "usar modelo padrão" lá e salvar,
+// virando dado real em avaliacao_postural_config.testes.
 // TOTAL_PHOTOS agora é calculado dinamicamente no componente
 
 const BUCKET = "evolution-photos";
 
-// ─── Instructions text ─────────────────────────────────────────────────────────
-
-const INSTRUCOES_GERAIS = {
-  aviso: "É de extrema importância que sejam respeitados todos os critérios do protocolo para que não ocorram falhas na análise. O não cumprimento dos critérios poderá acarretar num planejamento não condizente com seu quadro atual.",
-  vestuario: [
-    "Homens: fotos de sunga preta (caso não tenha, utilize a cor mais escura possível).",
-    "Mulheres: fotos de biquíni preto (caso não tenha, utilize a cor mais escura possível). A alça deve ser fina e não pode bloquear a visão das escápulas. A parte baixa não pode estar desnivelada.",
-  ],
-  observacoes: [
-    "Não force nenhum tipo de postura",
-    "Nas fotos de frente, costas, perfil E/D: mantenha os braços relaxados ao lado do corpo",
-    "Os pés devem ficar aproximadamente a um palmo afastados (largura da Espinha Ilíaca Antero Superior)",
-    "Os pés devem estar alinhados — um não pode estar mais à frente que o outro",
-    "Olhar sempre para frente em direção ao horizonte",
-  ],
-  enquadramento: "As fotos devem estar em perfeito nivelamento. Apoie o celular num tripé ou use o rodapé da parede como referência. Aponte a câmera em direção à cicatriz umbilical.",
-};
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "intro" | "testing" | "review" | "uploading" | "done" | "history";
+
+// Cada seção vem do construtor do treinador (PosturalEvalBuilder.tsx). Corpo
+// com mais de 1 linha renderiza como lista; linha única vira parágrafo.
+interface IntroSecaoView {
+  id: string;
+  titulo: string;
+  corpo: string;
+  destaque: boolean;
+}
 
 interface HistoryEval {
   id: string;
@@ -193,7 +51,25 @@ interface HistoryEval {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Chaves dos testes padrão (espelham PosturalEvalBuilder.tsx DEFAULT_TESTES) —
+// só elas têm foto estática bundled em public/postural/*.png. Um teste custom
+// (chave aleatória) nunca vai ter fallback estático, então nem vale tentar
+// carregar/mostrar a caixa de referência se também não tiver upload próprio.
+const HAS_STATIC_REF = new Set([
+  "frontal", "costas", "perfil", "perfil_ombros", "unipodal",
+  "agachamento_perfil", "agachamento_costas", "ajoelhado",
+  "flexao_quadril", "sentar_alcancar", "flexao_coluna",
+]);
+
 const captureKey = (testKey: string, photoIndex: number) => `${testKey}_${photoIndex}`;
+
+// Mesmo regex/padrão do VideoModal e ExerciseLibrary — vídeo é sempre URL (YouTube),
+// nunca upload de arquivo.
+const youtubeEmbedUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([^&?/\s]+)/)?.[1];
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+};
 
 const brazilToday = () => {
   const d = new Date(Date.now() - 3 * 60 * 60 * 1000);
@@ -201,7 +77,8 @@ const brazilToday = () => {
 };
 
 // ─── RefImage ─────────────────────────────────────────────────────────────────
-// Tries /postural/{key}_{photoIndex}.jpg → /postural/{key}.jpg → emoji fallback
+// overrideUrl (upload do próprio treinador) tem prioridade; sem ele, tenta
+// /postural/{key}_{photoIndex}.jpg → /postural/{key}.jpg → emoji fallback
 
 const RefImage = ({
   testKey,
@@ -209,12 +86,14 @@ const RefImage = ({
   emoji,
   small,
   contain,
+  overrideUrl,
 }: {
   testKey: string;
   photoIndex?: number;
   emoji: string;
   small?: boolean;
   contain?: boolean;
+  overrideUrl?: string | null;
 }) => {
   const srcs = [
     `/postural/${testKey}_${photoIndex}.jpg`,
@@ -225,6 +104,17 @@ const RefImage = ({
   const [idx, setIdx] = useState(0);
 
   useEffect(() => { setIdx(0); }, [testKey, photoIndex]);
+
+  if (overrideUrl) {
+    return (
+      <img
+        key={overrideUrl}
+        src={overrideUrl}
+        alt=""
+        className={contain ? "w-full h-full object-contain" : "w-full h-full object-cover"}
+      />
+    );
+  }
 
   if (idx >= srcs.length) {
     return (
@@ -494,13 +384,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           <X className="w-5 h-5 text-white" />
         </button>
         <p className="text-sm font-semibold text-white text-center flex-1 mx-3 truncate drop-shadow">{slideTitle}</p>
-        {!preview && (
-          <button onClick={flip} className="w-9 h-9 flex items-center justify-center rounded-full"
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-            <RotateCcw className="w-4 h-4 text-white" />
-          </button>
-        )}
-        {preview && <div className="w-9" />}
+        <div className="w-9" />
       </div>
 
       {/* ── Camera controls (live) ── */}
@@ -526,12 +410,12 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
             </span>
           </div>
 
-          {/* Mini reference — top-right */}
-          {miniOpen && (
+          {/* Mini reference — top-right (só se tiver foto de verdade pra mostrar) */}
+          {miniOpen && (teste.imagens?.[photoIndex] || HAS_STATIC_REF.has(teste.key)) && (
             <div className="absolute top-20 right-3 pointer-events-auto">
               <div className="rounded-xl overflow-hidden bg-black"
                 style={{ width: 72, border: "1.5px solid rgba(255,255,255,0.25)" }}>
-                <RefImage testKey={teste.key} photoIndex={photoIndex} emoji={teste.emoji} small contain />
+                <RefImage testKey={teste.key} photoIndex={photoIndex} emoji={teste.emoji} small contain overrideUrl={teste.imagens?.[photoIndex]} />
               </div>
               <button onClick={() => setMiniOpen(false)}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
@@ -540,7 +424,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
               </button>
             </div>
           )}
-          {!miniOpen && (
+          {!miniOpen && (teste.imagens?.[photoIndex] || HAS_STATIC_REF.has(teste.key)) && (
             <button onClick={() => setMiniOpen(true)}
               className="absolute top-20 right-3 w-9 h-9 rounded-xl flex items-center justify-center pointer-events-auto"
               style={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -632,8 +516,15 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
                 <div className="w-[62px] h-[62px] rounded-full bg-white" />
               </button>
 
-              {/* Espaçador simétrico para manter o botão de captura centralizado */}
-              <div style={{ width: 44, height: 44 }} />
+              {/* Virar câmera — ao lado do botão de captura (antes ficava no
+                  topo, perto demais do "x" e da miniatura de referência) */}
+              <button onClick={flip} className="flex flex-col items-center gap-1">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                  <RotateCcw style={{ width: 18, height: 18, color: "rgba(255,255,255,0.7)" }} />
+                </div>
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Virar</span>
+              </button>
             </>
           ) : (
             <>
@@ -667,10 +558,20 @@ const AvaliacaoPostural = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
+  const { hasAvaliacaoPostural } = usePlanFeatures();
 
-  // Config dinâmica (carregada do banco; fallback = hardcode)
-  const [testes,     setTestes]     = useState<TesteSlide[]>(TESTES_DEFAULT);
-  const [introHtml,  setIntroHtml]  = useState<string>("");
+  // Feature reservada por org — bloqueia acesso direto por URL se a org não tiver.
+  useEffect(() => {
+    if (orgId && !hasAvaliacaoPostural) navigate(`/${slug}/aluno`);
+  }, [orgId, hasAvaliacaoPostural, slug, navigate]);
+
+  // Config dinâmica (carregada do banco). Começa vazia — só usa TESTES_DEFAULT
+  // se a própria org escolher "usar modelo padrão" no builder do treinador;
+  // se a org nunca configurou nada, o aluno vê um estado "não configurado"
+  // em vez de herdar silenciosamente um protocolo que o treinador nunca escolheu.
+  const [testes,       setTestes]       = useState<TesteSlide[]>([]);
+  const [secoes,       setSecoes]       = useState<IntroSecaoView[]>([]);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   // Derivado (total de fotos dos testes ativos)
   const totalPhotos = testes.reduce((sum, t) => sum + t.photoLabels.length, 0);
@@ -693,6 +594,8 @@ const AvaliacaoPostural = () => {
   const [histLoading, setHistLoading] = useState(false);
   const [expandedId,  setExpandedId]  = useState<string | null>(null);
   const [viewPhoto,   setViewPhoto]   = useState<string | null>(null);
+  const [galleryTargetPi, setGalleryTargetPi] = useState<number | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const currentTeste = testes[slideIndex];
 
@@ -732,10 +635,17 @@ const AvaliacaoPostural = () => {
     (async () => {
       const { data: cfg } = await (supabase as any)
         .from("avaliacao_postural_config")
-        .select("introducao, testes")
+        .select("introducao_secoes, testes")
         .eq("org_id", orgId)
         .maybeSingle();
-      if (cfg?.introducao) setIntroHtml(cfg.introducao);
+      if (cfg?.introducao_secoes && Array.isArray(cfg.introducao_secoes) && cfg.introducao_secoes.length > 0) {
+        setSecoes(cfg.introducao_secoes.map((s: any): IntroSecaoView => ({
+          id:       s.id ?? crypto.randomUUID(),
+          titulo:   s.titulo ?? "",
+          corpo:    s.corpo  ?? "",
+          destaque: !!s.destaque,
+        })));
+      }
       if (cfg?.testes && Array.isArray(cfg.testes) && cfg.testes.length > 0) {
         setTestes(cfg.testes.map((t: any): TesteSlide => ({
           key:          t.id          ?? t.key ?? crypto.randomUUID(),
@@ -743,8 +653,11 @@ const AvaliacaoPostural = () => {
           emoji:        t.emoji       ?? "",
           photoLabels:  t.photoLabels ?? [""],
           instructions: t.instrucoes  ?? [],
+          imagens:      t.imagens     ?? [],
+          videoUrl:     t.videoUrl    ?? null,
         })));
       }
+      setConfigLoaded(true);
     })();
   }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -787,6 +700,28 @@ const AvaliacaoPostural = () => {
     }
   };
 
+  // Alternativa à câmera ao vivo — escolher uma foto já existente do celular
+  // (galeria/arquivos). Útil quando a foto já foi tirada antes (ex: numa
+  // tentativa de envio anterior que falhou) e não faz sentido tirar de novo.
+  const openGalleryFor = (pi: number) => {
+    setGalleryTargetPi(pi);
+    galleryInputRef.current?.click();
+  };
+
+  const handleGalleryChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
+    if (!file || galleryTargetPi == null) return;
+    const pi = galleryTargetPi;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const key = captureKey(currentTeste.key, pi);
+      setCaptures((prev) => ({ ...prev, [key]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+    setGalleryTargetPi(null);
+  };
+
   const openCameraFor = (pi: number) => {
     setPhotoIndex(pi);
     setCameraOpen(true);
@@ -800,6 +735,17 @@ const AvaliacaoPostural = () => {
     setUploading(true);
     setUploadProg(0);
     try {
+      // Renova a sessão antes de qualquer escrita — o fluxo tem várias fotos
+      // com pausas reais entre elas (trocar de app pra câmera, interrupções),
+      // tempo suficiente pro token de acesso precisar de renovação. Sem isso,
+      // um token vencido no meio do processo derruba o insert com erro de RLS
+      // (a política já é `student_user_id = auth.uid()`, mas isso só vale se
+      // o `auth.uid()` da requisição for reconhecido).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Sua sessão expirou. Toque em \"Confirmar e enviar avaliação\" novamente para tentar de novo.");
+      }
+
       // 1. Create evaluation record
       const today = brazilToday();
       const { data: evalRow, error: evalErr } = await supabase
@@ -824,7 +770,10 @@ const AvaliacaoPostural = () => {
         // Convert dataURL to Blob
         const res  = await fetch(dataUrl);
         const blob = await res.blob();
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: true });
+        // blob.type reflete o mime real do dataURL — importante agora que a foto
+        // pode vir da galeria (nem sempre jpeg, ex: PNG ou HEIC de iPhone),
+        // não só da câmera ao vivo (sempre jpeg via canvas.toDataURL).
+        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
         if (upErr) throw upErr;
 
         // Insert foto record
@@ -861,7 +810,14 @@ const AvaliacaoPostural = () => {
 
       setPhase("done");
     } catch (err: any) {
-      toast({ title: "Erro ao enviar fotos", description: err.message, variant: "destructive" });
+      const isSessionIssue = /row-level security|jwt|session/i.test(err.message ?? "");
+      toast({
+        title: "Erro ao enviar fotos",
+        description: isSessionIssue
+          ? "Sua sessão pode ter expirado. Toque em \"Confirmar e enviar avaliação\" novamente — as fotos continuam salvas."
+          : err.message,
+        variant: "destructive",
+      });
       setPhase("review");
     } finally {
       setUploading(false);
@@ -942,6 +898,34 @@ const AvaliacaoPostural = () => {
     />
   ) : null;
 
+  // ── Config ainda carregando ───────────────────────────────────
+  if (!configLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-white/30" />
+      </div>
+    );
+  }
+
+  // ── Treinador ainda não configurou nenhum teste ──────────────
+  if (testes.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <div className="flex items-center gap-3 px-4 pt-5 pb-4">
+          <BackBtn onClick={() => navigate(`/${slug}/aluno`)} />
+          <h1 className="text-lg font-bold text-white">Avaliação Postural e Funcional</h1>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-3 pb-24">
+          <div className="w-14 h-14 rounded-2xl bg-white/4 flex items-center justify-center border border-white/8">
+            <AlertCircle className="w-6 h-6 text-white/35" />
+          </div>
+          <p className="text-white/60 text-sm">Avaliação postural ainda não configurada</p>
+          <p className="text-white/35 text-xs max-w-xs">Seu treinador ainda não configurou os testes dessa avaliação. Fale com ele se tiver dúvidas.</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── INTRO ───────────────────────────────────────────────────
   if (phase === "intro") {
     return (
@@ -968,48 +952,31 @@ const AvaliacaoPostural = () => {
               </div>
             )}
 
-            {/* Instruções: customizadas pelo treinador ou fallback hardcoded */}
-            {introHtml ? (
-              <>
-                <style>{`
-                  .postural-intro b, .postural-intro strong { color: rgba(255,255,255,0.95); font-weight:700; }
-                  .postural-intro i, .postural-intro em { font-style: italic; }
-                  .postural-intro u { text-decoration: underline; }
-                  .postural-intro a { color: var(--cp-400); }
-                  .postural-intro p, .postural-intro div { margin-bottom: 0.5rem; }
-                `}</style>
-                <div
-                  className="postural-intro rounded-2xl p-4 bg-white/3 border border-white/8 text-xs text-white/70 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: introHtml }}
-                />
-              </>
-            ) : (
-              <>
-                {/* Aviso */}
-                <div className="rounded-2xl p-4" style={{ backgroundColor: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
-                  <p className="text-xs text-yellow-400/80 leading-relaxed">{INSTRUCOES_GERAIS.aviso}</p>
-                </div>
-                {/* Vestuário */}
-                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Vestuário</p>
-                  {INSTRUCOES_GERAIS.vestuario.map((t, i) => (
-                    <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
+            {/* Instruções — uma seção do construtor do treinador = um card aqui */}
+            {secoes.map((s) => {
+              const linhas = s.corpo.split("\n").map((l) => l.trim()).filter(Boolean);
+              const isLista = linhas.length > 1;
+              return (
+                <div key={s.id} className="rounded-2xl p-4"
+                  style={s.destaque
+                    ? { backgroundColor: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }
+                    : { backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  {s.titulo && (
+                    <p className={s.destaque
+                      ? "text-xs text-yellow-400/90 font-semibold mb-1.5"
+                      : "text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold"}>
+                      {s.titulo}
+                    </p>
+                  )}
+                  {linhas.map((linha, i) => (
+                    <p key={i}
+                      className={`text-xs leading-relaxed ${isLista ? "mb-1.5 last:mb-0" : ""} ${s.destaque ? "text-yellow-400/80" : "text-white/65"}`}>
+                      {isLista ? `• ${linha}` : linha}
+                    </p>
                   ))}
                 </div>
-                {/* Observações */}
-                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2.5 font-semibold">Observações gerais</p>
-                  {INSTRUCOES_GERAIS.observacoes.map((t, i) => (
-                    <p key={i} className="text-xs text-white/65 leading-relaxed mb-1.5 last:mb-0">• {t}</p>
-                  ))}
-                </div>
-                {/* Enquadramento */}
-                <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2 font-semibold">Enquadramento</p>
-                  <p className="text-xs text-white/65 leading-relaxed">{INSTRUCOES_GERAIS.enquadramento}</p>
-                </div>
-              </>
-            )}
+              );
+            })}
 
             {/* Test overview pills */}
             <div className="rounded-2xl p-4 bg-white/3 border border-white/8">
@@ -1087,10 +1054,27 @@ const AvaliacaoPostural = () => {
               </div>
             </div>
 
-            {/* Reference image — full, uncropped, height-capped */}
-            <div className="rounded-2xl overflow-hidden bg-black" style={{ height: 320 }}>
-              <RefImage testKey={teste.key} emoji={teste.emoji} contain />
-            </div>
+            {/* Reference image — full, uncropped, height-capped. Só mostra a caixa
+                se existir foto de verdade (upload da org ou uma das padrão) —
+                teste custom sem upload não tem nada pra exibir aqui. */}
+            {(teste.imagens?.[photoIndex] || HAS_STATIC_REF.has(teste.key)) && (
+              <div className="rounded-2xl overflow-hidden bg-black" style={{ height: 320 }}>
+                <RefImage testKey={teste.key} photoIndex={photoIndex} emoji={teste.emoji} contain overrideUrl={teste.imagens?.[photoIndex]} />
+              </div>
+            )}
+
+            {/* Vídeo de demonstração — só se o treinador cadastrou um pra este teste */}
+            {youtubeEmbedUrl(teste.videoUrl) && (
+              <div className="rounded-2xl overflow-hidden bg-black aspect-video">
+                <iframe
+                  className="w-full h-full"
+                  src={youtubeEmbedUrl(teste.videoUrl)!}
+                  title={`Vídeo de demonstração — ${teste.label}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
 
             {/* Instructions toggle */}
             <button
@@ -1152,17 +1136,37 @@ const AvaliacaoPostural = () => {
                       </p>
                     </div>
 
-                    {url && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {url && (
+                        <button
+                          onClick={() => openCameraFor(pi)}
+                          title="Tirar outra foto"
+                          className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/8 text-white/50">
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => openCameraFor(pi)}
-                        className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/8 text-white/50 shrink-0">
-                        <RotateCcw className="w-3.5 h-3.5" />
+                        onClick={() => openGalleryFor(pi)}
+                        title="Escolher da galeria"
+                        className="flex items-center justify-center rounded-xl bg-white/8 text-white/50"
+                        style={{ height: 42, width: 42 }}>
+                        <Download style={{ width: 18, height: 18 }} />
                       </button>
-                    )}
+                    </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Input escondido reaproveitado por todos os slots — qual foto
+                recebe o arquivo é decidido por galleryTargetPi */}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleGalleryChange}
+              className="hidden"
+            />
           </div>
 
           {/* Bottom navigation — sits above the 64px student nav bar */}

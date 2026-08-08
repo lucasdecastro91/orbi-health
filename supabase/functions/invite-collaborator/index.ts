@@ -6,7 +6,7 @@
 
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const APP_URL          = Deno.env.get("APP_URL") ?? "https://app.orbipro.com.br";
+const APP_URL          = Deno.env.get("APP_URL") ?? "https://app.orbihealth.com.br";
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const H    = {
@@ -27,10 +27,6 @@ function json(body: any, status = 200) {
     headers: { ...cors, "Content-Type": "application/json; charset=utf-8" },
   });
 }
-
-const PLAN_LIMITS: Record<string, number> = {
-  motion: 2,
-};
 
 async function dbSelect(table: string, filter: string, select = "*") {
   const r = await fetch(`${REST}/${table}?select=${select}&${filter}`, {
@@ -89,22 +85,13 @@ Deno.serve(async (req) => {
     }
 
     // 3. Verifica que o caller é owner desta org
-    const orgs = await dbSelect("organizations", `id=eq.${org_id}&owner_id=eq.${callerId}`, "id,name,slug,plan");
+    const orgs = await dbSelect("organizations", `id=eq.${org_id}&owner_id=eq.${callerId}`, "id,name,slug,alunos_tier");
     if (!orgs.length) return json({ error: "forbidden_not_owner" }, 403);
     const org = orgs[0];
 
-    // 4. Verifica limite do plano
-    const planType    = org.plan ?? "pro";
-    const maxCollab   = PLAN_LIMITS[planType] ?? Infinity;
-    if (maxCollab !== Infinity) {
-      const existing = await dbSelect(
-        "collaborators",
-        `org_id=eq.${org_id}&status=in.(pending,active)`,
-        "id",
-      );
-      if (existing.length >= maxCollab) {
-        return json({ error: "plan_limit_reached", max: maxCollab }, 422);
-      }
+    // 4. Colaboradores só disponível no tier "ilimitado" de alunos
+    if (org.alunos_tier !== "ilimitado") {
+      return json({ error: "plan_feature_unavailable" }, 422);
     }
 
     // 5. Verifica se já existe colaborador com este e-mail nesta org

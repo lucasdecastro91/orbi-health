@@ -19,6 +19,7 @@ interface PushState {
   subscribed:   boolean;
   subscribing:  boolean;
   supported:    boolean;
+  error:        string | null;
   subscribe:    () => Promise<void>;
   unsubscribe:  () => Promise<void>;
 }
@@ -40,6 +41,7 @@ export const usePushNotifications = (orgId: string | null): PushState => {
   );
   const [subscribed,  setSubscribed]  = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   useEffect(() => {
     if (!supported) return;
@@ -55,12 +57,16 @@ export const usePushNotifications = (orgId: string | null): PushState => {
   };
 
   const subscribe = useCallback(async () => {
-    if (!supported || !VAPID_PUBLIC_KEY || !orgId) return;
+    setError(null);
+    if (!supported) { setError("Notificações push não são suportadas neste navegador."); return; }
+    if (!VAPID_PUBLIC_KEY) { setError("Configuração de push ausente (VAPID_PUBLIC_KEY)."); return; }
+    if (!orgId) { setError("Organização ainda não carregou — tente de novo em instantes."); return; }
     setSubscribing(true);
 
     try {
-      // Register SW if needed
-      let reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      // Registration lookup: no-arg form matches by the current page's URL/scope —
+      // passing a script path here (ex: "/sw.js") is not what getRegistration() expects.
+      let reg = await navigator.serviceWorker.getRegistration();
       if (!reg) {
         reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         await navigator.serviceWorker.ready;
@@ -69,21 +75,30 @@ export const usePushNotifications = (orgId: string | null): PushState => {
       // Request permission
       const perm = await Notification.requestPermission();
       setPermission(perm as PushPermission);
-      if (perm !== "granted") return;
+      if (perm !== "granted") {
+        setError(perm === "denied" ? "Permissão de notificação negada." : "Permissão de notificação não concedida.");
+        return;
+      }
 
-      // Subscribe
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly:      true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
+      // Reaproveita uma subscription já existente em vez de assinar de novo — chamar
+      // subscribe() enquanto já existe uma (ex: de uma tentativa anterior que falhou só
+      // no upsert do banco) pode disparar "Registration failed - could not retrieve the
+      // public key" no Chrome quando a chave não bate exatamente com a já registrada.
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly:      true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
 
       const json = sub.toJSON() as any;
 
       // Get user session
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) { setError("Sessão expirada — faça login de novo."); return; }
 
-      const { error } = await supabase.from("push_subscriptions").upsert(
+      const { error: dbError } = await supabase.from("push_subscriptions").upsert(
         {
           user_id:    session.user.id,
           org_id:     orgId,
@@ -95,9 +110,12 @@ export const usePushNotifications = (orgId: string | null): PushState => {
         { onConflict: "user_id,endpoint" }
       );
 
-      if (!error) setSubscribed(true);
+      if (dbError) { setError(dbError.message); return; }
+      setSubscribed(true);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.warn("[Push] subscribe error:", err);
+      setError(msg);
     } finally {
       setSubscribing(false);
     }
@@ -126,5 +144,5 @@ export const usePushNotifications = (orgId: string | null): PushState => {
     }
   }, [supported]);
 
-  return { permission, subscribed, subscribing, supported, subscribe, unsubscribe };
+  return { permission, subscribed, subscribing, supported, error, subscribe, unsubscribe };
 };

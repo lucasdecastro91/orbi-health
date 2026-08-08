@@ -333,7 +333,8 @@ const ProdutosPlanos = () => {
             <Loader2 className="w-6 h-6 animate-spin text-white/30" />
           </div>
         ) : plans.length === 0 ? (
-          <div className="text-center py-16 space-y-3">
+          <div className="rounded-2xl text-center py-16 space-y-3"
+            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
             <ListChecks className="w-8 h-8 text-white/10 mx-auto" />
             <p className="text-sm text-white/25">Nenhum plano cadastrado ainda.</p>
             <p className="text-xs text-white/20">Crie planos para agilizar a emissão de cobranças.</p>
@@ -343,8 +344,9 @@ const ProdutosPlanos = () => {
             <div key={plan.id}
               className="rounded-2xl p-4"
               style={{
-                backgroundColor: "var(--surface-1)",
-                border: `1px solid ${plan.active ? "var(--border-subtle)" : "var(--border-dim)"}`,
+                backgroundColor: "#141417",
+                border: "1px solid rgba(255,255,255,0.09)",
+                boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
                 opacity: plan.active ? 1 : 0.7,
               }}>
 

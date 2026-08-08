@@ -124,7 +124,7 @@ Gere o relatório estruturado conforme solicitado.`;
         "Content-Type":      "application/json",
       },
       body: JSON.stringify({
-        model:      "claude-sonnet-4-20250514",
+        model:      "claude-sonnet-5",
         max_tokens: 1500,
         system:     SYSTEM_PROMPT,
         messages:   [{ role: "user", content: userMessage }],
@@ -138,7 +138,7 @@ Gere o relatório estruturado conforme solicitado.`;
     }
 
     const anthropicData = await anthropicRes.json();
-    const relatorio = anthropicData?.content?.[0]?.text;
+    const relatorio = anthropicData?.content?.find((c: any) => c.type === "text")?.text;
 
     if (!relatorio) {
       return json({ error: "Resposta vazia da IA" }, 502);

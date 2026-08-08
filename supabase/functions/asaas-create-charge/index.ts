@@ -5,6 +5,9 @@ const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ASAAS_API_KEY     = Deno.env.get("ASAAS_API_KEY")!;
 const ASAAS_ENV         = Deno.env.get("ASAAS_ENVIRONMENT") ?? "sandbox";
+const APP_URL           = Deno.env.get("APP_URL") ?? "https://app.orbihealth.com.br";
+const EVOLUTION_BASE_URL = Deno.env.get("EVOLUTION_BASE_URL") ?? "";
+const EVOLUTION_API_KEY  = Deno.env.get("EVOLUTION_API_KEY") ?? "";
 
 const ASAAS_BASE = ASAAS_ENV === "production"
   ? "https://www.asaas.com/api/v3"
@@ -34,6 +37,52 @@ const fmtDate = (iso: string) => {
 // ── Format currency ───────────────────────────────────────────────────────────
 const fmtBRL = (v: number) =>
   `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// ── Telefone: DDD+numero (10-11 digitos) vira "55DDD..." pra Evolution API ────
+function normalizePhone(raw: string | null | undefined): string {
+  return (raw ?? "").replace(/\D/g, "");
+}
+function toWhatsappNumber(raw: string | null | undefined): string {
+  const digits = normalizePhone(raw);
+  if (!digits) return "";
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
+}
+
+// ── WhatsApp avulso, best-effort — nunca bloqueia o fluxo da cobrança ──────────
+async function sendWhatsapp(
+  supabase: ReturnType<typeof createClient>,
+  orgId: string,
+  alunoId: string,
+  whatsappStatus: string | null,
+  whatsappInstance: string | null,
+  phone: string | null,
+  text: string,
+) {
+  if (!EVOLUTION_BASE_URL || !EVOLUTION_API_KEY) return;
+  if (whatsappStatus !== "connected" || !whatsappInstance) return;
+  const number = toWhatsappNumber(phone);
+  if (!number) return;
+  try {
+    const res = await fetch(`${EVOLUTION_BASE_URL}/message/sendText/${whatsappInstance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
+      body: JSON.stringify({ number, text }),
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      console.error("[asaas-create-charge] whatsapp send failed:", res.status, raw);
+      return;
+    }
+    const data = raw ? JSON.parse(raw) : {};
+    await supabase.from("whatsapp_messages").insert({
+      org_id: orgId, aluno_id: alunoId, direction: "outbound",
+      content: text, wa_message_id: data?.key?.id ?? null,
+    });
+  } catch (e) {
+    console.error("[asaas-create-charge] whatsapp send error:", e instanceof Error ? e.message : e);
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -70,11 +119,18 @@ serve(async (req) => {
     // ── 1. Dados do aluno ────────────────────────────────────────────────────
     const { data: aluno, error: alunoErr } = await supabase
       .from("alunos")
-      .select("id, user_id, treinador_id")
+      .select("id, user_id, treinador_id, telefone")
       .eq("id", aluno_id)
       .eq("treinador_id", treinador_id)
       .single();
     if (alunoErr || !aluno) throw new Error("Aluno não encontrado ou sem permissão");
+
+    // ── Org (nome + status do WhatsApp) ──────────────────────────────────────
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("name, whatsapp_status, whatsapp_instance_name")
+      .eq("id", org_id)
+      .maybeSingle();
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -94,6 +150,10 @@ serve(async (req) => {
       .maybeSingle();
     // whatsapp já deve estar no formato +55XXXXXXXXXXX
     const mobilePhone = anamnese?.whatsapp ?? null;
+    // Fonte oficial de telefone é alunos.telefone (anamnese é só fallback) —
+    // usado pro nosso próprio envio via WhatsApp, não confundir com mobilePhone
+    // acima (que vai pro cadastro de cliente do Asaas).
+    const notifyPhone = aluno.telefone ?? anamnese?.whatsapp ?? null;
 
     // ── 3. Customer Asaas (cria se não existir) ──────────────────────────────
     let asaasCustomerId: string;
@@ -106,11 +166,21 @@ serve(async (req) => {
 
     if (existingCust?.asaas_id) {
       asaasCustomerId = existingCust.asaas_id;
+      // Garante notificationDisabled mesmo em clientes criados antes dessa regra
+      // existir (idempotente, custo baixo — evita reintroduzir o e-mail com
+      // branding Asaas pra quem já tinha cliente cadastrado).
+      try {
+        await asaasPost(`/customers/${asaasCustomerId}`, { notificationDisabled: true });
+      } catch { /* não bloqueia a cobrança se isso falhar */ }
     } else {
       const cpfCnpj = (body.cpf ?? "").replace(/\D/g, "");
       if (!cpfCnpj) throw new Error("CPF ou CNPJ do aluno é obrigatório para a primeira cobrança.");
 
-      const custPayload: Record<string, unknown> = { name, email, cpfCnpj };
+      // notificationDisabled: o Asaas manda e-mail/SMS pro cliente por conta própria
+      // (marca deles, fora do nosso controle) sempre que cria uma cobrança — desligado
+      // porque já temos nosso próprio sistema de lembretes (30/15/7 dias, vencido) e o
+      // checkout próprio (/pagar/:id) cobre a mesma necessidade sem vazar branding Asaas.
+      const custPayload: Record<string, unknown> = { name, email, cpfCnpj, notificationDisabled: true };
       if (mobilePhone) custPayload.mobilePhone = mobilePhone;
 
       const custRes  = await asaasPost("/customers", custPayload);
@@ -178,12 +248,62 @@ serve(async (req) => {
         titulo:   "Nova cobrança gerada",
         mensagem: `${descricao} — ${valorFmt} — Vence em ${dateFmt}`,
         tipo:     "financeiro",
-        link:     payment.invoiceUrl ?? null,
+        // Checkout próprio (/pagar/:id) só cobre Pix (fase 1) — cartão/boleto continuam
+        // no link do Asaas até a fase 2 existir, senão o aluno cairia numa tela nossa
+        // sem forma nenhuma de pagar.
+        link:     forma_pagamento === "PIX" ? `${APP_URL}/pagar/${cobranca.id}` : (payment.invoiceUrl ?? null),
       });
       if (notifErr) {
         console.error("[asaas-create-charge] notif aluno falhou:", notifErr.message);
       } else {
         console.log("[asaas-create-charge] notif aluno ok, user_id:", aluno.user_id);
+      }
+
+      const paymentLink = forma_pagamento === "PIX" ? `${APP_URL}/pagar/${cobranca.id}` : (payment.invoiceUrl ?? "");
+
+      // Push (best-effort — não bloqueia a resposta da cobrança)
+      try {
+        await supabase.functions.invoke("send-push", {
+          body: {
+            user_ids: [aluno.user_id],
+            title: "Nova cobrança gerada",
+            body: `${descricao} — ${valorFmt} — Vence em ${dateFmt}`,
+            tag: "cobranca_gerada",
+            url: paymentLink || "/aluno/financeiro",
+          },
+        });
+      } catch (e) {
+        console.error("[asaas-create-charge] push falhou:", e instanceof Error ? e.message : e);
+      }
+
+      // WhatsApp (best-effort)
+      if (paymentLink) {
+        await sendWhatsapp(
+          supabase, org_id, aluno_id,
+          orgRow?.whatsapp_status ?? null, orgRow?.whatsapp_instance_name ?? null,
+          notifyPhone,
+          `Olá ${name}! Uma nova cobrança foi gerada por ${orgRow?.name ?? "seu treinador"}: ${descricao} — ${valorFmt}, vencimento em ${dateFmt}. Pague aqui: ${paymentLink}`,
+        );
+      }
+
+      // Email (best-effort)
+      if (email && paymentLink) {
+        try {
+          await supabase.functions.invoke("enviar-email", {
+            body: {
+              type: "cobranca_gerada",
+              to: email,
+              nome: name,
+              orgName: orgRow?.name ?? "sua plataforma",
+              descricao,
+              valorFmt,
+              dateFmt,
+              link: paymentLink,
+            },
+          });
+        } catch (e) {
+          console.error("[asaas-create-charge] email falhou:", e instanceof Error ? e.message : e);
+        }
       }
     } else {
       console.warn("[asaas-create-charge] aluno sem user_id, notif ignorada. aluno_id:", aluno_id);

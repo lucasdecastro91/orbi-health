@@ -16,6 +16,8 @@ interface Alimento {
   nome: string;
   porcao_descricao: string | null;
   porcao_gramas: number | null;
+  unidade: string;
+  gramas_por_unidade: number | null;
   kcal: number | null;
   proteina_g: number | null;
   carb_g: number | null;
@@ -90,7 +92,7 @@ const NutritionDetailModal = ({
       const { data: row, error } = await (supabase as any)
         .from("alimentos")
         .select(
-          "id,nome,porcao_descricao,porcao_gramas,kcal,proteina_g,carb_g,gordura_g,fibra_g," +
+          "id,nome,porcao_descricao,porcao_gramas,unidade,gramas_por_unidade,kcal,proteina_g,carb_g,gordura_g,fibra_g," +
           "gordura_saturada_g,gordura_poli_g,gordura_mono_g,gordura_trans_g," +
           "colesterol_mg,sodio_mg,potassio_mg,acucar_g," +
           "vitamina_a_ug,vitamina_c_mg,calcio_mg,ferro_mg,fonte,org_id,status"
@@ -195,6 +197,7 @@ const NutRow = ({ label, value, bold, indent }: { label: string; value: string; 
 // ── Modal Adicionar / Editar Alimento ──────────────────────────
 const emptyForm = {
   nome: "", porcao_qty: "100", porcao_unit: "g", porcao_outro: "",
+  gramas_por_unidade: "",
   kcal: "", proteina_g: "", carb_g: "", gordura_g: "", fibra_g: "",
 };
 
@@ -202,16 +205,17 @@ type FormShape = typeof emptyForm;
 
 const alimentoToForm = (a: Alimento): FormShape => {
   const desc = a.porcao_descricao ?? "";
-  // Try to parse "100g" → qty=100, unit=g
+  // Try to parse "100g" → qty=100, unit=g (fallback só pra registros antigos sem `unidade`)
   const m = desc.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Záàãâéêíóôõúç. ]+)$/);
   const qty  = m ? m[1] : String(a.porcao_gramas ?? 100);
-  const unit = m ? m[2].trim() : "g";
+  const unit = a.unidade || (m ? m[2].trim() : "g");
   const knownUnits = ["g","ml","unidade","fatia","col. sopa","col. chá","xícara","porção"];
   return {
     nome:        a.nome,
     porcao_qty:  qty,
     porcao_unit: knownUnits.includes(unit) ? unit : "outro",
     porcao_outro: knownUnits.includes(unit) ? "" : unit,
+    gramas_por_unidade: a.gramas_por_unidade != null ? String(a.gramas_por_unidade) : "",
     kcal:        a.kcal        != null ? String(a.kcal)        : "",
     proteina_g:  a.proteina_g  != null ? String(a.proteina_g)  : "",
     carb_g:      a.carb_g      != null ? String(a.carb_g)      : "",
@@ -252,10 +256,14 @@ const FoodModal = ({ open, mode, initial, onClose, orgId, onSaved }: FoodModalPr
     if (!form.nome.trim()) return;
     setSaving(true);
     try {
+      const unidadeFinal = form.porcao_unit === "outro" ? (form.porcao_outro.trim() || "porção") : form.porcao_unit;
       const payload: any = {
         nome:             form.nome.trim(),
         porcao_descricao: buildPorcaoDesc(),
         porcao_gramas:    form.porcao_qty ? Number(form.porcao_qty) : null,
+        unidade:          unidadeFinal,
+        gramas_por_unidade: unidadeFinal === "unidade" && form.gramas_por_unidade
+          ? Number(form.gramas_por_unidade) : null,
         kcal:             form.kcal       ? Number(form.kcal)       : null,
         proteina_g:       form.proteina_g ? Number(form.proteina_g) : null,
         carb_g:           form.carb_g     ? Number(form.carb_g)     : null,
@@ -335,6 +343,14 @@ const FoodModal = ({ open, mode, initial, onClose, orgId, onSaved }: FoodModalPr
                 placeholder="Ex: sachê, scoop, tablete..."
                 className="w-full h-9 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/40 transition-colors mt-2" />
             )}
+            {form.porcao_unit === "unidade" && (
+              <div className="mt-2">
+                <input type="number" value={form.gramas_por_unidade} onChange={set("gramas_por_unidade")}
+                  placeholder="Ex: 50"
+                  className="w-full h-9 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-amber-500/40 transition-colors" />
+                <p className="text-[10px] text-white/25 mt-1">Quantos gramas equivalem a 1 unidade (opcional, só informativo — não entra no cálculo)</p>
+              </div>
+            )}
             <p className="text-[10px] text-white/25 mt-1">
               Exibido como: <span className="text-white/50 font-medium">{buildPorcaoDesc()}</span>
             </p>
@@ -408,7 +424,7 @@ const BancoAlimentos = () => {
     try {
       let q = supabase
         .from("alimentos")
-        .select("id,nome,porcao_descricao,porcao_gramas,kcal,proteina_g,carb_g,gordura_g,fibra_g,fonte,org_id,status", { count: "exact" })
+        .select("id,nome,porcao_descricao,porcao_gramas,unidade,gramas_por_unidade,kcal,proteina_g,carb_g,gordura_g,fibra_g,fonte,org_id,status", { count: "exact" })
         .order("nome")
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -494,7 +510,7 @@ const BancoAlimentos = () => {
   };
 
   return (
-    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-5xl">
+    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="mb-6">
@@ -526,7 +542,8 @@ const BancoAlimentos = () => {
       </div>
 
       {/* List */}
-      <div className="rounded-2xl border border-white/8 overflow-hidden">
+      <div className="rounded-2xl overflow-hidden"
+        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
         <div className="flex items-center px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-foreground/30"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
           <span className="flex-1">Nome</span>

@@ -40,6 +40,10 @@ export interface Organization {
   serie_config?: Record<string, string> | null;
   /** True quando o treinador completou ou dispensou o checklist de onboarding */
   onboarding_completed: boolean;
+  /** Tipos de agendamento configuráveis (Agenda) — label + cor, editável pelo dono da org */
+  agendamento_tipos?: { key: string; label: string; color: string }[] | null;
+  /** Meta de faturamento mensal (barra de progresso no topo), editável pelo treinador */
+  meta_faturamento: number;
 }
 
 export type OrgRole = "owner" | "trainer" | "student";
@@ -149,7 +153,7 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       // GS: usa icon_url se disponível, senão favicon padrão Get Shape
       setFavicon(org.icon_url ?? "/favicon-gs.png");
     } else {
-      document.title = org.name ?? "ORBI Pro";
+      document.title = org.name ?? "ORBI Health";
       // Outros tenants: usa icon_url se disponível; sem icon_url → remove favicon
       if (org.icon_url) {
         setFavicon(org.icon_url);
@@ -159,7 +163,7 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
     }
 
     return () => {
-      document.title = "ORBI Pro";
+      document.title = "ORBI Health";
       setFavicon("/logos/orbi-logo-icon.svg");
     };
   }, [org?.name, org?.icon_url, isGetShapeOrg]);
@@ -231,7 +235,7 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       setIsGetShapeOrg(gsOrg);
 
       // 4. Seta a org (dispara re-render + effects)
-      setOrg(orgData as Organization);
+      setOrg(orgData as unknown as Organization);
 
       // 5. Busca papel do usuário nesta org
       if (user) {

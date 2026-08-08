@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTenantContext } from "@/contexts/TenantContext";
 import { VideoModal } from "@/components/ui/video-modal";
 import {
   Plus, MoreVertical, Pencil, Trash2, Play, Search,
@@ -90,6 +91,78 @@ const ExerciseMenu = ({
 };
 
 // ── Add/Edit Modal ─────────────────────────────────────────────────
+/** Definido fora do ExerciseModal de propósito: um componente declarado dentro do
+ *  corpo de outro é recriado (novo "tipo") a cada render — o React desmonta e
+ *  remonta o <input> a cada tecla digitada, perdendo o foco a cada caractere.
+ *  Já aconteceu antes em outros formulários do painel; ver memória do projeto
+ *  sobre esse padrão antes de reintroduzi-lo em componente novo. */
+const ModalField = ({
+  label, placeholder, textarea, value, onChange,
+}: {
+  label: string;
+  placeholder?: string;
+  textarea?: boolean;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+}) => (
+  <div>
+    <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1 block">{label}</label>
+    {textarea ? (
+      <textarea
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        rows={3}
+        className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/50 transition-colors resize-none"
+      />
+    ) : (
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/50 transition-colors"
+      />
+    )}
+  </div>
+);
+
+/** Multi-select via chips — armazena como "Glúteos,Quadríceps". Também precisa
+ *  ficar fora do ExerciseModal pelo mesmo motivo do ModalField acima. */
+const ModalChipSelect = ({
+  label, hint, selectedValue, onChange,
+}: { label: string; hint?: string; selectedValue: string; onChange: (next: string) => void }) => {
+  const selected = (selectedValue || '').split(',').map(s => s.trim()).filter(Boolean);
+  const toggle = (g: string) => {
+    const next = selected.includes(g) ? selected.filter(x => x !== g) : [...selected, g];
+    onChange(next.join(','));
+  };
+  return (
+    <div>
+      <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1.5 block">
+        {label}
+        {hint && <span className="ml-1 normal-case" style={{ color: "rgba(255,255,255,0.25)" }}>{hint}</span>}
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {GRUPOS_MUSCULARES.map(g => {
+          const active = selected.includes(g);
+          return (
+            <button key={g} type="button" onClick={() => toggle(g)}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+              style={{
+                backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
+                color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
+                border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
+              }}>
+              {g}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const ExerciseModal = ({
   open,
   onClose,
@@ -97,6 +170,7 @@ const ExerciseModal = ({
   onSaved,
 }: { open: boolean; onClose: () => void; editing: Exercise | null; onSaved: () => void }) => {
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -144,7 +218,7 @@ const ExerciseModal = ({
         if (error) throw error;
         toast({ title: "Exercício atualizado!" });
       } else {
-        const { error } = await supabase.from("exercicios_base").insert({ ...payload, treinador_id: user.id });
+        const { error } = await supabase.from("exercicios_base").insert({ ...payload, treinador_id: user.id, org_id: orgId });
         if (error) throw error;
         toast({ title: "Exercício adicionado!" });
       }
@@ -159,64 +233,6 @@ const ExerciseModal = ({
   };
 
   if (!open) return null;
-
-  const Field = ({
-    label, name, placeholder, textarea,
-  }: { label: string; name: keyof typeof emptyForm; placeholder?: string; textarea?: boolean }) => (
-    <div>
-      <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1 block">{label}</label>
-      {textarea ? (
-        <textarea
-          value={form[name]}
-          onChange={set(name)}
-          placeholder={placeholder}
-          rows={3}
-          className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/50 transition-colors resize-none"
-        />
-      ) : (
-        <input
-          type="text"
-          value={form[name]}
-          onChange={set(name)}
-          placeholder={placeholder}
-          className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-green-600/50 transition-colors"
-        />
-      )}
-    </div>
-  );
-
-  /** Multi-select via chips — armazena como "Glúteos,Quadríceps" */
-  const ChipSelect = ({ label, name, hint }: { label: string; name: 'grupo_muscular_principal' | 'grupo_muscular_secundario'; hint?: string }) => {
-    const selected = (form[name] || '').split(',').map(s => s.trim()).filter(Boolean);
-    const toggle = (g: string) => {
-      const next = selected.includes(g) ? selected.filter(x => x !== g) : [...selected, g];
-      setForm(f => ({ ...f, [name]: next.join(',') }));
-    };
-    return (
-      <div>
-        <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1.5 block">
-          {label}
-          {hint && <span className="ml-1 normal-case" style={{ color: "rgba(255,255,255,0.25)" }}>{hint}</span>}
-        </label>
-        <div className="flex flex-wrap gap-1.5">
-          {GRUPOS_MUSCULARES.map(g => {
-            const active = selected.includes(g);
-            return (
-              <button key={g} type="button" onClick={() => toggle(g)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
-                  color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
-                  border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
-                }}>
-                {g}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
@@ -233,10 +249,18 @@ const ExerciseModal = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
-          <Field label="Nome *" name="nome" placeholder="Ex: Agachamento livre" />
-          <Field label="Categoria" name="categoria" placeholder="Ex: Membros inferiores, Core" />
-          <ChipSelect label="Músculos Principais" name="grupo_muscular_principal" hint="(1× volume)" />
-          <ChipSelect label="Músculos Secundários" name="grupo_muscular_secundario" hint="(0.5× volume)" />
+          <ModalField label="Nome *" placeholder="Ex: Agachamento livre" value={form.nome} onChange={set("nome")} />
+          <ModalField label="Categoria" placeholder="Ex: Membros inferiores, Core" value={form.categoria} onChange={set("categoria")} />
+          <ModalChipSelect
+            label="Músculos Principais" hint="(1× volume)"
+            selectedValue={form.grupo_muscular_principal}
+            onChange={(v) => setForm(f => ({ ...f, grupo_muscular_principal: v }))}
+          />
+          <ModalChipSelect
+            label="Músculos Secundários" hint="(0.5× volume)"
+            selectedValue={form.grupo_muscular_secundario}
+            onChange={(v) => setForm(f => ({ ...f, grupo_muscular_secundario: v }))}
+          />
           <div>
             <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1 block">URL do Vídeo (YouTube / Vimeo)</label>
             <div className="relative">
@@ -250,7 +274,7 @@ const ExerciseModal = ({
               />
             </div>
           </div>
-          <Field label="Descrição / instruções" name="descricao" placeholder="Descreva a execução correta..." textarea />
+          <ModalField label="Descrição / instruções" placeholder="Descreva a execução correta..." value={form.descricao} onChange={set("descricao")} textarea />
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
@@ -296,6 +320,7 @@ const DeleteModal = ({
 // ── Main Page ──────────────────────────────────────────────────────
 export default function ExerciseLibrary() {
   const { toast } = useToast();
+  const { orgId } = useTenantContext();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filtered,  setFiltered]  = useState<Exercise[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -307,7 +332,7 @@ export default function ExerciseLibrary() {
   const [videoOpen,  setVideoOpen]  = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ url: string | null; title: string } | null>(null);
 
-  useEffect(() => { loadExercises(); }, []);
+  useEffect(() => { if (orgId) loadExercises(); }, [orgId]);
 
   useEffect(() => {
     const q = search.toLowerCase();
@@ -324,13 +349,12 @@ export default function ExerciseLibrary() {
   }, [search, exercises]);
 
   const loadExercises = async () => {
+    if (!orgId) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data, error } = await supabase
         .from("exercicios_base")
         .select("*")
-        .eq("treinador_id", user.id)
+        .eq("org_id", orgId)
         .order("nome");
       if (error) throw error;
       setExercises(data || []);
@@ -365,7 +389,7 @@ export default function ExerciseLibrary() {
   };
 
   return (
-    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-5xl">
+    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -407,7 +431,8 @@ export default function ExerciseLibrary() {
 
       {/* Empty state */}
       {!loading && exercises.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-white/2 py-16 flex flex-col items-center gap-4">
+        <div className="rounded-2xl py-16 flex flex-col items-center gap-4"
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)" }}>
             <Dumbbell className="w-7 h-7 text-green-500/60" />
           </div>
@@ -427,7 +452,8 @@ export default function ExerciseLibrary() {
 
       {/* No search results */}
       {!loading && exercises.length > 0 && filtered.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-white/2 py-12 text-center">
+        <div className="rounded-2xl py-12 text-center"
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
           <p className="text-white/40 text-sm">Nenhum resultado para "{search}"</p>
         </div>
       )}
@@ -440,8 +466,8 @@ export default function ExerciseLibrary() {
             return (
               <div
                 key={ex.id}
-                className="rounded-2xl border border-white/8 overflow-hidden group"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                className="rounded-2xl overflow-hidden group"
+                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
               >
                 {/* Thumbnail / placeholder */}
                 {ex.video_url ? (

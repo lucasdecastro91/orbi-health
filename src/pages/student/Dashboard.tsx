@@ -1,27 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePlanFeatures } from "@/hooks/usePlanFeatures";
+import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import {
+  Activity,
   AlertCircle,
-  CalendarDays,
-  CheckCircle2,
   ChevronRight,
   ClipboardCheck,
-  ClipboardList,
   Download,
+  Droplet,
   Dumbbell,
   FileText,
-  Home,
+  HeartPulse,
   MessageSquare,
+  Plus,
   ScanLine,
   Utensils,
+  Zap,
 } from "lucide-react";
 import { format } from "date-fns";
+import { pickTodaysSession, type TodaysSession, type WeekLite } from "@/lib/trainingSchedule";
+import { AGUA_META_ML } from "@/lib/agua";
+import { grantXP } from "@/lib/xp";
+import { evaluateAndUpdateStreak } from "@/lib/streaks";
 
 interface Plano {
+  id: string;
   nome_plano: string;
   objetivo: string | null;
   data_inicio: string;
@@ -42,6 +49,7 @@ interface DietaAtiva {
   title: string;
   calories: number | null;
   created_at: string | null;
+  meta_agua_ml: number | null;
 }
 
 type DietaStatus =
@@ -56,39 +64,19 @@ interface Feedback {
   visto_pelo_aluno: boolean;
 }
 
-interface DashboardCardProps {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  isNew?: boolean | null;
-  children: React.ReactNode;
+interface PesoStats {
+  inicial: number | null;
+  atual: number | null;
+  variacao: number | null;
+  registros: number;
+  chart: { peso: number }[];
 }
 
-const DashboardCard = ({ title, description, icon: Icon, isNew, children }: DashboardCardProps) => (
-  <section className="rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "var(--surface-1)" }}>
-    <div className="px-4 py-3 border-b border-white/6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
-          <Icon className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground truncate">{title}</h2>
-            {isNew && (
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-primary-foreground" style={{ backgroundColor: "hsl(0 70% 55%)" }}>
-                Novo
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        </div>
-      </div>
-    </div>
-    <div className="p-4">
-      {children}
-    </div>
-  </section>
-);
+interface CardioLast {
+  tipo: string;
+  duracao_minutos: number;
+  data_sessao: string;
+}
 
 const EmptyState = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded-2xl border border-dashed border-white/8 px-4 py-6 text-center">
@@ -97,12 +85,28 @@ const EmptyState = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
-    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
-    <p className="text-sm font-medium text-foreground leading-snug">{value}</p>
-  </div>
-);
+// Segunda a domingo — mesma ordem usada no mockup
+const WEEK_STRIP_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+/** Data local do Brasil (YYYY-MM-DD) — mesma convenção usada em Agua.tsx pra "hoje" baterem os dois */
+const brazilToday = (): string => {
+  const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  return brazil.toISOString().slice(0, 10);
+};
+
+/** YYYY-MM-DD (Seg→Dom) da semana atual — mesma convenção de `data_conclusao` usada em Treinos.tsx */
+const getCurrentWeekDates = (): string[] => {
+  const today = new Date();
+  const jsDay = today.getDay(); // 0=domingo..6=sábado
+  const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+};
 
 const StudentDashboard = () => {
   const [plano, setPlano] = useState<Plano | null>(null);
@@ -114,13 +118,44 @@ const StudentDashboard = () => {
   const [anamneseDismissed,  setAnamneseDismissed]  = useState(false); // só nessa sessão
   const [introAnamnese,      setIntroAnamnese]      = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const [totalXp, setTotalXp] = useState(0);
+  const [todaysSession, setTodaysSession] = useState<TodaysSession | null>(null);
+  const [pesoStats, setPesoStats] = useState<PesoStats | null>(null);
+  const [selectedPesoIdx, setSelectedPesoIdx] = useState<number | null>(null);
+  const [aguaMl, setAguaMl] = useState(0);
+  const [aguaMetaMl, setAguaMetaMl] = useState(AGUA_META_ML);
+  const [aguaSaving, setAguaSaving] = useState(false);
+  const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
+  const [dietaMealCount, setDietaMealCount] = useState<number | null>(null);
+  const [cardioLast, setCardioLast] = useState<CardioLast | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
+  const { hasAvaliacaoPostural } = usePlanFeatures();
+  const base = `/${slug}/aluno`;
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Efeito separado (não a carga inicial de uma vez só): orgId do TenantContext pode
+  // ainda não estar pronto quando o mount original roda, e o efeito de cima nunca
+  // re-executa (array de dependências vazio) — isso deixava o XP travado em 0.
+  useEffect(() => {
+    if (!orgId) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: xpRow } = await supabase
+        .from("xp_totals")
+        .select("total_xp")
+        .eq("student_id", session.user.id)
+        .eq("org_id", orgId)
+        .maybeSingle();
+      setTotalXp((xpRow as any)?.total_xp ?? 0);
+    })();
+  }, [orgId]);
 
   const loadDashboardData = async () => {
     try {
@@ -132,7 +167,7 @@ const StudentDashboard = () => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("tipo_usuario")
+        .select("tipo_usuario, nome")
         .eq("id", session.user.id)
         .single();
 
@@ -140,6 +175,7 @@ const StudentDashboard = () => {
         navigate("/treinador");
         return;
       }
+      if (profile?.nome) setUserName(profile.nome);
 
       const { data: aluno } = await (supabase as any)
         .from("alunos")
@@ -196,16 +232,29 @@ const StudentDashboard = () => {
 
       const { data: planoData } = await supabase
         .from("planos_treino")
-        .select("nome_plano, objetivo, data_inicio, data_fim, atualizado_em, visto_pelo_aluno_em")
+        .select("id, nome_plano, objetivo, data_inicio, data_fim, atualizado_em, visto_pelo_aluno_em")
         .eq("aluno_id", aluno.id)
         .eq("ativo", true)
         .maybeSingle();
 
       setPlano(planoData);
 
+      if (planoData) {
+        const { data: semanasLite } = await supabase
+          .from("semanas")
+          .select("id, semana_inicio, semana_fim, treinos ( id, titulo_treino, dia_semana )")
+          .eq("plano_id", planoData.id)
+          .order("semana_inicio", { ascending: true });
+
+        if (semanasLite && semanasLite.length > 0) {
+          const weeks = semanasLite as unknown as WeekLite[];
+          setTodaysSession(pickTodaysSession(weeks, planoData.data_inicio));
+        }
+      }
+
       const { data: activeDiet, error: activeDietError } = await supabase
         .from("diets")
-        .select("id, title, calories, created_at")
+        .select("id, title, calories, created_at, meta_agua_ml")
         .eq("student_id", session.user.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -216,6 +265,13 @@ const StudentDashboard = () => {
 
       if (activeDiet) {
         setDieta({ type: "structured", data: activeDiet as DietaAtiva });
+        if ((activeDiet as any).meta_agua_ml != null) setAguaMetaMl((activeDiet as any).meta_agua_ml);
+
+        const { count: mealCount } = await supabase
+          .from("diet_meals")
+          .select("id", { count: "exact", head: true })
+          .eq("diet_id", activeDiet.id);
+        setDietaMealCount(mealCount ?? null);
       } else {
         const { data: dietaPdfData } = await supabase
           .from("dietas_pdf")
@@ -235,6 +291,54 @@ const StudentDashboard = () => {
         .maybeSingle();
 
       setLastFeedback(feedbackData);
+
+      const { data: pesoRows } = await supabase
+        .from("registros_evolucao")
+        .select("data_registro, peso_kg")
+        .eq("student_id", session.user.id)
+        .order("data_registro", { ascending: true });
+
+      if (pesoRows) {
+        const withWeight = (pesoRows as any[]).filter((r) => r.peso_kg != null);
+        const last30 = withWeight.slice(-30);
+        const inicial = last30[0]?.peso_kg ?? null;
+        const atual = last30[last30.length - 1]?.peso_kg ?? null;
+        setPesoStats({
+          inicial,
+          atual,
+          variacao: inicial != null && atual != null ? atual - inicial : null,
+          registros: last30.length,
+          chart: last30.map((r) => ({ peso: r.peso_kg })),
+        });
+      }
+
+      const todayStr = brazilToday();
+      const { data: aguaRow } = await supabase
+        .from("registros_agua")
+        .select("ml_total")
+        .eq("student_id", session.user.id)
+        .eq("data_registro", todayStr)
+        .maybeSingle();
+      setAguaMl((aguaRow as any)?.ml_total ?? 0);
+
+      // Dias da semana atual em que o aluno concluiu algum treino (pra tira de calendário)
+      const weekDates = getCurrentWeekDates();
+      const { data: completions } = await supabase
+        .from("treino_sessoes_log")
+        .select("data_conclusao")
+        .eq("aluno_id", aluno.id)
+        .gte("data_conclusao", weekDates[0])
+        .lte("data_conclusao", weekDates[6]);
+      setCompletedDates(new Set((completions as any[] ?? []).map((c) => c.data_conclusao)));
+
+      const { data: cardioRow } = await supabase
+        .from("cardio_sessoes")
+        .select("tipo, duracao_minutos, data_sessao")
+        .eq("student_id", session.user.id)
+        .order("data_sessao", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setCardioLast((cardioRow as CardioLast) ?? null);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -279,12 +383,87 @@ const StudentDashboard = () => {
     }
   };
 
+  const handleStartTraining = () => {
+    if (todaysSession) {
+      navigate(`${base}/treinos?weekId=${todaysSession.weekId}&treinoId=${todaysSession.treinoId}`);
+    } else {
+      navigate(`${base}/treinos`);
+    }
+  };
+
+  const handleAddAgua = async (amountMl: number) => {
+    if (aguaSaving) return;
+    setAguaSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const todayStr = brazilToday();
+      const newTotal = aguaMl + amountMl;
+      const { error } = await supabase
+        .from("registros_agua")
+        .upsert(
+          { student_id: session.user.id, org_id: orgId, data_registro: todayStr, ml_total: newTotal },
+          { onConflict: "student_id,data_registro" },
+        );
+      if (error) throw error;
+      setAguaMl(newTotal);
+      if (newTotal >= aguaMetaMl && orgId) {
+        void grantXP(session.user.id, orgId, "agua_day");
+        void evaluateAndUpdateStreak(session.user.id, orgId);
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao registrar água", description: err.message, variant: "destructive" });
+    } finally {
+      setAguaSaving(false);
+    }
+  };
+
   const isPlanoNovo = plano && (!plano.visto_pelo_aluno_em || new Date(plano.atualizado_em) > new Date(plano.visto_pelo_aluno_em));
   const isDietaNova =
     dieta?.type === "pdf" &&
     (!dieta.data.vista_pelo_aluno_em || new Date(dieta.data.atualizada_em) > new Date(dieta.data.vista_pelo_aluno_em));
   const hasFeedbackNovo = lastFeedback && !lastFeedback.visto_pelo_aluno;
-  const base = `/${slug}/aluno`;
+  const firstName = userName.split(" ")[0] || "Aluno";
+  const avatarInitial = userName.trim().charAt(0).toUpperCase() || "?";
+
+  // Tira de calendário: segunda a domingo da semana atual
+  const today = new Date();
+  const jsDay = today.getDay(); // 0=domingo..6=sábado
+  const mondayOffset = jsDay === 0 ? -6 : 1 - jsDay;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  const weekStrip = WEEK_STRIP_LABELS.map((label, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateKey = d.toISOString().slice(0, 10);
+    return {
+      iso: d.toISOString(),
+      label,
+      day: d.getDate(),
+      isToday: d.toDateString() === today.toDateString(),
+      hasTreino: completedDates.has(dateKey),
+    };
+  });
+
+  /** Ponto do gráfico de peso — mostra o kg só quando clicado, pra não poluir com todos os valores à mostra */
+  const renderPesoDot = (props: any) => {
+    const { cx, cy, index, payload } = props;
+    const isSelected = selectedPesoIdx === index;
+    return (
+      <g
+        key={`peso-dot-${index}`}
+        onClick={() => setSelectedPesoIdx(isSelected ? null : index)}
+        style={{ cursor: "pointer" }}
+      >
+        <circle cx={cx} cy={cy} r={4} fill="var(--cp-500)" />
+        {isSelected && (
+          <text x={cx} y={cy - 8} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: "var(--cp-400)" }}>
+            {payload.peso}kg
+          </text>
+        )}
+      </g>
+    );
+  };
 
   if (loading) {
     return (
@@ -298,42 +477,9 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "var(--cp-gradient)" }}>
-            <Home className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Início</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Treino, dieta e atualizações em um só lugar</p>
-          </div>
-        </div>
+    <div className="pb-2">
 
-        <div className="grid grid-cols-3 gap-2 mt-5">
-          {[
-            { label: "Treino", icon: Dumbbell, path: `${base}/treinos`, active: !!plano },
-            { label: "Dieta", icon: Utensils, path: `${base}/dieta`, active: !!dieta },
-            { label: "Atualização", icon: ClipboardList, path: `${base}/atualizacao`, active: true },
-          ].map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => navigate(item.path)}
-              className="rounded-2xl border border-white/8 px-3 py-3 text-left transition-colors hover:bg-white/5"
-              style={{ backgroundColor: item.active ? "rgba(var(--cp-rgb),0.08)" : "var(--surface-1)" }}
-            >
-              <item.icon
-                className={`w-4 h-4 mb-2 ${!item.active && "text-muted-foreground opacity-60"}`}
-                style={item.active ? { color: "var(--cp-400)" } : undefined}
-              />
-              <span className="block text-[11px] font-medium text-muted-foreground">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="px-4 space-y-3">
+      <div className="px-4 pt-3 space-y-3">
 
         {/* ── Card de anamnese pendente ── */}
         {anamnese_pendente && !anamneseDismissed && (
@@ -406,7 +552,7 @@ const StudentDashboard = () => {
         )}
 
         {/* ── Avaliação postural pendente ── */}
-        {avaliacaoPendente && (
+        {hasAvaliacaoPostural && avaliacaoPendente && (
           <button
             type="button"
             onClick={() => navigate(`${base}/avaliacao-postural`)}
@@ -424,126 +570,356 @@ const StudentDashboard = () => {
           </button>
         )}
 
-        <DashboardCard
-          title="Meu treino atual"
-          description={plano ? "Plano ativo da consultoria" : "Aguardando plano"}
-          icon={Dumbbell}
-          isNew={isPlanoNovo}
-        >
-          {plano ? (
-            <div className="space-y-3">
-              <InfoRow label="Plano" value={plano.nome_plano} />
-              {plano.objetivo && <InfoRow label="Objetivo" value={plano.objetivo} />}
-              <InfoRow
-                label="Período"
-                value={`${formatDate(plano.data_inicio)}${plano.data_fim ? ` até ${formatDate(plano.data_fim)}` : ""}`}
-              />
-              <Button
-                onClick={() => navigate(`${base}/treinos`)}
-                className="w-full h-12 rounded-2xl text-primary-foreground text-sm font-semibold"
+        {/* ── Novo feedback do treinador ── */}
+        {hasFeedbackNovo && (
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/feedbacks`)}
+            className="w-full rounded-2xl border px-4 py-4 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+            style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.25)" }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+              <MessageSquare className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Novo feedback do treinador</p>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{lastFeedback?.titulo || "Toque para ver a mensagem"}</p>
+            </div>
+            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+          </button>
+        )}
+
+        {/* ── Saudação + XP + tira de calendário ── */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0"
                 style={{ background: "var(--cp-gradient)" }}
               >
-                Ver treino
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+                {avatarInitial}
+              </div>
+              <p className="text-lg font-bold text-foreground truncate">
+                Olá, <span style={{ color: "var(--cp-400)" }}>{firstName}!</span>
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => navigate(`${base}/ranking`)}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 shrink-0 transition-opacity hover:opacity-80"
+              style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)" }}
+            >
+              <Zap className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
+              <span className="text-xs font-bold" style={{ color: "var(--cp-400)" }}>{totalXp} XP</span>
+            </button>
+          </div>
+
+          {/* ── Tira de calendário da semana ── */}
+          <div
+            className="rounded-2xl px-2.5 py-2"
+            style={{ border: "1.5px solid rgba(var(--cp-rgb),0.35)", backgroundColor: "hsl(var(--background))" }}
+          >
+            <div className="grid grid-cols-7 gap-1">
+              {weekStrip.map((d) =>
+                d.isToday ? (
+                  <div key={d.iso} className="flex flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-xl py-1 flex flex-col items-center gap-0.5"
+                      style={{ background: "var(--cp-gradient)" }}
+                    >
+                      <span className="text-[9px] font-semibold text-white uppercase">{d.label}</span>
+                      <span className="text-xs font-bold text-white">{d.day}</span>
+                    </div>
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "#fff" : "transparent" }} />
+                  </div>
+                ) : (
+                  <div key={d.iso} className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] font-medium uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {d.label}
+                    </span>
+                    <span className="text-xs font-bold" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {d.day}
+                    </span>
+                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "var(--cp-500)" : "transparent" }} />
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Treino de hoje ── */}
+        <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
+          <div className="relative flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
+              <Dumbbell className="w-[18px] h-[18px]" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground truncate">Treino de hoje</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {todaysSession ? todaysSession.titulo : plano ? "Sem treino hoje" : "Aguardando plano"}
+              </p>
+            </div>
+            {isPlanoNovo && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0" style={{ backgroundColor: "rgba(var(--cp-rgb),0.18)", color: "var(--cp-400)" }}>
+                Novo
+              </span>
+            )}
+          </div>
+
+          <div className="relative flex gap-1 mb-4">
+            {weekStrip.map((d) => (
+              <span
+                key={d.iso}
+                className="flex-1 h-0.5 rounded-full"
+                style={{ backgroundColor: d.hasTreino ? "var(--cp-500)" : d.isToday ? "rgba(var(--cp-rgb),0.4)" : "var(--border-subtle)" }}
+              />
+            ))}
+          </div>
+
+          {todaysSession ? (
+            <button
+              type="button"
+              onClick={handleStartTraining}
+              className="relative w-full h-11 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold text-white"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              Iniciar treino
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : plano ? (
+            <button
+              type="button"
+              onClick={() => navigate(`${base}/treinos`)}
+              className="relative w-full h-11 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold text-white"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              Ver treinos da semana
+              <ChevronRight className="w-4 h-4" />
+            </button>
           ) : (
             <EmptyState>
               Você ainda não tem um treino ativo. Assim que seu treinador publicar, ele aparecerá aqui.
             </EmptyState>
           )}
-        </DashboardCard>
+        </section>
 
-        <DashboardCard
-          title="Minha dieta"
-          description={dieta ? "Plano alimentar disponível" : "Aguardando dieta"}
-          icon={Utensils}
-          isNew={isDietaNova}
-        >
-          {dieta ? (
-            <div className="space-y-3">
-              <InfoRow
-                label={dieta.type === "structured" ? "Dieta ativa" : "Arquivo"}
-                value={dieta.type === "structured" ? dieta.data.title : dieta.data.nome_arquivo}
-              />
-              {dieta.type === "structured" && dieta.data.calories && (
-                <InfoRow label="Meta diária" value={`${dieta.data.calories} kcal`} />
-              )}
-              <Button
-                onClick={handleViewDiet}
-                className="w-full h-12 rounded-2xl text-primary-foreground text-sm font-semibold"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                {dieta.type === "pdf" ? <Download className="w-4 h-4 mr-2" /> : <Utensils className="w-4 h-4 mr-2" />}
-                {dieta.type === "structured" ? "Ver dieta" : "Acessar plano alimentar"}
-              </Button>
+        {/* ── Dieta do dia ── */}
+        <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
+          <div className="relative flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
+              <Utensils className="w-[18px] h-[18px]" style={{ color: "var(--cp-400)" }} />
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground truncate">
+                {dieta ? (dieta.type === "structured" ? dieta.data.title : dieta.data.nome_arquivo) : "Dieta do dia"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {dieta?.type === "structured" && (dietaMealCount != null || dieta.data.calories != null)
+                  ? [
+                      dietaMealCount != null ? `${dietaMealCount} refeições` : null,
+                      dieta.data.calories != null ? `${dieta.data.calories} kcal` : null,
+                    ].filter(Boolean).join(" · ")
+                  : dieta?.type === "pdf" ? "Arquivo PDF" : "Aguardando dieta"}
+              </p>
+            </div>
+            {isDietaNova && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0" style={{ backgroundColor: "rgba(var(--cp-rgb),0.18)", color: "var(--cp-400)" }}>
+                Novo
+              </span>
+            )}
+          </div>
+          {dieta ? (
+            <button
+              type="button"
+              onClick={handleViewDiet}
+              className="relative w-full h-11 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+              style={{ border: "1.5px solid var(--cp-500)", color: "var(--cp-400)", backgroundColor: "rgba(var(--cp-rgb),0.06)" }}
+            >
+              {dieta.type === "pdf" ? <Download className="w-4 h-4" /> : <Utensils className="w-4 h-4" />}
+              {dieta.type === "structured" ? "Ver dieta" : "Acessar plano alimentar"}
+            </button>
           ) : (
             <EmptyState>
               Sua dieta ainda não foi cadastrada. Fale com seu treinador para receber seu plano.
             </EmptyState>
           )}
-        </DashboardCard>
+        </section>
 
-        <DashboardCard
-          title="Atualizações e check-in"
-          description="Envie medidas, fotos e observações"
-          icon={FileText}
-        >
-          <div className="space-y-3">
-            {proximaAtualizacao && (
-              <div className="rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.22)" }}>
-                <CalendarDays className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
-                <p className="text-sm font-medium" style={{ color: "var(--cp-300)" }}>
-                  Próxima atualização: {(() => { const [y,m,d] = proximaAtualizacao.split("-").map(Number); return format(new Date(y, m-1, d), "dd/MM/yyyy"); })()}
-                </p>
-              </div>
-            )}
-            <Button
-              onClick={() => navigate(`${base}/atualizacao`)}
-              className="w-full h-12 rounded-2xl text-primary-foreground text-sm font-semibold"
-              style={{ background: "var(--cp-gradient)" }}
-            >
-              <ChevronRight className="w-4 h-4 mr-2" />
-              Responder Atualização
-            </Button>
-          </div>
-        </DashboardCard>
-
-        <DashboardCard
-          title="Último feedback"
-          description="Orientações e mensagens do treinador"
-          icon={MessageSquare}
-          isNew={hasFeedbackNovo}
-        >
-          {lastFeedback ? (
-            <div className="space-y-3">
-              <div className="rounded-2xl px-4 py-3" style={{ backgroundColor: "var(--surface-2)" }}>
-                <p className="text-[11px] text-muted-foreground mb-1">{format(new Date(lastFeedback.created_at), "dd/MM/yyyy")}</p>
-                <p className="text-sm font-semibold text-foreground mb-2">{lastFeedback.titulo || "Sem título"}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{lastFeedback.mensagem}</p>
-              </div>
-              <Button
-                onClick={() => navigate(`${base}/feedbacks`)}
-                variant="ghost"
-                className="w-full h-11 rounded-2xl border border-white/10 text-white/60 hover:text-white hover:bg-white/5"
-              >
-                Ver todos os feedbacks
-              </Button>
+        {/* ── Água ── */}
+        <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
+          <div className="relative flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
+              <Droplet className="w-[18px] h-[18px]" style={{ color: "var(--cp-400)" }} />
             </div>
-          ) : (
-            <EmptyState>
-              Seu treinador ainda não enviou feedback por aqui.
-            </EmptyState>
-          )}
-        </DashboardCard>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Água</p>
+              <p className="text-xs text-muted-foreground">
+                {(aguaMl / 1000).toFixed(1)}L de {(aguaMetaMl / 1000).toFixed(1)}L
+              </p>
+            </div>
+          </div>
+          <div className="relative h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, (aguaMl / aguaMetaMl) * 100)}%`, background: "var(--cp-gradient)" }}
+            />
+          </div>
+          <div className="relative grid grid-cols-3 gap-2 mb-2">
+            {[250, 500, 1000].map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => handleAddAgua(amount)}
+                disabled={aguaSaving}
+                className="h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-60 transition-opacity"
+                style={{ background: "var(--cp-gradient)", color: "#fff" }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {amount >= 1000 ? "1L" : `${amount}ml`}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/dieta/agua`)}
+            className="relative flex items-center gap-1 text-xs font-medium"
+            style={{ color: "var(--cp-400)" }}
+          >
+            Ver mais
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        </section>
 
-        <div className="rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "var(--surface-1)" }}>
-          <CheckCircle2 className="w-4 h-4 text-muted-foreground opacity-50 shrink-0" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Complete seus treinos e check-ins para manter seu acompanhamento sempre em dia.
-          </p>
-        </div>
+        {/* ── Cardio ── */}
+        <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
+          <div className="relative flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
+              <HeartPulse className="w-[18px] h-[18px]" style={{ color: "var(--cp-400)" }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Cardio</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {cardioLast
+                  ? `Última sessão: ${cardioLast.tipo} · ${cardioLast.duracao_minutos} min`
+                  : "Nenhuma sessão registrada ainda"}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/cardio`)}
+            className="relative w-full h-11 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+            style={{ border: "1.5px solid var(--cp-500)", color: "var(--cp-400)", backgroundColor: "rgba(var(--cp-rgb),0.06)" }}
+          >
+            <HeartPulse className="w-4 h-4" />
+            Registrar cardio
+          </button>
+        </section>
+
+        {/* ── Evolução ── */}
+        <section className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/evolucao`)}
+            className="w-full flex items-center justify-between px-4 py-3 border-b border-white/6 text-left hover:bg-white/3 transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
+                <Activity className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground">Evolução</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Últimos 30 dias</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {pesoStats?.atual != null && (
+                <div className="text-right">
+                  <p className="text-base font-bold" style={{ color: "var(--cp-400)" }}>{pesoStats.atual} kg</p>
+                  {pesoStats.variacao != null && (
+                    <p className="text-[11px] font-semibold" style={{ color: "var(--cp-400)" }}>
+                      {pesoStats.variacao > 0 ? "+" : ""}{pesoStats.variacao.toFixed(1)} kg
+                    </p>
+                  )}
+                </div>
+              )}
+              <ChevronRight className="w-4 h-4 text-muted-foreground opacity-50" />
+            </div>
+          </button>
+          <div className="p-4">
+            {pesoStats && pesoStats.registros > 0 ? (
+              <div className="space-y-3">
+                <div className="flex -mx-4 -mt-4">
+                  <div className="flex-1 text-center py-2 px-2 border-r" style={{ borderColor: "var(--dash-card-border)" }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Inicial</p>
+                    <p className="text-sm font-semibold text-foreground mt-1">
+                      {pesoStats.inicial != null ? `${pesoStats.inicial} kg` : "—"}
+                    </p>
+                  </div>
+                  <div className="flex-1 text-center py-2 px-2 border-r" style={{ borderColor: "var(--dash-card-border)" }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Variação</p>
+                    <p className="text-sm font-semibold mt-1" style={{ color: "var(--cp-400)" }}>
+                      {pesoStats.variacao != null ? `${pesoStats.variacao > 0 ? "+" : ""}${pesoStats.variacao.toFixed(1)} kg` : "—"}
+                    </p>
+                  </div>
+                  <div className="flex-1 text-center py-2 px-2">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Registros</p>
+                    <p className="text-sm font-semibold text-foreground mt-1">{pesoStats.registros}</p>
+                  </div>
+                </div>
+                {pesoStats.chart.length >= 2 && (
+                  <div style={{ height: 64 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={pesoStats.chart} margin={{ top: 14, right: 4, left: 4, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="pesoAreaFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--cp-500)" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="var(--cp-500)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <Area
+                          type="monotone"
+                          dataKey="peso"
+                          stroke="var(--cp-500)"
+                          strokeWidth={2}
+                          fill="url(#pesoAreaFill)"
+                          dot={renderPesoDot}
+                          activeDot={renderPesoDot}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <EmptyState>
+                Registre seu peso na aba Evolução para acompanhar seu progresso aqui.
+              </EmptyState>
+            )}
+          </div>
+        </section>
+
+        {/* ── Atualizações e check-in (banner compacto) ── */}
+        <button
+          type="button"
+          onClick={() => navigate(`${base}/atualizacao`)}
+          className="w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+          style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.22)" }}
+        >
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
+            <FileText className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Atualização e check-in</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {proximaAtualizacao
+                ? `Próxima: ${(() => { const [y, m, d] = proximaAtualizacao.split("-").map(Number); return format(new Date(y, m - 1, d), "dd/MM/yyyy"); })()}`
+                : "Envie medidas, fotos e observações"}
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
+        </button>
       </div>
     </div>
   );

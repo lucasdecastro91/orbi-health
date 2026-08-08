@@ -291,8 +291,8 @@ const ListaSubstituicao = () => {
 
       {/* Add group */}
       <div
-        className="rounded-2xl border p-4 mb-5"
-        style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}
+        className="rounded-2xl p-4 mb-5"
+        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
       >
         <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
           Novo Grupo
@@ -319,8 +319,8 @@ const ListaSubstituicao = () => {
       {/* Groups list */}
       {grupos.length === 0 ? (
         <div
-          className="rounded-2xl border p-8 text-center"
-          style={{ borderColor: "rgba(255,255,255,0.06)", borderStyle: "dashed" }}
+          className="rounded-2xl p-8 text-center"
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
         >
           <ListOrdered className="w-8 h-8 mx-auto mb-3 text-white/15" />
           <p className="text-sm text-muted-foreground">Nenhum grupo cadastrado ainda.</p>
@@ -339,10 +339,11 @@ const ListaSubstituicao = () => {
             return (
               <div
                 key={grupo.id}
-                className="rounded-2xl border overflow-hidden"
+                className="rounded-2xl overflow-hidden"
                 style={{
-                  backgroundColor: isOpen ? "var(--surface-2)" : "var(--surface-1)",
-                  borderColor: isOpen ? "rgba(var(--cp-rgb),0.2)" : "var(--border-subtle)",
+                  backgroundColor: "#141417",
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
                 }}
               >
                 {/* Group header */}
@@ -350,10 +351,7 @@ const ListaSubstituicao = () => {
                   {/* Numero badge */}
                   <div
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0"
-                    style={{
-                      background: isOpen ? "var(--cp-gradient)" : "var(--tag-inactive-bg)",
-                      color: isOpen ? "var(--cp-text)" : "var(--tag-inactive-color)",
-                    }}
+                    style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
                   >
                     {grupo.numero}
                   </div>
@@ -508,7 +506,7 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
   return (
     <div
       className="flex items-center gap-2 px-2.5 py-2 rounded-xl group"
-      style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-dim)" }}
+      style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
     >
       {/* Dot */}
       <div

@@ -22,7 +22,7 @@ const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen flex items-center justify-center bg-black p-6">
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <img src="/logos/orbi-logo-vertical-dark.svg" alt="ORBI Pro" className="h-20 mx-auto" />
+        <img src="/logos/orbi-logo-vertical-dark.svg" alt="ORBI Health" className="h-20 mx-auto" />
       </div>
       <div className="rounded-2xl p-6"
         style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}>

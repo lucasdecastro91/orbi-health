@@ -1,43 +1,68 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { ArrowLeft, Flame, TrendingUp, Zap, CalendarDays } from "lucide-react";
+import { ArrowLeft, Flame, TrendingUp, Zap, CalendarDays, ChevronDown, History } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
 // Types & helpers
 // ─────────────────────────────────────────────────────────────
-
-type Range = 7 | 15 | 30 | 60 | 90;
 
 interface DayData {
   date: string;      // YYYY-MM-DD
   done: number;
   total: number;
   pct: number;       // 0–100
+  isFuture: boolean; // ainda não chegou (mês atual, dias à frente de hoje)
 }
+
+/** "YYYY-MM" */
+type MonthKey = string;
 
 const brazilToday = (): string => {
   const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
   return brazil.toISOString().slice(0, 10);
 };
 
-/** Generate the last N calendar dates ending today (Brazil), most-recent first */
-const lastNDates = (n: number): string[] => {
-  const today = brazilToday();
+const monthKeyOf = (iso: string): MonthKey => iso.slice(0, 7);
+
+const currentMonthKey = (): MonthKey => monthKeyOf(brazilToday());
+
+/** All calendar dates of a given month (YYYY-MM) — sempre o mês inteiro, incluindo dias futuros */
+const datesOfMonth = (monthKey: MonthKey): string[] => {
+  const [y, m] = monthKey.split("-").map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+
   const dates: string[] = [];
-  const base = new Date(today + "T12:00:00Z");
-  for (let i = 0; i < n; i++) {
-    const d = new Date(base.getTime() - i * 86400000);
-    dates.push(d.toISOString().slice(0, 10));
+  for (let day = 1; day <= lastDay; day++) {
+    dates.push(`${monthKey}-${String(day).padStart(2, "0")}`);
   }
   return dates;
 };
 
-const fmtDate = (iso: string): string => {
-  const [, mm, dd] = iso.split("-");
-  return `${dd}/${mm}`;
+/** Lista de meses (mais recente primeiro) desde `startIso` até o mês atual, inclusive */
+const monthsSince = (startIso: string): MonthKey[] => {
+  const start = monthKeyOf(startIso);
+  const [sy, sm] = start.split("-").map(Number);
+  const [cy, cm] = currentMonthKey().split("-").map(Number);
+
+  const months: MonthKey[] = [];
+  let y = sy;
+  let m = sm;
+  while (y < cy || (y === cy && m <= cm)) {
+    months.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months.reverse();
+};
+
+const monthLabel = (monthKey: MonthKey): string => {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 const fullFmtDate = (iso: string): string => {
@@ -45,7 +70,8 @@ const fullFmtDate = (iso: string): string => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
-const pctColor = (pct: number, hasData: boolean): string => {
+const pctColor = (pct: number, hasData: boolean, isFuture: boolean): string => {
+  if (isFuture) return "rgba(255,255,255,0.015)";
   if (!hasData) return "rgba(255,255,255,0.08)";
   if (pct >= 80) return "var(--cp-500)";
   if (pct >= 50) return "hsl(42 95% 55%)";
@@ -68,12 +94,15 @@ const DietHistory = () => {
   const { toast } = useToast();
   const { slug } = useTenantContext();
 
-  const [range, setRange]         = useState<Range>(30);
+  const [selectedMonth, setSelectedMonth] = useState<MonthKey>(currentMonthKey());
+  const [availableMonths, setAvailableMonths] = useState<MonthKey[]>([currentMonthKey()]);
+  const [mesesOpen, setMesesOpen] = useState(false);
   const [days, setDays]           = useState<DayData[]>([]);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [totalMeals, setTotalMeals] = useState(0);
   const [loading, setLoading]     = useState(true);
 
-  useEffect(() => { loadHistory(); }, [range]);
+  useEffect(() => { loadHistory(); }, [selectedMonth]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -82,23 +111,40 @@ const DietHistory = () => {
       if (!session) { navigate("/auth"); return; }
       const studentId = session.user.id;
 
-      // 1. Active diet → meal count
-      const { data: dietData } = await supabase
+      // 1. Todas as dietas do aluno (não só a ativa) → cada mês passado usa a contagem
+      // de refeições da dieta que estava em vigor NAQUELA época, não a de hoje.
+      const { data: allDiets } = await supabase
         .from("diets")
-        .select("id, diet_meals(id)")
+        .select("id, created_at, is_active, diet_meals(id)")
         .eq("student_id", studentId)
-        .eq("is_active", true)
-        .maybeSingle();
+        .order("created_at", { ascending: true });
 
-      const mealCount = (dietData as any)?.diet_meals?.length ?? 0;
+      const dietsSorted = ((allDiets ?? []) as any[])
+        .map((d) => ({ createdAtDate: d.created_at.slice(0, 10), mealCount: d.diet_meals?.length ?? 0 }))
+        .sort((a, b) => a.createdAtDate.localeCompare(b.createdAtDate));
+
+      const activeDiet = ((allDiets ?? []) as any[]).find((d) => d.is_active);
+      const mealCount = activeDiet?.diet_meals?.length ?? 0;
       setTotalMeals(mealCount);
 
-      if (mealCount === 0) { setDays([]); setLoading(false); return; }
+      if (!activeDiet || mealCount === 0) { setDays([]); setLoading(false); return; }
 
-      // 2. Completions in range
-      const dates   = lastNDates(range);
-      const oldest  = dates[dates.length - 1];
-      const newest  = dates[0];
+      setAvailableMonths(monthsSince(dietsSorted[0].createdAtDate));
+
+      // Pra uma data qualquer, pega a última dieta criada até aquele dia (a que estava valendo)
+      const mealCountForDate = (dateStr: string): number => {
+        let count = 0;
+        for (const d of dietsSorted) {
+          if (d.createdAtDate <= dateStr) count = d.mealCount;
+          else break;
+        }
+        return count;
+      };
+
+      // 2. Completions no mês selecionado
+      const dates   = datesOfMonth(selectedMonth);
+      const oldest  = dates[0];
+      const newest  = dates[dates.length - 1];
 
       const { data: completions, error } = await supabase
         .from("meal_completions")
@@ -123,12 +169,26 @@ const DietHistory = () => {
         byDate[c.date] = (byDate[c.date] ?? 0) + 1;
       }
 
+      const todayIso = brazilToday();
       const result: DayData[] = dates.map((d) => {
         const done = byDate[d] ?? 0;
-        return { date: d, done, total: mealCount, pct: Math.round((done / mealCount) * 100) };
+        const total = mealCountForDate(d);
+        return {
+          date: d,
+          done,
+          total,
+          pct: total > 0 ? Math.round((done / total) * 100) : 0,
+          isFuture: d > todayIso,
+        };
       });
 
       setDays(result);
+
+      // Seleciona por padrão hoje (se estiver visível neste mês) ou o dia mais
+      // recente já passado — assim o card de detalhe nunca abre vazio.
+      const pastResult = result.filter((d) => !d.isFuture);
+      const defaultDay = pastResult.find((d) => d.date === todayIso) ?? pastResult[pastResult.length - 1];
+      setSelectedDay(defaultDay?.date ?? null);
     } catch (err: any) {
       toast({ title: "Erro ao carregar histórico", description: err.message, variant: "destructive" });
     } finally {
@@ -138,22 +198,23 @@ const DietHistory = () => {
 
   // ── Stats ─────────────────────────────────────────────────
 
-  const daysWithData  = days.filter((d) => d.done > 0);
+  const pastDays      = days.filter((d) => !d.isFuture);
+  const daysWithData  = pastDays.filter((d) => d.done > 0);
   const avgPct        = daysWithData.length > 0
     ? Math.round(daysWithData.reduce((s, d) => s + d.pct, 0) / daysWithData.length)
     : 0;
-  const perfectDays   = days.filter((d) => d.pct === 100).length;
+  const perfectDays   = pastDays.filter((d) => d.pct === 100).length;
 
-  // Streak: count consecutive days from today backward with pct >= 80
+  // Streak: dias consecutivos com pct >= 80, do mais recente pro mais antigo
   let streak = 0;
-  for (const d of days) {
+  for (const d of [...pastDays].reverse()) {
     if (d.pct >= 80) streak++;
     else break;
   }
 
-  // ── Render ────────────────────────────────────────────────
+  const isCurrentMonth = selectedMonth === currentMonthKey();
 
-  const RANGES: Range[] = [7, 15, 30, 60, 90];
+  // ── Render ────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen pb-24">
@@ -175,23 +236,6 @@ const DietHistory = () => {
 
       <div className="px-4 md:px-6 pt-2 space-y-4">
 
-        {/* Range filter */}
-        <div className="flex gap-2">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className="flex-1 h-9 rounded-xl text-xs font-semibold transition-all"
-              style={{
-                backgroundColor: range === r ? "hsl(var(--primary))" : "rgba(255,255,255,0.06)",
-                color: range === r ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-              }}
-            >
-              {r}d
-            </button>
-          ))}
-        </div>
-
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 rounded-full border-2 border-green-600/30 border-t-green-600 animate-spin" />
@@ -203,6 +247,16 @@ const DietHistory = () => {
           </div>
         ) : (
           <>
+            {/* Mês selecionado */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                {monthLabel(selectedMonth)}
+              </p>
+              {isCurrentMonth && (
+                <span className="text-[10px] text-white/30">atualiza automaticamente</span>
+              )}
+            </div>
+
             {/* Stats cards */}
             <div className="grid grid-cols-3 gap-2.5">
               <div
@@ -236,24 +290,31 @@ const DietHistory = () => {
               className="rounded-2xl border p-4"
               style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
             >
-              <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3">Últimos {range} dias</p>
+              <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3">Dias do mês</p>
               <div className="flex flex-wrap gap-1.5">
-                {[...days].reverse().map((d) => {
+                {days.map((d) => {
                   const hasData = d.done > 0;
+                  const isSelected = d.date === selectedDay;
                   return (
-                    <div
+                    <button
                       key={d.date}
-                      title={`${fullFmtDate(d.date)}: ${d.done}/${d.total} refeições`}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold transition-all"
-                      style={{ backgroundColor: pctColor(d.pct, hasData), color: hasData ? "#fff" : "hsl(var(--muted-foreground))" }}
+                      disabled={d.isFuture}
+                      onClick={() => setSelectedDay(d.date)}
+                      title={`${fullFmtDate(d.date)}: ${d.isFuture ? "ainda não chegou" : `${d.done}/${d.total} refeições`}`}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold transition-all disabled:cursor-default"
+                      style={{
+                        backgroundColor: pctColor(d.pct, hasData, d.isFuture),
+                        color: hasData ? "#fff" : "hsl(var(--muted-foreground))",
+                        boxShadow: isSelected ? "0 0 0 2px hsl(var(--background)), 0 0 0 4px var(--cp-500)" : "none",
+                      }}
                     >
-                      {hasData ? `${d.pct}` : "—"}
-                    </div>
+                      {!d.isFuture && (hasData ? `${d.pct}` : "—")}
+                    </button>
                   );
                 })}
               </div>
               {/* Legend */}
-              <div className="flex items-center gap-3 mt-3">
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "var(--cp-500)" }} />
                   <span className="text-[10px] text-white/35">≥80%</span>
@@ -270,55 +331,108 @@ const DietHistory = () => {
                   <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
                   <span className="text-[10px] text-white/35">sem dados</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.015)" }} />
+                  <span className="text-[10px] text-white/35">Ainda não chegou</span>
+                </div>
               </div>
             </div>
 
-            {/* Day-by-day list */}
-            <div className="space-y-2">
-              {days.map((d) => {
-                const hasData = d.done > 0;
-                return (
-                  <div
-                    key={d.date}
-                    className="rounded-2xl border px-4 py-3 flex items-center justify-between"
-                    style={{
-                      backgroundColor: hasData ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.01)",
-                      borderColor: hasData ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
-                    }}
-                  >
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: hasData ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>
-                        {fullFmtDate(d.date)}
-                      </p>
-                      {hasData && (
-                        <p className="text-[11px] text-white/35 mt-0.5">{d.done} de {d.total} refeições</p>
-                      )}
-                    </div>
+            {/* Detalhe do dia selecionado (clique numa bolinha acima pra trocar) */}
+            {(() => {
+              const d = days.find((x) => x.date === selectedDay);
+              if (!d) return null;
+              const hasData = d.done > 0;
+              return (
+                <div
+                  className="rounded-2xl border px-4 py-3 flex items-center justify-between"
+                  style={{
+                    backgroundColor: hasData ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.01)",
+                    borderColor: hasData ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
+                  }}
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: hasData ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>
+                      {fullFmtDate(d.date)}
+                    </p>
+                    <p className="text-[11px] text-white/35 mt-0.5">
+                      {hasData ? `${d.done} de ${d.total} refeições` : "Nenhuma refeição registrada"}
+                    </p>
+                  </div>
 
-                    <div className="flex items-center gap-3">
-                      {/* Mini progress bar */}
-                      {hasData && (
-                        <div
-                          className="w-20 h-1.5 rounded-full overflow-hidden"
-                          style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-                        >
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${d.pct}%`, backgroundColor: pctColor(d.pct, true) }}
-                          />
-                        </div>
-                      )}
-                      <p
-                        className="text-sm font-bold w-10 text-right"
-                        style={{ color: pctTextColor(d.pct, hasData) }}
+                  <div className="flex items-center gap-3">
+                    {hasData && (
+                      <div
+                        className="w-20 h-1.5 rounded-full overflow-hidden"
+                        style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
                       >
-                        {hasData ? `${d.pct}%` : "—"}
-                      </p>
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${d.pct}%`, backgroundColor: pctColor(d.pct, true, false) }}
+                        />
+                      </div>
+                    )}
+                    <p
+                      className="text-sm font-bold w-10 text-right"
+                      style={{ color: pctTextColor(d.pct, hasData) }}
+                    >
+                      {hasData ? `${d.pct}%` : "—"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Meses anteriores — colapsável */}
+            {availableMonths.length > 1 && (
+              <div
+                className="rounded-2xl border overflow-hidden"
+                style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+              >
+                <button
+                  onClick={() => setMesesOpen((v) => !v)}
+                  className="w-full flex items-center gap-2 px-4 py-3"
+                >
+                  <History className="w-4 h-4 text-white/40" />
+                  <span className="text-sm font-medium flex-1 text-left" style={{ color: "hsl(var(--foreground))" }}>
+                    Meses anteriores
+                  </span>
+                  <ChevronDown
+                    className="w-4 h-4 text-white/40 transition-transform"
+                    style={{ transform: mesesOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                  />
+                </button>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateRows: mesesOpen ? "1fr" : "0fr",
+                    transition: "grid-template-rows 0.25s ease",
+                  }}
+                >
+                  <div className="overflow-hidden">
+                    <div className="px-3 pb-3 space-y-1.5">
+                      {availableMonths.map((mk) => (
+                        <button
+                          key={mk}
+                          onClick={() => { setSelectedMonth(mk); setMesesOpen(false); }}
+                          className="w-full rounded-xl px-3 py-2.5 flex items-center justify-between text-sm"
+                          style={{
+                            backgroundColor: mk === selectedMonth ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.03)",
+                            color: mk === selectedMonth ? "var(--cp-400)" : "hsl(var(--foreground))",
+                            fontWeight: mk === selectedMonth ? 600 : 400,
+                          }}
+                        >
+                          <span>{monthLabel(mk)}</span>
+                          {mk === currentMonthKey() && (
+                            <span className="text-[10px] text-white/30">atual</span>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

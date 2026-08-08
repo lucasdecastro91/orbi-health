@@ -521,7 +521,7 @@ const AnamneseBuilder = () => {
 
       {/* ── Editor de introdução ─────────────────────────────── */}
       <div className="rounded-2xl border overflow-hidden"
-        style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}>
+        style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
 
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3"
@@ -614,7 +614,7 @@ const AnamneseBuilder = () => {
           const isCollapsed = collapsed.has(sec._id);
           return (
             <div key={sec._id} className="rounded-2xl border overflow-hidden"
-              style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}>
+              style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
 
               {/* Cabeçalho da seção */}
               <div className="flex items-center gap-2 px-4 py-3"
@@ -654,7 +654,7 @@ const AnamneseBuilder = () => {
                 <div className="p-3 space-y-2.5">
                   {sec.campos.map((c, ci) => (
                     <div key={c._id} className="rounded-xl border p-3.5 space-y-2.5"
-                      style={{ borderColor: "var(--section-card-border)", backgroundColor: "var(--section-card-bg)" }}>
+                      style={{ borderColor: "var(--section-card-border)", backgroundColor: "#1b1c21", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
 
                       <div className="flex items-start gap-2">
                         <GripVertical className="w-4 h-4 mt-2.5 shrink-0 text-white/20" />

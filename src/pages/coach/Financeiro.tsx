@@ -74,6 +74,12 @@ const FORMA_LABEL: Record<string, string> = {
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Nosso checkout (/pagar/:id) só cobre Pix por enquanto (fase 1) — cartão/boleto
+// continuam usando o link hospedado pelo Asaas até a fase 2 existir, senão o aluno
+// cairia numa tela nossa sem forma nenhuma de pagar.
+const checkoutLink = (c: Pick<Cobranca, "id" | "forma_pagamento" | "invoice_url">) =>
+  c.forma_pagamento === "PIX" ? `${window.location.origin}/pagar/${c.id}` : c.invoice_url;
+
 const fmtDate = (iso: string) => {
   try { return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR }); }
   catch { return iso; }
@@ -110,7 +116,7 @@ const CopyBtn = ({ text, label }: { text: string; label: string }) => {
 const PaymentSuccessModal = ({
   cobranca, alunoNome, onClose,
 }: { cobranca: Cobranca; alunoNome: string; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 flex items-end justify-center"
+  <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 lg:pb-0"
     style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
     <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4"
       style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
@@ -141,13 +147,13 @@ const PaymentSuccessModal = ({
         </div>
       )}
 
-      {/* Link de pagamento */}
-      {cobranca.invoice_url && (
+      {/* Link de pagamento — nosso checkout (/pagar/:id) pra Pix; Asaas ainda pra cartão/boleto */}
+      {checkoutLink(cobranca) && (
         <div className="rounded-xl p-3 space-y-2.5"
           style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>
           <p className="text-[10px] text-white/35 uppercase tracking-wider">Link de pagamento</p>
-          <p className="text-[11px] text-white/40 break-all">{cobranca.invoice_url}</p>
-          <CopyBtn text={cobranca.invoice_url} label="Copiar link" />
+          <p className="text-[11px] text-white/40 break-all">{checkoutLink(cobranca)}</p>
+          <CopyBtn text={checkoutLink(cobranca)!} label="Copiar link" />
         </div>
       )}
 
@@ -626,6 +632,7 @@ const Financeiro = () => {
         />
       )}
 
+      <div className="w-full max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-5 pb-4">
         <div className="flex items-center gap-3">
@@ -648,7 +655,7 @@ const Financeiro = () => {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 px-4 pb-4">
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="w-3 h-3 text-green-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Recebido</p>
@@ -657,7 +664,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">este mês</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="w-2 h-2 rounded-full bg-amber-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Pendente</p>
@@ -666,7 +673,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">{countPend} cobranças</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <AlertTriangle className="w-3 h-3 text-red-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencido</p>
@@ -720,7 +727,8 @@ const Financeiro = () => {
             <Loader2 className="w-6 h-6 animate-spin text-white/30" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 space-y-2">
+          <div className="rounded-2xl text-center py-16 space-y-2"
+            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
             <Wallet className="w-8 h-8 text-white/10 mx-auto" />
             <p className="text-sm text-white/25">
               {cobrancas.length === 0
@@ -737,10 +745,11 @@ const Financeiro = () => {
             return (
               <div key={c.id} className="rounded-2xl p-4"
                 style={{
-                  backgroundColor: "var(--surface-1)",
+                  backgroundColor: "#141417",
                   border: c.status === "OVERDUE"
-                    ? "1px solid rgba(239,68,68,0.25)"
-                    : "1px solid var(--border-subtle)",
+                    ? "1px solid rgba(239,68,68,0.35)"
+                    : "1px solid rgba(255,255,255,0.09)",
+                  boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
                 }}>
 
                 {/* Row 1: avatar + info + status */}
@@ -776,8 +785,8 @@ const Financeiro = () => {
 
                 {/* Row 3: actions */}
                 <div className="flex flex-wrap gap-2">
-                  {c.pix_key     && <CopyBtn text={c.pix_key}      label="Copiar PIX"  />}
-                  {c.invoice_url && <CopyBtn text={c.invoice_url}   label="Copiar link" />}
+                  {c.pix_key && <CopyBtn text={c.pix_key} label="Copiar PIX" />}
+                  {checkoutLink(c) && <CopyBtn text={checkoutLink(c)!} label="Copiar link" />}
                   {isActive && (
                     <button onClick={() => handleMarkPaid(c.id)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
@@ -799,6 +808,7 @@ const Financeiro = () => {
             );
           })
         )}
+      </div>
       </div>
     </div>
   );

@@ -6,8 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Users, MessageSquare, ClipboardCheck, Clock, RefreshCw,
-  ArrowRight, Loader2, Target, Phone, AlertTriangle,
+  MessageSquare, ClipboardCheck, Clock, RefreshCw,
+  ArrowRight, Loader2, Target, Phone, AlertTriangle, Activity, Wallet, Users, Check,
 } from "lucide-react";
 import { getSessionDirect } from "@/lib/sessionUtils";
 import OnboardingChecklist from "@/components/coach/OnboardingChecklist";
@@ -37,6 +37,12 @@ interface RecentUpdate {
   alunoId: string | null;
 }
 
+interface FinanceResumo {
+  recebido: number;
+  pendente: number;
+  vencido: number;
+}
+
 interface DashData {
   coachName: string;
   totalClientes: number;
@@ -46,7 +52,19 @@ interface DashData {
   mensagensNaoLidas: number;
   atualizacoes: RecentUpdate[];
   callsHoje: CallHoje[];
+  finance: FinanceResumo | null;
 }
+
+const formatBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+
+// ── Elevated-card look — clearer separation from the page bg (alto relevo) ─────
+
+const CARD_BG      = "#141417";
+const CARD_BG_2    = "#1b1c21";
+const CARD_BORDER  = "rgba(255,255,255,0.09)";
+const CARD_SHADOW  = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
+const HERO_SHADOW  = "0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.3)";
 
 // ── Metric card ────────────────────────────────────────────────────────────────
 
@@ -62,8 +80,8 @@ const MetricCard = ({
 }) => (
   <div
     onClick={onClick}
-    className={`rounded-2xl border border-white/8 p-5 flex flex-col gap-3 ${onClick ? "cursor-pointer hover:bg-white/5 active:scale-[0.98] transition-all" : ""}`}
-    style={{ backgroundColor: "var(--surface-1)" }}
+    className={`rounded-2xl p-5 flex flex-col gap-3 ${onClick ? "cursor-pointer hover:border-white/20 hover:-translate-y-0.5 active:translate-y-0 transition-all" : "transition-colors"}`}
+    style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}
   >
     <div className="flex items-start justify-between">
       <div
@@ -82,17 +100,161 @@ const MetricCard = ({
   </div>
 );
 
+// ── Compact side stat (sits beside the hero card) ───────────────────────────────
+
+const SideStat = ({
+  icon: Icon, label, value, color, sub, onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number | string;
+  color: string;
+  sub?: string;
+  onClick?: () => void;
+}) => (
+  <div
+    onClick={onClick}
+    className={`rounded-2xl p-4 flex flex-col justify-between gap-3 flex-1 ${onClick ? "cursor-pointer hover:border-white/20 transition-all" : "transition-colors"}`}
+    style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}
+  >
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] text-white/40">{label}</span>
+      <Icon className="w-3.5 h-3.5 shrink-0" style={{ color }} />
+    </div>
+    <div>
+      <p className="text-xl font-bold text-white leading-none">{value}</p>
+      {sub && <p className="text-[10px] text-white/25 mt-1">{sub}</p>}
+    </div>
+  </div>
+);
+
+// ── Hero card: financeiro (padrão, quando há acesso) ────────────────────────────
+
+const FinanceHeroCard = ({
+  finance, onClick,
+}: {
+  finance: FinanceResumo;
+  onClick: () => void;
+}) => {
+  const total = finance.recebido + finance.pendente + finance.vencido;
+  const pct = total > 0 ? Math.round((finance.recebido / total) * 100) : 0;
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-2xl p-6 lg:p-7 h-full cursor-pointer hover:border-white/16 active:scale-[0.995] transition-all relative overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${CARD_BG}, ${CARD_BG_2})`, border: `1px solid ${CARD_BORDER}`, boxShadow: HERO_SHADOW }}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-[0.15] pointer-events-none"
+        style={{ background: "var(--cp-gradient)" }}
+      />
+      <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Wallet className="w-3.5 h-3.5 text-white/40" />
+            <p className="text-xs font-medium uppercase tracking-wider text-white/40">Financeiro</p>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl lg:text-3xl font-bold leading-none tracking-tight" style={{ color: "rgb(74,222,128)" }}>
+              {formatBRL(finance.recebido)}
+            </span>
+            <span className="text-sm text-white/35">recebido</span>
+          </div>
+        </div>
+        <div className="flex items-end gap-6">
+          <div>
+            <p className="text-sm font-bold" style={{ color: "rgb(251,191,36)" }}>{formatBRL(finance.pendente)}</p>
+            <p className="text-[11px] text-white/30 mt-0.5">pendente</p>
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "rgb(248,113,113)" }}>{formatBRL(finance.vencido)}</p>
+            <p className="text-[11px] text-white/30 mt-0.5">vencido</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-white/20 shrink-0" />
+        </div>
+      </div>
+      {total > 0 && (
+        <div className="relative mt-6">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] text-white/40">Taxa de recebimento</span>
+            <span className="text-[11px] font-semibold" style={{ color: "rgb(74,222,128)" }}>{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${pct}%`, background: "linear-gradient(135deg, rgb(74,222,128), rgb(22,163,74))" }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Hero card: clientes ativos (fallback quando não há acesso ao financeiro) ────
+
+const ClientesHeroCard = ({
+  totalClientes, clientesAtivos, onClick,
+}: {
+  totalClientes: number;
+  clientesAtivos: number;
+  onClick: () => void;
+}) => {
+  const pct = totalClientes > 0 ? Math.round((clientesAtivos / totalClientes) * 100) : 0;
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-2xl p-6 lg:p-7 h-full cursor-pointer hover:border-white/16 active:scale-[0.995] transition-all relative overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${CARD_BG}, ${CARD_BG_2})`, border: `1px solid ${CARD_BORDER}`, boxShadow: HERO_SHADOW }}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-[0.15] pointer-events-none"
+        style={{ background: "var(--cp-gradient)" }}
+      />
+      <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 h-full">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2">Clientes ativos</p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl lg:text-5xl font-bold text-white leading-none tracking-tight">{clientesAtivos}</span>
+            <span className="text-sm text-white/35">/ {totalClientes} no total</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 sm:min-w-[180px]">
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-white/40">Taxa de atividade</span>
+              <span className="text-[11px] font-semibold" style={{ color: "var(--cp-400)" }}>{pct}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${pct}%`, background: "var(--cp-gradient)" }}
+              />
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-white/20 shrink-0" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 const CoachDashboard = () => {
   const navigate  = useNavigate();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
-  const { isCollaborator, loading: collabLoading } = useCollaboratorPermissions();
+  const { isCollaborator, can, loading: collabLoading } = useCollaboratorPermissions();
   const [data,    setData]    = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAllAtualizacoes, setShowAllAtualizacoes] = useState(false);
+  const [concluindoId, setConcluindoId] = useState<string | null>(null);
 
-  useEffect(() => { loadDashboard(); }, [orgId]);
+  useEffect(() => {
+    if (collabLoading) return;
+    loadDashboard();
+  }, [orgId, collabLoading]);
 
   const loadDashboard = async () => {
     const session = getSessionDirect();
@@ -107,7 +269,7 @@ const CoachDashboard = () => {
       // RLS filtra automaticamente: treinador vê os seus, colaborador vê os da org
       const { data: alunos } = await supabase
         .from("alunos")
-        .select("id, user_id, ativo, data_fim");
+        .select("id, user_id, ativo, data_fim, anamnese_dispensada");
 
       const allAlunos  = alunos ?? [];
       const ativosArr  = allAlunos.filter((a) => a.ativo);
@@ -117,9 +279,10 @@ const CoachDashboard = () => {
       const today      = new Date();
       const todayStr   = today.toISOString().split("T")[0];
       const in30Str    = new Date(today.getTime() + 30 * 86_400_000).toISOString().split("T")[0];
-      const sevenAgo   = new Date(today.getTime() -  7 * 86_400_000).toISOString();
 
-      const [mensRes, anamneseRes, atualizacoesRes, planosRes] = await Promise.all([
+      const hasFinanceiro = can("gestao", "financeiro");
+
+      const [mensRes, anamneseRes, atualizacoesRes, planosRes, financeRes] = await Promise.all([
         // Unread messages
         supabase
           .from("mensagens")
@@ -132,15 +295,15 @@ const CoachDashboard = () => {
           ? supabase.from("anamneses").select("student_id").in("student_id", userIds)
           : Promise.resolve({ data: [] as any[], error: null }),
 
-        // Recent update submissions (last 7 days)
+        // Pending update submissions (not marked as concluída yet)
         orgId
           ? supabase
               .from("atualizacao_respostas")
               .select("id, submitted_at, student_id")
               .eq("org_id", orgId)
-              .gte("submitted_at", sevenAgo)
+              .eq("concluida", false)
               .order("submitted_at", { ascending: false })
-              .limit(6)
+              .limit(30)
           : Promise.resolve({ data: [] as any[], error: null }),
 
         // Plans expiring in next 30 days
@@ -155,11 +318,16 @@ const CoachDashboard = () => {
               .lte("data_fim", in30Str)
               .order("data_fim", { ascending: true })
           : Promise.resolve({ data: [] as any[], error: null }),
+
+        // Cobranças — só busca se o usuário tem acesso ao módulo financeiro
+        hasFinanceiro && orgId
+          ? supabase.from("cobrancas").select("valor, status").eq("org_id", orgId)
+          : Promise.resolve({ data: [] as any[], error: null }),
       ]);
 
       // ── Anamneses pendentes ──────────────────────────────────
       const anamneseSet = new Set((anamneseRes.data ?? []).map((a: any) => a.student_id));
-      const anamnesesPendentes = allAlunos.filter((a) => a.ativo && !anamneseSet.has(a.user_id)).length;
+      const anamnesesPendentes = allAlunos.filter((a) => a.ativo && !a.anamnese_dispensada && !anamneseSet.has(a.user_id)).length;
 
       // ── Planos vencendo — enrich with names ──────────────────
       let planosVencendo: PlanVencendo[] = [];
@@ -204,6 +372,20 @@ const CoachDashboard = () => {
         }));
       }
 
+      // ── Financeiro (resumo) ───────────────────────────────────
+      let finance: FinanceResumo | null = null;
+      if (hasFinanceiro) {
+        const cobrancas = (financeRes.data ?? []) as { valor: number; status: string }[];
+        finance = {
+          recebido: cobrancas.filter((c) => c.status === "RECEIVED" || c.status === "CONFIRMED")
+            .reduce((sum, c) => sum + Number(c.valor || 0), 0),
+          pendente: cobrancas.filter((c) => c.status === "PENDING")
+            .reduce((sum, c) => sum + Number(c.valor || 0), 0),
+          vencido: cobrancas.filter((c) => c.status === "OVERDUE")
+            .reduce((sum, c) => sum + Number(c.valor || 0), 0),
+        };
+      }
+
       // ── Calls de hoje ────────────────────────────────────────
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
@@ -242,11 +424,27 @@ const CoachDashboard = () => {
         mensagensNaoLidas: mensRes.count ?? 0,
         atualizacoes,
         callsHoje,
+        finance,
       });
     } catch (e: any) {
       toast({ title: "Erro ao carregar resumo", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Marca a atualização como concluída e some da lista de pendentes na hora
+  // (sem esperar recarregar o dashboard inteiro).
+  const concluirAtualizacao = async (id: string) => {
+    setConcluindoId(id);
+    try {
+      const { error } = await supabase.from("atualizacao_respostas").update({ concluida: true }).eq("id", id);
+      if (error) throw error;
+      setData((d) => d ? { ...d, atualizacoes: d.atualizacoes.filter((a) => a.id !== id) } : d);
+    } catch (e: any) {
+      toast({ title: "Erro ao marcar como concluída", description: e.message, variant: "destructive" });
+    } finally {
+      setConcluindoId(null);
     }
   };
 
@@ -268,10 +466,10 @@ const CoachDashboard = () => {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-5xl">
+      <div className="px-6 lg:px-8 py-5 lg:py-6 w-full">
 
         {/* ── Greeting ─────────────────────────────────────────── */}
-        <div className="mb-8">
+        <div className="mb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
             {greeting}, {data.coachName.split(" ")[0]}!
           </h1>
@@ -280,54 +478,103 @@ const CoachDashboard = () => {
           </p>
         </div>
 
-        {/* ── Metric cards ─────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 mb-8">
-          <MetricCard
-            icon={Users}
-            label="Clientes Ativos"
-            value={data.clientesAtivos}
-            color="rgb(74,222,128)"
-            sub={`${data.totalClientes} no total`}
-            onClick={() => navigate(`/${slug}/treinador/clientes?filter=ativos`)}
-          />
+        {/* ── Hero row: destaque + stats compactos ─────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4 items-stretch">
+          <div className="lg:col-span-2">
+            {data.finance ? (
+              <FinanceHeroCard
+                finance={data.finance}
+                onClick={() => navigate(`/${slug}/treinador/financeiro`)}
+              />
+            ) : (
+              <ClientesHeroCard
+                totalClientes={data.totalClientes}
+                clientesAtivos={data.clientesAtivos}
+                onClick={() => navigate(`/${slug}/treinador/clientes?filter=ativos`)}
+              />
+            )}
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+            {data.finance ? (
+              <>
+                <SideStat
+                  icon={Users}
+                  label="Clientes Ativos"
+                  value={data.clientesAtivos}
+                  color="rgb(74,222,128)"
+                  sub={`${data.totalClientes} no total`}
+                  onClick={() => navigate(`/${slug}/treinador/clientes?filter=ativos`)}
+                />
+                <SideStat
+                  icon={MessageSquare}
+                  label="Mensagens"
+                  value={data.mensagensNaoLidas}
+                  color="var(--cp-400)"
+                  sub={data.mensagensNaoLidas === 0 ? "nenhuma não lida" : "não lida" + (data.mensagensNaoLidas !== 1 ? "s" : "")}
+                  onClick={() => navigate(`/${slug}/treinador/mensagens`)}
+                />
+              </>
+            ) : (
+              <>
+                <SideStat
+                  icon={MessageSquare}
+                  label="Mensagens"
+                  value={data.mensagensNaoLidas}
+                  color="var(--cp-400)"
+                  sub={data.mensagensNaoLidas === 0 ? "nenhuma não lida" : "não lida" + (data.mensagensNaoLidas !== 1 ? "s" : "")}
+                  onClick={() => navigate(`/${slug}/treinador/mensagens`)}
+                />
+                <SideStat
+                  icon={ClipboardCheck}
+                  label="Anamneses Pendentes"
+                  value={data.anamnesesPendentes}
+                  color="rgb(129,140,248)"
+                  sub="clientes sem preencher"
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Operacional ───────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-2.5">
+          <Activity className="w-3.5 h-3.5 text-white/30" />
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">Operacional</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
           <MetricCard
             icon={RefreshCw}
-            label="Novas Atualizações"
+            label="Atualizações Pendentes"
             value={data.atualizacoes.length}
             color="rgb(251,191,36)"
-            sub="nos últimos 7 dias"
+            sub="aguardando revisão"
             onClick={data.atualizacoes.length > 0 ? () => navigate(`/${slug}/treinador/clientes`) : undefined}
           />
           <MetricCard
-            icon={ClipboardCheck}
-            label="Anamneses Pendentes"
-            value={data.anamnesesPendentes}
-            color="rgb(129,140,248)"
-            sub="clientes sem preencher"
+            icon={Phone}
+            label="Calls Hoje"
+            value={data.callsHoje.length}
+            color="#c084fc"
+            sub={data.callsHoje.length === 0 ? "nenhuma agendada" : "agendadas pra hoje"}
+            onClick={data.callsHoje.length > 0 ? () => navigate(`/${slug}/treinador/leads`) : undefined}
           />
-          <MetricCard
-            icon={Clock}
-            label="Planos Vencendo"
-            value={data.planosVencendo.length}
-            color="rgb(251,146,60)"
-            sub="nos próximos 30 dias"
-          />
-          <MetricCard
-            icon={MessageSquare}
-            label="Mensagens"
-            value={data.mensagensNaoLidas}
-            color="var(--cp-400)"
-            sub={data.mensagensNaoLidas === 0 ? "nenhuma não lida" : "não lida" + (data.mensagensNaoLidas !== 1 ? "s" : "")}
-            onClick={() => navigate(`/${slug}/treinador/mensagens`)}
-          />
+          {data.finance && (
+            <MetricCard
+              icon={ClipboardCheck}
+              label="Anamneses Pendentes"
+              value={data.anamnesesPendentes}
+              color="rgb(129,140,248)"
+              sub="clientes sem preencher"
+            />
+          )}
         </div>
 
         {/* ── Two-column lists ─────────────────────────────────── */}
-        <div className="grid lg:grid-cols-2 gap-5">
+        <div className="grid lg:grid-cols-2 gap-4">
 
           {/* Planos vencendo */}
-          <div className="rounded-2xl border border-white/8 overflow-hidden"
-            style={{ backgroundColor: "var(--surface-1)" }}>
+          <div className="rounded-2xl overflow-hidden"
+            style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}>
             <div className="px-5 py-4 flex items-center justify-between"
               style={{ borderBottom: "1px solid var(--border-subtle)" }}>
               <div className="flex items-center gap-2.5">
@@ -336,6 +583,10 @@ const CoachDashboard = () => {
                   <Clock className="w-3.5 h-3.5" style={{ color: "rgb(251,146,60)" }} />
                 </div>
                 <p className="text-sm font-semibold text-white/80">Planos Vencendo</p>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "rgba(251,146,60,0.12)", color: "rgb(251,146,60)" }}>
+                  {data.planosVencendo.length}
+                </span>
               </div>
               <button
                 onClick={() => navigate(`/${slug}/treinador/clientes`)}
@@ -381,48 +632,78 @@ const CoachDashboard = () => {
             )}
           </div>
 
-          {/* Últimas atualizações */}
-          <div className="rounded-2xl border border-white/8 overflow-hidden"
-            style={{ backgroundColor: "var(--surface-1)" }}>
+          {/* Atualizações pendentes */}
+          <div className="rounded-2xl overflow-hidden"
+            style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}>
             <div className="px-5 py-4 flex items-center gap-2.5"
               style={{ borderBottom: "1px solid var(--border-subtle)" }}>
               <div className="w-7 h-7 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: "rgba(251,191,36,0.12)" }}>
                 <RefreshCw className="w-3.5 h-3.5" style={{ color: "rgb(251,191,36)" }} />
               </div>
-              <p className="text-sm font-semibold text-white/80">Últimas Atualizações</p>
+              <p className="text-sm font-semibold text-white/80">Atualizações Pendentes</p>
+              {data.atualizacoes.length > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "rgba(251,191,36,0.12)", color: "rgb(251,191,36)" }}>
+                  {data.atualizacoes.length}
+                </span>
+              )}
             </div>
 
             {data.atualizacoes.length === 0 ? (
               <div className="px-5 py-12 text-center">
                 <p className="text-sm" style={{ color: "var(--text-dim)" }}>
-                  Nenhuma atualização recebida nos últimos 7 dias.
+                  Nenhuma atualização pendente. Tudo revisado!
                 </p>
               </div>
             ) : (
               <div>
-                {data.atualizacoes.map((a) => (
-                  <button
+                {(showAllAtualizacoes ? data.atualizacoes : data.atualizacoes.slice(0, 3)).map((a) => (
+                  <div
                     key={a.id}
-                    onClick={() => a.alunoId ? navigate(`/${slug}/treinador/aluno/${a.alunoId}`) : undefined}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/3 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/3 transition-colors"
                     style={{ borderBottom: "1px solid var(--border-dim)" }}
                   >
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
-                      style={{ background: "var(--cp-gradient)" }}
+                    <button
+                      onClick={() => a.alunoId ? navigate(`/${slug}/treinador/aluno/${a.alunoId}`) : undefined}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
-                      {a.nome.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white/75 truncate">{a.nome}</p>
-                      <p className="text-[11px] text-white/30 mt-0.5">
-                        {formatDistanceToNow(new Date(a.submitted_at), { locale: ptBR, addSuffix: true })}
-                      </p>
-                    </div>
-                    {a.alunoId && <ArrowRight className="w-3.5 h-3.5 text-white/15 shrink-0" />}
-                  </button>
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold text-white"
+                        style={{ background: "var(--cp-gradient)" }}
+                      >
+                        {a.nome.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white/75 truncate">{a.nome}</p>
+                        <p className="text-[11px] text-white/30 mt-0.5">
+                          {formatDistanceToNow(new Date(a.submitted_at), { locale: ptBR, addSuffix: true })}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => concluirAtualizacao(a.id)}
+                      disabled={concluindoId === a.id}
+                      title="Marcar como concluída"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+                      style={{ backgroundColor: "rgba(74,222,128,0.12)" }}
+                    >
+                      {concluindoId === a.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "#4ade80" }} />
+                        : <Check className="w-3.5 h-3.5" style={{ color: "#4ade80" }} />
+                      }
+                    </button>
+                  </div>
                 ))}
+                {data.atualizacoes.length > 3 && (
+                  <button
+                    onClick={() => setShowAllAtualizacoes((v) => !v)}
+                    className="w-full text-center py-3 text-xs font-medium transition-colors hover:bg-white/3"
+                    style={{ color: "var(--btn-soft-color)" }}
+                  >
+                    {showAllAtualizacoes ? "Mostrar menos" : `Ver todas (${data.atualizacoes.length})`}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -431,8 +712,8 @@ const CoachDashboard = () => {
 
         {/* ── Calls de Hoje ─────────────────────────────────── */}
         {data.callsHoje.length > 0 && (
-          <div className="mt-5 rounded-2xl border border-white/8 overflow-hidden"
-            style={{ backgroundColor: "var(--surface-1)" }}>
+          <div className="mt-4 rounded-2xl overflow-hidden"
+            style={{ backgroundColor: CARD_BG, border: `1px solid ${CARD_BORDER}`, boxShadow: CARD_SHADOW }}>
             <div className="px-5 py-4 flex items-center justify-between"
               style={{ borderBottom: "1px solid var(--border-subtle)" }}>
               <div className="flex items-center gap-2.5">

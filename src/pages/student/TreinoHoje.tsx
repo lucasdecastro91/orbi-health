@@ -18,6 +18,7 @@ interface SerieDetalhe {
   repeticoes: string;
   tipo_calculo: TipoCalculo;
   valor_calculo: string;
+  quantidade: number; // quantas séries físicas este bloco representa (default 1)
 }
 
 interface Exercicio {
@@ -51,9 +52,27 @@ const parseSeries = (s: string): number => {
   return isNaN(n) ? 3 : Math.max(1, Math.min(n, 20));
 };
 
-/** Returns number of sets to track: series_detalhadas.length if present, else parseSeries */
+/**
+ * Um bloco de series_detalhadas pode valer por várias séries físicas (campo
+ * `quantidade`, ex: "3x Work Set 9-12 reps" = 1 bloco, 3 séries reais). Sem essa
+ * expansão, telas que iteram direto sobre o array (1 item = 1 série) perdem as
+ * séries extras de qualquer bloco com quantidade > 1 — eram descartadas em
+ * silêncio, sem aparecer em lugar nenhum pro aluno.
+ */
+const expandSeries = (series: SerieDetalhe[]): SerieDetalhe[] => {
+  const result: SerieDetalhe[] = [];
+  for (const s of series) {
+    const n = s.quantidade ?? 1;
+    for (let k = 0; k < n; k++) result.push(s);
+  }
+  return result;
+};
+
+/** Returns number of physical sets to track (soma de `quantidade` por bloco, não a contagem de blocos) */
 const getNumSets = (ex: Exercicio): number => {
-  if (ex.series_detalhadas && ex.series_detalhadas.length > 0) return ex.series_detalhadas.length;
+  if (ex.series_detalhadas && ex.series_detalhadas.length > 0) {
+    return ex.series_detalhadas.reduce((sum, s) => sum + (s.quantidade ?? 1), 0);
+  }
   return parseSeries(ex.series);
 };
 
@@ -366,6 +385,7 @@ const TreinoHoje = () => {
           repeticoes:    s.repeticoes ?? '',
           tipo_calculo:  s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
           valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
+          quantidade:    typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
         });
 
         const sortedExs = [...(treinoData.exercicios as any[])].sort(
@@ -390,6 +410,7 @@ const TreinoHoje = () => {
                   repeticoes: ex.repeticoes || '',
                   tipo_calculo: 'manual' as TipoCalculo,
                   valor_calculo: '',
+                  quantidade: 1,
                 }));
               })();
 
@@ -627,9 +648,11 @@ const TreinoHoje = () => {
             const exDone    = completedSets[ex.id]?.size ?? 0;
             const allExDone = exDone >= numSets;
             const isActive  = ex.id === activeExId;
+            // Expande os blocos por `quantidade` — 1 item aqui = 1 série física de verdade
+            const expandedSd = ex.series_detalhadas ? expandSeries(ex.series_detalhadas) : null;
             // Pre-compute groupings for X/N counter (consecutive same-tipo runs)
-            const serieGroupings = ex.series_detalhadas
-              ? getSerieGrouping(ex.series_detalhadas)
+            const serieGroupings = expandedSd
+              ? getSerieGrouping(expandedSd)
               : null;
 
             return (
@@ -718,7 +741,7 @@ const TreinoHoje = () => {
                           }}
                         >
                           {ex.series_detalhadas?.length
-                            ? `${ex.series_detalhadas.length} séries`
+                            ? `${numSets} séries`
                             : `${ex.series}× ${ex.repeticoes}`}
                         </span>
 
@@ -813,7 +836,7 @@ const TreinoHoje = () => {
                 <div className="px-3 py-2 space-y-1">
                   {Array.from({ length: numSets }).map((_, i) => {
                     const isDone   = completedSets[ex.id]?.has(i) ?? false;
-                    const detalhe  = ex.series_detalhadas?.[i];
+                    const detalhe  = expandedSd?.[i];
                     const tipoCfg  = detalhe
                       ? (SERIE_TIPO_CONFIG[detalhe.tipo] ?? {
                           label: detalhe.tipo || 'Custom',
@@ -1016,7 +1039,7 @@ const TreinoHoje = () => {
           if (!grupo) return;
           let vol = 0;
           if (ex.series_detalhadas && ex.series_detalhadas.length > 0) {
-            vol = ex.series_detalhadas.reduce((acc, s) => acc + parseRepsNum(s.repeticoes), 0);
+            vol = ex.series_detalhadas.reduce((acc, s) => acc + parseRepsNum(s.repeticoes) * (s.quantidade ?? 1), 0);
           } else {
             const sets = parseInt(ex.series) || 0;
             const reps = parseRepsNum(ex.repeticoes);
