@@ -4,8 +4,9 @@
     {
       "name": "landing-page",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "landing-page", "-p", "5501"],
-      "port": 5501
+      "runtimeArgs": ["serve", "landing-page"],
+      "port": 5501,
+      "autoPort": true
     },
     {
       "name": "logos-preview",
@@ -16,7 +17,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite"],
+      "runtimeArgs": ["vite", "--host"],
       "port": 8080,
       "autoPort": true
     }

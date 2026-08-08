@@ -27,7 +27,7 @@
 
 /* === RESET === */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: hidden; max-width: 100%; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: hidden; max-width: 100%; background-color: var(--bg); }
 body {
   font-family: 'Inter', var(--font);
   background: linear-gradient(160deg, #0a0a0a 0%, #051a0d 40%, #0a0a0a 70%, #020d05 100%);
@@ -1302,6 +1302,33 @@ ul { list-style: none; }
   transition: color var(--ease);
 }
 .footer__legal-link:hover { color: rgba(255,255,255,0.5); }
+
+.footer__nav-break { display: none; }
+
+@media (max-width: 768px) {
+  /* Referência Prime: logo, atalhos e redes sociais empilhados e
+     centralizados no mobile (era layout horizontal space-between
+     herdado do desktop). */
+  .footer__main-row {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  /* Força "Preços" pra segunda linha junto de "Dúvidas" — sem isso o
+     wrap natural do flex deixa só "Dúvidas" sozinho, desequilibrado. */
+  .footer__nav-break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+  .footer__bottom-inner {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    gap: .5rem;
+  }
+  .footer__legal { justify-content: center; }
+}
 
 /* ============================================================
    SEÇÃO DOR / PROBLEMA
