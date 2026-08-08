@@ -4,8 +4,16 @@
     {
       "name": "landing-page",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", ".", "-p", "5501"],
-      "port": 5501
+      "runtimeArgs": ["serve", "."],
+      "port": 5501,
+      "autoPort": true
+    },
+    {
+      "name": "app-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", ".."],
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }

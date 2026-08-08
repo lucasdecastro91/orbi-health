@@ -62,14 +62,20 @@ function initMobileMenu() {
   });
 }
 
-/* --- Smooth scroll para âncoras internas (respeita altura do header fixo) --- */
+/* --- Smooth scroll para âncoras internas (respeita altura do header fixo) ---
+   No mobile o header deixou de ser fixed (rola junto com a página — ver
+   .header em style.css), então não tem mais nada sobrepondo o topo pra
+   compensar ali. Em vez de um offset fixo de 80px (certo só quando o
+   header é fixed, no desktop), mede a altura do header só quando ele
+   está mesmo fixed. */
 function initSmoothScroll() {
+  const header = document.querySelector('.header');
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', e => {
       const target = document.querySelector(link.getAttribute('href'));
       if (!target) return;
       e.preventDefault();
-      const offset = 80;
+      const offset = header && getComputedStyle(header).position === 'fixed' ? header.offsetHeight : 0;
       const top = target.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top, behavior: 'smooth' });
     });

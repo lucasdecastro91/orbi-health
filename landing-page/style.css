@@ -171,6 +171,15 @@ ul { list-style: none; }
 #problema, #white-label, #financeiro, #app-aluno, #precos, #faq, #por-que, #painel-treinador, #colaboradores {
   scroll-margin-top: 80px;
 }
+@media (max-width: 768px) {
+  /* No mobile o header deixa de ser fixed (rola junto com a página — ver
+     bloco @media perto de .header), então não tem mais nada sobrepondo o
+     topo da seção ao navegar por âncora. Sem isso sobrava um vão de 80px
+     vazio acima da seção. */
+  #problema, #white-label, #financeiro, #app-aluno, #precos, #faq, #por-que, #painel-treinador, #colaboradores {
+    scroll-margin-top: 0;
+  }
+}
 
 /* ============================================================
    HEADER
@@ -184,6 +193,35 @@ ul { list-style: none; }
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   transition: box-shadow var(--ease), border-color var(--ease);
+}
+@media (max-width: 768px) {
+  /* Header deixa de ser fixo/flutuante no mobile — passa a rolar junto com
+     a página, como na referência (design-references/prime mobile).
+     Tentei duas vezes dar ao header seu próprio degradê preto→verde
+     tentando "bater" com a cor inicial do degradê da .hero-section — mas
+     por mais que a cor na emenda fosse idêntica, ainda dava pra perceber
+     a transição como "forçada" ali especificamente, porque continuavam
+     sendo DOIS degradês desenhados separadamente (curvas diferentes nas
+     bordas), não um só.
+     Solução de verdade: o header fica com fundo transparente (nenhuma
+     cor própria) e é a .hero-section — com o MESMO degradê que já existe
+     e já é a referência de "transição natural" (ali onde a headline vai
+     escurecendo pro texto abaixo) — que estica pra trás do header via
+     margin-top negativo (ver .hero-section logo abaixo). Logo e menu só
+     flutuam por cima desse único fundo contínuo, como se o header nem
+     existisse. */
+  .header {
+    position: relative;
+    top: auto; left: auto; right: auto;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: none;
+  }
+  .header.scrolled {
+    border-bottom-color: transparent;
+    box-shadow: none;
+  }
 }
 .header.scrolled {
   border-bottom-color: rgba(22, 163, 74, 0.15);
@@ -486,10 +524,31 @@ ul { list-style: none; }
   .hero-section { overflow: visible; }
   body { overflow-x: hidden; }
 
-  /* Reduz o respiro fixo entre o header (68px, position:fixed) e o início
-     do conteúdo — metade do espaço extra que existia antes (140px = 68px de
-     header + 72px de respiro; agora 68px + 36px). */
-  .hero-section { padding-top: 104px; padding-bottom: 50px; }
+  /* Header deixou de ser fixed no mobile e agora é transparente (ver
+     @media perto de .header) — o degradê dele mesmo (já usado como
+     referência do "natural e fluido") estica pra trás do header via
+     margin-top negativo do tamanho exato do header (68px), então logo/
+     menu flutuam sobre um fundo único e contínuo, sem nenhum degradê
+     próprio no header. padding-top compensa a margem negativa (68+36=104,
+     os mesmos 36px de respiro "de fato" de antes) pra o conteúdo da hero
+     (headline, texto, botões) continuar exatamente na mesma posição
+     visual — só a CAIXA do degradê é que fica maior, o texto não desce. */
+  .hero-section {
+    margin-top: -68px;
+    padding-top: 104px;
+    padding-bottom: 50px;
+    /* Camada extra só de escurecimento, por cima do degradê verde de
+       sempre (repetido aqui como 2ª camada — precisa citar o mesmo valor
+       porque "background" é shorthand e substitui a regra base inteira).
+       Começa forte bem em cima (logo/menu) e some aos poucos até bem
+       depois do header (~55% da altura da hero) — fade largo de propósito,
+       pra não criar uma segunda linha de corte tão suave quanto o degradê
+       verde original, só reforça contraste onde a logo está sem quebrar
+       a continuidade. */
+    background:
+      linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.22) 30%, transparent 55%),
+      linear-gradient(to bottom, rgba(22,163,74,0.32) 0%, rgba(22,163,74,0.08) 30%, transparent 55%);
+  }
   .hero-inner { padding: 0 24px; gap: 3rem; }
   .hero-mockup-container { height: 520px; overflow: visible; }
   /* 230px era o valor da regra base (menor breakpoint), não o do desktop de
@@ -680,6 +739,13 @@ ul { list-style: none; }
   background: radial-gradient(ellipse 80% 50% at 50% 40%, rgba(22,163,74,0.12) 0%, transparent 70%);
 }
 @media (min-width: 768px) { .why-orbi { padding: 5.5rem 0; } }
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px (mesmo valor de todas as transições da
+     página) — financeiro→por-que-a-orbi era 129px (o padding-bottom da
+     financeiro, 100px, nunca foi tocado), então só 4px de padding-top
+     aqui já fecha em 104px. */
+  .why-orbi { padding-top: 4px; }
+}
 
 .why-block {
   display: grid;
@@ -711,6 +777,51 @@ ul { list-style: none; }
   font-size: 1.0625rem;
   color: var(--text-muted);
   line-height: 1.75;
+}
+
+/* Respiro entre os 3 blocos da seção — valores que estavam inline no HTML,
+   movidos pra cá pra dar pra sobrescrever no mobile (estilo inline nunca
+   perde pra regra de @media). */
+.why-block--1 { padding: 5rem 0; margin-bottom: 2rem; }
+.why-block--2 { margin-top: 6rem; padding: 2.5rem 0 0; }
+.why-block--3 { margin-top: 6rem; padding: 2.5rem 0 0; }
+
+@media (max-width: 768px) {
+  /* Respiro entre blocos reduzido (mesmo espírito das reduções nas seções
+     anteriores) — mantém o padding-top do bloco 1 intocado (é o respiro
+     entre o cabeçalho da seção e o primeiro bloco, não "entre os blocos").
+     margin-bottom:0 no bloco 2 é necessário pra zerar a regra genérica
+     .why-block{margin-bottom:5rem} (vale pra todo mundo que não é
+     :last-child) — sem isso sobravam 80px extras ali, sem eu ter setado
+     nada explicitamente. */
+  .why-block--1 { padding-bottom: 1.5rem; margin-bottom: 1rem; }
+  .why-block--2 { margin-top: 2rem; margin-bottom: 0; padding-top: 1rem; }
+  /* Respiro visual real do bloco1→2 é 104px (32px de padding embutido na
+     imagem do bloco 1 — do gradiente de fundo, .why-block__image tem
+     padding:2rem 0 inline — + 24px do padding-bottom do próprio bloco 1
+     + a margem colapsada de 32px). O bloco 2 não tem esse padding extra
+     na imagem nem padding-bottom próprio, então sobrava só 48px aqui.
+     4.5rem (em vez de 1rem) fecha a conta pra bater exatamente com os
+     104px do outro lado. */
+  .why-block--3 { margin-top: 2rem; padding-top: 4.5rem; }
+
+  /* Blocos 2 e 3 tinham imagem antes do texto no DOM (desktop usa isso
+     pra alternar visual esquerda/direita) — no mobile (1 coluna) isso
+     empilhava imagem-depois-texto, diferente do bloco 1. Com o respiro
+     entre blocos bem menor agora, a inconsistência ficava mais visível.
+     .why-block continua display:grid no mobile (só muda de 2 colunas
+     pra 1), então "order" no item de texto já resolve sem tocar HTML
+     nem no desktop. */
+  .why-block--2 .why-block__text,
+  .why-block--3 .why-block__text {
+    order: -1;
+  }
+
+  /* Título dos blocos estava perto demais do tamanho do texto abaixo
+     (22px vs 17px) — mesmo ajuste já aplicado entre .pain-title/
+     .pain-subtitle (título sobe, texto desce, aumentando o contraste). */
+  .why-block__title { font-size: 1.625rem; }
+  .why-block__desc { font-size: .9375rem; }
 }
 
 /* Placeholder de imagem (substituir por screenshot real) */
@@ -814,6 +925,11 @@ ul { list-style: none; }
   background: transparent;
 }
 @media (min-width: 768px) { .pricing { padding: 5.5rem 0; } }
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 108px). */
+  .pricing { padding-top: 60px; }
+}
 
 .pricing__grid {
   display: grid;
@@ -1049,6 +1165,11 @@ ul { list-style: none; }
   background: transparent;
   position: relative;
   overflow: hidden;
+}
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 169px). */
+  .cta-final { padding-top: 15px; }
 }
 .cta-final::before {
   content: '';
@@ -1530,8 +1651,11 @@ ul { list-style: none; }
 
 /* Mobile */
 @media (max-width: 768px) {
-  /* Respiro entre a hero e essa seção reduzido pela metade (era ~188px). */
-  .pain-section { padding-top: 2rem; }
+  /* Respiro entre a hero e essa seção — padronizado em 104px (mesmo valor
+     usado em todas as outras transições da página) via padding-top aqui;
+     era 32px, gerava 110px de respiro real (a folga do lado da hero
+     entra também). */
+  .pain-section { padding-top: 1.625rem; }
   .pain-diagram { display: none; }
   .pain-compare__inner { grid-template-columns: 1fr; gap: 1.25rem; }
   .pain-divider { padding: .25rem 0; }
@@ -2008,6 +2132,14 @@ ul { list-style: none; }
 
 /* bloco 2 financeiro full-width */
 .why-block-full { margin-bottom: 5rem; }
+@media (max-width: 768px) {
+  /* Essa margem some com o padding-bottom da própria .financeiro-section
+     (100px, nunca mexido) + o padding-top já reduzido de .why-orbi (29px)
+     — resultava num respiro de 209px até "Por Que a Orbi", bem maior que
+     o padrão de ~77px das outras transições (que só reduzem o padding-top
+     da seção seguinte, sem redundância extra como essa). Zerando aqui. */
+  .why-block-full { margin-bottom: 0; }
+}
 .why-block-full__text { text-align: center; max-width: 1060px; margin: 0 auto 2.5rem; }
 .why-block-full__text .why-block__title { font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.15; margin-bottom: 1rem; }
 .why-block-full__text .why-block__desc { font-size: 1.1rem; max-width: 680px; margin: 0 auto 1.5rem; }
@@ -2047,6 +2179,12 @@ ul { list-style: none; }
 .financeiro-item__name { display: block; font-size: 13px; font-weight: 500; color: #bbf7d0; }
 .financeiro-item__sub { display: block; font-size: 11px; color: #1f5c28; margin-top: 1px; }
 .financeiro-item__detail { display: block; font-size: 12px; color: #22c55e; margin-top: 3px; font-weight: 500; }
+/* Versão mobile do detalhe da cobrança, em 2 linhas (valor+forma de
+   pagamento / vencimento) em vez de 1 linha só com os 3 pedaços — no
+   desktop a coluna é bem mais larga e a linha única (.financeiro-item__detail
+   acima) já cabe sem problema, então essa versão fica escondida lá.
+   Ver @media perto de .financeiro-section pro toggle. */
+.financeiro-item__detail-mobile { display: none; }
 .financeiro-item__actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .fin-btn { border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 500; cursor: default; border: 1px solid; }
 .fin-btn--neutral { background: #071409; border-color: #0d2a12; color: #4ade80; }
@@ -2065,6 +2203,11 @@ ul { list-style: none; }
   background: transparent;
 }
 @media (min-width: 768px) { .painel-treinador { padding: 5.5rem 0; } }
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 132px). */
+  .painel-treinador { padding-top: 36px; }
+}
 
 .painel-treinador__grid {
   display: grid;
@@ -2213,6 +2356,55 @@ ul { list-style: none; }
   line-height: 1.3;
 }
 
+@media (max-width: 768px) {
+  /* Altura fixa (420px) era pensada pro desktop — com os cards menores
+     (ver abaixo), sobrava ~160px de espaço vazio dentro da caixa antes
+     do .dashboard-strip começar (ele é o próximo elemento em fluxo
+     normal, sem margin próprio — o "respiro" era só esse vazio interno
+     do diagrama). Os cards do meio usam top:50% (centralizados), então
+     reduzir a altura pela metade só desce ELES pela metade da redução —
+     340px só cortava o vazio de 160px pra 120px, não pra 80px. 260px é
+     o valor que realmente fecha a conta em ~80px (metade dos 160px
+     originais). O resto da página desce naturalmente com esse mesmo
+     diagrama mais compacto, sem precisar tocar em nenhum outro
+     espaçamento. */
+  .dashboard-float { height: 260px; }
+
+  /* Diagrama orbital foi desenhado pro desktop (canvas de 860px) — os 5
+     cards satélite (min-width:148px) e o hub (148px) se sobrepunham
+     pesado num container de 343px, já que as posições top/left/right em
+     % ficam mantidas (pedido explícito: manter a posição, só encolher).
+     Contas feitas com as posições reais medidas no mobile: o card do
+     topo-centro ("Clientes Ativos", centralizado) só para de sobrepor os
+     cards de canto (top:4%, left/right:1%) com no máximo ~112px de
+     largura; os cards do meio (top:50%, left/right:-1%, "sangrando" pra
+     fora da borda de propósito) só param de cobrir o hub central com
+     no máximo ~117px somando os dois. 100px pros cards e ~104px pro hub
+     ficam dentro dessa margem com folga. */
+  .df-card {
+    width: 100px;
+    min-width: 100px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .df-card__icon {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+  }
+  .df-card__icon svg { width: 13px; height: 13px; }
+  .df-card__value { font-size: 17px; margin-bottom: 2px; }
+  .df-card__label { font-size: 9px; }
+  .df-card__desc { font-size: 7.5px; margin-top: 2px; }
+
+  .dashboard-float__hub { width: 104px; height: 104px; }
+  .dashboard-float__hub-inner { width: 96px; height: 96px; }
+  .df-hub-label { font-size: 6px; }
+  .df-hub-value { font-size: 14px; }
+  .df-hub-sub { font-size: 7px; }
+}
+
 /* Strip de benefícios */
 .dashboard-strip {
   display: flex;
@@ -2248,6 +2440,40 @@ ul { list-style: none; }
   flex-shrink: 0;
 }
 
+@media (max-width: 768px) {
+  /* 3 itens lado a lado (min-width:200px cada, 600px+ total) nunca
+     cabiam nos ~343px do mobile — o flex-wrap forçava cada um pra sua
+     própria linha, mas o separador vertical (pensado pra ficar ENTRE
+     itens lado a lado) sobrava solto, sem sentido entre itens
+     empilhados. Empilha de propósito (coluna) e vira o separador na
+     horizontal, virando um divisor entre cada card. */
+  .dashboard-strip {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.1rem 1.25rem;
+  }
+  .dashboard-strip__item {
+    padding: 0.9rem 0;
+    min-width: 0;
+    flex: none;
+  }
+  /* 2 linhas por card (menos vazio à direita do que as 3 linhas de
+     antes) — 250px é largo o bastante pra sobrar pouco espaço à direita
+     e ainda deixar a descrição inteira de cada card (a mais longa é
+     "Faturamento recorrente e automatizado") cabendo numa linha só,
+     sem virar 3 no total — testado, abaixo de 250px ela já quebrava
+     sozinha em 2 linhas. */
+  .dashboard-strip__item span { max-width: 250px; }
+  /* Título+travessão sempre na 1ª linha, descrição inteira na 2ª — sem
+     essa quebra manual, a 1ª palavra da descrição ("Faturamento",
+     "Aluno", "Menos") ia entrar na linha do título por wrap natural. */
+  .dashboard-strip__desc-break { display: block; }
+  .dashboard-strip__sep {
+    width: 100%;
+    height: 1px;
+  }
+}
+
 /* Animações */
 @keyframes df-hub-pulse {
   0%, 100% { box-shadow: 0 0 0 8px rgba(74,222,128,0.04), 0 0 40px rgba(74,222,128,0.15), 0 0 80px rgba(74,222,128,0.07); }
@@ -2267,12 +2493,25 @@ ul { list-style: none; }
   background: transparent;
 }
 @media (min-width: 768px) { .app-aluno { padding: 5.5rem 0; } }
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 148px). */
+  .app-aluno { padding-top: 20px; }
+}
 
 .app-aluno__inner {
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
   align-items: center;
+}
+@media (max-width: 1023px) {
+  /* Respiro padronizado em 104px (mesmo valor de todas as transições da
+     página) — o carrossel tem 47.5px de centralização interna própria
+     (.carousel-spotlight é mais alto que o phone-wrap real, ver ali),
+     então 56px de gap aqui + esses 47.5px somam ~104px de respiro visual
+     real até o celular aparecer de fato. */
+  .app-aluno__inner { gap: 56px; }
 }
 @media (min-width: 1024px) {
   .app-aluno__inner {
@@ -2287,6 +2526,15 @@ ul { list-style: none; }
   min-width: 0;
   width: 100%;
   text-align: center;
+}
+@media (max-width: 1023px) {
+  /* flex:0 1 500px define LARGURA no layout em linha do desktop — em
+     coluna (mobile, .app-aluno__inner sem flex-direction:row ainda) esse
+     mesmo valor vira ALTURA (500px fixos), sobrando ~240px de vazio
+     depois do texto real, bem mais curto que isso. flex:none volta o
+     básico (0 1 auto), a caixa passa a acompanhar a altura real do
+     conteúdo. */
+  .app-aluno__content { flex: none; }
 }
 @media (min-width: 1024px) {
   .app-aluno__content {
@@ -2790,8 +3038,16 @@ ul { list-style: none; }
   padding: 100px 0;
 }
 @media (max-width: 768px) {
-  /* Mesmo respiro padrão estabelecido entre hero e "O problema" (~106px). */
-  .whitelabel-section { padding-top: 29px; }
+  /* Respiro padronizado em 104px em todas as transições da página.
+     padding-top: 27px fecha a conta do lado de cima (problema→white-label
+     era 106px, só 2px de diferença). padding-bottom: 52px é novo — do
+     lado de baixo (white-label→financeiro), a soma de padding-bottom
+     (100px, nunca tinha sido tocado) + margem própria dos dots do
+     carrossel (28px) dava 157px de respiro ali, bem mais que o padrão;
+     as outras transições resolviam só mexendo no padding-top da seção
+     seguinte, mas aqui a sobra do lado de cima é grande demais sozinha
+     (128px) — precisa reduzir dos dois lados pra fechar em 104px exatos. */
+  .whitelabel-section { padding-top: 27px; padding-bottom: 52px; }
   /* Respiro entre a headline e os mockups reduzido pela metade (era 68px).
      .section-header é classe genérica (usada em várias seções) — não
      mexo na regra base, só aqui. */
@@ -2829,8 +3085,18 @@ ul { list-style: none; }
 
 .wl-scaler {
   border: 2px solid #2a2a2a;
-  overflow: hidden;
   position: relative;
+}
+
+/* Recorte da tela (cantos arredondados) fica num elemento à parte —
+   se ficasse no mesmo elemento do box-shadow (brilho por marca, inline
+   no HTML), o overflow:hidden corta o brilho nas bordas retas da caixa
+   e gera aquele efeito de "moldura quadrada" ao redor do glow. */
+.wl-scaler-clip {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .wl-scaler--side {
@@ -2886,7 +3152,31 @@ ul { list-style: none; }
 }
 
 @media (max-width: 768px) {
-  .wl-carousel-viewport { overflow: hidden; }
+  /* overflow:hidden aqui é necessário só pra esconder os celulares
+     vizinhos do carrossel — mas isso corta também o brilho (box-shadow)
+     em qualquer direção que "sobre" da caixa. Tentei antes só esconder
+     o eixo X (overflow-x:hidden + overflow-y:visible), mas o navegador
+     converte esse "visible" pra "auto" quando o outro eixo não é
+     visible — e "auto" AINDA corta box-shadow (só "visible" de verdade
+     não corta). Confirmado no celular: linha reta cortando o brilho
+     em cima continuava mesmo com overflow-y:visible.
+     Correção real: manter overflow:hidden nos dois eixos (comportamento
+     confiável), mas esticar a caixa de recorte bem além do conteúdo
+     (margem negativa + padding igual, que se cancelam) — assim o brilho
+     tem espaço de sobra pra sumir antes de encostar na borda do recorte.
+     130px cobre a pior sombra (celular azul central, sombra de
+     profundidade offset 40px + blur 80px = até 120px pra baixo).
+     Nas laterais o padding do .container (1rem) já apertava a folga
+     (~34px); estica até a borda da tela, que é o máximo que cabe
+     fisicamente num celular de 274px numa tela de 375px (~50px).
+     .wl-phones-row continua 100% do miolo (padding compensado) e o
+     swipe é todo em %, então nada disso muda o cálculo do arrasto. */
+  .wl-carousel-viewport {
+    overflow: hidden;
+    width: calc(100% + 2rem);
+    margin: -130px -1rem;
+    padding: 130px 1rem;
+  }
   .wl-phones-row {
     width: 100%;
     gap: 0;
@@ -2909,12 +3199,44 @@ ul { list-style: none; }
 .financeiro-section {
   padding: 100px 0;
 }
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px (mesmo valor de todas as transições da
+     página) — 24px de padding-top aqui, somado aos 80px que sobram do
+     lado de .whitelabel-section (padding-bottom:52px + margem dos dots
+     28px, ver ali). */
+  .financeiro-section { padding-top: 24px; }
+  /* Painel financeiro tem só ~80px de largura útil por coluna (3 colunas
+     dentro do container de ~343px) — no tamanho desktop (18px) o valor
+     ("R$ 4.200,00") não cabe numa linha só e quebra, esticando a altura
+     do painel à toa. Reduz a fonte e o padding lateral do card pra abrir
+     mais espaço — com folga de sobra (~8px), não só o mínimo pra caber,
+     já que a largura exata do texto pode variar um pouco entre fontes/
+     dispositivos. */
+  .financeiro-metric { padding: 0.5rem 0.5rem; }
+  .financeiro-metric__value { font-size: 0.72rem; white-space: nowrap; }
+
+  /* Linha de detalhe da cobrança ("R$ 3.600,00 · Vence 21/06/2026 · PIX")
+     mede 216px de texto contra só 184px de coluna disponível — não é só
+     questão de fonte pequena, faltam 32px reais. Troca pela versão em
+     2 linhas (valor+forma de pagamento / vencimento), que cabe com folga
+     (101px e 136px, medido) e ainda separa melhor o dado principal
+     (valor) do secundário (data). */
+  .financeiro-item__detail { display: none; }
+  .financeiro-item__detail-mobile { display: block; }
+  .financeiro-item__value { display: block; font-size: 12px; color: #22c55e; font-weight: 500; margin-top: 3px; }
+  .financeiro-item__due { display: block; font-size: 11px; color: #1f5c28; font-weight: 400; margin-top: 1px; }
+}
 
 /* ============================================================
    GUARANTEE SECTION
    ============================================================ */
 .guarantee {
   padding: 3.5rem 0 2.5rem;
+}
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 120px). */
+  .guarantee { padding-top: 40px; }
 }
 .guarantee__card {
   max-width: 900px;
@@ -2991,9 +3313,21 @@ ul { list-style: none; }
   .guarantee__title {
     font-size: 1.35rem;
   }
+  /* justify-content:center (acima) não fazia efeito porque cada <li> tem
+     flex:1 (herdado da regra base, pensada pra dividir 3 colunas lado a
+     lado) — isso estica cada item pra preencher a linha toda, sem sobrar
+     espaço livre pra centralizar. Empilha em coluna, um item por linha,
+     e tira o flex:1/min-width que só fazem sentido na distribuição em
+     linha do desktop. */
   .guarantee__features {
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap: 1rem;
+    gap: 0.75rem;
+  }
+  .guarantee__features li {
+    flex: none;
+    min-width: 0;
   }
 }
 
@@ -3002,6 +3336,11 @@ ul { list-style: none; }
    ============================================================ */
 .faq {
   padding: 3rem 0 2.5rem;
+}
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 116px). */
+  .faq { padding-top: 36px; }
 }
 .faq__list {
   max-width: 800px;
@@ -3061,14 +3400,21 @@ ul { list-style: none; }
 }
 @media (max-width: 640px) {
   .faq {
-    padding: 3rem 0 2rem;
+    /* padding-top sobrescrito abaixo pro respiro padrão de 104px — esse
+       bloco (640px) roda depois da regra em @media(max-width:768px) que
+       define isso, e o shorthand "padding" aqui reseta padding-top junto
+       se eu não repetir o valor certo. */
+    padding: 36px 0 2rem;
   }
   .faq__question {
     padding: 1.25rem;
     font-size: 0.95rem;
   }
+  /* padding-top da resposta era 0 (base e aqui) — o texto ficava colado
+     na linha divisória de cima. 1.25rem (igual ao padding de baixo)
+     equilibra visualmente o campo da resposta. */
   .faq__answer {
-    padding: 0 1.25rem 1.25rem;
+    padding: 1.25rem 1.25rem;
   }
 }
 
@@ -3078,6 +3424,11 @@ ul { list-style: none; }
 .colaboradores-section {
   padding: 100px 0 80px;
   position: relative;
+}
+@media (max-width: 768px) {
+  /* Respiro padronizado em 104px, mesmo valor de todas as transições
+     da página (era 168px). */
+  .colaboradores-section { padding-top: 36px; }
 }
 .colaboradores-section::before {
   content: '';
@@ -3312,11 +3663,55 @@ ul { list-style: none; }
 
 @media (max-width: 900px) {
   .macbook-wrap { max-width: 560px; }
-  .colab-benefits { flex-direction: column; gap: 20px; padding: 24px; }
+  /* align-items:center vem do desktop (centraliza os 3 lado a lado); em
+     coluna isso passa a centralizar CADA card pela própria largura de
+     conteúdo — como o card 3 tem menos texto, ficava ~34px deslocado
+     pra direita em relação aos outros 2. stretch faz todos ocuparem a
+     mesma largura, alinhados na mesma margem esquerda. */
+  .colab-benefits { flex-direction: column; align-items: stretch; gap: 20px; padding: 24px; }
   .colab-benefit__sep { width: 100%; height: 1px; }
   .colab-benefit { padding: 0; }
+  /* Card 3 ("Sem acesso ao financeiro") quebrava sozinho com só "você"
+     orfão numa 2ª linha (cabe pouco mais que isso na largura mobile) —
+     força a quebra antes, deixando "pra você" na 2ª linha, igual ao
+     formato de 2 linhas balanceadas dos cards 1 e 2. Desktop já
+     quebra bem sozinho (não mexido). */
+  .colab-benefit__break { display: block; }
 }
 
 @media (max-width: 560px) {
   .macbook-wrap { max-width: 340px; }
+  /* Conteúdo (sidebar 130px fixo + tabela) foi desenhado pra caber nos
+     ~787px que a área da tela tem no desktop — nada nele escala junto
+     com o container, então cortava/estourava no mobile (tela real de só
+     ~279px). Testei reduzir tudo proporcionalmente (transform:scale) e o
+     texto ficou ilegível (~5-8px visual) — a tela é densa demais pra
+     caber legível numa área tão pequena. Opção escolhida: corta o menu
+     lateral (nav só faz sentido na versão real do produto, não aqui) e
+     deixa a lista principal ocupar a tela toda, com tamanhos próprios
+     pra ficar legível na largura real disponível — não é mais a mesma
+     imagem "reduzida", é um recorte focado só no que interessa mostrar. */
+  .mc-sidebar { display: none; }
+  .mc-main { padding: 6px 10px 4px; gap: 3px; }
+  .mc-title { font-size: 10.5px; }
+  .mc-list { gap: 3px; }
+  .mc-row { padding: 3px 6px; gap: 5px; }
+  .mc-avatar { width: 20px; height: 20px; font-size: 7.5px; border-radius: 5px; }
+  .mc-info { min-width: 0; }
+  .mc-name { font-size: 8.5px; }
+  .mc-role { font-size: 7px; }
+  /* Pedido explícito: não reduzir mais o "Ativo" — mantido nos mesmos
+     7px/1px 5px que já estavam quando o Lucas aprovou o tamanho dele. */
+  .mc-status { font-size: 7px; padding: 1px 5px; }
+  /* fs/padding/gap calculados pra caber as 3 tags mais longas (Pedro:
+     "Ver treinos"+"Ver alunos"+"Sem financeiro"; Julia: "Financeiro"+
+     "Ver alunos"+"Sem treinos") numa linha só — antes quebravam pra uma
+     2ª linha (fonte 7px/padding 4px estourava a largura disponível). */
+  .mc-tags { gap: 1px; }
+  .mc-tag { font-size: 6px; padding: 1px 2px; }
+  .mc-add-btn { font-size: 8px; padding: 3px 8px; }
+  /* Convite ("+ Convidar colaborador...") escondido só no mobile — as
+     3 linhas de pessoas já usam praticamente toda a altura disponível
+     (~156px depois da topbar); não sobra pro convite sem cortar. */
+  .mc-invite-row { display: none; }
 }
