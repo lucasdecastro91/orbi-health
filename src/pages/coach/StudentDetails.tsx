@@ -3342,12 +3342,26 @@ const toNumCoach = (s: string): number | null => {
   return m ? parseFloat(m[1]) : null;
 };
 
-const CargaTooltipCoach = ({ active, payload, label }: any) => {
+const CargaTooltipCoach = ({ active, payload, label, repsByDate }: any) => {
   if (!active || !payload?.length) return null;
+  const reps = (repsByDate as Record<string, string[]> | undefined)?.[label];
+  // Fundo sólido de propósito (não var(--surface-1), que é ~2% de opacidade) —
+  // o tooltip fica sobreposto ao preenchimento em gradiente amarelo da área do
+  // gráfico, então um fundo translúcido deixava o texto lavado por trás dele.
+  // Mesmo padrão já usado em VolTooltip, no gráfico de Volume por Grupamento.
   return (
-    <div className="rounded-xl border px-3 py-2" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-subtle)" }}>
-      <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>{label}</p>
+    <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "#18181b" }}>
+      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>{label}</p>
       <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
+      {reps?.length > 0 && (
+        <div className="mt-1.5 pt-1.5 space-y-0.5 border-t border-white/10">
+          {reps.map((r, i) => (
+            <p key={i} className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
+              Set {i + 1} <span style={{ color: "rgba(255,255,255,0.35)" }}>·</span> {r} reps
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -3501,7 +3515,7 @@ const fmtWeekLabel = (iso: string): string => {
   try { return format(parseISO(iso), "dd/MM", { locale: ptBR }); } catch { return iso; }
 };
 
-const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
+const CargaProgressao = ({ alunoId, studentUserId }: { alunoId: string; studentUserId: string }) => {
   const { toast } = useToast();
   const [view,        setView]        = useState<'carga' | 'volume'>('carga');
   const [volView,     setVolView]     = useState<'prescrito' | 'realizado'>('prescrito');
@@ -3509,6 +3523,9 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
   const [exercicios,  setExercicios]  = useState<ExercicioOption[]>([]);
   const [selectedId,  setSelectedId]  = useState<string | null>(null);
   const [historico,   setHistorico]   = useState<{ carga: string; data_registro: string }[]>([]);
+  // reps realizadas por série, agrupadas por dia (chave = mesmo formato "dd/MM"
+  // usado no eixo X do gráfico) — pro tooltip mostrar reps junto da carga
+  const [repsByDate,  setRepsByDate]  = useState<Record<string, string[]>>({});
   const [loadingEx,   setLoadingEx]   = useState(true);
   const [loadingHist, setLoadingHist] = useState(false);
   const [comboOpen,   setComboOpen]   = useState(false);
@@ -3830,20 +3847,46 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
 
   const loadHistorico = async (key: string) => {
     const group = exercicios.find((e) => e.key === key);
-    if (!group) { setHistorico([]); return; }
+    if (!group) { setHistorico([]); setRepsByDate({}); return; }
     setLoadingHist(true);
-    const { data, error } = await supabase
-      .from("historico_carga")
-      .select("carga, data_registro")
-      .eq("aluno_id", alunoId)
-      .in("exercicio_id", group.ids)
-      .order("data_registro", { ascending: true })
-      .limit(60);
+    const [{ data, error }, { data: completions, error: compError }] = await Promise.all([
+      supabase
+        .from("historico_carga")
+        .select("carga, data_registro")
+        .eq("aluno_id", alunoId)
+        .in("exercicio_id", group.ids)
+        .order("data_registro", { ascending: true })
+        .limit(60),
+      // Reps realizadas por série, pra completar o tooltip do gráfico de carga
+      // (historico_carga só guarda o peso; quem tem os reps é o registro por
+      // série que o aluno faz na tela do exercício).
+      supabase
+        .from("serie_completions")
+        .select("date, serie_key, slot_index, reps_realizadas")
+        .eq("student_id", studentUserId)
+        .in("exercicio_id", group.ids)
+        .order("date", { ascending: true })
+        .order("serie_key", { ascending: true })
+        .order("slot_index", { ascending: true }),
+    ]);
     if (error) {
       console.error("[CargaProgressao] loadHistorico:", error);
       toast({ title: "Erro ao carregar progressão de carga", description: error.message, variant: "destructive" });
     }
+    if (compError) {
+      console.error("[CargaProgressao] loadHistorico (reps):", compError);
+    }
     setHistorico(data ?? []);
+
+    const repsMap: Record<string, string[]> = {};
+    for (const row of completions ?? []) {
+      if (!row.reps_realizadas) continue;
+      const dayLabel = format(parseISO(row.date), "dd/MM", { locale: ptBR });
+      if (!repsMap[dayLabel]) repsMap[dayLabel] = [];
+      repsMap[dayLabel].push(row.reps_realizadas);
+    }
+    setRepsByDate(repsMap);
+
     setLoadingHist(false);
   };
 
@@ -3999,7 +4042,7 @@ const CargaProgressao = ({ alunoId }: { alunoId: string }) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="date" tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                     <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--chart-tick)", fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <Tooltip content={<CargaTooltipCoach />} />
+                    <Tooltip content={<CargaTooltipCoach repsByDate={repsByDate} />} />
                     <Area type="monotone" dataKey="carga" stroke="hsl(42 95% 58%)" strokeWidth={2.5}
                       fill="url(#cargaAreaFillCoach)"
                       dot={{ r: 3, fill: "hsl(42 95% 58%)", strokeWidth: 0 }} activeDot={{ r: 5 }} />
@@ -4364,7 +4407,7 @@ const StudentDetails = () => {
             <AlongamentosManager alunoId={student.id} orgId={orgId} treinadorId={coachId} />
 
             <div className="rounded-2xl border border-white/8 p-5" style={{ backgroundColor: "rgba(255,255,255,0.015)" }}>
-              <CargaProgressao alunoId={id!} />
+              <CargaProgressao alunoId={id!} studentUserId={student.user_id} />
             </div>
           </div>
         )}

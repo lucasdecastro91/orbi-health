@@ -347,8 +347,10 @@ export type Database = {
           data_fim: string | null
           data_inicio: string | null
           data_proxima_atualizacao: string | null
+          desativado_por_inadimplencia: boolean
           form_atualizacao_ultima_data: string | null
           form_atualizacao_url: string | null
+          grace_last_notif_date: string | null
           id: string
           idade: number | null
           observacoes: string | null
@@ -383,8 +385,10 @@ export type Database = {
           data_fim?: string | null
           data_inicio?: string | null
           data_proxima_atualizacao?: string | null
+          desativado_por_inadimplencia?: boolean
           form_atualizacao_ultima_data?: string | null
           form_atualizacao_url?: string | null
+          grace_last_notif_date?: string | null
           id?: string
           idade?: number | null
           observacoes?: string | null
@@ -419,8 +423,10 @@ export type Database = {
           data_fim?: string | null
           data_inicio?: string | null
           data_proxima_atualizacao?: string | null
+          desativado_por_inadimplencia?: boolean
           form_atualizacao_ultima_data?: string | null
           form_atualizacao_url?: string | null
+          grace_last_notif_date?: string | null
           id?: string
           idade?: number | null
           observacoes?: string | null
@@ -4001,6 +4007,16 @@ export type Database = {
           proteina_g: number
           score: number
           sodio_mg: number
+        }[]
+      }
+      match_exercicio: {
+        Args: { min_score?: number; p_org_id: string; termo: string }
+        Returns: {
+          grupo_muscular_principal: string
+          id: string
+          nome: string
+          score: number
+          video_url: string
         }[]
       }
       meal_diet_id: { Args: { p_meal_id: string }; Returns: string }

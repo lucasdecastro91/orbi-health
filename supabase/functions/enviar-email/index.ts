@@ -372,6 +372,108 @@ Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
   };
 }
 
+function planoVencidoTemplate(nome: string, orgName: string, dateFmt: string) {
+  return {
+    subject: `Seu plano venceu — ${orgName}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seu plano venceu</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Seu plano venceu em <span style="color:#111111;font-weight:600;">${dateFmt}</span> e ainda nao foi renovado com ${orgName}.
+</p>
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;line-height:1.6;">
+Renove em ate 7 dias para nao perder o acesso. Entre em contato com ${orgName} para regularizar.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
+
+function planoBloqueadoTemplate(nome: string, orgName: string, dateFmt: string) {
+  return {
+    subject: `Acesso bloqueado — ${orgName}`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Acesso bloqueado</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Seu plano venceu em <span style="color:#111111;font-weight:600;">${dateFmt}</span> e nao foi renovado dentro do prazo. Seu acesso foi bloqueado.
+</p>
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;line-height:1.6;">
+Entre em contato com ${orgName} para regularizar o pagamento e liberar seu acesso novamente.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST")    return json({ error: "Method not allowed" }, 405);
@@ -425,6 +527,22 @@ Deno.serve(async (req) => {
         return json({ error: "Missing fields: nome, orgName, descricao, valorFmt, dateFmt" }, 400);
       }
       const tpl = cobrancaAtrasadaTemplate(nome, orgName, descricao, valorFmt, dateFmt, link ?? null);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "plano_vencido") {
+      const { nome, orgName, dateFmt } = data;
+      if (!nome || !orgName || !dateFmt) {
+        return json({ error: "Missing fields: nome, orgName, dateFmt" }, 400);
+      }
+      const tpl = planoVencidoTemplate(nome, orgName, dateFmt);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "plano_bloqueado") {
+      const { nome, orgName, dateFmt } = data;
+      if (!nome || !orgName || !dateFmt) {
+        return json({ error: "Missing fields: nome, orgName, dateFmt" }, 400);
+      }
+      const tpl = planoBloqueadoTemplate(nome, orgName, dateFmt);
       subject = tpl.subject;
       html    = tpl.html;
     } else {

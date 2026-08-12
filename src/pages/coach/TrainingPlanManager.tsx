@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Video, Library, ChevronUp, ChevronDown, Copy, Bookmark, Link2,
-  GripVertical, GripHorizontal, Search, X, Wand2, MoreVertical,
+  GripVertical, GripHorizontal, Search, X, Wand2, MoreVertical, Upload, Loader2, Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -107,6 +107,26 @@ const PRESET_TIPOS_ADVANCED: string[] = [
 
 const PRESET_TIPOS: string[] = [...PRESET_TIPOS_STANDARD, ...PRESET_TIPOS_ADVANCED];
 
+/** Cálculo padrão por tipo de bloco — usado ao montar series_detalhadas na
+ *  importação via PDF/print (mesma tabela que TrainingExercises usa no editor
+ *  manual, duplicada aqui porque esse componente vive escopo abaixo). */
+const IMPORT_DEFAULT_CALCULO: Record<string, { tipo_calculo: TipoCalculo; valor_calculo: string }> = {
+  'warm-up':      { tipo_calculo: 'percentual', valor_calculo: '50'  },
+  'feeder':       { tipo_calculo: 'percentual', valor_calculo: '70'  },
+  'trabalho':     { tipo_calculo: 'manual',     valor_calculo: ''    },
+  'drop-set':     { tipo_calculo: 'reducao',    valor_calculo: '20'  },
+  'cluster':      { tipo_calculo: 'aumento',    valor_calculo: '10'  },
+  'rest-pause':   { tipo_calculo: 'percentual', valor_calculo: '100' },
+  'muscle-round': { tipo_calculo: 'percentual', valor_calculo: '100' },
+};
+
+/** Rótulo legível por tipo, só pro resumo da tela de revisão da importação. */
+const IMPORT_TIPO_LABEL: Record<string, string> = {
+  'warm-up': 'Warm-up', 'feeder': 'Feeder', 'trabalho': 'Work',
+  'drop-set': 'Drop-set', 'cluster': 'Cluster',
+  'rest-pause': 'Rest-pause', 'muscle-round': 'Muscle round',
+};
+
 interface SerieDetalhe {
   id: string;
   tipo: string;
@@ -148,9 +168,55 @@ interface CustomTipo {
   description: string | null;
 }
 
+// ── Import de treino via PDF/print — árvore de rascunho em memória, editável
+// antes do commit no banco. TrainingPlanManager não tem hoje (diferente de
+// DietManager) um objeto de rascunho único reaproveitado entre entrada manual
+// e import — por isso esse state é novo, só usado pelo fluxo de import.
+/** Um bloco de séries dentro de um exercício importado (ex: "2x warm-up" +
+ *  "3x trabalho" + "1x cluster") — espelha SerieDetalhe, sem tipo_calculo/
+ *  valor_calculo ainda (resolvidos só no commit, via IMPORT_DEFAULT_CALCULO). */
+interface DraftBloco {
+  tipo: string;
+  quantidade: number;
+  repeticoes: string;
+  observacoes?: string | null;
+}
+interface DraftExercicio {
+  key: string;
+  nome_exercicio: string;
+  blocos: DraftBloco[];
+  carga: string | null;
+  descanso: string | null;
+  observacoes: string | null;
+  conjugado_com_proximo: boolean;
+  /** null = nenhum match sugerido/confirmado — vai criar um exercício novo na biblioteca */
+  exercicio_base_id: string | null;
+}
+interface DraftTreino {
+  key: string;
+  dia_semana: string;
+  titulo_treino: string;
+  descricao_geral: string | null;
+  exercicios: DraftExercicio[];
+}
+interface DraftSemana {
+  key: string;
+  numero_semana: number;
+  zona_reps: string | null;
+  observacoes: string | null;
+  treinos: DraftTreino[];
+}
+interface DraftPlano {
+  nome_plano: string;
+  objetivo: string | null;
+  semanas: DraftSemana[];
+}
+
 const GRUPOS_MUSCULARES = [
   'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps',
   'Abdômen', 'Glúteos', 'Quadríceps', 'Posteriores', 'Panturrilha',
+  'Deltoide Anterior', 'Deltoide Medial', 'Deltoide Posterior',
+  'Latíssimo do Dorso', 'Trapézio Superior', 'Trapézio Médio', 'Trapézio Inferior',
 ] as const;
 
 const parseRepsNum = (s: string): number => {
@@ -192,7 +258,7 @@ const notifyTreinoAtualizado = (studentUserId: string, orgId: string) => {
 
 const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const navigate = useNavigate();
-  const { orgId } = useTenantContext();
+  const { orgId, slug } = useTenantContext();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -200,6 +266,13 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [studentUserId, setStudentUserId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // ── Import de treino via PDF/print ──────────────────────────────────────
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUploading, setImportUploading] = useState(false);
+  const [importSaving, setImportSaving] = useState(false);
+  const [importDraft, setImportDraft] = useState<DraftPlano | null>(null);
+  const [importExercisesBase, setImportExercisesBase] = useState<ExerciseBase[]>([]);
 
   useEffect(() => {
     loadPlans();
@@ -301,14 +374,242 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
     setDialogOpen(true);
   };
 
+  // ── Import de treino via PDF/print ──────────────────────────────────────
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length || !orgId) return;
+    setImportUploading(true);
+    try {
+      const toBase64 = async (file: File): Promise<string> => {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+        }
+        return btoa(binary);
+      };
+      const encodedFiles = await Promise.all(files.map(async (f) => ({ base64: await toBase64(f), mediaType: f.type })));
+
+      const { data, error } = await supabase.functions.invoke("parse-training-pdf", { body: { files: encodedFiles } });
+      if (error || !data?.ok) throw new Error(error?.message ?? data?.error ?? "Erro ao interpretar o PDF");
+
+      const { data: baseData, error: baseError } = await supabase
+        .from("exercicios_base")
+        .select("id, nome, video_url, descricao, grupo_muscular_principal, grupo_muscular_secundario")
+        .eq("org_id", orgId)
+        .order("nome");
+      if (baseError) throw baseError;
+      setImportExercisesBase(baseData || []);
+
+      const rawPlano = data.plano;
+      const semanas: DraftSemana[] = (rawPlano.semanas ?? []).map((sem: any, si: number) => ({
+        key: `s${si}`,
+        numero_semana: sem.numero_semana ?? si + 1,
+        zona_reps: sem.zona_reps ?? null,
+        observacoes: sem.observacoes ?? null,
+        treinos: (sem.treinos ?? []).map((tr: any, ti: number) => ({
+          key: `s${si}t${ti}`,
+          dia_semana: tr.dia_semana ?? "",
+          titulo_treino: tr.titulo_treino ?? tr.dia_semana ?? "",
+          descricao_geral: tr.descricao_geral ?? null,
+          exercicios: (tr.exercicios ?? []).map((ex: any, ei: number) => {
+            const rawBlocos = Array.isArray(ex.blocos) && ex.blocos.length > 0 ? ex.blocos : null;
+            const blocos: DraftBloco[] = rawBlocos
+              ? rawBlocos.map((b: any) => ({
+                  tipo: normalizeTipo(String(b.tipo ?? "trabalho")),
+                  quantidade: typeof b.quantidade === "number" && b.quantidade > 0 ? b.quantidade : 1,
+                  repeticoes: b.repeticoes ?? "",
+                  observacoes: b.observacoes ?? null,
+                }))
+              // Fallback pra resposta antiga/malformada da IA (sem "blocos") — evita
+              // quebrar a importação, só perde a granularidade por tipo de série.
+              : [{
+                  tipo: "trabalho",
+                  quantidade: typeof ex.num_series === "number" && ex.num_series > 0 ? ex.num_series : 3,
+                  repeticoes: ex.repeticoes ?? "",
+                  observacoes: null,
+                }];
+            return {
+              key: `s${si}t${ti}e${ei}`,
+              nome_exercicio: ex.nome_exercicio ?? "",
+              blocos,
+              carga: ex.carga ?? null,
+              descanso: ex.descanso ?? null,
+              observacoes: ex.observacoes ?? null,
+              conjugado_com_proximo: !!ex.conjugado_com_proximo,
+              exercicio_base_id: null as string | null,
+            };
+          }),
+        })),
+      }));
+
+      // Sugere um vínculo por fuzzy match (pg_trgm) pra cada exercício extraído —
+      // o treinador confirma/troca na tela de revisão antes de qualquer coisa
+      // ser salva. Ver migration match_exercicio pro raciocínio do threshold.
+      for (const sem of semanas) {
+        for (const tr of sem.treinos) {
+          for (const ex of tr.exercicios) {
+            const { data: matches } = await supabase.rpc("match_exercicio", { termo: ex.nome_exercicio, p_org_id: orgId });
+            const best = Array.isArray(matches) ? matches[0] : null;
+            if (best?.id) ex.exercicio_base_id = best.id as string;
+          }
+        }
+      }
+
+      setImportDraft({
+        nome_plano: rawPlano.nome_plano ?? "Plano importado",
+        objetivo: rawPlano.objetivo ?? null,
+        semanas,
+      });
+    } catch (error: any) {
+      toast({ title: "Erro ao importar PDF", description: error.message, variant: "destructive" });
+    } finally {
+      setImportUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const updateDraftExercicio = (semKey: string, trKey: string, exKey: string, patch: Partial<DraftExercicio>) => {
+    setImportDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        semanas: prev.semanas.map((sem) => sem.key !== semKey ? sem : {
+          ...sem,
+          treinos: sem.treinos.map((tr) => tr.key !== trKey ? tr : {
+            ...tr,
+            exercicios: tr.exercicios.map((ex) => ex.key !== exKey ? ex : { ...ex, ...patch }),
+          }),
+        }),
+      };
+    });
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importDraft || !orgId) return;
+    setImportSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sessão expirada, faça login novamente.");
+
+      const { data: planRow, error: planErr } = await supabase
+        .from("planos_treino")
+        .insert({
+          aluno_id: studentId,
+          nome_plano: importDraft.nome_plano,
+          objetivo: importDraft.objetivo,
+          data_inicio: new Date().toISOString().slice(0, 10),
+          ativo: true,
+        })
+        .select("id")
+        .single();
+      if (planErr) throw planErr;
+      const planoId = planRow.id as string;
+
+      for (const sem of importDraft.semanas) {
+        const { data: semRow, error: semErr } = await supabase
+          .from("semanas")
+          .insert({
+            plano_id: planoId,
+            numero_semana: sem.numero_semana,
+            semana_inicio: sem.numero_semana,
+            semana_fim: sem.numero_semana,
+            zona_reps: sem.zona_reps,
+            observacoes: sem.observacoes,
+          })
+          .select("id")
+          .single();
+        if (semErr) throw semErr;
+        const semanaId = semRow.id as string;
+
+        for (const [ti, tr] of sem.treinos.entries()) {
+          const { data: trRow, error: trErr } = await supabase
+            .from("treinos")
+            .insert({
+              semana_id: semanaId,
+              dia_semana: tr.dia_semana,
+              titulo_treino: tr.titulo_treino,
+              descricao_geral: tr.descricao_geral,
+              ordem: ti,
+            })
+            .select("id")
+            .single();
+          if (trErr) throw trErr;
+          const treinoId = trRow.id as string;
+
+          for (const [ei, ex] of tr.exercicios.entries()) {
+            let exercicioBaseId = ex.exercicio_base_id;
+            if (!exercicioBaseId) {
+              const { data: novaBase, error: novaBaseErr } = await supabase
+                .from("exercicios_base")
+                .insert({ treinador_id: user.id, org_id: orgId, nome: ex.nome_exercicio })
+                .select("id")
+                .single();
+              if (novaBaseErr) throw novaBaseErr;
+              exercicioBaseId = novaBase.id as string;
+            }
+
+            const totalSeries = ex.blocos.reduce((sum, b) => sum + b.quantidade, 0);
+            const repeticoesResumo = ex.blocos.map((b) => `${b.quantidade}x ${b.repeticoes || "—"}`).join(" / ");
+            const seriesDetalhadas: SerieDetalhe[] = ex.blocos.map((b) => {
+              const defs = IMPORT_DEFAULT_CALCULO[b.tipo] ?? IMPORT_DEFAULT_CALCULO['trabalho'];
+              return {
+                id: crypto.randomUUID(),
+                tipo: b.tipo,
+                repeticoes: b.repeticoes || "—",
+                tipo_calculo: defs.tipo_calculo,
+                // Bloco "trabalho" usa cálculo manual com a carga do exercício (igual
+                // ao comportamento anterior); os demais tipos usam o % padrão do tipo.
+                valor_calculo: b.tipo === "trabalho" ? (ex.carga ?? "") : defs.valor_calculo,
+                quantidade: b.quantidade,
+                ...(b.observacoes ? { descricao: b.observacoes } : {}),
+              };
+            });
+
+            const { error: exErr } = await supabase.from("exercicios").insert({
+              treino_id: treinoId,
+              nome_exercicio: ex.nome_exercicio,
+              series: String(totalSeries),
+              repeticoes: repeticoesResumo || "—",
+              descanso: ex.descanso,
+              observacoes: ex.observacoes,
+              ordem: ei,
+              exercicio_base_id: exercicioBaseId,
+              carga_base: ex.carga,
+              conjugado_com_proximo: ex.conjugado_com_proximo,
+              series_detalhadas: seriesDetalhadas as any,
+            });
+            if (exErr) throw exErr;
+          }
+        }
+      }
+
+      toast({ title: "Plano importado com sucesso!" });
+      if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
+      setImportOpen(false);
+      setImportDraft(null);
+      loadPlans();
+    } catch (error: any) {
+      toast({ title: "Erro ao importar plano", description: error.message, variant: "destructive" });
+    } finally {
+      setImportSaving(false);
+    }
+  };
+
   if (loading) return <p>Carregando planos...</p>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 w-full justify-end">
-        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate("/treinador/biblioteca")}>
+        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => navigate(`/${slug}/treinador/biblioteca`)}>
           <Library className="w-4 h-4 mr-2" />
           Biblioteca
+        </Button>
+        <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setImportOpen(true)}>
+          <Upload className="w-4 h-4 mr-2" />
+          Importar PDF/print
         </Button>
         <Button size="sm" className="flex-1 sm:flex-none text-white font-semibold" onClick={() => openDialog()}
           style={{ background: "var(--cp-gradient)" }}>
@@ -411,6 +712,115 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Importar treino via PDF/print */}
+      <Dialog open={importOpen} onOpenChange={(open) => { setImportOpen(open); if (!open) setImportDraft(null); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar treino via PDF ou print</DialogTitle>
+            <DialogDescription>
+              {importDraft
+                ? "Revise os exercícios extraídos antes de aplicar no aluno — a IA sugere um vínculo com a biblioteca, mas você pode trocar qualquer um."
+                : "Envie um PDF ou print do plano de treino. Pode enviar mais de um arquivo se o plano não coube numa página só."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!importDraft ? (
+            <div className="py-6">
+              <label
+                htmlFor="import-training-pdf-input"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/10 py-10 cursor-pointer hover:border-white/20 transition-colors"
+              >
+                {importUploading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Lendo o plano com IA, isso pode levar um pouco...</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Clique pra escolher o PDF ou print (pode selecionar vários)</p>
+                  </>
+                )}
+              </label>
+              <input
+                id="import-training-pdf-input"
+                type="file"
+                accept="application/pdf,image/*"
+                multiple
+                className="hidden"
+                disabled={importUploading}
+                onChange={handleImportFileChange}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="import-nome-plano">Nome do plano</Label>
+                <Input
+                  id="import-nome-plano"
+                  value={importDraft.nome_plano}
+                  onChange={(e) => setImportDraft((prev) => prev && { ...prev, nome_plano: e.target.value })}
+                />
+              </div>
+
+              {importDraft.semanas.map((sem) => (
+                <div key={sem.key} className="rounded-xl border p-3 space-y-3" style={{ backgroundColor: LVL_BLOCK_BG, borderColor: ELEV_BORDER }}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Semana {sem.numero_semana}{sem.zona_reps ? ` · ${sem.zona_reps}` : ""}
+                  </p>
+                  {sem.treinos.map((tr) => (
+                    <div key={tr.key} className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: LVL_SESSION_BG, borderColor: ELEV_BORDER_SOFT }}>
+                      <p className="text-sm font-semibold">{tr.dia_semana} — {tr.titulo_treino}</p>
+                      {tr.exercicios.map((ex) => (
+                        <div key={ex.key} className="rounded-lg border p-2.5 flex flex-col gap-1.5" style={{ backgroundColor: EXERCISE_CARD_BG, borderColor: EXERCISE_CARD_BORDER }}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{ex.nome_exercicio}</p>
+                            <p className="text-xs text-muted-foreground shrink-0">
+                              {ex.blocos.map((b) => `${b.quantidade}x ${b.repeticoes}${b.tipo !== "trabalho" ? ` (${IMPORT_TIPO_LABEL[b.tipo] ?? b.tipo})` : ""}`).join(" / ")}
+                              {ex.carga ? ` · ${ex.carga}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {ex.exercicio_base_id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            )}
+                            <select
+                              className="text-xs bg-transparent border rounded-md px-2 py-1 flex-1"
+                              style={{ borderColor: EXERCISE_CARD_BORDER }}
+                              value={ex.exercicio_base_id ?? ""}
+                              onChange={(e) => updateDraftExercicio(sem.key, tr.key, ex.key, { exercicio_base_id: e.target.value || null })}
+                            >
+                              <option value="">+ Criar novo exercício na biblioteca</option>
+                              {importExercisesBase.map((b) => (
+                                <option key={b.id} value={b.id}>{b.nome}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {importDraft && (
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => { setImportOpen(false); setImportDraft(null); }} disabled={importSaving}>
+                Cancelar
+              </Button>
+              <Button onClick={handleConfirmImport} disabled={importSaving}>
+                {importSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Confirmar importação
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

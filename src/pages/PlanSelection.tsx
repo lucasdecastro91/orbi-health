@@ -132,11 +132,15 @@ export default function PlanSelection() {
     card_ccv: "",
   });
   // Endereço do titular — exigido pela Asaas (creditCardHolderInfo).
-  // Só CEP e Número são enviados pra API; o resto é buscado via ViaCEP
-  // só pra confirmação visual (não pesa na cobrança).
+  // Só CEP e Número são enviados pra API; Endereço/Bairro/Cidade-UF são
+  // buscados via ViaCEP e ficam editáveis (confirmação visual, não pesam
+  // na cobrança); Complemento é opcional e vai junto se preenchido.
   const [cardCep, setCardCep] = useState("");
   const [cardAddressNumber, setCardAddressNumber] = useState("");
-  const [cepAddress, setCepAddress] = useState<{ logradouro: string; bairro: string; localidade: string; uf: string } | null>(null);
+  const [cardAddressComplement, setCardAddressComplement] = useState("");
+  const [rua, setRua] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidadeUf, setCidadeUf] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
   const [cepNotFound, setCepNotFound] = useState(false);
 
@@ -144,7 +148,6 @@ export default function PlanSelection() {
     const digits = raw.replace(/\D/g, "").slice(0, 8);
     const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
     setCardCep(formatted);
-    setCepAddress(null);
     setCepNotFound(false);
     if (digits.length !== 8) return;
 
@@ -155,11 +158,14 @@ export default function PlanSelection() {
       if (data.erro) {
         setCepNotFound(true);
       } else {
-        setCepAddress({ logradouro: data.logradouro, bairro: data.bairro, localidade: data.localidade, uf: data.uf });
+        setRua(data.logradouro ?? "");
+        setBairro(data.bairro ?? "");
+        setCidadeUf(data.localidade && data.uf ? `${data.localidade}/${data.uf}` : "");
       }
     } catch {
       // Falha na busca não bloqueia o pagamento — CEP + Número já são
-      // suficientes pra Asaas, a busca é só confirmação visual.
+      // suficientes pra Asaas, a busca é só confirmação visual. Os campos
+      // continuam editáveis pra digitar manualmente se preciso.
     } finally {
       setCepLoading(false);
     }
@@ -256,6 +262,7 @@ export default function PlanSelection() {
           card_ccv: card.card_ccv,
           card_postal_code: cardCep.replace(/\D/g, ""),
           card_address_number: cardAddressNumber,
+          ...(cardAddressComplement ? { card_address_complement: cardAddressComplement } : {}),
         });
       }
 
@@ -294,7 +301,7 @@ export default function PlanSelection() {
 
   const cardField = (field: keyof CardFields, label: string, placeholder: string, maxLength?: number) => (
     <div className="space-y-1.5">
-      <Label className="text-xs text-white/50 uppercase tracking-wider">{label}</Label>
+      <Label className="text-xs text-white/50 uppercase tracking-wider">{label} <span className="text-red-500">*</span></Label>
       <Input
         value={card[field]}
         onChange={(e) => setCard((c) => ({ ...c, [field]: field === "card_holder_cpf" ? formatCPF(e.target.value) : e.target.value }))}
@@ -433,22 +440,22 @@ export default function PlanSelection() {
             <p className="text-sm font-semibold text-white/70">Dados pessoais</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5 col-span-2">
-                <Label className="text-xs text-white/50 uppercase tracking-wider">Nome completo</Label>
+                <Label className="text-xs text-white/50 uppercase tracking-wider">Nome completo <span className="text-red-500">*</span></Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)}
                   placeholder="Seu nome completo" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
               </div>
               <div className="space-y-1.5 col-span-2">
-                <Label className="text-xs text-white/50 uppercase tracking-wider">E-mail</Label>
+                <Label className="text-xs text-white/50 uppercase tracking-wider">E-mail <span className="text-red-500">*</span></Label>
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-white/50 uppercase tracking-wider">CPF</Label>
+                <Label className="text-xs text-white/50 uppercase tracking-wider">CPF <span className="text-red-500">*</span></Label>
                 <Input value={cpf} onChange={(e) => setCpf(formatCPF(e.target.value))} inputMode="numeric"
                   placeholder="000.000.000-00" maxLength={14} className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-white/50 uppercase tracking-wider">Telefone</Label>
+                <Label className="text-xs text-white/50 uppercase tracking-wider">Telefone <span className="text-red-500">*</span></Label>
                 <Input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} inputMode="numeric"
                   placeholder="(11) 99999-9999" maxLength={15} className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
               </div>
@@ -492,39 +499,42 @@ export default function PlanSelection() {
                 <p className="text-sm font-semibold text-white/70 pt-2">Endereço de cobrança</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-white/50 uppercase tracking-wider">CEP</Label>
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">CEP <span className="text-red-500">*</span></Label>
                     <div className="relative">
                       <Input value={cardCep} onChange={(e) => handleCepChange(e.target.value)}
                         placeholder="00000-000" maxLength={9} className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
                       {cepLoading && <Loader2 className="w-4 h-4 animate-spin text-white/40 absolute right-3 top-1/2 -translate-y-1/2" />}
                     </div>
-                    {cepNotFound && <p className="text-xs text-red-400">CEP não encontrado.</p>}
+                    {cepNotFound && <p className="text-xs text-red-400">CEP não encontrado — preencha o endereço manualmente.</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-white/50 uppercase tracking-wider">Número</Label>
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">Número <span className="text-red-500">*</span></Label>
                     <Input value={cardAddressNumber} onChange={(e) => setCardAddressNumber(e.target.value)}
                       placeholder="123" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
                   </div>
                 </div>
-                {cepAddress && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs text-white/50 uppercase tracking-wider">Endereço</Label>
-                      <Input value={cepAddress.logradouro} readOnly
-                        className="bg-white/5 border-white/10 text-white/70 rounded-xl h-11" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-white/50 uppercase tracking-wider">Bairro</Label>
-                      <Input value={cepAddress.bairro} readOnly
-                        className="bg-white/5 border-white/10 text-white/70 rounded-xl h-11" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-white/50 uppercase tracking-wider">Cidade / UF</Label>
-                      <Input value={`${cepAddress.localidade}/${cepAddress.uf}`} readOnly
-                        className="bg-white/5 border-white/10 text-white/70 rounded-xl h-11" />
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">Endereço</Label>
+                    <Input value={rua} onChange={(e) => setRua(e.target.value)}
+                      placeholder="Rua, avenida..." className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
                   </div>
-                )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">Complemento</Label>
+                    <Input value={cardAddressComplement} onChange={(e) => setCardAddressComplement(e.target.value)}
+                      placeholder="Apto, bloco... (opcional)" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">Bairro</Label>
+                    <Input value={bairro} onChange={(e) => setBairro(e.target.value)}
+                      placeholder="Bairro" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-white/50 uppercase tracking-wider">Cidade / UF</Label>
+                    <Input value={cidadeUf} onChange={(e) => setCidadeUf(e.target.value)}
+                      placeholder="Cidade/UF" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+                  </div>
+                </div>
               </div>
             )}
 

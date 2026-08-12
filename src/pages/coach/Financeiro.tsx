@@ -74,11 +74,14 @@ const FORMA_LABEL: Record<string, string> = {
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-// Nosso checkout (/pagar/:id) só cobre Pix por enquanto (fase 1) — cartão/boleto
-// continuam usando o link hospedado pelo Asaas até a fase 2 existir, senão o aluno
-// cairia numa tela nossa sem forma nenhuma de pagar.
+// Nosso checkout (/pagar/:id) cobre Pix e Cartão (tokenizado via
+// pagar-cobranca-cartao) — só boleto ainda cai no link hospedado pelo Asaas
+// (não construímos boleto na nossa página, e o projeto decidiu não usar
+// boleto de qualquer forma).
 const checkoutLink = (c: Pick<Cobranca, "id" | "forma_pagamento" | "invoice_url">) =>
-  c.forma_pagamento === "PIX" ? `${window.location.origin}/pagar/${c.id}` : c.invoice_url;
+  c.forma_pagamento === "PIX" || c.forma_pagamento === "CREDIT_CARD"
+    ? `${window.location.origin}/pagar/${c.id}`
+    : c.invoice_url;
 
 const fmtDate = (iso: string) => {
   try { return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR }); }
@@ -147,7 +150,7 @@ const PaymentSuccessModal = ({
         </div>
       )}
 
-      {/* Link de pagamento — nosso checkout (/pagar/:id) pra Pix; Asaas ainda pra cartão/boleto */}
+      {/* Link de pagamento — nosso checkout (/pagar/:id) pra Pix e Cartão; Asaas só pra boleto */}
       {checkoutLink(cobranca) && (
         <div className="rounded-xl p-3 space-y-2.5"
           style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }}>

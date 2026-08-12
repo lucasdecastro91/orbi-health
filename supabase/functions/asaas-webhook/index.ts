@@ -51,6 +51,7 @@ async function sendWhatsapp(
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number, text }),
+      signal: AbortSignal.timeout(8000),
     });
     const raw = await res.text();
     if (!res.ok) {
@@ -346,7 +347,9 @@ serve(async (req) => {
                 ]);
                 const nomeAluno = profileRow?.nome ?? "Aluno";
                 const valorFmt = fmtBRL(Number(cobOverdue.valor));
-                const link = cobOverdue.forma_pagamento === "PIX"
+                // Checkout próprio (/pagar/:id) cobre Pix e Cartão (tokenizado via
+                // pagar-cobranca-cartao) — só boleto ainda cai no link do Asaas.
+                const link = (cobOverdue.forma_pagamento === "PIX" || cobOverdue.forma_pagamento === "CREDIT_CARD")
                   ? `${APP_URL}/pagar/${cobOverdue.id}`
                   : (cobOverdue.invoice_url ?? null);
 

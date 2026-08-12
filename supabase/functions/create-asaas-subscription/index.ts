@@ -108,6 +108,7 @@ serve(async (req) => {
     card_ccv,
     card_postal_code,
     card_address_number,
+    card_address_complement,
   } = await req.json();
 
   if (!organization_id || !plan_type || !alunos_tier || !cycle || !payment_method) {
@@ -232,6 +233,7 @@ serve(async (req) => {
         mobilePhone: customer_phone,
         postalCode: card_postal_code,
         addressNumber: card_address_number,
+        ...(card_address_complement ? { addressComplement: card_address_complement } : {}),
       };
     }
 

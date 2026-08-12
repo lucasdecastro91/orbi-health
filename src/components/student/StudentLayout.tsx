@@ -11,6 +11,7 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import NotificationBell from "@/components/NotificationBell";
 import { getActiveTimer, clearTimer, type ActiveTimer } from "@/lib/activeTimer";
+import PlanExpiredBanner from "@/components/student/PlanExpiredBanner";
 
 const fmtMMSS = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -30,6 +31,7 @@ const StudentLayout = () => {
   const [studentUserId,    setStudentUserId]    = useState<string | null>(null);
   const [activeTimer,      setActiveTimer]      = useState<ActiveTimer | null>(null);
   const [nowTick,          setNowTick]          = useState(Date.now());
+  const [dataExpiracaoPlano, setDataExpiracaoPlano] = useState<string | null>(null);
 
   // Fecha o menu ao navegar via hardware back / location change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -102,11 +104,12 @@ const StudentLayout = () => {
     if (!location.pathname.includes("/anamnese")) {
       const { data: alunoData } = await supabase
         .from("alunos")
-        .select("id, anamnese_dispensada, avaliacao_postural_pendente")
+        .select("id, anamnese_dispensada, avaliacao_postural_pendente, data_expiracao_plano")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
       if (alunoData?.avaliacao_postural_pendente) setAvaliacaoPendente(true);
+      setDataExpiracaoPlano(alunoData?.data_expiracao_plano ?? null);
 
       if (alunoData?.id) {
         const { count: feedbackCount } = await supabase
@@ -312,6 +315,8 @@ const StudentLayout = () => {
             </div>
           </div>
         </header>
+
+        <PlanExpiredBanner dataExpiracaoPlano={dataExpiracaoPlano} />
 
         {/* Main Content */}
         <main style={{ paddingBottom: showTimerBar ? 136 : 80 }}>

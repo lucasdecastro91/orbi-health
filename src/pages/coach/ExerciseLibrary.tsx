@@ -5,13 +5,22 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { VideoModal } from "@/components/ui/video-modal";
 import {
   Plus, MoreVertical, Pencil, Trash2, Play, Search,
-  Dumbbell, Loader2, X, Youtube,
+  Dumbbell, Loader2, X, Youtube, ChevronDown, ChevronUp,
 } from "lucide-react";
 
-const GRUPOS_MUSCULARES = [
+// Grupos "gerais" sempre visíveis + "específicos" (porções de um grupo maior)
+// ocultos por padrão — mesmo padrão já usado pras técnicas de série avançadas
+// em TrainingPlanManager.tsx (PRESET_TIPOS_STANDARD/PRESET_TIPOS_ADVANCED),
+// pra não empilhar 17 chips de cara nesse seletor.
+const GRUPOS_MUSCULARES_GERAIS = [
   'Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps',
   'Abdômen', 'Glúteos', 'Quadríceps', 'Posteriores', 'Panturrilha',
 ] as const;
+const GRUPOS_MUSCULARES_ESPECIFICOS = [
+  'Deltoide Anterior', 'Deltoide Medial', 'Deltoide Posterior',
+  'Latíssimo do Dorso', 'Trapézio Superior', 'Trapézio Médio', 'Trapézio Inferior',
+] as const;
+const GRUPOS_MUSCULARES = [...GRUPOS_MUSCULARES_GERAIS, ...GRUPOS_MUSCULARES_ESPECIFICOS] as const;
 type GrupoMuscular = typeof GRUPOS_MUSCULARES[number];
 
 interface Exercise {
@@ -133,9 +142,28 @@ const ModalChipSelect = ({
   label, hint, selectedValue, onChange,
 }: { label: string; hint?: string; selectedValue: string; onChange: (next: string) => void }) => {
   const selected = (selectedValue || '').split(',').map(s => s.trim()).filter(Boolean);
+  // Já começa expandido se algum específico já estiver selecionado — nunca
+  // esconde um dado que já existe, só evita mostrar tudo de cara.
+  const [showEspecificos, setShowEspecificos] = useState(
+    () => selected.some(g => (GRUPOS_MUSCULARES_ESPECIFICOS as readonly string[]).includes(g))
+  );
   const toggle = (g: string) => {
     const next = selected.includes(g) ? selected.filter(x => x !== g) : [...selected, g];
     onChange(next.join(','));
+  };
+  const chip = (g: string) => {
+    const active = selected.includes(g);
+    return (
+      <button key={g} type="button" onClick={() => toggle(g)}
+        className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+        style={{
+          backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
+          color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
+          border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
+        }}>
+        {g}
+      </button>
+    );
   };
   return (
     <div>
@@ -144,21 +172,21 @@ const ModalChipSelect = ({
         {hint && <span className="ml-1 normal-case" style={{ color: "rgba(255,255,255,0.25)" }}>{hint}</span>}
       </label>
       <div className="flex flex-wrap gap-1.5">
-        {GRUPOS_MUSCULARES.map(g => {
-          const active = selected.includes(g);
-          return (
-            <button key={g} type="button" onClick={() => toggle(g)}
-              className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-              style={{
-                backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
-                color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
-                border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
-              }}>
-              {g}
-            </button>
-          );
-        })}
+        {GRUPOS_MUSCULARES_GERAIS.map(chip)}
       </div>
+      {showEspecificos && (
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          {GRUPOS_MUSCULARES_ESPECIFICOS.map(chip)}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setShowEspecificos(v => !v)}
+        className="flex items-center gap-1 mt-1.5 text-[11px] text-white/35 hover:text-white/55 transition-colors"
+      >
+        {showEspecificos ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {showEspecificos ? "Mostrar menos" : "Mostrar mais específicos"}
+      </button>
     </div>
   );
 };

@@ -10,6 +10,9 @@
  *   "workout_incomplete"→ 20h BRT — aluno tinha treino previsto hoje e ainda não concluiu
  *   "update_reminder"   → lembrete de atualização vencida/a vencer (sem mudanças)
  *   "active_timers"     → timers em andamento (descanso/cardio) que passaram da duração alvo
+ *   "plan_grace"        → plano vencido: dia 0 (push+email+bell), dias 1-6 de carência
+ *                          (push diário), dia 7 (bloqueia o aluno automaticamente).
+ *                          Sem WhatsApp — ver comentário na função handlePlanGrace().
  *
  * Cron jobs (ver supabase/migrations/20260707000005_notify_cron_jobs.sql):
  *   notify-meals:              * * * * *      (a cada minuto — filtra dentro da função)
@@ -90,6 +93,7 @@ async function sendWhatsapp(orgId: string, alunoId: string, phone: string | null
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number, text }),
+      signal: AbortSignal.timeout(8000),
     });
     const raw = await res.text();
     if (!res.ok) {
@@ -633,6 +637,102 @@ async function handleUpdateReminder() {
   }
 }
 
+// ── Carência de plano vencido (dias 0-6) + bloqueio automático (dia 7) ──────
+// Sem WhatsApp aqui: Evolution API está desativada no projeto (risco de banimento
+// já concretizado com pouco uso) até integrarem uma API oficial — só push+bell+email.
+
+const orgNameCache = new Map<string, string>();
+async function getOrgName(orgId: string): Promise<string> {
+  if (orgNameCache.has(orgId)) return orgNameCache.get(orgId)!;
+  const { data } = await supabase.from("organizations").select("name, nome_marca").eq("id", orgId).maybeSingle();
+  const name = (data?.nome_marca as string | null) ?? (data?.name as string | null) ?? "sua plataforma";
+  orgNameCache.set(orgId, name);
+  return name;
+}
+
+async function sendPlanGraceEmail(userId: string, type: "plano_vencido" | "plano_bloqueado", nome: string, orgName: string, dateFmt: string) {
+  try {
+    const { data } = await supabase.auth.admin.getUserById(userId);
+    const email = data?.user?.email;
+    if (!email) return;
+    await supabase.functions.invoke("enviar-email", { body: { type, to: email, nome, orgName, dateFmt } });
+  } catch (e) {
+    console.error("[notify-scheduled] sendPlanGraceEmail error:", e instanceof Error ? e.message : e);
+  }
+}
+
+async function handlePlanGrace() {
+  const today = brazilToday();
+
+  const { data: alunos } = await supabase
+    .from("alunos")
+    .select("id, user_id, org_id, treinador_id, data_expiracao_plano, grace_last_notif_date")
+    .eq("ativo", true)
+    .not("data_expiracao_plano", "is", null)
+    .not("user_id", "is", null)
+    .lte("data_expiracao_plano", today);
+
+  if (!alunos?.length) return;
+
+  for (const aluno of alunos) {
+    if (aluno.grace_last_notif_date === today) continue; // já processado hoje
+
+    const dueDate = aluno.data_expiracao_plano as string;
+    const userId  = aluno.user_id as string;
+    const orgId   = aluno.org_id as string;
+    const diffDays = Math.round((new Date(today).getTime() - new Date(dueDate).getTime()) / 86400000);
+    const dueFmt = dueDate.split("-").reverse().join("/");
+
+    const { data: profile } = await supabase.from("profiles").select("nome").eq("id", userId).maybeSingle();
+    const nome = (profile?.nome as string | null) ?? "Aluno";
+    const orgName = await getOrgName(orgId);
+
+    if (diffDays === 0) {
+      const title = "Seu plano venceu hoje";
+      const body  = `Seu plano venceu hoje (${dueFmt}). Renove em até 7 dias para não perder o acesso.`;
+      await sendPush(userId, { title, body, tag: `plan_grace_0_${userId}_${dueDate}` });
+      await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "plan_grace_0", title, body });
+      await supabase.from("notificacoes").insert({ user_id: userId, org_id: orgId, titulo: title, mensagem: body, tipo: "financeiro" });
+      await sendPlanGraceEmail(userId, "plano_vencido", nome, orgName, dueFmt);
+
+      if (aluno.treinador_id) {
+        const titleT = `Plano de ${nome} venceu`;
+        const bodyT  = `O plano de ${nome} venceu em ${dueFmt}. Se não for renovado, o acesso será bloqueado automaticamente em 7 dias.`;
+        await supabase.from("notificacoes").insert({
+          user_id: aluno.treinador_id as string, org_id: orgId, aluno_id: aluno.id, aluno_nome: nome,
+          titulo: titleT, mensagem: bodyT, tipo: "financeiro",
+        });
+      }
+    } else if (diffDays >= 1 && diffDays <= 6) {
+      const diasRestantes = 7 - diffDays;
+      const title = "Seu plano continua vencido";
+      const body  = `Seu plano venceu há ${diffDays} dia${diffDays > 1 ? "s" : ""}. Renove em até ${diasRestantes} dia${diasRestantes > 1 ? "s" : ""} para não perder o acesso.`;
+      await sendPush(userId, { title, body, tag: `plan_grace_${diffDays}_${userId}_${dueDate}` });
+      await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "plan_grace_daily", title, body });
+    } else if (diffDays >= 7) {
+      await supabase.from("alunos").update({ ativo: false, desativado_por_inadimplencia: true }).eq("id", aluno.id);
+
+      const title = "Acesso bloqueado";
+      const body  = `Seu plano venceu em ${dueFmt} e não foi renovado dentro do prazo. Entre em contato com ${orgName} para regularizar o pagamento e liberar seu acesso novamente.`;
+      await sendPush(userId, { title, body, tag: `plan_grace_blocked_${userId}_${dueDate}` });
+      await logNotification({ recipient_id: userId, org_id: orgId, notification_type: "plan_grace_blocked", title, body });
+      await supabase.from("notificacoes").insert({ user_id: userId, org_id: orgId, titulo: title, mensagem: body, tipo: "financeiro" });
+      await sendPlanGraceEmail(userId, "plano_bloqueado", nome, orgName, dueFmt);
+
+      if (aluno.treinador_id) {
+        const titleT = "Aluno desativado automaticamente";
+        const bodyT  = `${nome} foi desativado automaticamente por falta de renovação do plano (venceu em ${dueFmt}).`;
+        await supabase.from("notificacoes").insert({
+          user_id: aluno.treinador_id as string, org_id: orgId, aluno_id: aluno.id, aluno_nome: nome,
+          titulo: titleT, mensagem: bodyT, tipo: "financeiro",
+        });
+      }
+    }
+
+    await supabase.from("alunos").update({ grace_last_notif_date: today }).eq("id", aluno.id);
+  }
+}
+
 // ── Timers ativos (descanso entre séries / sessão de cardio) ────────────────
 
 async function handleActiveTimers() {
@@ -680,6 +780,7 @@ serve(async (req) => {
       case "workout_incomplete": await handleWorkoutIncomplete();  break;
       case "update_reminder":    await handleUpdateReminder();     break;
       case "active_timers":      await handleActiveTimers();       break;
+      case "plan_grace":         await handlePlanGrace();          break;
       default:
         return new Response(JSON.stringify({ error: "Unknown type" }), { status: 400 });
     }

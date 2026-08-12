@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number: normalizedPhone, text: content.trim() }),
+      signal: AbortSignal.timeout(8000),
     });
     const text = await res.text();
     const sendData = text ? JSON.parse(text) : {};

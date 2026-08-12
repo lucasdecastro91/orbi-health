@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
-import { Loader2, CheckCircle2, XCircle, Copy, Check, Lock, QrCode, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Copy, Check, Lock, QrCode, CreditCard, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import AsaasCardFields, { type AsaasCardFieldsHandle } from "@/components/AsaasCardFields";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ interface CobrancaPublica {
   data_vencimento: string;
   pix_key:         string | null;
   org_nome:        string;
+  org_slug:        string | null;
   org_logo_url:    string | null;
   org_cor:         string;
   org_tema:        string;
@@ -57,14 +59,34 @@ const CopyBtn = ({ text }: { text: string }) => {
 // resto do app) — o card funcional em si fica sempre claro por dentro, pra manter
 // QR code e código Pix legíveis sem precisar de uma versão dark de cada elemento.
 
+// Sai da tela — usada pelo botão "X". Sem isso, quem abre o link dentro do
+// app (notificação, PWA em modo standalone) fica preso aqui: essa rota não
+// tem layout/nav ao redor, e sem chrome do navegador (standalone) não existe
+// nem botão de voltar do sistema.
+// Sempre navegação completa (nunca history.back()): o clique na notificação
+// dentro do app abre essa tela em duas etapas (bug à parte, ainda não
+// investigado) e deixa uma página intermediária em branco/preta no histórico —
+// voltar caía nela e travava de novo, sem chrome pra sair. Vai pro dashboard
+// do aluno quando já sabemos o slug da org; senão cai em "/" (login/redirect).
+const CloseButton = ({ slug }: { slug?: string | null }) => (
+  <button
+    type="button"
+    onClick={() => { window.location.href = slug ? `/${slug}/aluno` : "/"; }}
+    aria-label="Fechar"
+    className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 text-zinc-500 transition-colors">
+    <X className="w-4 h-4" />
+  </button>
+);
+
 const Card = ({
-  children, accentColor, dark, logoUrl, orgNome,
+  children, accentColor, dark, logoUrl, orgNome, orgSlug,
 }: {
   children:    React.ReactNode;
   accentColor?: string;
   dark?:        boolean;
   logoUrl?:     string | null;
   orgNome?:     string;
+  orgSlug?:     string | null;
 }) => {
   const accent = accentColor ?? "#16a34a";
   return (
@@ -93,9 +115,10 @@ const Card = ({
             )}
           </div>
         )}
-        <div className="bg-white rounded-2xl overflow-hidden"
+        <div className="bg-white rounded-2xl overflow-hidden relative"
           style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)", border: "1px solid #ececec" }}>
           <div className="h-[3px]" style={{ backgroundColor: accentColor ?? "#18181b" }} />
+          <CloseButton slug={orgSlug} />
           {children}
         </div>
       </div>
@@ -114,6 +137,11 @@ const Pagamento = () => {
   const [phase, setPhase] = useState<"loading" | "not_found" | "pending" | "paid" | "cancelled">("loading");
   const [data,  setData]  = useState<CobrancaPublica | null>(null);
 
+  const [method, setMethod] = useState<"pix" | "card">("pix");
+  const cardRef = useRef<AsaasCardFieldsHandle>(null);
+  const [cardSubmitting, setCardSubmitting] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!cobrancaId) { setPhase("not_found"); return; }
     load();
@@ -126,8 +154,14 @@ const Pagamento = () => {
       });
       if (error || !res || res.error) { setPhase("not_found"); return; }
 
-      setData(res as CobrancaPublica);
-      applyStatus((res as CobrancaPublica).status);
+      const cobranca = res as CobrancaPublica;
+      // Cobrança criada como CREDIT_CARD não tem pix_key nenhum — abrir na aba
+      // Pix deixaria a tela sempre em "aguardando geração do código", mesmo
+      // com o cartão disponível e funcionando. Só decide isso na 1ª carga
+      // (data === null), pra não sobrescrever se o pagador já trocou de aba.
+      if (data === null && cobranca.forma_pagamento === "CREDIT_CARD") setMethod("card");
+      setData(cobranca);
+      applyStatus(cobranca.status);
     } catch {
       setPhase("not_found");
     }
@@ -137,6 +171,35 @@ const Pagamento = () => {
     if (PAGA_STATUSES.includes(status)) setPhase("paid");
     else if (CANCELADA_STATUSES.includes(status)) setPhase("cancelled");
     else setPhase("pending");
+  };
+
+  const handlePayWithCard = async () => {
+    if (!cobrancaId || !cardRef.current) return;
+    if (!cardRef.current.isComplete()) {
+      setCardError("Preencha todos os campos do cartão e do endereço.");
+      return;
+    }
+    setCardError(null);
+    setCardSubmitting(true);
+    try {
+      const values = cardRef.current.getValues();
+      const { data: res, error } = await supabase.functions.invoke("pagar-cobranca-cartao", {
+        body: { cobranca_id: cobrancaId, ...values },
+      });
+      if (error) {
+        const ctx = await (error as any)?.context?.json?.().catch(() => null);
+        throw new Error(ctx?.error ?? error.message ?? "Erro ao processar o pagamento");
+      }
+      if (!res?.ok) throw new Error(res?.error ?? "Erro ao processar o pagamento");
+
+      // Atualiza a tela na hora em vez de esperar o próximo tick do polling —
+      // o pagamento por cartão confirma (ou recusa) na hora, diferente do Pix.
+      await load();
+    } catch (e: any) {
+      setCardError(e.message ?? "Não foi possível processar o pagamento. Confira os dados do cartão.");
+    } finally {
+      setCardSubmitting(false);
+    }
   };
 
   // Atualização automática enquanto aguarda pagamento — polling, não Realtime:
@@ -154,7 +217,8 @@ const Pagamento = () => {
 
   if (phase === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f4f5]">
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f4f5] relative">
+        <CloseButton />
         <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
       </div>
     );
@@ -175,7 +239,7 @@ const Pagamento = () => {
   if (phase === "paid") {
     return (
       <Card accentColor={data?.org_cor} dark={data?.org_tema === "dark"}
-        logoUrl={data?.org_logo_url} orgNome={data?.org_nome}>
+        logoUrl={data?.org_logo_url} orgNome={data?.org_nome} orgSlug={data?.org_slug}>
         <div className="flex flex-col items-center gap-3 py-10 px-6 text-center">
           <CheckCircle2 className="w-10 h-10 text-green-500" />
           <p className="text-zinc-900 font-medium">Pagamento confirmado</p>
@@ -190,7 +254,7 @@ const Pagamento = () => {
   if (phase === "cancelled") {
     return (
       <Card accentColor={data?.org_cor} dark={data?.org_tema === "dark"}
-        logoUrl={data?.org_logo_url} orgNome={data?.org_nome}>
+        logoUrl={data?.org_logo_url} orgNome={data?.org_nome} orgSlug={data?.org_slug}>
         <div className="flex flex-col items-center gap-3 py-10 px-6 text-center">
           <XCircle className="w-10 h-10 text-amber-500" />
           <p className="text-zinc-900 font-medium">Cobrança cancelada</p>
@@ -203,7 +267,7 @@ const Pagamento = () => {
   // pending
   return (
     <Card accentColor={data?.org_cor} dark={data?.org_tema === "dark"}
-      logoUrl={data?.org_logo_url} orgNome={data?.org_nome}>
+      logoUrl={data?.org_logo_url} orgNome={data?.org_nome} orgSlug={data?.org_slug}>
       <div className="px-5 pt-4 pb-3">
         <p className="text-xs text-zinc-400 mb-1">Você está pagando</p>
         <p className="text-[28px] font-semibold text-zinc-900 leading-tight">
@@ -221,36 +285,63 @@ const Pagamento = () => {
         <p className="text-[13px] font-medium text-zinc-900 mb-2">Forma de pagamento</p>
 
         <div className="flex gap-2 mb-3">
-          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] border-zinc-900 bg-zinc-50">
-            <QrCode className="w-4 h-4 text-zinc-900" />
-            <span className="text-[13px] font-medium text-zinc-900">Pix</span>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1 rounded-lg border border-zinc-100 bg-zinc-50/50">
-            <div className="flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="text-[13px] font-medium text-zinc-300">Cartão</span>
-            </div>
-            <span className="text-[9px] text-zinc-300">em breve</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMethod("pix")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] transition-colors ${
+              method === "pix" ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"
+            }`}>
+            <QrCode className={`w-4 h-4 ${method === "pix" ? "text-zinc-900" : "text-zinc-400"}`} />
+            <span className={`text-[13px] font-medium ${method === "pix" ? "text-zinc-900" : "text-zinc-400"}`}>Pix</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMethod("card")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-[1.5px] transition-colors ${
+              method === "card" ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"
+            }`}>
+            <CreditCard className={`w-4 h-4 ${method === "card" ? "text-zinc-900" : "text-zinc-400"}`} />
+            <span className={`text-[13px] font-medium ${method === "card" ? "text-zinc-900" : "text-zinc-400"}`}>Cartão</span>
+          </button>
         </div>
 
-        {data?.pix_key ? (
-          <div className="space-y-2.5">
-            <div className="rounded-lg border border-zinc-100 p-3 flex items-center justify-center">
-              <QRCodeSVG value={data.pix_key} size={190} />
+        {method === "pix" ? (
+          data?.pix_key ? (
+            <div className="space-y-2.5">
+              <div className="rounded-lg border border-zinc-100 p-3 flex items-center justify-center">
+                <QRCodeSVG value={data.pix_key} size={190} />
+              </div>
+              <p className="text-xs text-zinc-400 text-center">
+                Abra o app do seu banco e escaneie, ou copie o código abaixo
+              </p>
+              <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2.5">
+                <p className="text-[11px] font-mono text-zinc-500 truncate">{data.pix_key}</p>
+              </div>
+              <CopyBtn text={data.pix_key} />
             </div>
-            <p className="text-xs text-zinc-400 text-center">
-              Abra o app do seu banco e escaneie, ou copie o código abaixo
+          ) : (
+            <p className="text-sm text-zinc-400 text-center py-6">
+              Aguardando geração do código de pagamento.
             </p>
-            <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2.5">
-              <p className="text-[11px] font-mono text-zinc-500 truncate">{data.pix_key}</p>
-            </div>
-            <CopyBtn text={data.pix_key} />
-          </div>
+          )
         ) : (
-          <p className="text-sm text-zinc-400 text-center py-6">
-            Aguardando geração do código de pagamento.
-          </p>
+          <div className="space-y-3">
+            <AsaasCardFields
+              ref={cardRef}
+              inputClassName="bg-zinc-50 border-zinc-200 text-zinc-900 rounded-lg h-11"
+              labelClassName="text-xs text-zinc-400 uppercase tracking-wider"
+            />
+            {cardError && <p className="text-xs text-red-500">{cardError}</p>}
+            <button
+              type="button"
+              onClick={handlePayWithCard}
+              disabled={cardSubmitting}
+              className="flex items-center justify-center gap-1.5 w-full h-11 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-60"
+              style={{ backgroundColor: "#18181b" }}>
+              {cardSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {cardSubmitting ? "Processando..." : "Pagar com cartão"}
+            </button>
+          </div>
         )}
       </div>
 

@@ -6,7 +6,7 @@ import { useTenantContext } from "@/contexts/TenantContext";
 import { startTimer, pauseTimer, clearTimer, getActiveTimer } from "@/lib/activeTimer";
 import {
   ArrowLeft, Play, Weight,
-  ChevronDown, ChevronUp, X,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, X,
   Timer, Pause, SkipForward, CheckCircle, TrendingUp,
   Circle, AlertCircle, Link2,
 } from "lucide-react";
@@ -50,6 +50,7 @@ interface Exercise {
   exercicio_base_id: string | null;
   carga_base: string | null;
   series_detalhadas: SerieDetalhe[] | null;
+  treino_id: string;
 }
 
 interface ExerciseQueryResult {
@@ -583,6 +584,12 @@ const ExerciseDetail = () => {
   const [loadingHistorico, setLoadingHistorico] = useState(true);
   const [pairedNames, setPairedNames]     = useState<string[]>([]);
   const [openHintKey, setOpenHintKey]     = useState<string | null>(null);
+  const [prevExerciseId, setPrevExerciseId] = useState<string | null>(null);
+  const [nextExerciseId, setNextExerciseId] = useState<string | null>(null);
+  // Cache da lista de exercícios do treino atual, pra setas prev/next não
+  // refazerem essa query a cada clique — só busca de novo quando o treino muda.
+  const siblingsCacheRef = useRef<{ treinoId: string; list: any[] } | null>(null);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Registro por slot: cada execução física de uma série (quantidade > 1 = múltiplos
   // slots) guarda carga+reps realizadas. Uma série fica "feita" quando todos os seus
@@ -707,7 +714,28 @@ const ExerciseDetail = () => {
     } catch { /* silent */ }
   };
 
-  useEffect(() => { loadExercise(); getAlunoId(); }, [id]);
+  // Limpa estado por-exercício ao trocar de `id` (setas prev/next navegam sem
+  // desmontar o componente — sem isso, valores do exercício anterior "vazam"
+  // por um instante até os loaders de baixo devolverem os novos).
+  useEffect(() => {
+    setCarga("");
+    setCargaFetched(false);
+    setHistorico([]);
+    setPairedNames([]);
+    setVideoOpen(false);
+    setOpenHintKey(null);
+    setOpenLogKey(null);
+    setSlots({});
+  }, [id]);
+
+  // Cancela o timer do loading atrasado se a tela desmontar antes dele disparar
+  // (ex: aluno aperta "voltar" no meio de uma troca de exercício lenta).
+  useEffect(() => () => { if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current); }, []);
+
+  useEffect(() => { loadExercise(); }, [id]);
+  // alunoId/studentUserId são do aluno logado — não mudam ao trocar de exercício
+  // (setas prev/next), então busca só 1x no mount, não em toda troca de `id`.
+  useEffect(() => { getAlunoId(); }, []);
   useEffect(() => { if (alunoId && id) { loadCarga(); loadHistorico(); } }, [alunoId, id]);
   useEffect(() => { if (studentUserId && id) loadSerieCompletions(); }, [studentUserId, id]);
 
@@ -732,6 +760,12 @@ const ExerciseDetail = () => {
   };
 
   const loadExercise = async () => {
+    // Só mostra a tela cheia de "Carregando exercício..." se a busca passar de
+    // 350ms — no primeiro mount `loading` já começa true (nada pra mostrar
+    // mesmo), então isso só entra em jogo nas trocas via seta prev/next. Sem
+    // esse atraso, toda troca rápida piscava a tela cheia sem necessidade.
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+    loadingTimerRef.current = setTimeout(() => setLoading(true), 350);
     try {
       const { data, error } = await supabase
         .from("exercicios")
@@ -789,41 +823,56 @@ const ExerciseDetail = () => {
         carga_base: q.carga_base ?? null,
         descricao: q.exercicios_base?.descricao ?? null,
         series_detalhadas: effectiveSd,
+        treino_id: q.treino_id,
       });
 
       if (q.treino_id && q.ordem != null) void loadPairedExercises(q.treino_id, q.ordem);
     } catch (err: any) {
       toast({ title: "Erro ao carregar exercício", description: err.message, variant: "destructive" });
     } finally {
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       setLoading(false);
     }
   };
 
-  /** Descobre se este exercício faz parte de um bi-set/tri-set (cadeia de conjugado_com_proximo) */
+  /**
+   * Descobre se este exercício faz parte de um bi-set/tri-set (cadeia de
+   * conjugado_com_proximo) e também os vizinhos anterior/próximo do treino,
+   * pra navegação sem precisar voltar pra tela do treino.
+   */
   const loadPairedExercises = async (treinoId: string, ordem: number) => {
     try {
-      const { data } = await supabase
-        .from("exercicios")
-        .select("nome_exercicio, ordem, conjugado_com_proximo")
-        .eq("treino_id", treinoId)
-        .order("ordem");
-      if (!data) return;
-      const list = data as any[];
+      let list: any[];
+      if (siblingsCacheRef.current?.treinoId === treinoId) {
+        list = siblingsCacheRef.current.list;
+      } else {
+        const { data } = await supabase
+          .from("exercicios")
+          .select("id, nome_exercicio, ordem, conjugado_com_proximo")
+          .eq("treino_id", treinoId)
+          .order("ordem");
+        if (!data) return;
+        list = data as any[];
+        siblingsCacheRef.current = { treinoId, list };
+      }
       const idx = list.findIndex((e) => e.ordem === ordem);
       if (idx === -1) return;
+
+      setPrevExerciseId(idx > 0 ? list[idx - 1].id : null);
+      setNextExerciseId(idx < list.length - 1 ? list[idx + 1].id : null);
 
       let start = idx;
       while (start > 0 && list[start - 1].conjugado_com_proximo) start--;
       let end = idx;
       while (list[end]?.conjugado_com_proximo) end++;
 
-      if (end > start) {
-        setPairedNames(
-          list.slice(start, end + 1)
-            .filter((_, i) => start + i !== idx)
-            .map((e) => e.nome_exercicio)
-        );
-      }
+      setPairedNames(
+        end > start
+          ? list.slice(start, end + 1)
+              .filter((_, i) => start + i !== idx)
+              .map((e) => e.nome_exercicio)
+          : []
+      );
     } catch { /* silent */ }
   };
 
@@ -896,6 +945,12 @@ const ExerciseDetail = () => {
     }
   };
 
+  /** Navega pro exercício anterior/próximo do mesmo treino, sem passar pela tela do treino */
+  const goToExercise = (exerciseId: string) => {
+    const treinoId = searchParams.get("treinoId");
+    navigate(`/${slug}/aluno/exercicio/${exerciseId}${treinoId ? `?treinoId=${treinoId}` : ""}`);
+  };
+
   // ── Loading ───────────────────────────────────────────────
 
   if (loading) {
@@ -965,6 +1020,33 @@ const ExerciseDetail = () => {
               <ArrowLeft className="w-4 h-4 text-white/70" />
             </button>
             <h1 className="text-base font-semibold text-foreground truncate flex-1">{exercise.nome_exercicio}</h1>
+
+            {/* Navegação entre exercícios do mesmo treino — par discreto, separado
+                do botão "voltar" pra não confundir as duas ações. Tamanho igual
+                ao botão "voltar" (w-9 h-9) e gap maior entre as duas: alunos
+                relataram toque errado entre elas por ficarem pequenas e coladas. */}
+            {(prevExerciseId || nextExerciseId) && (
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={() => prevExerciseId && goToExercise(prevExerciseId)}
+                  disabled={!prevExerciseId}
+                  aria-label="Exercício anterior"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-30"
+                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                >
+                  <ChevronLeft className="w-5 h-5 text-white/60" />
+                </button>
+                <button
+                  onClick={() => nextExerciseId && goToExercise(nextExerciseId)}
+                  disabled={!nextExerciseId}
+                  aria-label="Próximo exercício"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-30"
+                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                >
+                  <ChevronRight className="w-5 h-5 text-white/60" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1174,7 +1256,15 @@ const ExerciseDetail = () => {
                   const calculatedLoad = tipoCalculo !== 'manual' && carga.trim()
                     ? calcularCarga(carga, tipoCalculo, valorCalculo)
                     : null;
-                  const manualLoad = tipoCalculo === 'manual' ? valorCalculo || null : null;
+                  // Work set (tipo_calculo manual) normalmente não tem valor próprio —
+                  // usa a Carga Base direto, igual aos outros tipos calculados fazem
+                  // com ela (mesmo padrão de arredondar e por "kg" que `calcularCarga` usa).
+                  const manualLoad = tipoCalculo === 'manual'
+                    ? (valorCalculo || (() => {
+                        const b = parseFloat(carga.replace(/[^\d.]/g, ''));
+                        return !isNaN(b) && b > 0 ? `${Math.round(b)}kg` : null;
+                      })())
+                    : null;
 
                   // Prioridade: 1) texto por exercício  2) cluster dinâmico  3) config global da org  4) fallback hardcoded
                   const orgSerieConfig = (org?.serie_config ?? {}) as Record<string, string>;

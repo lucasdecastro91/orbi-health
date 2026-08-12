@@ -22,6 +22,7 @@ import OrgIndex from "./pages/OrgIndex";
 // Layouts
 import CoachLayout   from "./components/coach/CoachLayout";
 import StudentLayout from "./components/student/StudentLayout";
+import StudentAccessGate from "./components/student/StudentAccessGate";
 
 // Coach pages
 import CoachDashboard    from "./pages/coach/Dashboard";
@@ -268,36 +269,41 @@ const App = () => {
               {/* Plano — tela standalone, sem o layout/sidebar do painel */}
               <Route path="treinador/plano" element={<PlanoAtual />} />
 
-              {/* Student routes — com layout */}
-              <Route path="aluno" element={<StudentLayout />}>
-                <Route index                   element={<StudentDashboard />} />
-                <Route path="treinos"          element={<Treinos />} />
-                <Route path="treinos/historico" element={<TreinoHistory />} />
-                <Route path="dieta"            element={<Dieta />} />
-                <Route path="dieta/historico" element={<DietHistory />} />
-                <Route path="dieta/agua"      element={<Agua />} />
-                <Route path="ranking"         element={<Ranking />} />
-                {/* check-in desativado — substituído por Atualização */}
-                <Route path="atualizacao"      element={<Atualizacao />} />
-                <Route path="feedbacks"        element={<Feedbacks />} />
-                <Route path="perfil"           element={<Profile />} />
-                <Route path="alterar-senha"    element={<StudentAlterarSenha />} />
-                <Route path="evolucao"         element={<Evolucao />} />
-                <Route path="agenda"           element={<AgendaAluno />} />
-                <Route path="mensagens"              element={<MensagensAluno />} />
-                <Route path="anamnese"               element={<Anamnese />} />
-                <Route path="notificacoes"           element={<NotificationSettings />} />
-                <Route path="avaliacao-postural"    element={<AvaliacaoPostural />} />
-                <Route path="cardio"               element={<StudentCardio />} />
-                <Route path="sono"                 element={<SleepCalculator />} />
-              </Route>
+              {/* Student routes — bloqueio de acesso (alunos.ativo) cobre os dois grupos abaixo */}
+              <Route element={<StudentAccessGate />}>
 
-              {/* Student routes — sem layout (fullscreen) */}
-              <Route path="aluno/treino-hoje"  element={<TreinoHoje />} />
-              <Route path="aluno/semanas"      element={<Semanas />} />
-              <Route path="aluno/semana/:id"   element={<SemanaDetail />} />
-              <Route path="aluno/exercicio/:id" element={<ExerciseDetail />} />
-              <Route path="aluno/historico"    element={<Historico />} />
+                {/* Student routes — com layout */}
+                <Route path="aluno" element={<StudentLayout />}>
+                  <Route index                   element={<StudentDashboard />} />
+                  <Route path="treinos"          element={<Treinos />} />
+                  <Route path="treinos/historico" element={<TreinoHistory />} />
+                  <Route path="dieta"            element={<Dieta />} />
+                  <Route path="dieta/historico" element={<DietHistory />} />
+                  <Route path="dieta/agua"      element={<Agua />} />
+                  <Route path="ranking"         element={<Ranking />} />
+                  {/* check-in desativado — substituído por Atualização */}
+                  <Route path="atualizacao"      element={<Atualizacao />} />
+                  <Route path="feedbacks"        element={<Feedbacks />} />
+                  <Route path="perfil"           element={<Profile />} />
+                  <Route path="alterar-senha"    element={<StudentAlterarSenha />} />
+                  <Route path="evolucao"         element={<Evolucao />} />
+                  <Route path="agenda"           element={<AgendaAluno />} />
+                  <Route path="mensagens"              element={<MensagensAluno />} />
+                  <Route path="anamnese"               element={<Anamnese />} />
+                  <Route path="notificacoes"           element={<NotificationSettings />} />
+                  <Route path="avaliacao-postural"    element={<AvaliacaoPostural />} />
+                  <Route path="cardio"               element={<StudentCardio />} />
+                  <Route path="sono"                 element={<SleepCalculator />} />
+                </Route>
+
+                {/* Student routes — sem layout (fullscreen) */}
+                <Route path="aluno/treino-hoje"  element={<TreinoHoje />} />
+                <Route path="aluno/semanas"      element={<Semanas />} />
+                <Route path="aluno/semana/:id"   element={<SemanaDetail />} />
+                <Route path="aluno/exercicio/:id" element={<ExerciseDetail />} />
+                <Route path="aluno/historico"    element={<Historico />} />
+
+              </Route>
 
             </Route>
 

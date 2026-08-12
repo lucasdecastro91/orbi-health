@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const { data: org } = await supabase
       .from("organizations")
-      .select("name, logo_url, primary_color, theme")
+      .select("name, slug, logo_url, primary_color, theme")
       .eq("id", cobranca.org_id)
       .maybeSingle();
 
@@ -55,6 +55,7 @@ serve(async (req) => {
       data_vencimento: cobranca.data_vencimento,
       pix_key:         cobranca.pix_key,
       org_nome:        org?.name ?? "ORBI Health",
+      org_slug:        org?.slug ?? null,
       org_logo_url:    org?.logo_url ?? null,
       org_cor:         org?.primary_color ?? "#16a34a",
       org_tema:        org?.theme ?? "dark",

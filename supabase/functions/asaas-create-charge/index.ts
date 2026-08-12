@@ -68,6 +68,7 @@ async function sendWhatsapp(
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": EVOLUTION_API_KEY },
       body: JSON.stringify({ number, text }),
+      signal: AbortSignal.timeout(8000),
     });
     const raw = await res.text();
     if (!res.ok) {
@@ -242,16 +243,21 @@ serve(async (req) => {
     if (aluno.user_id) {
       const valorFmt = fmtBRL(Number(valor));
       const dateFmt  = fmtDate(vencimento);
+
+      // Checkout próprio (/pagar/:id) cobre Pix e Cartão (tokenizado via
+      // pagar-cobranca-cartao) — só boleto ainda cai no link do Asaas, já
+      // que não construímos boleto na nossa página.
+      const paymentLink = (forma_pagamento === "PIX" || forma_pagamento === "CREDIT_CARD")
+        ? `${APP_URL}/pagar/${cobranca.id}`
+        : (payment.invoiceUrl ?? "");
+
       const { error: notifErr } = await supabase.from("notificacoes").insert({
         user_id:  aluno.user_id,
         org_id,
         titulo:   "Nova cobrança gerada",
         mensagem: `${descricao} — ${valorFmt} — Vence em ${dateFmt}`,
         tipo:     "financeiro",
-        // Checkout próprio (/pagar/:id) só cobre Pix (fase 1) — cartão/boleto continuam
-        // no link do Asaas até a fase 2 existir, senão o aluno cairia numa tela nossa
-        // sem forma nenhuma de pagar.
-        link:     forma_pagamento === "PIX" ? `${APP_URL}/pagar/${cobranca.id}` : (payment.invoiceUrl ?? null),
+        link:     paymentLink || null,
       });
       if (notifErr) {
         console.error("[asaas-create-charge] notif aluno falhou:", notifErr.message);
@@ -259,37 +265,33 @@ serve(async (req) => {
         console.log("[asaas-create-charge] notif aluno ok, user_id:", aluno.user_id);
       }
 
-      const paymentLink = forma_pagamento === "PIX" ? `${APP_URL}/pagar/${cobranca.id}` : (payment.invoiceUrl ?? "");
-
-      // Push (best-effort — não bloqueia a resposta da cobrança)
-      try {
-        await supabase.functions.invoke("send-push", {
-          body: {
-            user_ids: [aluno.user_id],
-            title: "Nova cobrança gerada",
-            body: `${descricao} — ${valorFmt} — Vence em ${dateFmt}`,
-            tag: "cobranca_gerada",
-            url: paymentLink || "/aluno/financeiro",
-          },
-        });
-      } catch (e) {
+      // Push, WhatsApp e e-mail em paralelo — todos best-effort (nenhum bloqueia
+      // os outros nem a cobrança). Antes eram sequenciais e a resposta da cobrança
+      // esperava a soma dos três tempos, deixando o "Gerando..." do frontend
+      // travado e o e-mail (por ser o último) chegando bem depois do esperado.
+      const pushPromise = supabase.functions.invoke("send-push", {
+        body: {
+          user_ids: [aluno.user_id],
+          title: "Nova cobrança gerada",
+          body: `${descricao} — ${valorFmt} — Vence em ${dateFmt}`,
+          tag: "cobranca_gerada",
+          url: paymentLink || "/aluno/financeiro",
+        },
+      }).catch((e) => {
         console.error("[asaas-create-charge] push falhou:", e instanceof Error ? e.message : e);
-      }
+      });
 
-      // WhatsApp (best-effort)
-      if (paymentLink) {
-        await sendWhatsapp(
-          supabase, org_id, aluno_id,
-          orgRow?.whatsapp_status ?? null, orgRow?.whatsapp_instance_name ?? null,
-          notifyPhone,
-          `Olá ${name}! Uma nova cobrança foi gerada por ${orgRow?.name ?? "seu treinador"}: ${descricao} — ${valorFmt}, vencimento em ${dateFmt}. Pague aqui: ${paymentLink}`,
-        );
-      }
+      const whatsappPromise = paymentLink
+        ? sendWhatsapp(
+            supabase, org_id, aluno_id,
+            orgRow?.whatsapp_status ?? null, orgRow?.whatsapp_instance_name ?? null,
+            notifyPhone,
+            `Olá ${name}! Uma nova cobrança foi gerada por ${orgRow?.name ?? "seu treinador"}: ${descricao} — ${valorFmt}, vencimento em ${dateFmt}. Pague aqui: ${paymentLink}`,
+          )
+        : Promise.resolve();
 
-      // Email (best-effort)
-      if (email && paymentLink) {
-        try {
-          await supabase.functions.invoke("enviar-email", {
+      const emailPromise = (email && paymentLink)
+        ? supabase.functions.invoke("enviar-email", {
             body: {
               type: "cobranca_gerada",
               to: email,
@@ -300,11 +302,12 @@ serve(async (req) => {
               dateFmt,
               link: paymentLink,
             },
-          });
-        } catch (e) {
-          console.error("[asaas-create-charge] email falhou:", e instanceof Error ? e.message : e);
-        }
-      }
+          }).catch((e) => {
+            console.error("[asaas-create-charge] email falhou:", e instanceof Error ? e.message : e);
+          })
+        : Promise.resolve();
+
+      await Promise.all([pushPromise, whatsappPromise, emailPromise]);
     } else {
       console.warn("[asaas-create-charge] aluno sem user_id, notif ignorada. aluno_id:", aluno_id);
     }

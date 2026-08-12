@@ -2400,7 +2400,7 @@ const DietManager = ({ studentId, studentUserId, orgId }: DietManagerProps) => {
               onClick={() => fileInputRef.current?.click()}
               className="rounded-md h-8 px-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-xs bg-transparent dark:border-white/10 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/5">
               {pdfLoading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5 mr-1.5" />}
-              {pdfLoading ? "Processando..." : "Importar PDF ou print"}
+              {pdfLoading ? "Processando..." : "Importar PDF/print"}
             </Button>
           </label>
           {allDiets.length > 1 && (() => {
