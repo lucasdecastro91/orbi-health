@@ -1945,6 +1945,7 @@ export type Database = {
           grupo_muscular_principal: string | null
           grupo_muscular_secundario: string | null
           id: string
+          liberado_outras_orgs: boolean
           musculos_principais: string | null
           nome: string
           org_id: string | null
@@ -1959,6 +1960,7 @@ export type Database = {
           grupo_muscular_principal?: string | null
           grupo_muscular_secundario?: string | null
           id?: string
+          liberado_outras_orgs?: boolean
           musculos_principais?: string | null
           nome: string
           org_id?: string | null
@@ -1973,6 +1975,7 @@ export type Database = {
           grupo_muscular_principal?: string | null
           grupo_muscular_secundario?: string | null
           id?: string
+          liberado_outras_orgs?: boolean
           musculos_principais?: string | null
           nome?: string
           org_id?: string | null
@@ -2224,6 +2227,8 @@ export type Database = {
         Row: {
           aluno_id: string | null
           created_at: string
+          follow_up_at: string | null
+          follow_up_note: string | null
           id: string
           instagram: string | null
           nome: string
@@ -2238,6 +2243,8 @@ export type Database = {
         Insert: {
           aluno_id?: string | null
           created_at?: string
+          follow_up_at?: string | null
+          follow_up_note?: string | null
           id?: string
           instagram?: string | null
           nome: string
@@ -2252,6 +2259,8 @@ export type Database = {
         Update: {
           aluno_id?: string | null
           created_at?: string
+          follow_up_at?: string | null
+          follow_up_note?: string | null
           id?: string
           instagram?: string | null
           nome?: string
@@ -2864,6 +2873,7 @@ export type Database = {
           is_gs_brand: boolean
           logo_dark_url: string | null
           logo_url: string | null
+          login_logo_url: string | null
           meta_faturamento: number
           name: string
           nome_marca: string | null
@@ -2898,6 +2908,7 @@ export type Database = {
           is_gs_brand?: boolean
           logo_dark_url?: string | null
           logo_url?: string | null
+          login_logo_url?: string | null
           meta_faturamento?: number
           name: string
           nome_marca?: string | null
@@ -2932,6 +2943,7 @@ export type Database = {
           is_gs_brand?: boolean
           logo_dark_url?: string | null
           logo_url?: string | null
+          login_logo_url?: string | null
           meta_faturamento?: number
           name?: string
           nome_marca?: string | null
