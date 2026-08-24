@@ -41,6 +41,8 @@ interface Lead {
   objetivo: string | null;
   status: LeadStatus;
   aluno_id: string | null;
+  follow_up_at: string | null;
+  follow_up_note: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,19 +71,19 @@ interface LeadCall {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<LeadStatus, { label: string; bg: string; text: string; dot: string }> = {
-  novo:             { label: "Novo",            bg: "rgba(59,130,246,0.12)",  text: "#60a5fa", dot: "#3b82f6" },
-  contato_feito:    { label: "Contato feito",   bg: "rgba(251,191,36,0.12)",  text: "#fbbf24", dot: "#f59e0b" },
-  call_agendada:    { label: "Call agendada",   bg: "rgba(168,85,247,0.12)",  text: "#c084fc", dot: "#a855f7" },
-  proposta_enviada: { label: "Proposta enviada",bg: "rgba(251,146,60,0.12)",  text: "#fb923c", dot: "#f97316" },
+  novo:             { label: "Novo",            bg: "var(--tag-neutral-bg)", text: "var(--tag-neutral-color)", dot: "var(--tag-neutral-color)" },
+  contato_feito:    { label: "Contato feito",   bg: "var(--tag-neutral-bg)", text: "var(--tag-neutral-color)", dot: "var(--tag-neutral-color)" },
+  call_agendada:    { label: "Call agendada",   bg: "rgba(var(--cp-rgb),0.12)", text: "var(--cp-400)", dot: "var(--cp-500)" },
+  proposta_enviada: { label: "Proposta enviada",bg: "rgba(var(--cp-rgb),0.12)", text: "var(--cp-400)", dot: "var(--cp-500)" },
   fechado:          { label: "Fechado ✓",       bg: "rgba(34,197,94,0.12)",   text: "#4ade80", dot: "#22c55e" },
-  perdido:          { label: "Perdido",         bg: "rgba(107,114,128,0.12)", text: "#9ca3af", dot: "#6b7280" },
+  perdido:          { label: "Perdido",         bg: "var(--tag-neutral-bg)", text: "var(--tag-neutral-color)", dot: "var(--tag-neutral-color)" },
 };
 
 const ORIGEM_CFG: Record<string, { label: string; color: string }> = {
-  indicacao: { label: "Indicação",  color: "#4ade80" },
-  instagram: { label: "Instagram",  color: "#c084fc" },
-  tiktok:    { label: "TikTok",     color: "#60a5fa" },
-  outro:     { label: "Outro",      color: "#9ca3af" },
+  indicacao: { label: "Indicação",  color: "var(--tag-neutral-color)" },
+  instagram: { label: "Instagram",  color: "var(--tag-neutral-color)" },
+  tiktok:    { label: "TikTok",     color: "var(--tag-neutral-color)" },
+  outro:     { label: "Outro",      color: "var(--tag-neutral-color)" },
 };
 
 const STATUS_ORDER: LeadStatus[] = [
@@ -96,6 +98,14 @@ const fmtDate = (iso: string) =>
 
 const fmtHora = (iso: string) =>
   format(new Date(iso), "HH:mm");
+
+// Follow-up sempre grava hora (00:00 = "sem horário específico, só o dia") —
+// usado pra decidir se mostra a hora no selo/form ou só a data.
+const followUpHasTime = (iso: string | null | undefined) => {
+  if (!iso) return false;
+  const d = new Date(iso);
+  return d.getHours() !== 0 || d.getMinutes() !== 0;
+};
 
 // ── Call assunto suggestions ────────────────────────────────────────────────
 const ASSUNTO_SUGESTOES = [
@@ -274,9 +284,9 @@ const LeadFormModal = ({ orgId, treinadorId, lead, onClose, onSaved }: LeadFormP
                 <button key={o} onClick={() => set("origem", o)}
                   className="py-2 rounded-xl text-xs font-semibold transition-all"
                   style={{
-                    backgroundColor: form.origem === o ? `${cfg.color}20` : "rgba(255,255,255,0.05)",
-                    color:           form.origem === o ? cfg.color : "rgba(255,255,255,0.4)",
-                    border: `1px solid ${form.origem === o ? `${cfg.color}40` : "transparent"}`,
+                    backgroundColor: form.origem === o ? "rgba(var(--cp-rgb),0.2)" : "var(--ui-inactive-bg)",
+                    color:           form.origem === o ? "var(--cp-400)" : "var(--ui-inactive-color)",
+                    border: `1px solid ${form.origem === o ? "rgba(var(--cp-rgb),0.4)" : "var(--ui-inactive-border)"}`,
                   }}>
                   {cfg.label}
                 </button>
@@ -745,9 +755,9 @@ const CallModal = ({ lead, orgId, treinadorId, onClose, onSaved }: CallModalProp
                 onClick={() => setAssunto(assunto === s ? "" : s)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  backgroundColor: assunto === s ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
-                  color:           assunto === s ? "#fbbf24" : "rgba(255,255,255,0.45)",
-                  border: `1px solid ${assunto === s ? "rgba(251,191,36,0.35)" : "transparent"}`,
+                  backgroundColor: assunto === s ? "rgba(var(--cp-rgb),0.15)" : "var(--ui-inactive-bg)",
+                  color:           assunto === s ? "var(--cp-400)" : "var(--ui-inactive-color)",
+                  border: `1px solid ${assunto === s ? "rgba(var(--cp-rgb),0.35)" : "var(--ui-inactive-border)"}`,
                 }}
               >
                 {s}
@@ -946,7 +956,7 @@ const LeadChatBox = ({ lead, orgId }: { lead: Lead; orgId: string }) => {
       <p className="text-[11px] text-white/40 uppercase tracking-wider font-medium mb-3">Conversa no WhatsApp</p>
       <div
         className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)" }}
+        style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)" }}
       >
         <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: 260 }}>
           {loading ? (
@@ -960,7 +970,7 @@ const LeadChatBox = ({ lead, orgId }: { lead: Lead; orgId: string }) => {
                   className="max-w-[75%] rounded-2xl px-3 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap"
                   style={m.direction === "outbound"
                     ? { background: "var(--cp-gradient)", color: "var(--cp-text)", borderBottomRightRadius: 4 }
-                    : { backgroundColor: "#1b1c21", color: "rgba(255,255,255,0.85)", borderBottomLeftRadius: 4 }}
+                    : { backgroundColor: "var(--section-card-bg-2)", color: "hsl(var(--foreground) / 0.85)", borderBottomLeftRadius: 4 }}
                 >
                   {m.content}
                 </div>
@@ -976,7 +986,7 @@ const LeadChatBox = ({ lead, orgId }: { lead: Lead; orgId: string }) => {
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Digite uma mensagem"
             className="flex-1 h-9 rounded-xl px-3 text-xs text-white outline-none"
-            style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.1)" }}
+            style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)" }}
           />
           <button
             onClick={handleSend}
@@ -1007,11 +1017,15 @@ interface DetailSheetProps {
   onStatusChange: (id: string, status: LeadStatus) => void;
   onCallScheduled: (call: LeadCall) => void;
   onConverted: (leadId: string, alunoId: string) => void;
+  onFollowUpChange: (id: string, followUpAt: string | null, note: string | null) => void;
+  onCallUpdated: (call: LeadCall) => void;
+  onCallDeleted: (callId: string) => void;
 }
 
 const LeadDetailSheet = ({
   lead, orgId, treinadorId, onClose, onEdit, onDelete,
-  onStatusChange, onCallScheduled, onConverted,
+  onStatusChange, onCallScheduled, onConverted, onFollowUpChange,
+  onCallUpdated, onCallDeleted,
 }: DetailSheetProps) => {
   const { toast } = useToast();
   const navigate  = useNavigate();
@@ -1027,6 +1041,10 @@ const LeadDetailSheet = ({
   const [convEmail,     setConvEmail]   = useState("");
   const [converting,    setConverting]  = useState(false);
   const [deletingCall,  setDeletingCall] = useState<string | null>(null);
+  const [followUpPickerOpen, setFollowUpPickerOpen] = useState(false);
+  const [followUpNoteDraft, setFollowUpNoteDraft] = useState(lead.follow_up_note ?? "");
+  const [followUpDateDraft, setFollowUpDateDraft] = useState(lead.follow_up_at?.slice(0, 10) ?? "");
+  const [followUpTimeDraft, setFollowUpTimeDraft] = useState(followUpHasTime(lead.follow_up_at) ? fmtHora(lead.follow_up_at!) : "");
 
   useEffect(() => { loadDetail(); }, [lead.id]);
 
@@ -1062,15 +1080,36 @@ const LeadDetailSheet = ({
     setInteractions((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const saveFollowUp = async (dateStr: string, timeStr: string) => {
+    if (!dateStr) return;
+    const iso  = new Date(`${dateStr}T${timeStr || "00:00"}:00`).toISOString();
+    const note = followUpNoteDraft.trim() || null;
+    await supabase.from("leads").update({ follow_up_at: iso, follow_up_note: note }).eq("id", lead.id);
+    onFollowUpChange(lead.id, iso, note);
+    setFollowUpPickerOpen(false);
+  };
+
+  const clearFollowUp = async () => {
+    await supabase.from("leads").update({ follow_up_at: null, follow_up_note: null }).eq("id", lead.id);
+    onFollowUpChange(lead.id, null, null);
+    setFollowUpNoteDraft("");
+  };
+
   const markCallDone = async (callId: string) => {
     await supabase.from("lead_calls").update({ status: "realizada" }).eq("id", callId);
-    setCalls((prev) => prev.map((c) => c.id === callId ? { ...c, status: "realizada" } : c));
+    setCalls((prev) => {
+      const next = prev.map((c) => c.id === callId ? { ...c, status: "realizada" as const } : c);
+      const updated = next.find((c) => c.id === callId);
+      if (updated) onCallUpdated(updated);
+      return next;
+    });
   };
 
   const deleteCall = async (callId: string) => {
     setDeletingCall(callId);
     await supabase.from("lead_calls").delete().eq("id", callId);
     setCalls((prev) => prev.filter((c) => c.id !== callId));
+    onCallDeleted(callId);
     setDeletingCall(null);
   };
 
@@ -1140,7 +1179,7 @@ const LeadDetailSheet = ({
                   </a>
                 )}
                 <span className="text-xs px-1.5 py-0.5 rounded-md"
-                  style={{ backgroundColor: "rgba(255,255,255,0.06)", color: ORIGEM_CFG[lead.origem]?.color ?? "#9ca3af" }}>
+                  style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                   {ORIGEM_CFG[lead.origem]?.label ?? lead.origem}
                 </span>
               </div>
@@ -1163,7 +1202,7 @@ const LeadDetailSheet = ({
 
           {/* Status pipeline */}
           <div className="px-5 py-4 flex gap-1 overflow-x-auto"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            style={{ borderBottom: "1px solid var(--subtle-overlay)" }}>
             {STATUS_ORDER.map((s, i) => {
               const sc    = STATUS_CFG[s];
               const isDone = STATUS_ORDER.indexOf(lead.status) >= i;
@@ -1171,14 +1210,72 @@ const LeadDetailSheet = ({
                 <button key={s} onClick={() => onStatusChange(lead.id, s)}
                   className="flex-1 min-w-0 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap px-1 transition-all"
                   style={{
-                    backgroundColor: s === lead.status ? sc.bg : (isDone ? "rgba(255,255,255,0.05)" : "transparent"),
-                    color: s === lead.status ? sc.text : (isDone ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)"),
-                    border: `1px solid ${s === lead.status ? sc.dot + "40" : "rgba(255,255,255,0.06)"}`,
+                    backgroundColor: s === lead.status ? sc.bg : (isDone ? "var(--ui-inactive-bg)" : "transparent"),
+                    color: s === lead.status ? sc.text : (isDone ? "var(--ui-inactive-color)" : "var(--text-dim)"),
+                    border: `1px solid ${s === lead.status ? sc.dot : "var(--subtle-overlay)"}`,
                   }}>
                   {sc.label.replace(" ✓","").split(" ")[0]}
                 </button>
               );
             })}
+          </div>
+
+          {/* Follow-up */}
+          <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--subtle-overlay)" }}>
+            {lead.follow_up_at && !followUpPickerOpen ? (
+              <div className="flex items-start gap-2 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${new Date(lead.follow_up_at) <= new Date() ? "text-red-400" : "text-amber-400"}`}
+                    style={{ backgroundColor: "var(--tag-neutral-bg)" }}>
+                    <Clock className="w-3.5 h-3.5" /> Follow-up em {fmtDate(lead.follow_up_at)}
+                    {followUpHasTime(lead.follow_up_at) && ` · ${fmtHora(lead.follow_up_at)}`}
+                  </span>
+                  {lead.follow_up_note && (
+                    <p className="text-xs text-white/40 mt-1.5">{lead.follow_up_note}</p>
+                  )}
+                </div>
+                <button onClick={() => {
+                  setFollowUpNoteDraft(lead.follow_up_note ?? "");
+                  setFollowUpDateDraft(lead.follow_up_at?.slice(0, 10) ?? "");
+                  setFollowUpTimeDraft(followUpHasTime(lead.follow_up_at) ? fmtHora(lead.follow_up_at!) : "");
+                  setFollowUpPickerOpen(true);
+                }} className="text-xs text-white/40 hover:text-white/70 transition-colors shrink-0">Alterar</button>
+                <button onClick={clearFollowUp} className="text-xs text-white/40 hover:text-red-400 transition-colors shrink-0">Remover</button>
+              </div>
+            ) : followUpPickerOpen ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input type="date" value={followUpDateDraft}
+                    onChange={(e) => setFollowUpDateDraft(e.target.value)}
+                    className="h-8 rounded-lg px-2 text-xs text-white outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid var(--subtle-overlay)" }} />
+                  <input type="time" value={followUpTimeDraft}
+                    onChange={(e) => setFollowUpTimeDraft(e.target.value)}
+                    placeholder="Horário (opcional)"
+                    className="h-8 rounded-lg px-2 text-xs text-white outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid var(--subtle-overlay)" }} />
+                </div>
+                <Textarea value={followUpNoteDraft} onChange={(e) => setFollowUpNoteDraft(e.target.value)}
+                  placeholder="Observação (opcional) — ex: retornar após envio da proposta"
+                  rows={2}
+                  className="bg-white/5 border-white/10 text-white rounded-lg resize-none text-xs" />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => saveFollowUp(followUpDateDraft, followUpTimeDraft)}
+                    disabled={!followUpDateDraft}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                    style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}>
+                    Salvar
+                  </button>
+                  <button onClick={() => setFollowUpPickerOpen(false)} className="text-xs text-white/40 hover:text-white/70 transition-colors">Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { setFollowUpNoteDraft(""); setFollowUpDateDraft(""); setFollowUpTimeDraft(""); setFollowUpPickerOpen(true); }}
+                className="flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-white/70 transition-colors">
+                <Clock className="w-3.5 h-3.5" /> Marcar follow-up
+              </button>
+            )}
           </div>
 
           <div className="px-5 pt-4 space-y-6">
@@ -1389,6 +1486,7 @@ interface LeadCardProps {
 const LeadCard = ({ lead, nextCall, onDetail, dragHandleProps }: LeadCardProps) => {
   const origem = ORIGEM_CFG[lead.origem] ?? ORIGEM_CFG.outro;
   const callPerdida = nextCall?.status === "perdida";
+  const followUpLate = lead.follow_up_at ? new Date(lead.follow_up_at) <= new Date() : false;
 
   return (
     <div
@@ -1416,7 +1514,7 @@ const LeadCard = ({ lead, nextCall, onDetail, dragHandleProps }: LeadCardProps) 
 
       <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: `${origem.color}22`, color: origem.color }}>
+          style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
           {origem.label}
         </span>
         {callPerdida ? (
@@ -1428,6 +1526,13 @@ const LeadCard = ({ lead, nextCall, onDetail, dragHandleProps }: LeadCardProps) 
             {fmtDate(nextCall.data_hora)} · {fmtHora(nextCall.data_hora)}
           </span>
         ) : null}
+        {lead.follow_up_at && (
+          <span
+            title={lead.follow_up_note ?? undefined}
+            className={`flex items-center gap-1 text-[10px] font-semibold ${followUpLate ? "text-red-400" : "text-amber-400"}`}>
+            <Clock className="w-3 h-3" /> Follow-up {fmtDate(lead.follow_up_at)}{followUpHasTime(lead.follow_up_at) && ` · ${fmtHora(lead.follow_up_at)}`}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1456,29 +1561,37 @@ const DraggableLeadCard = (props: LeadCardProps) => {
   );
 };
 
+const FOLLOW_UP_COLUMN_ID = "follow_up";
+
 const KanbanColumn = ({
-  status, leads, callMap, onDetail,
+  id, label, countBg, countText, leads, callMap, onDetail, droppable = true, dashed = false, emptyLabel = "Nenhum lead",
 }: {
-  status: LeadStatus;
+  id: string;
+  label: string;
+  countBg: string;
+  countText: string;
   leads: Lead[];
   callMap: Record<string, LeadCall>;
   onDetail: (lead: Lead) => void;
+  droppable?: boolean;
+  dashed?: boolean;
+  emptyLabel?: string;
 }) => {
-  const cfg = STATUS_CFG[status];
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !droppable });
 
   return (
     <div
       ref={setNodeRef}
-      className="flex flex-col shrink-0 w-[260px] rounded-2xl p-2 transition-colors"
+      className={`flex flex-col shrink-0 w-[260px] rounded-2xl p-2 transition-colors ${dashed ? "border border-dashed border-white/10" : ""}`}
       style={{ backgroundColor: isOver ? "rgba(255,255,255,0.04)" : "transparent" }}
     >
       <div className="flex items-center justify-between px-2 py-1.5 mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: cfg.text }}>
-          {cfg.label.replace(" ✓", "")}
+        <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--tag-neutral-color)" }}>
+          {dashed && <Clock className="w-3 h-3" />}
+          {label}
         </span>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-          style={{ backgroundColor: cfg.bg, color: cfg.text }}>
+          style={{ backgroundColor: countBg, color: countText }}>
           {leads.length}
         </span>
       </div>
@@ -1493,7 +1606,7 @@ const KanbanColumn = ({
         ))}
         {leads.length === 0 && (
           <div className="rounded-xl border border-dashed border-white/8 py-6 text-center">
-            <p className="text-[11px] text-white/20">Nenhum lead</p>
+            <p className="text-[11px] text-white/20">{emptyLabel}</p>
           </div>
         )}
       </div>
@@ -1502,47 +1615,81 @@ const KanbanColumn = ({
 };
 
 const KanbanBoard = ({
-  leads, callMap, onDetail, onStatusChange,
+  leads, callMap, onDetail, onStatusChange, onFollowUpClear,
 }: {
   leads: Lead[];
   callMap: Record<string, LeadCall>;
   onDetail: (lead: Lead) => void;
   onStatusChange: (id: string, status: LeadStatus) => void;
+  onFollowUpClear: (id: string) => void;
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
   );
 
+  // Leads com follow-up marcado saem da coluna de etapa e "estacionam" na
+  // coluna virtual Follow-up (ordenados por data mais próxima primeiro) — a
+  // etapa real (status) não muda, só onde o card aparece. Volta pra coluna
+  // de etapa quando o follow-up é removido (manual ou arrastando de volta).
   const grouped = useMemo(() => {
     const map = Object.fromEntries(STATUS_ORDER.map((s) => [s, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
-    leads.forEach((l) => { map[l.status]?.push(l); });
+    leads.forEach((l) => { if (!l.follow_up_at) map[l.status]?.push(l); });
     return map;
   }, [leads]);
+
+  const followUpLeads = useMemo(() =>
+    leads.filter((l) => l.follow_up_at)
+      .sort((a, b) => (a.follow_up_at as string).localeCompare(b.follow_up_at as string)),
+    [leads]
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
+    const targetId = String(over.id);
+    if (targetId === FOLLOW_UP_COLUMN_ID) return; // não é um destino válido de arraste
     const leadId    = String(active.id);
-    const newStatus = over.id as LeadStatus;
+    const newStatus = targetId as LeadStatus;
     const lead      = leads.find((l) => l.id === leadId);
-    if (lead && lead.status !== newStatus) {
-      onStatusChange(leadId, newStatus);
-    }
+    if (!lead) return;
+    if (lead.status !== newStatus) onStatusChange(leadId, newStatus);
+    if (lead.follow_up_at) onFollowUpClear(leadId); // "resgatado" da coluna Follow-up
   };
 
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
-        {STATUS_ORDER.map((s) => (
-          <KanbanColumn
-            key={s}
-            status={s}
-            leads={grouped[s]}
-            callMap={callMap}
-            onDetail={onDetail}
-          />
-        ))}
+        {/* Primeira coluna de propósito — é a lista de "o que precisa de
+            atenção hoje", quer aparecer antes de mergulhar no funil normal. */}
+        <KanbanColumn
+          id={FOLLOW_UP_COLUMN_ID}
+          label="Follow-up"
+          countBg="rgba(245,158,11,0.15)"
+          countText="hsl(42 95% 58%)"
+          leads={followUpLeads}
+          callMap={callMap}
+          onDetail={onDetail}
+          droppable={false}
+          dashed
+          emptyLabel="Nenhum follow-up marcado"
+        />
+        <div className="w-px shrink-0 self-stretch my-2" style={{ backgroundColor: "var(--subtle-overlay)" }} />
+        {STATUS_ORDER.map((s) => {
+          const cfg = STATUS_CFG[s];
+          return (
+            <KanbanColumn
+              key={s}
+              id={s}
+              label={cfg.label.replace(" ✓", "")}
+              countBg={cfg.bg}
+              countText={cfg.text}
+              leads={grouped[s]}
+              callMap={callMap}
+              onDetail={onDetail}
+            />
+          );
+        })}
       </div>
     </DndContext>
   );
@@ -1623,6 +1770,18 @@ const Leads = () => {
     setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, aluno_id: alunoId, status: "fechado" } : l));
   };
 
+  const handleFollowUpChange = (id: string, followUpAt: string | null, note: string | null) => {
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, follow_up_at: followUpAt, follow_up_note: note } : l));
+    if (detailLead?.id === id) setDetailLead((prev) => prev ? { ...prev, follow_up_at: followUpAt, follow_up_note: note } : prev);
+  };
+
+  // Arrastar um lead estacionado na coluna Follow-up de volta pra uma coluna
+  // de etapa "resgata" ele — limpa o follow-up pra não voltar a se esconder ali.
+  const handleFollowUpClear = async (id: string) => {
+    await supabase.from("leads").update({ follow_up_at: null, follow_up_note: null }).eq("id", id);
+    handleFollowUpChange(id, null, null);
+  };
+
   // Map: leadId → next upcoming/overdue call
   const callByLead = useCallback(() => {
     const map: Record<string, LeadCall> = {};
@@ -1674,6 +1833,9 @@ const Leads = () => {
           onStatusChange={handleStatusChange}
           onCallScheduled={(c) => setCalls((prev) => [...prev, c])}
           onConverted={handleConverted}
+          onFollowUpChange={handleFollowUpChange}
+          onCallUpdated={(call) => setCalls((prev) => prev.map((c) => c.id === call.id ? call : c))}
+          onCallDeleted={(callId) => setCalls((prev) => prev.filter((c) => c.id !== callId))}
         />
       )}
       <div className="min-h-screen pb-24">
@@ -1735,6 +1897,7 @@ const Leads = () => {
               callMap={callMap}
               onDetail={setDetailLead}
               onStatusChange={handleStatusChange}
+              onFollowUpClear={handleFollowUpClear}
             />
           )}
 

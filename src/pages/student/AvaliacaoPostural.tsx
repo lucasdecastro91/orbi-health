@@ -336,7 +336,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
               width: 160,
               height: 160,
               backgroundColor: "rgba(0,0,0,0.55)",
-              border: "3px solid rgba(255,255,255,0.75)",
+              border: "3px solid hsl(var(--foreground) / 0.75)",
             }}
           >
             <span className="text-7xl font-bold text-white leading-none">{timerCountdown}</span>
@@ -346,14 +346,14 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
 
       {/* ── Flash visual no 0 (fallback) ── */}
       {timerFlash && (
-        <div className="absolute inset-0 z-30 pointer-events-none" style={{ backgroundColor: "rgba(255,255,255,0.85)" }} />
+        <div className="absolute inset-0 z-30 pointer-events-none" style={{ backgroundColor: "hsl(var(--foreground) / 0.85)" }} />
       )}
 
       {/* Camera blocked overlay */}
       {camBlocked && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-8 text-center bg-black">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.08)" }}>
             <Camera className="w-8 h-8 text-white/40" />
           </div>
           <div>
@@ -394,7 +394,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           <div className="absolute left-0 right-0 h-0.5 transition-colors duration-300"
             style={{
               top: "50%",
-              backgroundColor: aligned ? "rgba(74,222,128,0.85)" : "rgba(255,255,255,0.55)",
+              backgroundColor: aligned ? "rgba(74,222,128,0.85)" : "hsl(var(--foreground) / 0.55)",
               boxShadow: aligned ? "0 0 8px rgba(74,222,128,0.5)" : "none",
             }}
           />
@@ -403,8 +403,8 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
             <span className="text-[11px] font-semibold px-3 py-1 rounded-full"
               style={{
                 backgroundColor: aligned ? "rgba(74,222,128,0.2)" : "rgba(0,0,0,0.5)",
-                color: aligned ? "#4ade80" : "rgba(255,255,255,0.5)",
-                border: `1px solid ${aligned ? "rgba(74,222,128,0.3)" : "rgba(255,255,255,0.1)"}`,
+                color: aligned ? "#4ade80" : "hsl(var(--foreground) / 0.5)",
+                border: `1px solid ${aligned ? "rgba(74,222,128,0.3)" : "hsl(var(--foreground) / 0.1)"}`,
               }}>
               {aligned ? "✓ Câmera nivelada" : "Nivele a câmera"}
             </span>
@@ -414,7 +414,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           {miniOpen && (teste.imagens?.[photoIndex] || HAS_STATIC_REF.has(teste.key)) && (
             <div className="absolute top-20 right-3 pointer-events-auto">
               <div className="rounded-xl overflow-hidden bg-black"
-                style={{ width: 72, border: "1.5px solid rgba(255,255,255,0.25)" }}>
+                style={{ width: 72, border: "1.5px solid hsl(var(--foreground) / 0.25)" }}>
                 <RefImage testKey={teste.key} photoIndex={photoIndex} emoji={teste.emoji} small contain overrideUrl={teste.imagens?.[photoIndex]} />
               </div>
               <button onClick={() => setMiniOpen(false)}
@@ -427,7 +427,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           {!miniOpen && (teste.imagens?.[photoIndex] || HAS_STATIC_REF.has(teste.key)) && (
             <button onClick={() => setMiniOpen(true)}
               className="absolute top-20 right-3 w-9 h-9 rounded-xl flex items-center justify-center pointer-events-auto"
-              style={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              style={{ backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid hsl(var(--foreground) / 0.15)" }}>
               <Info className="w-4 h-4 text-white/60" />
             </button>
           )}
@@ -444,7 +444,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
         {/* Timer picker — visível apenas quando aberto e câmera ativa */}
         {showTimerPicker && timerCountdown === null && !preview && (
           <div className="flex flex-col items-center gap-3 px-5 pt-4 pb-2">
-            <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "hsl(var(--foreground) / 0.45)" }}>
               Selecionar tempo
             </p>
             <div className="flex gap-2 flex-nowrap justify-center">
@@ -455,9 +455,9 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
                   onClick={() => setTimerDuration(s)}
                   className="px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-all"
                   style={{
-                    backgroundColor: timerDuration === s ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.1)",
-                    color:           timerDuration === s ? "#000" : "rgba(255,255,255,0.65)",
-                    border:          `1px solid ${timerDuration === s ? "transparent" : "rgba(255,255,255,0.15)"}`,
+                    backgroundColor: timerDuration === s ? "hsl(var(--foreground) / 0.9)" : "hsl(var(--foreground) / 0.1)",
+                    color:           timerDuration === s ? "#000" : "hsl(var(--foreground) / 0.65)",
+                    border:          `1px solid ${timerDuration === s ? "transparent" : "hsl(var(--foreground) / 0.15)"}`,
                   }}
                 >
                   {s}s
@@ -491,20 +491,20 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
                     backgroundColor: timerCountdown !== null
                       ? "rgba(220,60,60,0.3)"
                       : showTimerPicker
-                        ? "rgba(255,255,255,0.2)"
+                        ? "hsl(var(--foreground) / 0.2)"
                         : "rgba(0,0,0,0.5)",
                     border: timerCountdown !== null
                       ? "1px solid rgba(220,60,60,0.7)"
-                      : "1px solid rgba(255,255,255,0.2)",
+                      : "1px solid hsl(var(--foreground) / 0.2)",
                   }}
                 >
                   {timerCountdown !== null ? (
                     <span className="text-base font-bold text-white leading-none">{timerCountdown}</span>
                   ) : (
-                    <Timer style={{ width: 18, height: 18, color: "rgba(255,255,255,0.7)" }} />
+                    <Timer style={{ width: 18, height: 18, color: "hsl(var(--foreground) / 0.7)" }} />
                   )}
                 </div>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <span className="text-[10px]" style={{ color: "hsl(var(--foreground) / 0.4)" }}>
                   {timerCountdown !== null ? "Cancelar" : `${timerDuration}s`}
                 </span>
               </button>
@@ -520,10 +520,10 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
                   topo, perto demais do "x" e da miniatura de referência) */}
               <button onClick={flip} className="flex flex-col items-center gap-1">
                 <div className="w-11 h-11 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <RotateCcw style={{ width: 18, height: 18, color: "rgba(255,255,255,0.7)" }} />
+                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid hsl(var(--foreground) / 0.2)" }}>
+                  <RotateCcw style={{ width: 18, height: 18, color: "hsl(var(--foreground) / 0.7)" }} />
                 </div>
-                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Virar</span>
+                <span className="text-[10px]" style={{ color: "hsl(var(--foreground) / 0.4)" }}>Virar</span>
               </button>
             </>
           ) : (
@@ -531,7 +531,7 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
               <button onClick={retake}
                 className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                  style={{ backgroundColor: "rgba(0,0,0,0.5)", border: "1px solid hsl(var(--foreground) / 0.2)" }}>
                   <RotateCcw className="w-5 h-5" />
                 </div>
                 <span className="text-[11px]">Repetir</span>
@@ -960,7 +960,7 @@ const AvaliacaoPostural = () => {
                 <div key={s.id} className="rounded-2xl p-4"
                   style={s.destaque
                     ? { backgroundColor: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }
-                    : { backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    : { backgroundColor: "hsl(var(--foreground) / 0.03)", border: "1px solid hsl(var(--foreground) / 0.08)" }}>
                   {s.titulo && (
                     <p className={s.destaque
                       ? "text-xs text-yellow-400/90 font-semibold mb-1.5"
@@ -1171,7 +1171,7 @@ const AvaliacaoPostural = () => {
 
           {/* Bottom navigation — sits above the 64px student nav bar */}
           <div className="fixed left-0 right-0 px-4 pt-4 pb-4"
-            style={{ bottom: 64, backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            style={{ bottom: 64, backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
             <div className="flex gap-3">
               {slideIndex > 0 && (
                 <button onClick={prevSlide}
@@ -1257,7 +1257,7 @@ const AvaliacaoPostural = () => {
 
           {/* Bottom actions */}
           <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 space-y-2"
-            style={{ backgroundColor: "rgba(9,9,11,0.97)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            style={{ backgroundColor: "rgba(9,9,11,0.97)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
             <button onClick={uploadAll}
               className="w-full h-12 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2"
               style={{ background: "var(--cp-gradient)" }}>

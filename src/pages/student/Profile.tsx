@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -135,7 +135,7 @@ const Profile = () => {
       </div>
 
       {/* Avatar */}
-      <div className="rounded-2xl border border-white/8 p-6 mb-4 flex flex-col items-center gap-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-6 mb-4 flex flex-col items-center gap-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         <div className="relative">
           {avatarUrl ? (
             <img src={avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover" style={{ boxShadow: "0 0 0 3px rgba(var(--cp-rgb),0.3)" }} />
@@ -167,7 +167,7 @@ const Profile = () => {
       </div>
 
       {/* Form */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dados pessoais</p>
 
         {/* Nome */}
@@ -206,18 +206,18 @@ const Profile = () => {
       </div>
 
       {/* Anamnese */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Anamnese</p>
         <button
           onClick={() => navigate(`/${slug}/aluno/anamnese`)}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", border: "1px solid hsl(var(--foreground) / 0.07)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
         >
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: anamneseDate ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.06)" }}
+            style={{ backgroundColor: anamneseDate ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.06)" }}
           >
             <ClipboardList className="w-4 h-4" style={{ color: anamneseDate ? "var(--cp-500)" : "hsl(var(--muted-foreground))" }} />
           </div>
@@ -241,12 +241,12 @@ const Profile = () => {
         // ── sem plano: banner informativo ───────────────────────────────────
         if (!plano) {
           return (
-            <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meu Plano</p>
               <div className="rounded-xl p-4 flex items-center gap-3"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.1)" }}>
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", border: "1px dashed hsl(var(--foreground) / 0.1)" }}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}>
                   <CreditCard className="w-4 h-4 text-muted-foreground opacity-40" />
                 </div>
                 <div>
@@ -267,13 +267,13 @@ const Profile = () => {
         const diasRestantes = venc ? Math.ceil((venc.getTime() - hoje.getTime()) / 86400000) : null;
 
         const statusColor =
-          diasRestantes === null ? "rgba(255,255,255,0.4)" :
+          diasRestantes === null ? "hsl(var(--foreground) / 0.4)" :
           diasRestantes < 0     ? "hsl(0 70% 60%)"        :
           diasRestantes <= 7    ? "hsl(38 95% 58%)"        :
           "hsl(142 70% 50%)";
 
         const statusBg =
-          diasRestantes === null ? "rgba(255,255,255,0.05)"  :
+          diasRestantes === null ? "hsl(var(--foreground) / 0.05)"  :
           diasRestantes < 0     ? "rgba(239,68,68,0.08)"    :
           diasRestantes <= 7    ? "rgba(245,158,11,0.08)"   :
           "rgba(34,197,94,0.08)";
@@ -292,7 +292,7 @@ const Profile = () => {
           "Ativo";
 
         return (
-          <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <div className="rounded-2xl border border-white/8 p-5 mb-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meu Plano</p>
             <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: statusBg, border: `1px solid ${statusColor}22` }}>
               {/* Nome do plano + status badge */}
@@ -341,7 +341,7 @@ const Profile = () => {
       })()}
 
       {/* Ferramentas IA */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Ferramentas</p>
 
         {/* Avaliação postural */}
@@ -349,9 +349,9 @@ const Profile = () => {
           <button
             onClick={() => navigate(`/${slug}/aluno/avaliacao-postural`)}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-left"
-            style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", border: "1px solid hsl(var(--foreground) / 0.07)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
           >
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
               style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
@@ -369,9 +369,9 @@ const Profile = () => {
         <button
           onClick={() => navigate(`/${slug}/aluno/sono`)}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-left"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", border: "1px solid hsl(var(--foreground) / 0.07)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
@@ -387,16 +387,16 @@ const Profile = () => {
       </div>
 
       {/* Actions */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Conta</p>
 
         {/* Notificações */}
         <button
           onClick={() => navigate(`/${slug}/aluno/notificacoes`)}
           className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors text-foreground/70 hover:text-foreground"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
         >
           <Bell className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
           Notificações
@@ -407,9 +407,9 @@ const Profile = () => {
         <button
           onClick={() => navigate(`/${slug}/aluno/alterar-senha`)}
           className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors text-foreground/70 hover:text-foreground"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
         >
           <KeyRound className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
           Alterar senha
@@ -419,9 +419,9 @@ const Profile = () => {
         <button
           onClick={() => window.open("https://instagram.com/lucasdecastro.fit", "_blank")}
           className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors text-foreground/70 hover:text-foreground"
-          style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255,255,255,0.04)"; }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
         >
           <Instagram className="w-4 h-4 text-pink-400" />
           Instagram do treinador

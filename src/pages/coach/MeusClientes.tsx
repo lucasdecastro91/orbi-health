@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, User, MoreVertical, Pencil, Power, Trash2, Users, Dumbbell, Utensils, HeartPulse, ClipboardCheck, Clock, Search } from "lucide-react";
+import {
+  Plus, User, MoreVertical, Pencil, Power, Trash2, Users, Dumbbell, Utensils, HeartPulse,
+  ClipboardCheck, Clock, Search, Upload, FileText, CheckCircle2, XCircle, AlertTriangle, Loader2,
+} from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -27,9 +30,9 @@ import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
 
 // Mesmo tratamento "alto relevo" já usado no Dashboard do treinador — fundo
 // um pouco mais claro que o zinc-950 da página + sombra em camadas.
-const CARD_BG     = "#141417";
-const CARD_BORDER = "rgba(255,255,255,0.09)";
-const CARD_SHADOW = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
+const CARD_BG     = "var(--section-card-bg)";
+const CARD_BORDER = "var(--section-card-border)";
+const CARD_SHADOW = "var(--section-card-shadow)";
 
 const studentSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email muito longo"),
@@ -54,6 +57,71 @@ interface AlunoStatus {
   anamnese: boolean;
 }
 
+// ── Import em massa ──────────────────────────────────────────────
+type ImportRowStatus = "pending" | "creating" | "success" | "reused" | "error" | "skipped";
+
+interface ImportRow {
+  nome: string;
+  email: string;
+  telefone: string;
+  error?: string;
+  status: ImportRowStatus;
+  resultMessage?: string;
+}
+
+const IMPORT_ERROR_MESSAGES: Record<string, string> = {
+  already_client_of_this_trainer: "Já é seu cliente",
+  email_already_registered: "E-mail já cadastrado, não foi possível vincular",
+  org_id_forbidden: "Sem permissão nesta organização",
+};
+
+/** Aceita texto colado ou CSV — uma linha por cliente, com nome/email/telefone
+ *  separados por tab, vírgula ou ponto-e-vírgula. Tab entra primeiro porque é o
+ *  que vem ao colar células copiadas direto do Excel/Google Sheets — o jeito
+ *  mais comum de usar isso na prática, não digitar/exportar um .csv à mão.
+ *  Pula a primeira linha se parecer cabeçalho. */
+const parseImportText = (text: string): ImportRow[] => {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  const delimiter = lines[0].includes("\t") ? "\t" : (lines[0].includes(";") && !lines[0].includes(",") ? ";" : ",");
+  const splitLine = (l: string) => l.split(delimiter).map((c) => c.trim().replace(/^"(.*)"$/, "$1"));
+  const firstCols = splitLine(lines[0]);
+  const col0 = (firstCols[0] ?? "").trim().toLowerCase();
+  const col1 = (firstCols[1] ?? "").trim().toLowerCase();
+  // Detecta cabeçalho com cuidado: um e-mail de verdade quase sempre contém a
+  // palavra "email" no domínio (ex: "joao@gmail.com" não, mas "ana@email.com"
+  // sim) — checar só a substring "email" na coluna 2 derrubava a primeira
+  // linha de dados real como se fosse cabeçalho. Cabeçalho de verdade nunca
+  // tem "@"; dado de verdade sempre tem.
+  const looksLikeHeader = col0 === "nome" || ((col1.includes("email") || col1.includes("e-mail")) && !col1.includes("@"));
+  const dataLines = looksLikeHeader ? lines.slice(1) : lines;
+  return dataLines.map((line) => {
+    const cols = splitLine(line);
+    return { nome: cols[0] ?? "", email: cols[1] ?? "", telefone: cols[2] ?? "", status: "pending" as const };
+  });
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Recalcula os erros de validação de cada linha — inclusive duplicidade de
+ *  e-mail entre linhas, que só dá pra saber olhando a lista inteira de novo. */
+const validateImportRows = (rows: ImportRow[]): ImportRow[] => {
+  const emailCounts: Record<string, number> = {};
+  rows.forEach((r) => {
+    const e = r.email.trim().toLowerCase();
+    if (e) emailCounts[e] = (emailCounts[e] ?? 0) + 1;
+  });
+  return rows.map((r) => {
+    const email = r.email.trim();
+    let error: string | undefined;
+    if (!r.nome.trim()) error = "Nome obrigatório";
+    else if (!email) error = "E-mail obrigatório";
+    else if (!EMAIL_RE.test(email)) error = "E-mail inválido";
+    else if (emailCounts[email.toLowerCase()] > 1) error = "E-mail duplicado na lista";
+    return { ...r, error };
+  });
+};
+
 const daysRemaining = (dataFim: string | null): number | null => {
   if (!dataFim) return null;
   const diff = new Date(dataFim).getTime() - new Date().setHours(0, 0, 0, 0);
@@ -75,6 +143,13 @@ const MeusClientes = () => {
   const [deletingAlunoId, setDeletingAlunoId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Import em massa
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "running" | "done">("upload");
+  const [importText, setImportText] = useState("");
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -184,6 +259,94 @@ const MeusClientes = () => {
     }
   };
 
+  // ── Import em massa ────────────────────────────────────────────
+  const closeImportDialog = () => {
+    if (importStep === "running") return; // não deixa fechar no meio do lote
+    setImportDialogOpen(false);
+    setImportStep("upload");
+    setImportText("");
+    setImportRows([]);
+    setImportProgress(0);
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImportText(String(reader.result ?? ""));
+    reader.readAsText(file, "utf-8");
+    e.target.value = "";
+  };
+
+  const handleImportContinue = () => {
+    const rows = validateImportRows(parseImportText(importText));
+    if (rows.length === 0) {
+      toast({ title: "Nenhuma linha encontrada", description: "Cole ou envie uma lista com nome e e-mail por linha.", variant: "destructive" });
+      return;
+    }
+    setImportRows(rows);
+    setImportStep("preview");
+  };
+
+  const updateImportRow = (idx: number, field: "nome" | "email" | "telefone", value: string) => {
+    setImportRows((prev) => validateImportRows(prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r))));
+  };
+
+  const removeImportRow = (idx: number) => {
+    setImportRows((prev) => validateImportRows(prev.filter((_, i) => i !== idx)));
+  };
+
+  const runImport = async () => {
+    if (!orgId) { toast({ title: "Organização ainda carregando", description: "Tente novamente em instantes.", variant: "destructive" }); return; }
+    const accessToken = getAccessTokenDirect();
+    if (!accessToken) { navigate("/auth"); return; }
+
+    const rows = [...importRows];
+    const validIndexes = rows.map((_, i) => i).filter((i) => !rows[i].error);
+    setImportStep("running");
+    setImportProgress(0);
+
+    let done = 0;
+    for (const i of validIndexes) {
+      rows[i] = { ...rows[i], status: "creating" };
+      setImportRows([...rows]);
+      try {
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-student`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+              "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({
+              nome: rows[i].nome.trim(),
+              email: rows[i].email.trim(),
+              telefone: rows[i].telefone.trim() || undefined,
+              org_id: orgId,
+            }),
+          }
+        );
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) {
+          const code = data?.error || `Erro ${resp.status}`;
+          rows[i] = { ...rows[i], status: "error", resultMessage: IMPORT_ERROR_MESSAGES[code] ?? code };
+        } else {
+          rows[i] = { ...rows[i], status: data.reused_existing_account ? "reused" : "success" };
+        }
+      } catch (err: any) {
+        rows[i] = { ...rows[i], status: "error", resultMessage: err?.message || "Erro de conexão" };
+      }
+      done++;
+      setImportProgress(done);
+      setImportRows([...rows]);
+    }
+
+    setImportStep("done");
+    loadAlunos();
+  };
+
   const handleEditAluno = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAluno) return;
@@ -260,6 +423,15 @@ const MeusClientes = () => {
             <h1 className="text-2xl font-bold text-white tracking-tight">Meus Clientes</h1>
             <p className="text-white/45 text-sm mt-0.5">{alunos.length} cliente{alunos.length !== 1 ? "s" : ""} cadastrado{alunos.length !== 1 ? "s" : ""}</p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm" variant="outline"
+            onClick={() => setImportDialogOpen(true)}
+            className="rounded-xl h-9 px-4 text-white/70 hover:text-white font-semibold text-sm border-white/10 hover:bg-white/5"
+          >
+            <Upload className="w-4 h-4 mr-1.5" />
+            Importar
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -303,6 +475,173 @@ const MeusClientes = () => {
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Import em massa */}
+          <Dialog open={importDialogOpen} onOpenChange={(open) => (open ? setImportDialogOpen(true) : closeImportDialog())}>
+            <DialogContent className="bg-zinc-950 border-white/8 sm:max-w-2xl max-h-[85vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="text-white">Importar clientes em massa</DialogTitle>
+                <DialogDescription className="text-white/40">
+                  {importStep === "upload" && "Cole uma lista ou envie um arquivo CSV com nome, e-mail e telefone (opcional)."}
+                  {importStep === "preview" && "Confira os dados antes de criar as contas — linhas com erro serão ignoradas."}
+                  {importStep === "running" && "Criando contas, um instante..."}
+                  {importStep === "done" && "Importação concluída."}
+                </DialogDescription>
+              </DialogHeader>
+
+              {importStep === "upload" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-white/70 mb-2 block">Colar lista</Label>
+                    <Textarea
+                      value={importText}
+                      onChange={(e) => setImportText(e.target.value)}
+                      placeholder={"Nome, Email, Telefone\nJoão Silva, joao@email.com, 11999999999\nMaria Souza, maria@email.com"}
+                      rows={7}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/25 rounded-xl font-mono text-xs resize-none"
+                    />
+                    <p className="text-[11px] text-white/30 mt-1.5">
+                      Cole direto de uma planilha (Excel, Google Sheets) ou digite/cole de um Word, Bloco de Notas etc. —
+                      um cliente por linha, com nome, e-mail e telefone (opcional) separados por vírgula. Nome e e-mail
+                      são obrigatórios.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/8" />
+                    <span className="text-[11px] text-white/30 uppercase tracking-wider">ou</span>
+                    <div className="h-px flex-1 bg-white/8" />
+                  </div>
+                  <label className="flex items-center justify-center gap-2 h-11 rounded-xl border border-dashed border-white/15 text-white/50 hover:text-white/80 hover:border-white/25 cursor-pointer transition-colors text-sm">
+                    <FileText className="w-4 h-4" />
+                    Enviar arquivo CSV
+                    <input type="file" accept=".csv,.txt" className="hidden" onChange={handleImportFile} />
+                  </label>
+                  <Button
+                    onClick={handleImportContinue}
+                    disabled={!importText.trim()}
+                    className="w-full rounded-xl h-11 text-white font-semibold disabled:opacity-40"
+                    style={{ background: "var(--cp-gradient)" }}
+                  >
+                    Continuar
+                  </Button>
+                </div>
+              )}
+
+              {importStep === "preview" && (() => {
+                const invalidCount = importRows.filter((r) => r.error).length;
+                const validCount   = importRows.length - invalidCount;
+                return (
+                  <>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-white/50">{importRows.length} linha{importRows.length !== 1 ? "s" : ""}</span>
+                      {invalidCount > 0 && (
+                        <span className="flex items-center gap-1" style={{ color: "#fbbf24" }}>
+                          <AlertTriangle className="w-3 h-3" /> {invalidCount} com erro (serão ignoradas)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 -mr-1">
+                      {importRows.map((row, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-xl p-2.5"
+                          style={{ backgroundColor: "var(--section-card-bg-2)", border: `1px solid ${row.error ? "rgba(248,113,113,0.35)" : "var(--section-card-border)"}` }}
+                        >
+                          <div className="grid grid-cols-[1fr_1fr_100px_28px] gap-1.5 items-center">
+                            <Input value={row.nome} onChange={(e) => updateImportRow(idx, "nome", e.target.value)}
+                              placeholder="Nome" className="bg-white/5 border-white/10 text-white rounded-lg h-8 text-xs px-2" />
+                            <Input value={row.email} onChange={(e) => updateImportRow(idx, "email", e.target.value)}
+                              placeholder="E-mail" className="bg-white/5 border-white/10 text-white rounded-lg h-8 text-xs px-2" />
+                            <Input value={row.telefone} onChange={(e) => updateImportRow(idx, "telefone", e.target.value)}
+                              placeholder="Telefone" className="bg-white/5 border-white/10 text-white rounded-lg h-8 text-xs px-2" />
+                            <button onClick={() => removeImportRow(idx)}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-white/25 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          {row.error && <p className="text-[11px] mt-1.5" style={{ color: "#f87171" }}>{row.error}</p>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setImportStep("upload")}
+                        className="rounded-xl h-11 border-white/10 text-white/60 hover:text-white">
+                        Voltar
+                      </Button>
+                      <Button onClick={runImport} disabled={validCount === 0}
+                        className="flex-1 rounded-xl h-11 text-white font-semibold disabled:opacity-40"
+                        style={{ background: "var(--cp-gradient)" }}>
+                        Criar {validCount} cliente{validCount !== 1 ? "s" : ""}
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {importStep === "running" && (() => {
+                const total = importRows.filter((r) => !r.error).length || 1;
+                return (
+                  <div className="py-8 flex flex-col items-center gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--cp-400)" }} />
+                    <p className="text-white/60 text-sm">{importProgress} de {total} processados...</p>
+                    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--progress-track-bg)" }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${(importProgress / total) * 100}%`, background: "var(--cp-gradient)" }} />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {importStep === "done" && (() => {
+                const successCount = importRows.filter((r) => r.status === "success").length;
+                const reusedCount  = importRows.filter((r) => r.status === "reused").length;
+                const errorCount   = importRows.filter((r) => r.status === "error" || !!r.error).length;
+                return (
+                  <>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1.5" style={{ color: "#4ade80" }}>
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {successCount} criado{successCount !== 1 ? "s" : ""}
+                      </span>
+                      {reusedCount > 0 && (
+                        <span className="flex items-center gap-1.5 text-white/50">
+                          <User className="w-3.5 h-3.5" /> {reusedCount} já existia{reusedCount !== 1 ? "m" : ""}
+                        </span>
+                      )}
+                      {errorCount > 0 && (
+                        <span className="flex items-center gap-1.5" style={{ color: "#f87171" }}>
+                          <XCircle className="w-3.5 h-3.5" /> {errorCount} com erro
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 -mr-1">
+                      {importRows.map((row, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
+                          style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)" }}>
+                          <div className="min-w-0">
+                            <p className="text-sm text-white truncate">{row.nome}</p>
+                            <p className="text-xs text-white/40 truncate">{row.email}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            {row.status === "success" && <span className="text-xs font-medium" style={{ color: "#4ade80" }}>Criado</span>}
+                            {row.status === "reused" && <span className="text-xs font-medium text-white/50">Já existia</span>}
+                            {(row.status === "error" || row.status === "skipped") && (
+                              <span className="text-xs font-medium" style={{ color: "#f87171" }}>{row.resultMessage || row.error || "Erro"}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-white/30 text-center">
+                      E-mails de boas-vindas com a senha de acesso foram enviados automaticamente pros clientes criados.
+                    </p>
+                    <Button onClick={closeImportDialog} className="w-full rounded-xl h-11 text-white font-semibold" style={{ background: "var(--cp-gradient)" }}>
+                      Concluir
+                    </Button>
+                  </>
+                );
+              })()}
+            </DialogContent>
+          </Dialog>
+          </div>
         </div>
 
         {/* Search */}
@@ -374,7 +713,7 @@ const MeusClientes = () => {
                           <div className="relative w-12 h-12 shrink-0">
                             {st && (
                               <svg viewBox="0 0 48 48" className="absolute inset-0" style={{ transform: "rotate(-90deg)" }}>
-                                <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                                <circle cx="24" cy="24" r={r} fill="none" stroke="hsl(var(--foreground) / 0.08)" strokeWidth="3" />
                                 <circle
                                   cx="24" cy="24" r={r} fill="none" stroke={ringColor} strokeWidth="3" strokeLinecap="round"
                                   strokeDasharray={`${(done / total) * circ} ${circ}`}
@@ -383,9 +722,9 @@ const MeusClientes = () => {
                             )}
                             <div
                               className="absolute inset-1 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                              style={aluno.ativo ? { background: "var(--cp-gradient)" } : { background: "hsl(0 0% 18%)" }}
+                              style={aluno.ativo ? { background: "var(--cp-gradient)" } : { background: "var(--avatar-inactive-bg)" }}
                             >
-                              <span className={aluno.ativo ? "text-white" : "text-white/30"}>{initials}</span>
+                              <span className={aluno.ativo ? "text-white" : ""} style={aluno.ativo ? undefined : { color: "var(--avatar-inactive-text)" }}>{initials}</span>
                             </div>
                           </div>
 

@@ -147,8 +147,8 @@ const OnboardingChecklist = () => {
     <div
       className="fixed bottom-6 right-4 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-[320px] rounded-2xl overflow-hidden"
       style={{
-        backgroundColor: "#18181b",
-        border: "1px solid rgba(255,255,255,0.08)",
+        backgroundColor: "var(--sheet-bg-2)",
+        border: "1px solid hsl(var(--border))",
         boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
       }}
     >

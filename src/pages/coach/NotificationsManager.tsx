@@ -159,20 +159,15 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
         {tiposList.map((tipo) => {
           const count = tipo === "todos" ? totalUnread : (unreadByTipo[tipo] ?? 0);
           const active = tipoFiltro === tipo;
-          const cor = tipo !== "todos" ? TIPO_COR[tipo] : null;
           return (
             <button
               key={tipo}
               onClick={() => setTipoFiltro(tipo)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 whitespace-nowrap"
               style={{
-                backgroundColor: active
-                  ? (cor ? cor.bg : "rgba(var(--cp-rgb),0.15)")
-                  : "var(--ui-inactive-bg)",
-                color: active
-                  ? (cor ? cor.text : "var(--cp-400)")
-                  : "var(--ui-inactive-color)",
-                border: `1px solid ${active ? (cor ? cor.text + "30" : "rgba(var(--cp-rgb),0.3)") : "var(--ui-inactive-border)"}`,
+                backgroundColor: active ? "var(--filter-active-bg)" : "var(--ui-inactive-bg)",
+                color: active ? "var(--filter-active-color)" : "var(--ui-inactive-color)",
+                border: `1px solid ${active ? "var(--filter-active-border)" : "var(--ui-inactive-border)"}`,
               }}
             >
               {TIPO_LABEL[tipo]}
@@ -180,8 +175,8 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
                 <span
                   className="min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-1"
                   style={{
-                    backgroundColor: active ? (cor ? cor.text + "25" : "rgba(var(--cp-rgb),0.25)") : "rgba(239,68,68,0.25)",
-                    color: active ? (cor ? cor.text : "var(--cp-400)") : "#f87171",
+                    backgroundColor: active ? "var(--filter-badge-bg)" : "rgba(239,68,68,0.25)",
+                    color: active ? "var(--filter-badge-color)" : "#f87171",
                   }}
                 >
                   {count > 99 ? "99+" : count}
@@ -226,7 +221,7 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
       {/* Notification list */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+        style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
       >
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-white/25">
@@ -251,14 +246,14 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
                 key={n.id}
                 className="flex items-start gap-3 px-4 py-3.5 transition-colors"
                 style={{
-                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
+                  borderBottom: isLast ? "none" : "1px solid var(--row-divider)",
                   backgroundColor: n.lida ? "transparent" : "rgba(var(--cp-rgb),0.03)",
                 }}
               >
                 {/* Icon */}
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ backgroundColor: n.lida ? "rgba(255,255,255,0.05)" : cor.bg }}
+                  style={{ backgroundColor: n.lida ? "var(--toggle-bg)" : cor.bg }}
                 >
                   <IconComp
                     className="w-4 h-4"
@@ -282,7 +277,7 @@ const InboxTab = ({ userId, orgId }: { userId: string; orgId: string }) => {
                     <div className="flex items-center gap-1 mt-1">
                       <div
                         className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
-                        style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                        style={{ backgroundColor: "var(--subtle-overlay)" }}
                       >
                         <User className="w-2.5 h-2.5 text-white/40" />
                         <span className="text-[10px] text-white/50 font-medium">{n.aluno_nome}</span>
@@ -435,7 +430,7 @@ const SenderTab = ({ orgId }: { orgId: string }) => {
     <div className="space-y-6 max-w-2xl">
       {/* Form */}
       <div className="rounded-2xl p-5 space-y-4"
-        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
 
         {/* Destinatário */}
         <div className="space-y-2">
@@ -576,9 +571,9 @@ export default function NotificationsManager() {
         onClick={() => setTab(id)}
         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
         style={{
-          backgroundColor: active ? "rgba(var(--cp-rgb),0.12)" : "var(--ui-inactive-bg)",
-          color: active ? "var(--cp-400)" : "var(--ui-inactive-color)",
-          border: active ? "1px solid rgba(var(--cp-rgb),0.25)" : "1px solid var(--ui-inactive-border)",
+          backgroundColor: active ? "var(--filter-active-bg)" : "var(--ui-inactive-bg)",
+          color: active ? "var(--filter-active-color)" : "var(--ui-inactive-color)",
+          border: `1px solid ${active ? "var(--filter-active-border)" : "var(--ui-inactive-border)"}`,
         }}
       >
         <Icon className="w-4 h-4" />

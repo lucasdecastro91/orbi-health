@@ -331,7 +331,7 @@ const Colaboradores = () => {
           </div>
         ) : collabs.length === 0 ? (
           <div className="rounded-2xl flex flex-col items-center justify-center py-20 gap-4"
-            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
               style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
               <Users className="w-7 h-7 text-white/20" />
@@ -345,7 +345,7 @@ const Colaboradores = () => {
             {collabs.map((c) => (
               <div key={c.id}
                 className="rounded-2xl p-4 flex items-start gap-4"
-                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+                style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
                 <Avatar className="h-10 w-10 shrink-0 mt-0.5">
                   <AvatarFallback
                     className="text-sm font-bold text-white"
@@ -391,7 +391,7 @@ const Colaboradores = () => {
                       <div className="fixed inset-0 z-40" onClick={() => setShowMenu(null)} />
                       <div
                         className="absolute right-0 top-9 z-50 w-48 rounded-xl py-1 shadow-xl"
-                        style={{ backgroundColor: "#1c1c1e", border: "1px solid rgba(255,255,255,0.1)" }}>
+                        style={{ backgroundColor: "var(--sheet-bg-2)", border: "1px solid hsl(var(--border))" }}>
                         <button
                           onClick={() => openEdit(c)}
                           className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors">
@@ -437,7 +437,7 @@ const Colaboradores = () => {
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
           <div className="w-full max-w-md rounded-2xl overflow-hidden"
-            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "90vh", overflowY: "auto" }}>
+            style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", maxHeight: "90vh", overflowY: "auto" }}>
 
             {/* Modal header */}
             <div className="px-6 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>

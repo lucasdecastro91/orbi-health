@@ -260,6 +260,12 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const navigate = useNavigate();
   const { orgId, slug } = useTenantContext();
   const [plans, setPlans] = useState<Plan[]>([]);
+  // Item aberto do Accordion — controlado (não `defaultValue`), senão criar/importar
+  // um plano novo não abre ele sozinho: `defaultValue` só é lido no mount do
+  // Accordion, então mesmo depois de loadPlans() trazer o plano novo em plans[0],
+  // o card que ficava aberto antes continuava aberto até dar F5 (remonta o
+  // Accordion do zero, aí sim `defaultValue` pega o novo plans[0]).
+  const [openPlanId, setOpenPlanId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -321,17 +327,26 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
         toast({ title: "Plano atualizado com sucesso!" });
         // Edição de plano existente não notifica — só planos genuinamente novos.
       } else {
-        const { error } = await supabase
+        // Só pode haver 1 plano ativo por aluno (TreinoHoje.tsx depende disso
+        // pra achar o plano do dia com .single()) — desativa os outros antes
+        // de criar o novo, senão o aluno passa a ver "nenhum treino ativo"
+        // mesmo tendo um, porque a query quebra com mais de 1 linha ativa.
+        await supabase.from("planos_treino").update({ ativo: false }).eq("aluno_id", studentId);
+
+        const { data: novoPlano, error } = await supabase
           .from("planos_treino")
           .insert({
             ...planData,
             aluno_id: studentId,
             ativo: true,
-          });
+          })
+          .select("id")
+          .single();
 
         if (error) throw error;
         toast({ title: "Plano criado com sucesso!" });
         if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
+        setOpenPlanId(novoPlano.id as string);
       }
 
       setDialogOpen(false);
@@ -398,7 +413,7 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
       const { data: baseData, error: baseError } = await supabase
         .from("exercicios_base")
         .select("id, nome, video_url, descricao, grupo_muscular_principal, grupo_muscular_secundario")
-        .eq("org_id", orgId)
+        .or(`org_id.eq.${orgId},liberado_outras_orgs.eq.true`)
         .order("nome");
       if (baseError) throw baseError;
       setImportExercisesBase(baseData || []);
@@ -493,6 +508,9 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Sessão expirada, faça login novamente.");
+
+      // Mesmo motivo do handleSubmitPlan — só 1 plano ativo por aluno.
+      await supabase.from("planos_treino").update({ ativo: false }).eq("aluno_id", studentId);
 
       const { data: planRow, error: planErr } = await supabase
         .from("planos_treino")
@@ -590,6 +608,7 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
       if (studentUserId && orgId) notifyTreinoAtualizado(studentUserId, orgId);
       setImportOpen(false);
       setImportDraft(null);
+      setOpenPlanId(planoId);
       loadPlans();
     } catch (error: any) {
       toast({ title: "Erro ao importar plano", description: error.message, variant: "destructive" });
@@ -623,7 +642,8 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
           Nenhum plano de treino criado ainda
         </p>
       ) : (
-        <Accordion type="single" collapsible className="space-y-2" defaultValue={plans[0]?.id}>
+        <Accordion type="single" collapsible className="space-y-2"
+          value={openPlanId ?? plans[0]?.id} onValueChange={setOpenPlanId}>
           {plans.map((plan) => (
             <AccordionItem key={plan.id} value={plan.id} className="border-0">
               <AccordionTrigger className="sr-only" />
@@ -1452,7 +1472,11 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
     if (!orgId) return;
     void (async () => {
       const [baseRes, tiposRes] = await Promise.all([
-        supabase.from("exercicios_base").select("*").eq("org_id", orgId).order("nome"),
+        // Própria org + exercícios liberados por outras orgs pra uso geral
+        // (mesmo critério da tela Biblioteca de Exercícios) — sem isso, uma
+        // org nova não conseguia escolher os exercícios liberados pra ela,
+        // só via na Biblioteca sem poder usar de fato num treino.
+        supabase.from("exercicios_base").select("*").or(`org_id.eq.${orgId},liberado_outras_orgs.eq.true`).order("nome"),
         supabase.from("custom_techniques").select("id, name, description").eq("org_id", orgId).order("name"),
       ]);
       if (baseRes.error) console.error("Erro ao carregar biblioteca:", baseRes.error);
@@ -1825,22 +1849,24 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
 // #141417 / #1b1c21 e as sombras vêm do Dashboard (`CARD_BG`/`CARD_BG_2`/
 // `CARD_SHADOW`/`HERO_SHADOW`, Dashboard.tsx:63-67) — é o sistema visual que já
 // existe no projeto, não um padrão novo.
-const ELEV_BORDER      = "rgba(255,255,255,0.09)";
-const ELEV_BORDER_SOFT = "rgba(255,255,255,0.06)";
+const ELEV_BORDER      = "hsl(var(--foreground) / 0.09)";
+const ELEV_BORDER_SOFT = "hsl(var(--foreground) / 0.06)";
 
-const SHADOW_HERO = "0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.3)";
-const SHADOW_CARD = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
-const SHADOW_ITEM = "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
+// Reusa as sombras já ajustadas pro modo claro (--section-*-shadow, index.css)
+// em vez de valores fixos — no dark mode os valores são idênticos aos de antes.
+const SHADOW_HERO = "var(--section-hero-shadow)";
+const SHADOW_CARD = "var(--section-card-shadow)";
+const SHADOW_ITEM = "var(--section-card-shadow-2)";
 
 /** Nível 1 — plano/macrociclo. O mais externo e o mais escuro: funciona como o
  *  "chão" da tela, e a sombra ampla é o que o separa do fundo da página. */
-const LVL_PLAN_BG = "#0f0f12";
+const LVL_PLAN_BG = "var(--lvl-plan-bg)";
 /** Nível 2 — bloco de semanas */
-const LVL_BLOCK_BG = "#121216";
+const LVL_BLOCK_BG = "var(--lvl-block-bg)";
 /** Nível 3 — coluna de sessão */
-const LVL_SESSION_BG = "#141417";
+const LVL_SESSION_BG = "var(--lvl-session-bg)";
 /** Nível 4 — exercício e bloco de série: o mais interno, logo o mais claro */
-const LVL_ITEM_BG = "#1b1c21";
+const LVL_ITEM_BG = "var(--lvl-item-bg)";
 
 // Aliases mantidos pra não trocar nome em todo uso já existente da coluna/linha
 const EXERCISE_CARD_BG = LVL_ITEM_BG;
@@ -2180,6 +2206,11 @@ const TrainingExercises = ({
   const [defaultSeries, setDefaultSeries] = useState('3');
   const [defaultReps, setDefaultReps] = useState('12');
   const [defaultDescanso, setDefaultDescanso] = useState('60');
+  // ── Configurar exercícios recém-adicionados (passo pós-"Adicionar") ──
+  const [configureOpen, setConfigureOpen] = useState(false);
+  const [configureRows, setConfigureRows] = useState<{ id: string; nome: string; series: string; reps: string; descanso: string }[]>([]);
+  const [configureSelected, setConfigureSelected] = useState<Set<string>>(new Set());
+  const [configureSaving, setConfigureSaving] = useState(false);
   const { toast } = useToast();
   const { orgId, org } = useTenantContext();
 
@@ -2502,8 +2533,18 @@ const TrainingExercises = ({
   // WeekDetails.handleDragEnd, que já cobre tanto reordenar dentro do mesmo
   // treino quanto mover pra outro (compartilha um DndContext com as colunas).
 
-  /** Insere N exercícios da biblioteca de uma vez, sem configuração de séries —
-   *  o treinador ajusta cada um depois (ou usa a barra "aplicar padrão"). */
+  /** Insere N exercícios da biblioteca de uma vez, sem configuração de séries,
+   *  e abre o passo de configuração pós-adição pra ajustar cada um (ou vários
+   *  de uma vez, via seleção) antes de fechar o fluxo.
+   *
+   *  IMPORTANTE: não chama `onExercisesChanged()` aqui. Esse componente é
+   *  remontado do zero (`key={training.id}:{dataVersion}` em WeekDetails)
+   *  toda vez que o pai recarrega — chamar `onExercisesChanged()` antes de
+   *  abrir o modal de configuração destruía a instância atual (e o
+   *  `configureOpen` junto) antes do modal aparecer na tela. A lista já
+   *  reflete os novos exercícios via update otimista de `exercises`; o
+   *  refresh do pai (obrigatório pro drag-and-drop enxergar os IDs novos)
+   *  só acontece quando o modal fecha, em `closeConfigureModal`. */
   const handleBulkAddExercises = async (bases: ExerciseBase[]) => {
     if (bases.length === 0) return;
     try {
@@ -2521,30 +2562,81 @@ const TrainingExercises = ({
       }));
       // `ordem: startOrdem + i` preserva a ordem do array recebido, que vem na
       // ordem em que o treinador clicou os exercícios no modal.
-      const { error } = await supabase.from("exercicios").insert(rows);
+      const { data, error } = await supabase.from("exercicios").insert(rows).select("id, ordem");
       if (error) throw error;
       toast({ title: `${bases.length} ${bases.length === 1 ? "exercício adicionado" : "exercícios adicionados"}!` });
-      await onExercisesChanged();
+
+      // `inserted` ordenado por `ordem` casa índice a índice com `bases`/`rows`,
+      // que foram gerados na mesma ordem — dá pra remontar o Exercise completo
+      // sem precisar de outro round-trip.
+      const inserted = (data ?? []).slice().sort((a, b) => a.ordem - b.ordem);
+      if (inserted.length > 0) {
+        const newExercises: Exercise[] = inserted.map((r, i) => ({
+          id: r.id,
+          nome_exercicio: bases[i].nome,
+          series: "",
+          repeticoes: "",
+          descanso: null,
+          video_url: bases[i].video_url,
+          observacoes: null,
+          exercicio_base_id: bases[i].id,
+          ordem: r.ordem,
+        }));
+        setExercises((prev) => [...prev, ...newExercises]);
+        setConfigureRows(newExercises.map((e) => ({
+          id: e.id,
+          nome: e.nome_exercicio,
+          series: defaultSeries,
+          reps: defaultReps,
+          descanso: defaultDescanso,
+        })));
+        setConfigureSelected(new Set(newExercises.map((e) => e.id)));
+        setConfigureOpen(true);
+      }
     } catch (error: any) {
       toast({ title: "Erro ao adicionar exercícios", description: error.message, variant: "destructive" });
     }
   };
 
-  /** Aplica séries/reps/descanso padrão a todos os exercícios recém-adicionados
-   *  ainda não configurados (campos simples só — técnica/blocos avançados
-   *  continuam exigindo o editor individual). */
-  const applyDefaultsToUnconfigured = async (series: string, repeticoes: string, descanso: string) => {
-    const ids = exercises.filter(isUnconfigured).map(e => e.id);
-    if (ids.length === 0) return;
+  const updateConfigureRow = (id: string, field: 'series' | 'reps' | 'descanso', value: string) => {
+    setConfigureRows((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const applyToSelectedConfigureRows = (series: string, reps: string, descanso: string) => {
+    setConfigureRows((prev) => prev.map((r) => configureSelected.has(r.id) ? { ...r, series, reps, descanso } : r));
+  };
+
+  /** Fecha o modal sem salvar mudanças pendentes nas linhas e só então avisa
+   *  o pai pra recarregar — ver nota em `handleBulkAddExercises` sobre por
+   *  que o refresh não pode acontecer antes do modal fechar. */
+  const closeConfigureModal = () => {
+    setConfigureOpen(false);
+    onExercisesChanged();
+  };
+
+  /** Salva séries/reps/descanso de cada exercício recém-adicionado. Linhas com
+   *  séries em branco/zero são deixadas de fora — o treinador escolheu pular
+   *  aquele exercício, que continua marcado "Configurar séries" na coluna e
+   *  pode ser ajustado depois pelo editor individual (menu "Editar"). */
+  const handleSaveConfigureRows = async () => {
+    const toSave = configureRows.filter((r) => r.series.trim() && parseInt(r.series) > 0);
+    if (toSave.length === 0) { closeConfigureModal(); return; }
+    setConfigureSaving(true);
     try {
-      const { error } = await supabase
-        .from("exercicios")
-        .update({ series, repeticoes, descanso: descanso.trim() || null })
-        .in("id", ids);
-      if (error) throw error;
-      await onExercisesChanged();
+      const results = await Promise.all(toSave.map((r) =>
+        supabase.from("exercicios").update({
+          series: r.series.trim(),
+          repeticoes: r.reps.trim(),
+          descanso: r.descanso.trim() || null,
+        }).eq("id", r.id)
+      ));
+      const failed = results.find((res) => res.error);
+      if (failed?.error) throw failed.error;
+      closeConfigureModal();
     } catch (error: any) {
-      toast({ title: "Erro ao aplicar padrão", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar configuração", description: error.message, variant: "destructive" });
+    } finally {
+      setConfigureSaving(false);
     }
   };
 
@@ -2590,8 +2682,6 @@ const TrainingExercises = ({
 
   // Sem estado de "Carregando..." aqui: os exercícios já chegam prontos por prop
   // junto com a sessão, então não existe janela de espera nesta coluna.
-
-  const unconfiguredCount = exercises.filter(isUnconfigured).length;
 
   const selectedCount = selectedExerciseIds.size;
 
@@ -2683,27 +2773,6 @@ const TrainingExercises = ({
           ))
         )}
       </div>
-
-      {unconfiguredCount > 0 && (
-        <div className="rounded-lg bg-accent/60 p-2 space-y-1.5">
-          <div className="flex items-center gap-1 flex-wrap">
-            <Input value={defaultSeries} onChange={(e) => setDefaultSeries(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Séries" />
-            <span className="text-[11px] text-muted-foreground">séries ·</span>
-            <Input value={defaultReps} onChange={(e) => setDefaultReps(e.target.value)} className="h-7 w-14 text-xs px-1.5" aria-label="Repetições" />
-            <span className="text-[11px] text-muted-foreground">reps ·</span>
-            <Input value={defaultDescanso} onChange={(e) => setDefaultDescanso(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Descanso em segundos" />
-            <span className="text-[11px] text-muted-foreground">s</span>
-          </div>
-          <Button
-            size="sm" variant="secondary" className="w-full h-7 text-xs"
-            onClick={() => applyDefaultsToUnconfigured(defaultSeries, defaultReps, defaultDescanso)}
-          >
-            <Wand2 className="h-3 w-3 mr-1" />
-            Aplicar aos {unconfiguredCount} {unconfiguredCount === 1 ? "novo" : "novos"}
-          </Button>
-        </div>
-      )}
-
 
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
@@ -3235,7 +3304,7 @@ const TrainingExercises = ({
           <DialogHeader>
             <DialogTitle>Adicionar exercícios</DialogTitle>
             <DialogDescription>
-              Selecione um ou mais exercícios da biblioteca — depois é só ajustar as séries de cada um.
+              Selecione um ou mais exercícios da biblioteca — na próxima etapa você ajusta séries, reps e descanso.
             </DialogDescription>
           </DialogHeader>
 
@@ -3332,6 +3401,102 @@ const TrainingExercises = ({
               disabled={bulkSelected.size === 0}
             >
               Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={configureOpen} onOpenChange={(open) => { if (!open) closeConfigureModal(); }}>
+        <DialogContent className="max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Configurar exercícios adicionados</DialogTitle>
+            <DialogDescription>
+              Ajuste séries, reps e descanso de cada um — selecione vários pra aplicar o mesmo valor de uma vez.
+            </DialogDescription>
+          </DialogHeader>
+
+          {configureRows.length > 1 && (
+            <div className="rounded-lg bg-accent/60 p-2 space-y-1.5">
+              <div className="flex items-center gap-1 flex-wrap">
+                <Input value={defaultSeries} onChange={(e) => setDefaultSeries(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Séries" />
+                <span className="text-[11px] text-muted-foreground">séries ·</span>
+                <Input value={defaultReps} onChange={(e) => setDefaultReps(e.target.value)} className="h-7 w-14 text-xs px-1.5" aria-label="Repetições" />
+                <span className="text-[11px] text-muted-foreground">reps ·</span>
+                <div className="relative">
+                  <Input value={defaultDescanso} onChange={(e) => setDefaultDescanso(e.target.value)} className="h-7 w-14 text-xs pl-1.5 pr-4" aria-label="Descanso em segundos" />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">s</span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm" variant="secondary" className="w-full h-7 text-xs"
+                onClick={() => applyToSelectedConfigureRows(defaultSeries, defaultReps, defaultDescanso)}
+                disabled={configureSelected.size === 0}
+              >
+                <Wand2 className="h-3 w-3 mr-1" />
+                Aplicar aos {configureSelected.size} {configureSelected.size === 1 ? "selecionado" : "selecionados"}
+              </Button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-[80px] space-y-1">
+            {configureRows.length > 1 && (
+              <label className="flex items-center gap-2 px-1 pb-1 text-xs text-muted-foreground cursor-pointer">
+                <Checkbox
+                  checked={configureSelected.size === configureRows.length}
+                  onCheckedChange={(checked) =>
+                    setConfigureSelected(checked ? new Set(configureRows.map((r) => r.id)) : new Set())
+                  }
+                />
+                Selecionar todos
+              </label>
+            )}
+            {configureRows.map((row) => (
+              <div key={row.id} className="flex items-center gap-1.5 py-1">
+                {configureRows.length > 1 && (
+                  <Checkbox
+                    checked={configureSelected.has(row.id)}
+                    onCheckedChange={(checked) =>
+                      setConfigureSelected((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.add(row.id); else next.delete(row.id);
+                        return next;
+                      })
+                    }
+                  />
+                )}
+                <span className="flex-1 min-w-0 text-sm truncate" title={row.nome}>{row.nome}</span>
+                <Input
+                  value={row.series}
+                  onChange={(e) => updateConfigureRow(row.id, 'series', e.target.value)}
+                  className="h-7 w-11 text-xs px-1 text-center"
+                  aria-label={`Séries — ${row.nome}`}
+                />
+                <Input
+                  value={row.reps}
+                  onChange={(e) => updateConfigureRow(row.id, 'reps', e.target.value)}
+                  className="h-7 w-12 text-xs px-1 text-center"
+                  aria-label={`Repetições — ${row.nome}`}
+                />
+                <div className="relative">
+                  <Input
+                    value={row.descanso}
+                    onChange={(e) => updateConfigureRow(row.id, 'descanso', e.target.value)}
+                    className="h-7 w-12 text-xs pl-1 pr-4 text-center"
+                    aria-label={`Descanso — ${row.nome}`}
+                  />
+                  <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="items-center sm:justify-between">
+            <Button type="button" variant="ghost" size="sm" onClick={closeConfigureModal}>
+              Pular, configurar depois
+            </Button>
+            <Button size="sm" onClick={handleSaveConfigureRows} disabled={configureSaving}>
+              {configureSaving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

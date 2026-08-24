@@ -12,6 +12,10 @@ import {
   Clock, User, CheckCircle, XCircle, Calendar, Settings, Trash2,
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface Agendamento {
@@ -75,9 +79,9 @@ const STATUS_CONFIG = {
 const WEEK_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 // Mesmo tratamento "alto relevo" já usado no Dashboard e em Meus Clientes.
-const CARD_BG     = "#141417";
-const CARD_BORDER = "rgba(255,255,255,0.09)";
-const CARD_SHADOW = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
+const CARD_BG     = "var(--section-card-bg)";
+const CARD_BORDER = "var(--section-card-border)";
+const CARD_SHADOW = "var(--section-card-shadow)";
 
 // ── Calendar ───────────────────────────────────────────────────────
 const CalendarGrid = ({
@@ -180,8 +184,8 @@ const CalendarGrid = ({
 
 // ── Appointment card ───────────────────────────────────────────────
 const AptCard = ({
-  apt, onComplete, onCancel, tipoConfig,
-}: { apt: Agendamento; onComplete: () => void; onCancel: () => void; tipoConfig: Record<string, TipoAgendamento> }) => {
+  apt, onComplete, onCancel, onDelete, tipoConfig,
+}: { apt: Agendamento; onComplete: () => void; onCancel: () => void; onDelete: () => void; tipoConfig: Record<string, TipoAgendamento> }) => {
   const tipo   = tipoConfig[apt.tipo] ?? { label: apt.tipo, color: "rgba(255,255,255,0.4)" };
   const status = STATUS_CONFIG[apt.status];
 
@@ -227,25 +231,35 @@ const AptCard = ({
           )}
         </div>
 
-        {/* Actions (only for agendado) */}
-        {apt.status === "agendado" && (
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={onComplete}
-              title="Concluir"
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/25 hover:text-green-400 hover:bg-green-500/10"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onCancel}
-              title="Cancelar"
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/25 hover:text-red-400 hover:bg-red-500/10"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        {/* Actions — concluir/cancelar só cabem enquanto está agendado;
+            excluir fica disponível sempre (ex: agendamento criado errado). */}
+        <div className="flex items-center gap-1 shrink-0">
+          {apt.status === "agendado" && (
+            <>
+              <button
+                onClick={onComplete}
+                title="Concluir"
+                className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/25 hover:text-green-400 hover:bg-green-500/10"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onCancel}
+                title="Cancelar"
+                className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/25 hover:text-red-400 hover:bg-red-500/10"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={onDelete}
+            title="Excluir"
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/25 hover:text-red-400 hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -271,12 +285,13 @@ const NewAptModal = ({
     data: defaultDate,
     hora: "09:00",
     duracao: "60",
+    duracaoCustom: "",
     tipo: tipos[0]?.key ?? "consulta",
     descricao: "",
   });
 
   useEffect(() => {
-    if (open) setForm((f) => ({ ...f, data: defaultDate, titulo: "", descricao: "", aluno_id: "", tipo: tipos[0]?.key ?? "consulta" }));
+    if (open) setForm((f) => ({ ...f, data: defaultDate, titulo: "", descricao: "", aluno_id: "", tipo: tipos[0]?.key ?? "consulta", duracao: "60", duracaoCustom: "" }));
   }, [open, defaultDate]);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -285,6 +300,11 @@ const NewAptModal = ({
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!form.titulo.trim()) return;
+    const duracaoMinutos = form.duracao === "custom" ? Number(form.duracaoCustom) : Number(form.duracao);
+    if (!duracaoMinutos || duracaoMinutos <= 0) {
+      toast({ title: "Duração inválida", description: "Informe uma duração personalizada válida.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -300,7 +320,7 @@ const NewAptModal = ({
         titulo:          form.titulo.trim(),
         descricao:       form.descricao || null,
         data_hora:       dataHora.toISOString(),
-        duracao_minutos: Number(form.duracao),
+        duracao_minutos: duracaoMinutos,
         tipo:            form.tipo,
         status:          "agendado",
       });
@@ -323,7 +343,7 @@ const NewAptModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
-      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#111113" }}>
+      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "var(--sheet-bg)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
           <h2 className="text-sm font-semibold text-white">Novo Agendamento</h2>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 transition-colors">
@@ -361,12 +381,28 @@ const NewAptModal = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Duração</label>
-              <select value={form.duracao} onChange={set("duracao")} className={inputCls + " cursor-pointer"} style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-                <option value="30">30 min</option>
-                <option value="60">60 min</option>
-                <option value="90">90 min</option>
-                <option value="120">120 min</option>
-              </select>
+              {form.duracao === "custom" ? (
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  autoFocus
+                  value={form.duracaoCustom}
+                  onChange={set("duracaoCustom")}
+                  placeholder="Minutos"
+                  required
+                  className={inputCls}
+                />
+              ) : (
+                <select value={form.duracao} onChange={set("duracao")} className={inputCls + " cursor-pointer"} style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="60">60 min</option>
+                  <option value="90">90 min</option>
+                  <option value="120">120 min</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+              )}
             </div>
             <div>
               <label className={labelCls}>Tipo</label>
@@ -451,7 +487,7 @@ const ManageTiposModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
-      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#111113" }}>
+      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "var(--sheet-bg)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
           <h2 className="text-sm font-semibold text-white">Tipos de agendamento</h2>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/8 transition-colors">
@@ -606,6 +642,21 @@ const Agenda = () => {
     setApts((prev) => prev.map((a) => a.id === id ? { ...a, status: status as any } : a));
   };
 
+  const [deletingAptId, setDeletingAptId] = useState<string | null>(null);
+
+  const deleteApt = async () => {
+    if (!deletingAptId) return;
+    const id = deletingAptId;
+    setDeletingAptId(null);
+    const { error } = await supabase.from("agendamentos").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    setApts((prev) => prev.filter((a) => a.id !== id));
+    toast({ title: "Agendamento excluído" });
+  };
+
   return (
     <div className="px-6 lg:px-8 py-6 lg:py-8">
       {/* Header */}
@@ -715,6 +766,7 @@ const Agenda = () => {
                 apt={apt}
                 onComplete={() => updateStatus(apt.id, "concluido")}
                 onCancel={() => updateStatus(apt.id, "cancelado")}
+                onDelete={() => setDeletingAptId(apt.id)}
                 tipoConfig={tipoConfig}
               />
             ))}
@@ -739,6 +791,21 @@ const Agenda = () => {
         orgId={orgId}
         onSaved={reload}
       />
+
+      <AlertDialog open={!!deletingAptId} onOpenChange={(open) => !open && setDeletingAptId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O agendamento será excluído permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteApt}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

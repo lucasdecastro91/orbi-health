@@ -109,13 +109,13 @@ const CoachRanking = () => {
 
       {students.length === 0 ? (
         <div className="rounded-2xl py-12 flex flex-col items-center gap-3"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <Trophy className="w-10 h-10 text-muted-foreground/30" />
           <p className="text-muted-foreground text-sm text-center">Nenhum aluno ativo nesta org ainda.</p>
         </div>
       ) : (
         <div className="rounded-2xl overflow-hidden"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           {students.map((entry, idx) => {
             const initials = entry.nome.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
             return (
@@ -131,7 +131,7 @@ const CoachRanking = () => {
                 </div>
                 <div
                   className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+                  style={{ backgroundColor: "var(--avatar-fallback-bg)" }}
                 >
                   {entry.avatar_url
                     ? <img src={entry.avatar_url} alt={entry.nome} className="w-full h-full object-cover" />

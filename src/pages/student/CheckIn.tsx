@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,8 +35,8 @@ const StarRating = ({
         onClick={() => onChange(n)}
         className="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
         style={{
-          backgroundColor: n <= value ? `${color}20` : "rgba(255,255,255,0.04)",
-          border: `1.5px solid ${n <= value ? color : "rgba(255,255,255,0.08)"}`,
+          backgroundColor: n <= value ? `${color}20` : "hsl(var(--foreground) / 0.04)",
+          border: `1.5px solid ${n <= value ? color : "hsl(var(--foreground) / 0.08)"}`,
         }}
       >
         <Star
@@ -314,8 +314,8 @@ const CheckIn = () => {
                       ? "rgba(34,197,94,0.15)"
                       : current
                         ? `${s.color}20`
-                        : "rgba(255,255,255,0.04)",
-                    border: `1.5px solid ${done ? "rgba(34,197,94,0.4)" : current ? s.color : "rgba(255,255,255,0.08)"}`,
+                        : "hsl(var(--foreground) / 0.04)",
+                    border: `1.5px solid ${done ? "rgba(34,197,94,0.4)" : current ? s.color : "hsl(var(--foreground) / 0.08)"}`,
                   }}
                 >
                   {done
@@ -333,7 +333,7 @@ const CheckIn = () => {
               {idx < STEPS.length - 1 && (
                 <div
                   className="h-px flex-1 mb-5"
-                  style={{ backgroundColor: step > s.id ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.06)" }}
+                  style={{ backgroundColor: step > s.id ? "rgba(34,197,94,0.3)" : "hsl(var(--foreground) / 0.06)" }}
                 />
               )}
             </div>
@@ -342,7 +342,7 @@ const CheckIn = () => {
       </div>
 
       {/* Step content */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-6" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-6" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
         {/* Step title */}
         <div className="flex items-center gap-3 mb-5">
           <div

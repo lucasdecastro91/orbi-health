@@ -848,7 +848,7 @@ const CoachLayout = () => {
                 className="relative w-36 h-1.5 shrink-0"
                 title="Ver financeiro"
               >
-                <span className="absolute inset-0 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.12)" }}>
+                <span className="absolute inset-0 rounded-full overflow-hidden" style={{ backgroundColor: "var(--progress-track-bg)" }}>
                   <span
                     className="block h-full rounded-full"
                     style={{

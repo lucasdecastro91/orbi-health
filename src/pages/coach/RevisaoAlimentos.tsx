@@ -105,7 +105,7 @@ const RevisaoAlimentos = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-2xl px-5 py-4"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-2 mb-1">
             <Database className="w-4 h-4 text-green-500" />
             <span className="text-xs text-white/50 uppercase tracking-wider">Banco Global</span>
@@ -117,7 +117,7 @@ const RevisaoAlimentos = () => {
         </div>
 
         <div className="rounded-2xl px-5 py-4"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-2 mb-1">
             <RefreshCw className="w-4 h-4 text-green-500" />
             <span className="text-xs text-white/50 uppercase tracking-wider">Pendentes</span>
@@ -127,7 +127,7 @@ const RevisaoAlimentos = () => {
         </div>
 
         <div className="rounded-2xl px-5 py-4"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="w-4 h-4 text-green-500" />
             <span className="text-xs text-white/50 uppercase tracking-wider">Acesso</span>
@@ -150,7 +150,7 @@ const RevisaoAlimentos = () => {
           </div>
         ) : pendentes.length === 0 ? (
           <div className="rounded-2xl px-5 py-8 text-center"
-            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <Check className="w-8 h-8 text-green-500 mx-auto mb-2" />
             <p className="text-white/50 text-sm">Nenhum alimento pendente. Tudo em dia!</p>
           </div>
@@ -158,7 +158,7 @@ const RevisaoAlimentos = () => {
           <div className="space-y-3">
             {pendentes.map((a) => (
               <div key={a.id} className="rounded-2xl p-4"
-                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+                style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     {/* Nome + org */}

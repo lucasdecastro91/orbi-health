@@ -543,9 +543,9 @@ const BancoAlimentos = () => {
 
       {/* List */}
       <div className="rounded-2xl overflow-hidden"
-        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
         <div className="flex items-center px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-foreground/30"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)" }}>
+          style={{ borderBottom: "1px solid var(--subtle-overlay)", backgroundColor: "var(--list-header-bg)" }}>
           <span className="flex-1">Nome</span>
           <span className="mr-20">Kcal</span>
         </div>
@@ -566,7 +566,7 @@ const BancoAlimentos = () => {
             return (
               <div key={a.id}
                 className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/3 cursor-pointer"
-                style={{ borderBottom: idx < alimentos.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                style={{ borderBottom: idx < alimentos.length - 1 ? "1px solid var(--row-divider)" : "none" }}
                 onClick={() => setDetailId(a.id)}
               >
                 {/* Nome + macros */}

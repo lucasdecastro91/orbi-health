@@ -286,7 +286,15 @@ const StudentLayout = () => {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1"
+              // Header do Get Shape é sempre escuro (comentário acima), mas
+              // --notif-bell-color é reativo ao tema — sem isso, o balão/sino
+              // ficavam pretos sobre fundo preto no modo claro. Escopo local
+              // via CSS var, não mexe no valor global (usado em outros
+              // lugares, ex: CoachLayout, onde o fundo já é reativo de verdade).
+              style={isGetShape ? ({ "--notif-bell-color": "rgba(255,255,255,0.50)", "--notif-bell-color-open": "rgba(255,255,255,0.90)" } as React.CSSProperties) : undefined}
+            >
               <button
                 type="button"
                 onClick={() => navigate(`${base}/mensagens`)}

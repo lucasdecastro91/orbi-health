@@ -404,14 +404,14 @@ const Atualizacao = () => {
                   onClick={() => setVal(c.id, op.value)}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-all"
                   style={{
-                    borderColor: sel ? "rgba(var(--cp-rgb),0.6)" : "rgba(255,255,255,0.08)",
-                    backgroundColor: sel ? "rgba(var(--cp-rgb),0.1)" : "rgba(255,255,255,0.03)",
-                    color: sel ? "var(--cp-400)" : "rgba(255,255,255,0.75)",
+                    borderColor: sel ? "rgba(var(--cp-rgb),0.6)" : "hsl(var(--foreground) / 0.08)",
+                    backgroundColor: sel ? "rgba(var(--cp-rgb),0.1)" : "hsl(var(--foreground) / 0.03)",
+                    color: sel ? "var(--cp-400)" : "hsl(var(--foreground) / 0.75)",
                   }}
                 >
                   <div
                     className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
-                    style={{ borderColor: sel ? "var(--cp-500)" : "rgba(255,255,255,0.25)" }}
+                    style={{ borderColor: sel ? "var(--cp-500)" : "hsl(var(--foreground) / 0.25)" }}
                   >
                     {sel && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--cp-500)" }} />}
                   </div>
@@ -434,14 +434,14 @@ const Atualizacao = () => {
                   onClick={() => toggleCheckbox(c.id, op.value)}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-all"
                   style={{
-                    borderColor: checked ? "rgba(var(--cp-rgb),0.6)" : "rgba(255,255,255,0.08)",
-                    backgroundColor: checked ? "rgba(var(--cp-rgb),0.1)" : "rgba(255,255,255,0.03)",
-                    color: checked ? "var(--cp-400)" : "rgba(255,255,255,0.75)",
+                    borderColor: checked ? "rgba(var(--cp-rgb),0.6)" : "hsl(var(--foreground) / 0.08)",
+                    backgroundColor: checked ? "rgba(var(--cp-rgb),0.1)" : "hsl(var(--foreground) / 0.03)",
+                    color: checked ? "var(--cp-400)" : "hsl(var(--foreground) / 0.75)",
                   }}
                 >
                   <div
                     className="w-4 h-4 rounded flex items-center justify-center shrink-0 border-2"
-                    style={{ borderColor: checked ? "var(--cp-500)" : "rgba(255,255,255,0.25)", backgroundColor: checked ? "var(--cp-500)" : "transparent" }}
+                    style={{ borderColor: checked ? "var(--cp-500)" : "hsl(var(--foreground) / 0.25)", backgroundColor: checked ? "var(--cp-500)" : "transparent" }}
                   >
                     {checked && <Check className="w-2.5 h-2.5 text-black" />}
                   </div>
@@ -464,8 +464,8 @@ const Atualizacao = () => {
                     <div
                       className="w-full aspect-square rounded-xl overflow-hidden relative"
                       style={{
-                        backgroundColor: file ? undefined : "rgba(255,255,255,0.05)",
-                        border: `1px solid ${file ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.08)"}`,
+                        backgroundColor: file ? undefined : "hsl(var(--foreground) / 0.05)",
+                        border: `1px solid ${file ? "hsl(var(--foreground) / 0.15)" : "hsl(var(--foreground) / 0.15)"}`,
                       }}
                     >
                       {previewUrl ? (
@@ -526,7 +526,7 @@ const Atualizacao = () => {
             {fileValues[c.id]?.length > 0 && (
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {fileValues[c.id].map((f, i) => (
-                  <div key={i} className="relative group rounded-xl overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <div key={i} className="relative group rounded-xl overflow-hidden" style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}>
                     <div className="h-16 flex items-center justify-center text-xs text-white/50 px-2 text-center">{f.name}</div>
                     <button
                       type="button"
@@ -617,7 +617,7 @@ const Atualizacao = () => {
               style={{
                 backgroundColor: i <= step
                   ? "var(--cp-500)"
-                  : "rgba(255,255,255,0.1)",
+                  : "hsl(var(--foreground) / 0.1)",
               }}
             />
           ))}
@@ -664,7 +664,7 @@ const Atualizacao = () => {
           <button
             onClick={prevStep}
             className="flex items-center gap-1.5 px-5 h-11 rounded-xl border text-sm font-medium text-white/70 transition-colors"
-            style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.04)" }}
+            style={{ borderColor: "hsl(var(--foreground) / 0.1)", backgroundColor: "hsl(var(--foreground) / 0.04)" }}
           >
             <ChevronLeft className="w-4 h-4" /> Voltar
           </button>

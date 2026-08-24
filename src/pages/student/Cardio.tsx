@@ -412,9 +412,9 @@ const StudentCardio = () => {
                   onChange={(e) => setSexoFormInput(e.target.value)}
                   className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-2.5 text-sm text-foreground focus:outline-none focus:border-green-600/50"
                 >
-                  <option value="" style={{ backgroundColor: "#1a1a1d" }}>Selecione</option>
-                  <option value="Masculino" style={{ backgroundColor: "#1a1a1d" }}>Masculino</option>
-                  <option value="Feminino" style={{ backgroundColor: "#1a1a1d" }}>Feminino</option>
+                  <option value="" style={{ backgroundColor: "var(--sheet-bg-2)" }}>Selecione</option>
+                  <option value="Masculino" style={{ backgroundColor: "var(--sheet-bg-2)" }}>Masculino</option>
+                  <option value="Feminino" style={{ backgroundColor: "var(--sheet-bg-2)" }}>Feminino</option>
                 </select>
               </div>
             </div>
@@ -546,7 +546,7 @@ const StudentCardio = () => {
                       <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Esforço percebido (opcional)</label>
                       <div
                         className="rounded-lg border overflow-hidden"
-                        style={{ backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)" }}
+                        style={{ backgroundColor: "hsl(var(--foreground) / 0.05)", borderColor: "hsl(var(--foreground) / 0.1)" }}
                       >
                         <button
                           type="button"
@@ -586,7 +586,7 @@ const StudentCardio = () => {
                                   }}
                                   className="w-full rounded-md px-2.5 py-2 flex items-center justify-between text-sm transition-colors"
                                   style={{
-                                    backgroundColor: esforco === opt.value ? "rgba(var(--cp-rgb),0.18)" : "rgba(255,255,255,0.03)",
+                                    backgroundColor: esforco === opt.value ? "rgba(var(--cp-rgb),0.18)" : "hsl(var(--foreground) / 0.03)",
                                     color: esforco === opt.value ? "var(--cp-400)" : "hsl(var(--foreground))",
                                     fontWeight: esforco === opt.value ? 600 : 400,
                                   }}
@@ -615,7 +615,7 @@ const StudentCardio = () => {
                       <button
                         type="button" onClick={closeForm}
                         className="flex-1 h-10 rounded-lg text-sm font-medium"
-                        style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "hsl(var(--muted-foreground))" }}
+                        style={{ backgroundColor: "hsl(var(--foreground) / 0.05)", color: "hsl(var(--muted-foreground))" }}
                       >
                         Voltar
                       </button>
@@ -706,7 +706,7 @@ const StudentCardio = () => {
                 <div
                   key={s.id}
                   className="flex items-center gap-3 px-4 py-3"
-                  style={{ borderBottom: idx < sessoes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                  style={{ borderBottom: idx < sessoes.length - 1 ? "1px solid hsl(var(--foreground) / 0.04)" : "none" }}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{s.tipo}</p>

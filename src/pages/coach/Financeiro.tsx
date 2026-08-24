@@ -7,9 +7,9 @@ import { ptBR } from "date-fns/locale";
 import {
   Plus, Search, X, Copy, Check, Loader2, CreditCard,
   Wallet, ChevronDown, CheckCircle2, AlertTriangle,
-  Smartphone, TrendingUp, Settings,
+  Smartphone, TrendingUp, Settings, Landmark, Circle, ReceiptText,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -82,6 +82,19 @@ const checkoutLink = (c: Pick<Cobranca, "id" | "forma_pagamento" | "invoice_url"
   c.forma_pagamento === "PIX" || c.forma_pagamento === "CREDIT_CARD"
     ? `${window.location.origin}/pagar/${c.id}`
     : c.invoice_url;
+
+const FINANCEIRO_NAV = [
+  { key: "cobrancas" as const, label: "Financeiro", icon: CreditCard },
+  { key: "carteira"  as const, label: "Carteira",   icon: Landmark },
+];
+const VALID_FINANCEIRO_TABS = ["cobrancas", "carteira"] as const;
+type FinanceiroTab = typeof VALID_FINANCEIRO_TABS[number];
+
+const CARTEIRA_CHECKLIST = [
+  { label: "Identidade verificada",       done: false },
+  { label: "Dados bancários / chave Pix", done: false },
+  { label: "Conta liberada pra saque",    done: false },
+];
 
 const fmtDate = (iso: string) => {
   try { return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR }); }
@@ -498,6 +511,18 @@ const FILTER_TABS = [
 const Financeiro = () => {
   const { orgId } = useTenantContext();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const initialTab: FinanceiroTab = (VALID_FINANCEIRO_TABS as readonly string[]).includes(tabParam ?? "")
+    ? (tabParam as FinanceiroTab)
+    : "cobrancas";
+  const [activeTab, setActiveTab] = useState<FinanceiroTab>(initialTab);
+  const changeTab = (tab: FinanceiroTab) => {
+    setActiveTab(tab);
+    setSearchParams(tab === "cobrancas" ? {} : { tab });
+  };
 
   const [cobrancas,    setCobrancas]    = useState<Cobranca[]>([]);
   const [alunos,       setAlunos]       = useState<AlunoOption[]>([]);
@@ -648,17 +673,45 @@ const Financeiro = () => {
             <p className="text-xs text-white/35">Cobranças e pagamentos</p>
           </div>
         </div>
-        <Button onClick={() => setModalOpen(true)}
-          className="h-9 px-4 rounded-xl font-semibold text-white text-sm"
-          style={{ background: "var(--cp-gradient)" }}>
-          <Plus className="w-4 h-4 mr-1" />Nova cobrança
-        </Button>
+        {activeTab === "cobrancas" && (
+          <Button onClick={() => setModalOpen(true)}
+            className="h-9 px-4 rounded-xl font-semibold text-white text-sm"
+            style={{ background: "var(--cp-gradient)" }}>
+            <Plus className="w-4 h-4 mr-1" />Nova cobrança
+          </Button>
+        )}
       </div>
 
+      {/* Abas: Financeiro / Carteira */}
+      <div className="flex items-center gap-1 border-b px-4 mb-4 overflow-x-auto scrollbar-none"
+        style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        {FINANCEIRO_NAV.map((item) => {
+          const active = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => changeTab(item.key)}
+              className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
+              style={{
+                color: active ? "var(--tab-text-active)" : "var(--tab-text-inactive)",
+                borderBottomColor: active ? "var(--cp-500)" : "transparent",
+              }}
+              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--tab-text-hover)"; }}
+              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--tab-text-inactive)"; }}
+            >
+              <item.icon className="w-3.5 h-3.5 shrink-0" style={{ color: active ? "var(--cp-500)" : undefined }} />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "cobrancas" && (
+      <>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 px-4 pb-4">
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="w-3 h-3 text-green-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Recebido</p>
@@ -667,7 +720,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">este mês</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="w-2 h-2 rounded-full bg-amber-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Pendente</p>
@@ -676,7 +729,7 @@ const Financeiro = () => {
           <p className="text-[10px] text-white/25 mt-0.5">{countPend} cobranças</p>
         </div>
         <div className="rounded-2xl p-3"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <AlertTriangle className="w-3 h-3 text-red-400" />
             <p className="text-[10px] text-white/35 uppercase tracking-wider">Vencido</p>
@@ -731,7 +784,7 @@ const Financeiro = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl text-center py-16 space-y-2"
-            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <Wallet className="w-8 h-8 text-white/10 mx-auto" />
             <p className="text-sm text-white/25">
               {cobrancas.length === 0
@@ -748,11 +801,11 @@ const Financeiro = () => {
             return (
               <div key={c.id} className="rounded-2xl p-4"
                 style={{
-                  backgroundColor: "#141417",
+                  backgroundColor: "var(--section-card-bg)",
                   border: c.status === "OVERDUE"
                     ? "1px solid rgba(239,68,68,0.35)"
-                    : "1px solid rgba(255,255,255,0.09)",
-                  boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                    : "1px solid var(--section-card-border)",
+                  boxShadow: "var(--section-card-shadow)",
                 }}>
 
                 {/* Row 1: avatar + info + status */}
@@ -812,6 +865,61 @@ const Financeiro = () => {
           })
         )}
       </div>
+      </>
+      )}
+
+      {activeTab === "carteira" && (
+      <div className="px-4 pb-8 space-y-4">
+
+        {/* Saldo */}
+        <div className="rounded-2xl p-6 relative overflow-hidden"
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+          <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-[0.15] pointer-events-none"
+            style={{ background: "var(--cp-gradient)" }} />
+          <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2">Saldo disponível</p>
+              <p className="text-3xl font-bold text-white leading-none">{fmtBRL(0)}</p>
+              <p className="text-xs text-white/30 mt-2">{fmtBRL(0)} pendente de liquidação</p>
+            </div>
+            <button disabled
+              className="h-10 px-5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-2 opacity-40 cursor-not-allowed"
+              style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
+              <Landmark className="w-4 h-4" />
+              Sacar
+              <span className="text-[10px] font-normal opacity-80 ml-1">(em breve)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Checklist de liberação */}
+        <div className="rounded-2xl p-5 space-y-3"
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+          <p className="text-sm font-semibold text-white">Finalize sua conta pra vender e receber</p>
+          <div className="space-y-2.5">
+            {CARTEIRA_CHECKLIST.map((step) => (
+              <div key={step.label} className="flex items-center gap-2.5">
+                {step.done
+                  ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "#4ade80" }} />
+                  : <Circle className="w-4 h-4 shrink-0 text-white/20" />}
+                <span className={`text-sm ${step.done ? "text-white/70" : "text-white/40"}`}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Extrato */}
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2 px-1">Extrato</p>
+          <div className="rounded-2xl text-center py-16 space-y-2"
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+            <ReceiptText className="w-8 h-8 text-white/10 mx-auto" />
+            <p className="text-sm text-white/25">Nenhuma movimentação ainda.</p>
+          </div>
+        </div>
+
+      </div>
+      )}
       </div>
     </div>
   );

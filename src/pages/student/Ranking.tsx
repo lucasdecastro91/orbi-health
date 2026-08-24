@@ -275,7 +275,7 @@ const Ranking = () => {
                 {myXP && (
                   <div
                     className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2"
-                    style={{ backgroundColor: "#0a0a0b", borderColor: "var(--cp-500)" }}
+                    style={{ backgroundColor: "var(--sheet-bg-2)", borderColor: "var(--cp-500)" }}
                   >
                     #{myXP.rank}
                   </div>
@@ -331,7 +331,7 @@ const Ranking = () => {
         {/* Sequência atual / recorde */}
         <div
           className="rounded-2xl border p-4 flex items-center justify-between"
-          style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: CARD_BORDER }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: CARD_BORDER }}
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
@@ -350,12 +350,12 @@ const Ranking = () => {
 
         {/* Leaderboard */}
         {noData ? (
-          <div className="rounded-2xl border py-12 flex flex-col items-center gap-3" style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: CARD_BORDER }}>
+          <div className="rounded-2xl border py-12 flex flex-col items-center gap-3" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: CARD_BORDER }}>
             <Trophy className="w-10 h-10 text-white/10" />
             <p className="text-white/30 text-sm text-center">Ainda ninguém no ranking.<br />Complete treinos para ganhar XP!</p>
           </div>
         ) : (
-          <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: CARD_BORDER }}>
+          <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: CARD_BORDER }}>
             {(() => { const top3 = leaderboard.slice(0, 3); return top3.map((entry, idx) => {
               const rank   = idx + 1;
               const isMe   = entry.student_id === myId;
@@ -366,7 +366,7 @@ const Ranking = () => {
                   key={entry.student_id}
                   className="flex items-center gap-3 px-4 py-3 transition-colors"
                   style={{
-                    borderBottom: idx < top3.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                    borderBottom: idx < top3.length - 1 ? "1px solid hsl(var(--foreground) / 0.04)" : "none",
                     backgroundColor: isMe ? "rgba(var(--cp-rgb),0.06)" : undefined,
                   }}
                 >
@@ -378,7 +378,7 @@ const Ranking = () => {
                   {/* Avatar */}
                   <div
                     className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                    style={{ background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "rgba(255,255,255,0.1)" }}
+                    style={{ background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "var(--avatar-fallback-bg)" }}
                   >
                     {entry.avatar_url
                       ? <img src={entry.avatar_url} alt={entry.nome} className="w-full h-full object-cover" />
@@ -421,7 +421,7 @@ const Ranking = () => {
                 <div
                   key={i}
                   className="rounded-2xl border px-4 py-2.5 flex items-center justify-between"
-                  style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: CARD_BORDER }}
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: CARD_BORDER }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
@@ -445,7 +445,7 @@ const Ranking = () => {
         {/* Como ganhar XP + Bônus de sequência — card único, recolhido por padrão */}
         <div
           className="rounded-2xl border overflow-hidden"
-          style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: CARD_BORDER }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: CARD_BORDER }}
         >
           <button
             type="button"
@@ -484,7 +484,7 @@ const Ranking = () => {
                   ))}
                 </div>
 
-                <div className="pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="pt-3 border-t" style={{ borderColor: "hsl(var(--foreground) / 0.06)" }}>
                   <p className="text-[11px] text-white/35 uppercase tracking-wider mb-1">Bônus de sequência</p>
                   <p className="text-[10px] text-white/25 mb-3">Treino + dieta + água no mesmo dia, dias seguidos (dias de descanso não quebram a sequência)</p>
                   <div className="space-y-2">

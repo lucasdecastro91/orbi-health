@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
@@ -99,7 +99,7 @@ const AgendaAluno = () => {
           <span className="text-sm">Carregando...</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-white/8 py-14 flex flex-col items-center gap-3 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className="rounded-2xl border border-white/8 py-14 flex flex-col items-center gap-3 text-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
           <Calendar className="w-10 h-10 text-white/15" />
           <p className="text-white/40 text-sm font-medium">
             {filter === "proximos" ? "Nenhum agendamento próximo" : "Nenhum agendamento encontrado"}
@@ -122,7 +122,7 @@ const AgendaAluno = () => {
                 key={apt.id}
                 className="rounded-2xl border border-white/8 p-4"
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.02)",
+                  backgroundColor: "hsl(var(--foreground) / 0.02)",
                   opacity: apt.status === "cancelado" ? 0.6 : 1,
                 }}
               >

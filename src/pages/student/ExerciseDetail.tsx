@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -294,32 +294,32 @@ const RestTimerSheet = ({ open, seconds, startedAt, paused, exerciseName, onMini
     >
       <div
         className="w-full max-w-lg rounded-t-3xl pb-10 pt-6 px-6"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-5" />
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <p className="text-xs uppercase tracking-wider font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Descanso</p>
-            <p className="text-sm font-medium mt-0.5 truncate max-w-[200px]" style={{ color: "rgba(255,255,255,0.6)" }}>
+            <p className="text-xs uppercase tracking-wider font-medium" style={{ color: "hsl(var(--foreground) / 0.5)" }}>Descanso</p>
+            <p className="text-sm font-medium mt-0.5 truncate max-w-[200px]" style={{ color: "hsl(var(--foreground) / 0.6)" }}>
               {exerciseName}
             </p>
           </div>
           <button
             onClick={onMinimize}
             className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.14)" }}
             title="Minimizar (o descanso continua contando)"
           >
-            <X className="w-4 h-4" style={{ color: "rgba(255,255,255,0.75)" }} />
+            <X className="w-4 h-4" style={{ color: "hsl(var(--foreground) / 0.75)" }} />
           </button>
         </div>
 
         <div className="flex flex-col items-center gap-5">
           <div className="relative flex items-center justify-center">
             <svg width={200} height={200} style={{ transform: "rotate(-90deg)" }}>
-              <circle cx={100} cy={100} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+              <circle cx={100} cy={100} r={r} fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth={8} />
               <circle
                 cx={100} cy={100} r={r} fill="none"
                 stroke={done ? "var(--cp-500)" : "hsl(var(--primary))"}
@@ -336,10 +336,10 @@ const RestTimerSheet = ({ open, seconds, startedAt, paused, exerciseName, onMini
                 </>
               ) : (
                 <>
-                  <p className="text-5xl font-bold tabular-nums tracking-tight" style={{ color: "#ffffff" }}>
+                  <p className="text-5xl font-bold tabular-nums tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
                     {fmtTime(remaining)}
                   </p>
-                  <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>{fmtTime(seconds)} total</p>
+                  <p className="text-[11px] mt-1" style={{ color: "hsl(var(--foreground) / 0.45)" }}>{fmtTime(seconds)} total</p>
                 </>
               )}
             </div>
@@ -350,7 +350,7 @@ const RestTimerSheet = ({ open, seconds, startedAt, paused, exerciseName, onMini
               <button
                 onClick={onTogglePause}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold"
-                style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.7)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.07)", color: "hsl(var(--foreground) / 0.7)" }}
               >
                 {paused
                   ? <><Play className="w-4 h-4" /> Continuar</>
@@ -391,7 +391,7 @@ const VideoModal = ({
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3"
-        style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+        style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}
       >
         <p className="text-sm font-semibold text-white truncate pr-3">{title}</p>
         <button
@@ -798,17 +798,22 @@ const ExerciseDetail = () => {
         : (() => {
             const count = parseInt(q.series);
             if (!count || count <= 0) return null;
+            // Um único bloco com quantidade=count — mesmo formato que o coach usa em
+            // migrateToDetailed() (TrainingPlanManager.tsx). Antes isso gerava `count`
+            // blocos com quantidade=1 cada, e cada linha somava a quantidade de TODOS
+            // os blocos do mesmo tipo pra exibir "Nx" — resultado: N linhas idênticas,
+            // cada uma dizendo "Nx", em vez de uma linha só.
             // id vazio de propósito: sem series_detalhadas salva no banco, o índice
             // (via `serie.id || String(idx)`) é a única chave estável entre reloads —
             // um id aleatório aqui mudaria a cada load e quebraria a persistência de conclusão.
-            return Array.from({ length: count }, () => ({
+            return [{
               id: '',
               tipo: 'trabalho' as const,
               repeticoes: q.repeticoes || '',
               tipo_calculo: 'manual' as TipoCalculo,
               valor_calculo: '',
-              quantidade: 1,
-            }));
+              quantidade: count,
+            }];
           })();
 
       setExercise({
@@ -1015,7 +1020,7 @@ const ExerciseDetail = () => {
             <button
               onClick={handleBack}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-              style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
             >
               <ArrowLeft className="w-4 h-4 text-white/70" />
             </button>
@@ -1032,7 +1037,7 @@ const ExerciseDetail = () => {
                   disabled={!prevExerciseId}
                   aria-label="Exercício anterior"
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-30"
-                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}
                 >
                   <ChevronLeft className="w-5 h-5 text-white/60" />
                 </button>
@@ -1041,7 +1046,7 @@ const ExerciseDetail = () => {
                   disabled={!nextExerciseId}
                   aria-label="Próximo exercício"
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-30"
-                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}
                 >
                   <ChevronRight className="w-5 h-5 text-white/60" />
                 </button>
@@ -1100,7 +1105,7 @@ const ExerciseDetail = () => {
             >
               <div
                 className="absolute inset-0 flex items-center justify-center"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "inherit" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", border: "1px solid hsl(var(--foreground) / 0.06)", borderRadius: "inherit" }}
               >
                 <div className="flex flex-col items-center gap-2 text-white/20">
                   <Play className="w-10 h-10" />
@@ -1135,7 +1140,7 @@ const ExerciseDetail = () => {
               <div className="flex items-center gap-2">
                 <div
                   className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: restMinimized ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.06)" }}
+                  style={{ backgroundColor: restMinimized ? "rgba(var(--cp-rgb),0.15)" : "hsl(var(--foreground) / 0.06)" }}
                 >
                   <Timer className="w-3.5 h-3.5" style={{ color: restMinimized ? "var(--cp-400)" : "hsl(var(--muted-foreground))" }} />
                 </div>
@@ -1174,7 +1179,7 @@ const ExerciseDetail = () => {
           {/* ── Carga Base ── (above series so calculations update live as user types) */}
           <div
             className="rounded-2xl border p-4 space-y-3"
-            style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.07)" }}
           >
             <div className="flex items-center gap-1.5">
               <Weight className="w-3.5 h-3.5 text-green-500" />
@@ -1191,8 +1196,8 @@ const ExerciseDetail = () => {
                 onKeyDown={(e) => e.key === "Enter" && saveCarga()}
                 className="flex-1 h-11 rounded-xl px-3 text-sm text-foreground placeholder-muted-foreground/50 outline-none focus:ring-1"
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.09)",
+                  backgroundColor: "hsl(var(--foreground) / 0.06)",
+                  border: "1px solid hsl(var(--foreground) / 0.09)",
                   // @ts-ignore
                   "--tw-ring-color": "rgba(var(--cp-rgb), 0.5)",
                 }}
@@ -1217,7 +1222,7 @@ const ExerciseDetail = () => {
           {exercise.series_detalhadas && exercise.series_detalhadas.length > 0 && (
             <div
               className="rounded-2xl border p-4 space-y-3"
-              style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.07)' }}
+              style={{ backgroundColor: 'hsl(var(--foreground) / 0.02)', borderColor: 'hsl(var(--foreground) / 0.07)' }}
             >
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
@@ -1399,7 +1404,7 @@ const ExerciseDetail = () => {
                                   value={v.carga}
                                   onChange={(e) => updateSlotDraft(serieKey, i, 'carga', e.target.value)}
                                   className="w-20 h-9 rounded-lg px-2 text-xs text-foreground outline-none"
-                                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                                  style={{ backgroundColor: 'hsl(var(--foreground) / 0.06)', border: '1px solid hsl(var(--foreground) / 0.09)' }}
                                 />
                                 <input
                                   type="text"
@@ -1408,7 +1413,7 @@ const ExerciseDetail = () => {
                                   value={v.reps}
                                   onChange={(e) => updateSlotDraft(serieKey, i, 'reps', e.target.value)}
                                   className="flex-1 min-w-0 h-9 rounded-lg px-2 text-xs text-foreground outline-none"
-                                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+                                  style={{ backgroundColor: 'hsl(var(--foreground) / 0.06)', border: '1px solid hsl(var(--foreground) / 0.09)' }}
                                 />
                                 <button
                                   onClick={() => saveSingleSlot(serieKey, serie.tipo, i)}
@@ -1480,7 +1485,7 @@ const ExerciseDetail = () => {
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                  style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
                 >
                   <div>
                     <p className="text-sm text-white/80 font-medium">{ws.type}</p>
@@ -1496,7 +1501,7 @@ const ExerciseDetail = () => {
           {exercise.descricao && (
             <div
               className="rounded-2xl border overflow-hidden"
-              style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.07)" }}
             >
               <button
                 onClick={() => setDescOpen((v) => !v)}
@@ -1508,7 +1513,7 @@ const ExerciseDetail = () => {
                   : <ChevronDown className="w-4 h-4 text-white/30" />}
               </button>
               {descOpen && (
-                <div className="px-4 pb-4 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="px-4 pb-4 border-t" style={{ borderColor: "hsl(var(--foreground) / 0.06)" }}>
                   <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed pt-3">
                     {exercise.descricao}
                   </p>
@@ -1521,7 +1526,7 @@ const ExerciseDetail = () => {
           {exercise.observacoes && (
             <div
               className="rounded-2xl border p-4"
-              style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.07)" }}
             >
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Observações do treinador</p>
               <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">

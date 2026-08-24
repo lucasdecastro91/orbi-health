@@ -163,9 +163,9 @@ const EvolucaoCompareModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.85)" }} onClick={onClose}>
-      <div className="rounded-2xl flex flex-col transition-all duration-300" style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "85vh", overflow: "hidden", width: photoRowWidth ? photoRowWidth + 32 : "fit-content", minWidth: photoRowWidth ? undefined : 400, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
+      <div className="rounded-2xl flex flex-col transition-all duration-300" style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", maxHeight: "85vh", overflow: "hidden", width: photoRowWidth ? photoRowWidth + 32 : "fit-content", minWidth: photoRowWidth ? undefined : 400, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
         {/* Cabeçalho fixo */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "hsl(var(--border))" }}>
           <p className="text-sm font-semibold text-white/80">Comparar Fotos</p>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/8 transition-colors">
             <XIcon className="w-4 h-4 text-white/50" />
@@ -181,8 +181,8 @@ const EvolucaoCompareModal = ({
                 <button key={s.key} onClick={() => setSelectedSlot(s.key)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={{
-                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "rgba(255,255,255,0.06)",
-                    color: selectedSlot === s.key ? "var(--cp-400)" : "rgba(255,255,255,0.5)",
+                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "var(--tag-neutral-bg)",
+                    color: selectedSlot === s.key ? "var(--cp-400)" : "var(--tag-neutral-color)",
                     border: `1px solid ${selectedSlot === s.key ? "rgba(var(--cp-rgb),0.35)" : "transparent"}`,
                   }}>
                   {s.label}
@@ -200,9 +200,9 @@ const EvolucaoCompareModal = ({
                   <p className="text-[11px] text-white/40 uppercase tracking-wider mb-1.5">{label}</p>
                   <select value={val} onChange={e => { (set as (v: string) => void)(e.target.value); }}
                     className="w-full h-9 rounded-xl text-xs px-2 outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.75)" }}>
+                    style={{ backgroundColor: "var(--sheet-bg-2)", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground) / 0.75)" }}>
                     {availDates.map(d => (
-                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "#1a1a1d" }}>
+                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "var(--sheet-bg-2)" }}>
                         {format(parseISO(d), "dd/MM/yyyy")}
                       </option>
                     ))}
@@ -232,7 +232,7 @@ const EvolucaoCompareModal = ({
           <div className="px-4 pb-4 shrink-0">
             <button onClick={handleSaveImage} disabled={exporting}
               className="w-full h-9 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold transition-colors"
-              style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.09)" }}>
+              style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)", border: "1px solid hsl(var(--border))" }}>
               <Download className="w-3.5 h-3.5" />
               {exporting ? "Gerando..." : "Salvar imagem"}
             </button>
@@ -465,7 +465,7 @@ const EvolucaoViewer = ({ studentUserId, studentName, alunoId }: { studentUserId
 
       {/* Medidas corporais — compacto aqui, versão maior fica na tela do aluno */}
       {hasAnyMeasurement(bodyMeasurements) && (
-        <div className="rounded-2xl p-4" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>Medidas corporais</p>
           <p className="text-[11px] mb-2" style={{ color: "var(--text-dim)", opacity: 0.7 }}>Última avaliação física com medidas registradas</p>
           <BodyMeasurementsList measurements={bodyMeasurements} compact />
@@ -473,7 +473,7 @@ const EvolucaoViewer = ({ studentUserId, studentName, alunoId }: { studentUserId
       )}
 
       {/* Manual add */}
-      <div className="rounded-2xl p-4" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+      <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
         <p className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-3">Adicionar registro</p>
         <form onSubmit={handleAdd} className="space-y-3">
           <div className="flex gap-3">
@@ -497,11 +497,11 @@ const EvolucaoViewer = ({ studentUserId, studentName, alunoId }: { studentUserId
       {loading ? (
         <div className="flex items-center gap-2 py-6 text-white/30 justify-center"><Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span></div>
       ) : registros.length === 0 ? (
-        <div className="rounded-2xl py-10 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl py-10 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-white/30 text-sm">Nenhum registro de peso ainda.</p>
         </div>
       ) : (
-        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           {registros.slice(0, 20).map((r, idx) => (
             <div key={r.id} className="flex items-center justify-between px-4 py-3" style={{ borderBottom: idx < Math.min(registros.length, 20) - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
               <span className="text-sm text-white/60">{format(parseISO(r.data_registro), "dd 'de' MMMM yyyy", { locale: ptBR })}</span>
@@ -515,7 +515,7 @@ const EvolucaoViewer = ({ studentUserId, studentName, alunoId }: { studentUserId
       {(() => {
         if (photos.length === 0) {
           return (
-            <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
               <Camera className="w-7 h-7 text-white/10 mx-auto mb-2" />
               <p className="text-white/25 text-sm">Nenhuma foto de evolução ainda</p>
             </div>
@@ -596,14 +596,14 @@ const EvolucaoViewer = ({ studentUserId, studentName, alunoId }: { studentUserId
                         : <ChevronDown className="w-3.5 h-3.5 text-white/25 shrink-0" />}
                     </button>
                     {isExpanded && (
-                      <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "rgba(255,255,255,0.01)" }}>
+                      <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.01)" }}>
                         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(slots.length, 5)}, 1fr)` }}>
                           {slots.map(({ key, label }) => {
                             const photo = byDate[date]?.find((p) => p.slot === key);
                             if (!photo) {
                               return (
                                 <div key={key} className="flex flex-col items-center gap-1">
-                                  <div className="w-full aspect-square rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.07)" }} />
+                                  <div className="w-full aspect-square rounded-xl" style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", border: "1px dashed hsl(var(--foreground) / 0.15)" }} />
                                   <span className="text-[9px] text-white/20">{label}</span>
                                 </div>
                               );
@@ -765,7 +765,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
         <div className="flex flex-wrap gap-1.5">
           {value.map(v => (
             <span key={v} className="text-[11px] px-2 py-0.5 rounded-full"
-              style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.65)" }}>{v}</span>
+              style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>{v}</span>
           ))}
         </div>
       </div>
@@ -878,7 +878,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
       {/* ── Empty state ── */}
       {!data && (
         <div className="rounded-2xl py-14 flex flex-col items-center gap-4 text-center"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
             <ClipboardCheck className="w-6 h-6 text-green-500/50" />
@@ -889,7 +889,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
           </div>
           <button onClick={dispensarAnamnese} disabled={dispensing}
             className="flex items-center justify-center gap-2 text-xs font-medium px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}>
+            style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
             {dispensing ? <Spinner className="w-3.5 h-3.5 animate-spin" /> : <ClipboardCheck className="w-3.5 h-3.5" />}
             Dispensar (já preenchida externamente)
           </button>
@@ -899,7 +899,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
       {/* ── Anamnese card ── */}
       {data && (
         <div className="rounded-2xl overflow-hidden"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
 
           {/* Card header */}
           <div className="flex items-center">
@@ -912,7 +912,7 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
                   </span>
                   {data.updated_at && data.updated_at !== data.created_at && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}>
+                      style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                       Atualizada em {format(parseISO(data.updated_at), "dd/MM/yyyy", { locale: ptBR })}
                     </span>
                   )}
@@ -941,14 +941,14 @@ const AnamneseViewer = ({ studentUserId, studentAlunoId }: { studentUserId: stri
                   </button>
                   <button onClick={() => setConfirmDelete(false)}
                     className="text-xs px-2 h-7 rounded-lg font-semibold"
-                    style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                    style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                     Não
                   </button>
                 </>
               ) : (
                 <button onClick={() => setConfirmDelete(true)} disabled={deleting}
                   className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6 shrink-0"
-                  style={{ color: "rgba(255,255,255,0.2)" }}>
+                  style={{ color: "hsl(var(--foreground) / 0.2)" }}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               )}
@@ -1281,7 +1281,7 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
 
   if (respostas.length === 0) return (
     <div className="rounded-2xl py-14 flex flex-col items-center gap-3 text-center"
-      style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+      style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
         <ClipboardList className="w-6 h-6" style={{ color: "var(--cp-400)", opacity: 0.4 }} />
       </div>
@@ -1299,7 +1299,7 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
         const nFotos  = resp.arquivos.length;
         return (
           <div key={resp.id} className="rounded-2xl overflow-hidden"
-            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <div className="flex items-center">
               <button onClick={() => toggleExpand(resp.id, resp)}
                 className="flex-1 flex items-center gap-4 px-4 py-3.5 hover:bg-white/3 transition-colors text-left">
@@ -1328,14 +1328,14 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
                     </button>
                     <button onClick={() => setConfirmDelete(null)}
                       className="text-xs px-2 h-7 rounded-lg font-semibold"
-                      style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                      style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                       Não
                     </button>
                   </>
                 ) : (
                   <button onClick={() => setConfirmDelete(resp.id)} disabled={deleting === resp.id}
                     className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6"
-                    style={{ color: "rgba(255,255,255,0.2)" }}>
+                    style={{ color: "hsl(var(--foreground) / 0.2)" }}>
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
@@ -1393,9 +1393,9 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
                 <div
                   className="rounded-2xl p-4"
                   style={{
-                    backgroundColor: "#141417",
-                    border: "1px solid rgba(255,255,255,0.09)",
-                    boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                    backgroundColor: "var(--section-card-bg)",
+                    border: "1px solid var(--section-card-border)",
+                    boxShadow: "var(--section-card-shadow)",
                   }}
                 >
                   <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -1446,9 +1446,9 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
                   <div
                     className="rounded-2xl p-4"
                     style={{
-                      backgroundColor: "#141417",
-                      border: "1px solid rgba(255,255,255,0.09)",
-                      boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                      backgroundColor: "var(--section-card-bg)",
+                      border: "1px solid var(--section-card-border)",
+                      boxShadow: "var(--section-card-shadow)",
                     }}
                   >
                     <p className="text-[11px] uppercase tracking-wider flex items-center gap-1.5 font-semibold mb-3"
@@ -1473,7 +1473,7 @@ const StudentAtualizacoesViewer = ({ studentUserId, alunoId }: { studentUserId: 
                           </button>
                           <button onClick={() => setConfirmSend(null)}
                             className="text-xs px-3 h-7 rounded-lg font-semibold"
-                            style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                            style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
                             Cancelar
                           </button>
                         </div>
@@ -1844,7 +1844,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
   const lbl = "text-[11px] text-white/40 uppercase tracking-wider mb-1.5 block";
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#141417', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--lvl-block-bg, var(--section-card-bg))', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow)' }}>
 
       {/* Header — always visible, toggles the collapsed content */}
       <div className="flex items-center">
@@ -1885,7 +1885,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
       {/* Inline Add Form */}
       {showForm && (
         <div className="rounded-2xl p-4 space-y-4"
-          style={{ backgroundColor: '#1b1c21', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+          style={{ backgroundColor: 'var(--section-card-bg-2)', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow-2)' }}>
 
           {/* ── Exercise picker (same as TrainingPlanManager) ── */}
           <div className="space-y-1.5">
@@ -1909,7 +1909,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
               </PopoverTrigger>
               <PopoverContent
                 className="p-0 border border-white/10"
-                style={{ width: 'var(--radix-popover-trigger-width)', backgroundColor: '#111113' }}
+                style={{ width: 'var(--radix-popover-trigger-width)', backgroundColor: 'var(--sheet-bg)' }}
                 align="start"
               >
                 <Command>
@@ -2031,7 +2031,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl py-12 text-center"
-          style={{ backgroundColor: '#1b1c21', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+          style={{ backgroundColor: 'var(--section-card-bg-2)', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow-2)' }}>
           <p className="text-white/30 text-sm">Nenhum alongamento cadastrado</p>
           <p className="text-white/15 text-xs mt-1">Clique em "Adicionar" para criar o primeiro</p>
         </div>
@@ -2040,7 +2040,7 @@ const AlongamentosManager = ({ alunoId, orgId, treinadorId }: { alunoId: string;
           {items.map((item, idx) => (
             <div key={item.id}
               className="rounded-2xl px-4 py-3 flex items-start gap-3"
-              style={{ backgroundColor: '#1b1c21', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+              style={{ backgroundColor: 'var(--section-card-bg-2)', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow-2)' }}>
                 <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
                   style={{ backgroundColor: 'var(--btn-soft-bg)', color: 'var(--btn-soft-color)' }}>
                   {String(idx + 1).padStart(2, '0')}
@@ -2113,7 +2113,7 @@ const PagamentosHistorico = ({ alunoId, slug }: { alunoId: string; slug?: string
   const fmtBRL  = (v: number) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#141417', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--section-card-bg)', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow)' }}>
       <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <p className="text-sm font-semibold text-white">Histórico de Pagamentos</p>
         <button
@@ -2138,7 +2138,7 @@ const PagamentosHistorico = ({ alunoId, slug }: { alunoId: string; slug?: string
               const pago = ['RECEIVED', 'CONFIRMED'].includes(c.status) && c.data_pagamento;
               return (
                 <div key={c.id} className="rounded-xl px-3.5 py-3"
-                  style={{ backgroundColor: '#1b1c21', border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                  style={{ backgroundColor: 'var(--section-card-bg-2)', border: '1px solid var(--section-card-border)', boxShadow: 'var(--section-card-shadow-2)' }}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white/85 truncate">{c.descricao}</p>
@@ -2268,7 +2268,7 @@ const CardioManager = ({ alunoId, orgId }: { alunoId: string; orgId: string | nu
       </div>
 
       {showForm && (
-        <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">{editingId ? 'Editar Cardio' : 'Novo Cardio'}</p>
           <div>
             <label className={lbl}>Tipo de cardio</label>
@@ -2307,13 +2307,13 @@ const CardioManager = ({ alunoId, orgId }: { alunoId: string; orgId: string | nu
       {loading ? (
         <div className="flex justify-center py-10"><Spinner className="w-5 h-5 animate-spin text-white/30" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-white/30 text-sm">Nenhum plano de cardio cadastrado</p>
         </div>
       ) : (
         <div className="space-y-2">
           {items.map(item => (
-            <div key={item.id} className="rounded-2xl px-4 py-4 flex items-start gap-3" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+            <div key={item.id} className="rounded-2xl px-4 py-4 flex items-start gap-3" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
                 style={{ backgroundColor: "rgba(var(--cp-rgb),0.10)" }}>
@@ -2479,7 +2479,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
       {/* Add form */}
       {addOpen && (
         <div className="rounded-2xl p-4 space-y-3"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div>
             <label className={lbl}>Nome do suplemento / fitoterápico *</label>
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
@@ -2522,7 +2522,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
           <span className="text-sm">Carregando...</span>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl py-8 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>Nenhum suplemento cadastrado</p>
         </div>
       ) : (
@@ -2531,7 +2531,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
             editId === item.id ? (
               /* ── Edição inline ── */
               <div key={item.id} className="rounded-2xl p-4 space-y-3"
-                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+                style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
                 <div>
                   <label className={lbl}>Nome do suplemento / fitoterápico *</label>
                   <input value={editForm.nome} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))}
@@ -2568,7 +2568,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
             ) : (
               /* ── Exibição normal ── */
               <div key={item.id} className="rounded-2xl px-4 py-3 flex items-start gap-3"
-                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+                style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-foreground/80">{item.nome}</span>
@@ -3109,7 +3109,7 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
 
       {avaliacoes.length === 0 ? (
         <div className="rounded-2xl py-12 flex flex-col items-center gap-4 text-center px-6"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)" }}>
             <ScanLine className="w-7 h-7" style={{ color: "var(--cp-400)", opacity: 0.5 }} />
@@ -3142,9 +3142,9 @@ const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alu
               <div key={av.id}
                 className="rounded-2xl overflow-hidden"
                 style={{
-                  backgroundColor: "#141417",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                  boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                  backgroundColor: "var(--section-card-bg)",
+                  border: "1px solid var(--section-card-border)",
+                  boxShadow: "var(--section-card-shadow)",
                 }}>
 
                 {/* Row header */}
@@ -3350,14 +3350,14 @@ const CargaTooltipCoach = ({ active, payload, label, repsByDate }: any) => {
   // gráfico, então um fundo translúcido deixava o texto lavado por trás dele.
   // Mesmo padrão já usado em VolTooltip, no gráfico de Volume por Grupamento.
   return (
-    <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "#18181b" }}>
-      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>{label}</p>
+    <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "var(--section-card-bg-2)" }}>
+      <p className="text-[11px]" style={{ color: "hsl(var(--foreground) / 0.55)" }}>{label}</p>
       <p className="text-sm font-bold" style={{ color: "hsl(42 95% 58%)" }}>{payload[0].value} kg</p>
       {reps?.length > 0 && (
         <div className="mt-1.5 pt-1.5 space-y-0.5 border-t border-white/10">
           {reps.map((r, i) => (
-            <p key={i} className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Set {i + 1} <span style={{ color: "rgba(255,255,255,0.35)" }}>·</span> {r} reps
+            <p key={i} className="text-[11px]" style={{ color: "hsl(var(--foreground) / 0.7)" }}>
+              Set {i + 1} <span style={{ color: "hsl(var(--foreground) / 0.35)" }}>·</span> {r} reps
             </p>
           ))}
         </div>
@@ -3374,12 +3374,12 @@ const ALL_GRUPOS_VOL = [
 const VolTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-white/10 px-3 py-2 space-y-1" style={{ backgroundColor: "#18181b" }}>
-      <p className="text-[11px] font-semibold mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</p>
+    <div className="rounded-xl border border-white/10 px-3 py-2 space-y-1" style={{ backgroundColor: "var(--section-card-bg-2)" }}>
+      <p className="text-[11px] font-semibold mb-1" style={{ color: "hsl(var(--foreground) / 0.4)" }}>{label}</p>
       {payload.map((p: any) => (
         <div key={p.dataKey} className="flex items-center gap-2 min-w-[130px]">
           <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
-          <span className="text-xs flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>{p.dataKey}</span>
+          <span className="text-xs flex-1" style={{ color: "hsl(var(--foreground) / 0.7)" }}>{p.dataKey}</span>
           <span className="text-xs font-bold" style={{ color: p.color }}>{p.value}</span>
         </div>
       ))}
@@ -3961,7 +3961,7 @@ const CargaProgressao = ({ alunoId, studentUserId }: { alunoId: string; studentU
               </PopoverTrigger>
               <PopoverContent
                 className="p-0 border border-white/10"
-                style={{ width: "var(--radix-popover-trigger-width)", backgroundColor: "#111113" }}
+                style={{ width: "var(--radix-popover-trigger-width)", backgroundColor: "var(--sheet-bg)" }}
                 align="start"
               >
                 <Command>
@@ -4365,6 +4365,8 @@ const StudentDetails = () => {
                 onClick={() => setActiveTab(tab.key)}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
                 style={{
+                  // Cor fixa (não var(--tab-text-*), que é reativa ao tema) —
+                  // essa faixa é sempre escura por design, igual a sidebar.
                   color: active ? "#ffffff" : "rgba(255,255,255,0.45)",
                   borderBottomColor: active ? "var(--cp-500)" : "transparent",
                 }}
@@ -4550,7 +4552,7 @@ const StudentDetails = () => {
 
               {/* Edit form */}
               {planoEdit && (
-                <div className="rounded-2xl p-4 space-y-4" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+                <div className="rounded-2xl p-4 space-y-4" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
 
                   {/* ── Selecionar plano do catálogo ──────────────────────── */}
                   {availablePlans.length > 0 && (
@@ -4784,7 +4786,7 @@ const AnotacoesViewer = ({
   return (
     <div className="space-y-5">
       {/* Nova anotação */}
-      <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+      <div className="rounded-2xl p-4 space-y-3" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Nova anotação</p>
         <textarea
           value={texto}
@@ -4812,14 +4814,14 @@ const AnotacoesViewer = ({
             <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <NotebookPen className="w-8 h-8 text-white/10 mx-auto mb-2" />
             <p className="text-white/30 text-sm">Nenhuma anotação registrada ainda.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {items.map((a) => (
-              <div key={a.id} className="rounded-2xl px-4 py-3.5" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+              <div key={a.id} className="rounded-2xl px-4 py-3.5" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap flex-1">{a.texto}</p>
                   <div className="flex items-center gap-1 shrink-0">
@@ -4837,7 +4839,7 @@ const AnotacoesViewer = ({
                         <button
                           onClick={() => setConfirmId(null)}
                           className="text-xs px-2 h-7 rounded-lg font-semibold"
-                          style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+                          style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}
                         >
                           Não
                         </button>
@@ -5154,7 +5156,7 @@ const AvalFisicaViewer = ({
 
       {/* Formulário */}
       {showForm && (
-        <div className="rounded-2xl p-5" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
         <div className="lg:grid lg:grid-cols-[1fr_260px] lg:gap-6 lg:items-start">
         <div className="space-y-4">
           <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">{editingId ? "Editar Avaliação Física" : "Nova Avaliação Física"}</p>
@@ -5236,7 +5238,7 @@ const AvalFisicaViewer = ({
             )}
             <button type="button" onClick={() => setExtras((prev) => [...prev, { nome: "", valor: "" }])}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors mt-3"
-              style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)" }}>
+              style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>
               <Plus className="w-3.5 h-3.5" /> Adicionar outra medida
             </button>
           </div>
@@ -5311,7 +5313,7 @@ const AvalFisicaViewer = ({
             e só aparece quando já tem alguma medida preenchida. */}
         {hasAnyMeasurement(liveMeasurements) && (
           <div className="hidden lg:block lg:sticky lg:top-4">
-            <div className="rounded-2xl p-4" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
               <p className="text-[11px] text-white/35 uppercase tracking-wider mb-2 text-center">Prévia</p>
               <BodyMeasurementsList measurements={liveMeasurements} compact />
             </div>
@@ -5327,7 +5329,7 @@ const AvalFisicaViewer = ({
           <Spinner className="w-4 h-4 animate-spin" /><span className="text-sm">Carregando...</span>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+        <div className="rounded-2xl py-12 text-center" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <BarChart2 className="w-8 h-8 text-white/10 mx-auto mb-2" />
           <p className="text-white/30 text-sm">Nenhuma avaliação física registrada ainda.</p>
         </div>
@@ -5337,7 +5339,7 @@ const AvalFisicaViewer = ({
             const isOpen = expandedId === item.id;
             const dateLabel = format(parseISO(item.data_avaliacao), "dd 'de' MMMM yyyy", { locale: ptBR });
             return (
-              <div key={item.id} className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+              <div key={item.id} className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
                 {/* Card header */}
                 <div className="flex items-center">
                   <button
@@ -5370,14 +5372,14 @@ const AvalFisicaViewer = ({
                         >
                           {deletingId === item.id ? "..." : "Sim"}
                         </button>
-                        <button onClick={() => setConfirmId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>Não</button>
+                        <button onClick={() => setConfirmId(null)} className="text-xs px-2 h-7 rounded-lg font-semibold" style={{ backgroundColor: "var(--tag-neutral-bg)", color: "var(--tag-neutral-color)" }}>Não</button>
                       </>
                     ) : (
                       <>
-                        <button onClick={() => handleEdit(item)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
+                        <button onClick={() => handleEdit(item)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "hsl(var(--foreground) / 0.2)" }}>
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => setConfirmId(item.id)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "rgba(255,255,255,0.2)" }}>
+                        <button onClick={() => setConfirmId(item.id)} className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors hover:bg-white/6" style={{ color: "hsl(var(--foreground) / 0.2)" }}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </>

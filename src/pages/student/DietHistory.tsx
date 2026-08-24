@@ -71,8 +71,8 @@ const fullFmtDate = (iso: string): string => {
 };
 
 const pctColor = (pct: number, hasData: boolean, isFuture: boolean): string => {
-  if (isFuture) return "rgba(255,255,255,0.015)";
-  if (!hasData) return "rgba(255,255,255,0.08)";
+  if (isFuture) return "hsl(var(--foreground) / 0.015)";
+  if (!hasData) return "hsl(var(--foreground) / 0.08)";
   if (pct >= 80) return "var(--cp-500)";
   if (pct >= 50) return "hsl(42 95% 55%)";
   return "hsl(0 70% 55%)";
@@ -227,7 +227,7 @@ const DietHistory = () => {
         <button
           onClick={() => navigate(`/${slug}/aluno/dieta`)}
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
         >
           <ArrowLeft className="w-4 h-4 text-white/70" />
         </button>
@@ -269,7 +269,7 @@ const DietHistory = () => {
               </div>
               <div
                 className="rounded-2xl p-3 flex flex-col items-center gap-1 border"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", borderColor: "hsl(var(--foreground) / 0.07)" }}
               >
                 <Zap className="w-4 h-4 text-yellow-400" />
                 <p className="text-[10px] text-white/40 uppercase tracking-wider text-center">Sequência</p>
@@ -277,7 +277,7 @@ const DietHistory = () => {
               </div>
               <div
                 className="rounded-2xl p-3 flex flex-col items-center gap-1 border"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", borderColor: "hsl(var(--foreground) / 0.07)" }}
               >
                 <CalendarDays className="w-4 h-4 text-green-500" />
                 <p className="text-[10px] text-white/40 uppercase tracking-wider text-center">100%</p>
@@ -288,7 +288,7 @@ const DietHistory = () => {
             {/* Dot grid heatmap */}
             <div
               className="rounded-2xl border p-4"
-              style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.06)" }}
             >
               <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3">Dias do mês</p>
               <div className="flex flex-wrap gap-1.5">
@@ -328,11 +328,11 @@ const DietHistory = () => {
                   <span className="text-[10px] text-white/35">&lt;50%</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.08)" }} />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(var(--foreground) / 0.08)" }} />
                   <span className="text-[10px] text-white/35">sem dados</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.015)" }} />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(var(--foreground) / 0.015)" }} />
                   <span className="text-[10px] text-white/35">Ainda não chegou</span>
                 </div>
               </div>
@@ -347,8 +347,8 @@ const DietHistory = () => {
                 <div
                   className="rounded-2xl border px-4 py-3 flex items-center justify-between"
                   style={{
-                    backgroundColor: hasData ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.01)",
-                    borderColor: hasData ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
+                    backgroundColor: hasData ? "hsl(var(--foreground) / 0.025)" : "hsl(var(--foreground) / 0.01)",
+                    borderColor: hasData ? "hsl(var(--foreground) / 0.07)" : "hsl(var(--foreground) / 0.04)",
                   }}
                 >
                   <div>
@@ -364,7 +364,7 @@ const DietHistory = () => {
                     {hasData && (
                       <div
                         className="w-20 h-1.5 rounded-full overflow-hidden"
-                        style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                        style={{ backgroundColor: "hsl(var(--foreground) / 0.08)" }}
                       >
                         <div
                           className="h-full rounded-full"
@@ -387,7 +387,7 @@ const DietHistory = () => {
             {availableMonths.length > 1 && (
               <div
                 className="rounded-2xl border overflow-hidden"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.06)" }}
               >
                 <button
                   onClick={() => setMesesOpen((v) => !v)}
@@ -417,7 +417,7 @@ const DietHistory = () => {
                           onClick={() => { setSelectedMonth(mk); setMesesOpen(false); }}
                           className="w-full rounded-xl px-3 py-2.5 flex items-center justify-between text-sm"
                           style={{
-                            backgroundColor: mk === selectedMonth ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.03)",
+                            backgroundColor: mk === selectedMonth ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.03)",
                             color: mk === selectedMonth ? "var(--cp-400)" : "hsl(var(--foreground))",
                             fontWeight: mk === selectedMonth ? 600 : 400,
                           }}

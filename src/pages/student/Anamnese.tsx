@@ -86,9 +86,9 @@ const OptionBtn = ({ value, active, onClick }: { value: string; active: boolean;
   <button type="button" onClick={onClick}
     className="px-3 py-2 rounded-xl text-sm font-medium text-left transition-all"
     style={{
-      backgroundColor: active ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.04)",
-      border: `1.5px solid ${active ? "var(--cp-500)" : "rgba(255,255,255,0.08)"}`,
-      color: active ? "var(--cp-400)" : "rgba(255,255,255,0.6)",
+      backgroundColor: active ? "rgba(var(--cp-rgb),0.15)" : "hsl(var(--foreground) / 0.04)",
+      border: `1.5px solid ${active ? "var(--cp-500)" : "hsl(var(--foreground) / 0.08)"}`,
+      color: active ? "var(--cp-400)" : "hsl(var(--foreground) / 0.6)",
     }}>
     {value}
   </button>
@@ -98,12 +98,12 @@ const MultiBtn = ({ value, active, onClick }: { value: string; active: boolean; 
   <button type="button" onClick={onClick}
     className="px-3 py-2 rounded-xl text-sm font-medium text-left transition-all flex items-center gap-2"
     style={{
-      backgroundColor: active ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.04)",
-      border: `1.5px solid ${active ? "var(--cp-500)" : "rgba(255,255,255,0.08)"}`,
-      color: active ? "var(--cp-400)" : "rgba(255,255,255,0.6)",
+      backgroundColor: active ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.04)",
+      border: `1.5px solid ${active ? "var(--cp-500)" : "hsl(var(--foreground) / 0.08)"}`,
+      color: active ? "var(--cp-400)" : "hsl(var(--foreground) / 0.6)",
     }}>
     <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-      style={{ backgroundColor: active ? "var(--cp-500)" : "transparent", border: active ? "none" : "1.5px solid rgba(255,255,255,0.2)" }}>
+      style={{ backgroundColor: active ? "var(--cp-500)" : "transparent", border: active ? "none" : "1.5px solid hsl(var(--foreground) / 0.2)" }}>
       {active && <Check className="w-2.5 h-2.5 text-white" />}
     </div>
     {value}
@@ -510,7 +510,7 @@ const Anamnese = () => {
               type="button"
               onClick={() => fileRefs.current[c.id]?.click()}
               className="flex items-center gap-2 px-4 h-10 rounded-xl border border-dashed text-sm transition-colors"
-              style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.5)" }}
+              style={{ borderColor: "hsl(var(--foreground) / 0.15)", color: "hsl(var(--foreground) / 0.5)" }}
             >
               <Upload className="w-4 h-4" />
               {c.configMultiple ? "Selecionar arquivos" : "Selecionar arquivo"}
@@ -575,8 +575,8 @@ const Anamnese = () => {
       <div
         className="anamnese-intro rounded-2xl border p-5 text-sm text-white/75 leading-relaxed"
         style={{
-          borderColor: "rgba(255,255,255,0.08)",
-          backgroundColor: "rgba(255,255,255,0.025)",
+          borderColor: "hsl(var(--foreground) / 0.08)",
+          backgroundColor: "hsl(var(--foreground) / 0.025)",
           lineHeight: "1.8",
         }}
         dangerouslySetInnerHTML={{ __html: introducao }}
@@ -673,13 +673,13 @@ const Anamnese = () => {
         <div className="flex gap-1.5 mt-2">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div key={i} className="h-1 flex-1 rounded-full transition-all"
-              style={{ backgroundColor: i < step ? "var(--cp-500)" : "rgba(255,255,255,0.1)" }} />
+              style={{ backgroundColor: i < step ? "var(--cp-500)" : "hsl(var(--foreground) / 0.1)" }} />
           ))}
         </div>
       </div>
 
       {/* Step content */}
-      <div className="rounded-2xl border border-white/8 p-5 mb-5 space-y-5" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+      <div className="rounded-2xl border border-white/8 p-5 mb-5 space-y-5" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
 
         {/* ── Section mode ───────────────────────────────────────── */}
         {isSectionMode && currentSecao && currentSecao.campos.map(c => renderCampo(c))}
@@ -786,7 +786,7 @@ const Anamnese = () => {
                 {[["Muito desregrada","Muitos ultraprocessados"],["Regular","Sem muito controle"],["Boa","Razoavelmente equilibrada"],["Ótima","Segue dieta estruturada"]].map(([val, desc]) => (
                   <button key={val} type="button" onClick={() => set("qualidade_alimentacao")(val)}
                     className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
-                    style={{ backgroundColor: form.qualidade_alimentacao === val ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${form.qualidade_alimentacao === val ? "var(--cp-500)" : "rgba(255,255,255,0.08)"}` }}>
+                    style={{ backgroundColor: form.qualidade_alimentacao === val ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.04)", border: `1.5px solid ${form.qualidade_alimentacao === val ? "var(--cp-500)" : "hsl(var(--foreground) / 0.08)"}` }}>
                     <div>
                       <p className="text-sm font-medium" style={{ color: form.qualidade_alimentacao === val ? "var(--cp-400)" : "hsl(var(--foreground))" }}>{val}</p>
                       <p className="text-xs text-white/30 mt-0.5">{desc}</p>
@@ -816,7 +816,7 @@ const Anamnese = () => {
                 {[["Durmo bem (7-8h por noite)","Acordo descansado"],["Sono irregular (menos de 6h)","Horários variados"],["Insônia ou dificuldades para dormir","Dificuldade em adormecer"]].map(([val, desc]) => (
                   <button key={val} type="button" onClick={() => set("sono")(val)}
                     className="flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all"
-                    style={{ backgroundColor: form.sono === val ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${form.sono === val ? "var(--cp-500)" : "rgba(255,255,255,0.08)"}` }}>
+                    style={{ backgroundColor: form.sono === val ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.04)", border: `1.5px solid ${form.sono === val ? "var(--cp-500)" : "hsl(var(--foreground) / 0.08)"}` }}>
                     <div>
                       <p className="text-sm font-medium" style={{ color: form.sono === val ? "var(--cp-400)" : "hsl(var(--foreground))" }}>{val}</p>
                       <p className="text-xs text-white/30 mt-0.5">{desc}</p>
@@ -855,7 +855,7 @@ const Anamnese = () => {
         {step > 1 && (
           <button type="button" onClick={handleBack}
             className="h-12 px-5 rounded-2xl flex items-center gap-2 text-sm font-medium transition-colors"
-            style={{ color: "rgba(255,255,255,0.6)", backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            style={{ color: "hsl(var(--foreground) / 0.6)", backgroundColor: "hsl(var(--foreground) / 0.06)", border: "1px solid hsl(var(--foreground) / 0.1)" }}>
             <ChevronLeft className="w-4 h-4" /> Voltar
           </button>
         )}

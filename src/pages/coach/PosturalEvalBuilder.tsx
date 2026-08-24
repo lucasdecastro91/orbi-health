@@ -210,7 +210,7 @@ const DraggableCard = ({
       style={{
         borderColor: isOver ? "var(--cp-500)" : (borderColor ?? "var(--section-card-border)"),
         backgroundColor: background ?? "var(--section-card-bg)",
-        boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+        boxShadow: "var(--section-card-shadow)",
         opacity: isDragging ? 0.4 : 1,
         transform: transform ? CSS.Translate.toString(transform) : undefined,
         zIndex: isDragging ? 10 : undefined,

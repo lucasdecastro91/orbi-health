@@ -219,7 +219,7 @@ const Agua = () => {
                 <div key={d.date} className="flex flex-col items-center gap-1.5">
                   <div
                     className="w-full rounded-full overflow-hidden flex items-end"
-                    style={{ height: 64, backgroundColor: "rgba(255,255,255,0.06)", border: isToday ? "1.5px solid var(--cp-500)" : "1.5px solid transparent" }}
+                    style={{ height: 64, backgroundColor: "hsl(var(--foreground) / 0.06)", border: isToday ? "1.5px solid var(--cp-500)" : "1.5px solid transparent" }}
                   >
                     <div className="w-full rounded-full transition-all" style={{ height: `${dayPct}%`, background: "var(--cp-gradient)" }} />
                   </div>

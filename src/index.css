@@ -145,6 +145,8 @@
     --filter-active-bg:     var(--cp-gradient);
     --filter-active-color:  #ffffff;
     --filter-active-border: transparent;
+    --filter-badge-bg:      rgba(255,255,255,0.25);
+    --filter-badge-color:   #ffffff;
     --filter-inactive-bg:     transparent;
     --filter-inactive-color:  rgba(255,255,255,0.45);
     --filter-inactive-border: rgba(255,255,255,0.10);
@@ -164,6 +166,43 @@
     /* ── Section card containers (FormBuilder, AnamneseBuilder, etc.) ── */
     --section-card-bg:      #141417;
     --section-card-border:  rgba(255,255,255,0.09);
+    --section-card-shadow:  0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25);
+    /* Nested/secondary card surface (one step lighter than section-card-bg) */
+    --section-card-bg-2:     #1b1c21;
+    --section-card-shadow-2: 0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    /* Hero card (bigger blur, used for the 1-2 "highlight" cards per screen) */
+    --section-hero-shadow:   0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.3);
+
+    /* ── Sheets/modals (bottom sheets, dialogs) and their nested surfaces
+       (dropdown/select options, mini cards inside a sheet) ── */
+    --sheet-bg:    #111113;
+    --sheet-bg-2:  #1a1a1d;
+
+    /* ── 4-level elevation scale (TrainingPlanManager: plano → bloco → sessão
+       → exercício). Mais interno = mais claro/próximo, nos dois temas. ── */
+    --lvl-plan-bg:    #0f0f12;
+    --lvl-block-bg:   #121216;
+    --lvl-session-bg: #141417;
+    --lvl-item-bg:    #1b1c21;
+
+    /* ── Tab bar text (Settings, Financeiro, etc.) ── */
+    --tab-text-active:   #ffffff;
+    --tab-text-inactive: rgba(255,255,255,0.45);
+    --tab-text-hover:    rgba(255,255,255,0.75);
+
+    /* ── Inactive-student avatar (MeusClientes.tsx) ── */
+    --avatar-inactive-bg:   hsl(0 0% 18%);
+    --avatar-inactive-text: rgba(255,255,255,0.30);
+    --avatar-fallback-bg:   rgba(255,255,255,0.1);
+    --upload-hover-scrim:   rgba(0,0,0,0.45);
+
+    /* ── Progress bar track (meta de faturamento, etc.) ── */
+    --progress-track-bg: rgba(255,255,255,0.12);
+
+    /* ── List rows (BancoAlimentos, NotificationsManager, etc.) ── */
+    --row-divider:     rgba(255,255,255,0.04);
+    --list-header-bg:  rgba(255,255,255,0.02);
+    --subtle-overlay:  rgba(255,255,255,0.06);
     --section-header-bg:    rgba(255,255,255,0.03);
     --section-header-border:rgba(255,255,255,0.07);
 
@@ -333,6 +372,16 @@
     --section-header-bg:     rgba(255,255,255,0.03);
     --section-header-border: rgba(255,255,255,0.07);
 
+    /* ── Sheets/modals and their nested surfaces ── */
+    --sheet-bg:    #111113;
+    --sheet-bg-2:  #1a1a1d;
+
+    /* ── 4-level elevation scale ── */
+    --lvl-plan-bg:    #0f0f12;
+    --lvl-block-bg:   #121216;
+    --lvl-session-bg: #141417;
+    --lvl-item-bg:    #1b1c21;
+
     /* ── Notification dropdown ── */
     --notif-bg:           #17171a;
     --notif-border:       rgba(255,255,255,0.10);
@@ -370,7 +419,7 @@
     --secondary-foreground: 0 0% 10%;
 
     --muted: 210 11% 93%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 16% 36%;
 
     --accent: 142 76% 36%;
     --accent-foreground: 0 0% 100%;
@@ -426,13 +475,17 @@
     --ui-inactive-bg:      rgba(0,0,0,0.05);
     --ui-inactive-border:  rgba(0,0,0,0.10);
 
-    /* ── Status / feature tags — light values ── */
-    --tag-inactive-bg:     rgba(0,0,0,0.05);
-    --tag-inactive-color:  rgba(0,0,0,0.5);
-    --tag-inactive-border: rgba(0,0,0,0.12);
-    --tag-success-bg:      rgba(22,163,74,0.10);
+    /* ── Status / feature tags — light values ──
+       Reforçado em 2026-08-17: "aceso vs apagado" (badges de módulo em Meus
+       Clientes) ficava indistinguível no claro — os dois tons eram pálidos
+       demais pra diferenciar de relance, diferente do dark onde o verde
+       "acende" nitidamente contra o fundo escuro. */
+    --tag-inactive-bg:     rgba(0,0,0,0.04);
+    --tag-inactive-color:  rgba(0,0,0,0.30);
+    --tag-inactive-border: rgba(0,0,0,0.08);
+    --tag-success-bg:      rgba(22,163,74,0.18);
     --tag-success-color:   #15803d;
-    --tag-success-border:  rgba(22,163,74,0.28);
+    --tag-success-border:  rgba(22,163,74,0.45);
     --tag-indigo-bg:       rgba(67,56,202,0.08);
     --tag-indigo-color:    #4338ca;
     --tag-indigo-border:   rgba(67,56,202,0.22);
@@ -468,18 +521,20 @@
     --btn-soft-bg-hover:   hsl(var(--primary) / 0.85);
 
     /* ── Filter tabs — light values ── */
-    --filter-active-bg:     #fff7ed;
-    --filter-active-color:  #ea580c;
-    --filter-active-border: #ea580c;
+    --filter-active-bg:     rgba(var(--cp-rgb), 0.12);
+    --filter-active-color:  var(--cp-600);
+    --filter-active-border: rgba(var(--cp-rgb), 0.35);
+    --filter-badge-bg:      rgba(var(--cp-rgb), 0.15);
+    --filter-badge-color:   var(--cp-600);
     --filter-inactive-bg:     transparent;
     --filter-inactive-color:  #6b7280;
     --filter-inactive-border: #e5e7eb;
 
     /* ── Calendar day cells — light values ── */
     --cal-day-color:    #374151;
-    --cal-today-bg:     #ea580c;
-    --cal-today-border: #ea580c;
-    --cal-today-color:  #ffffff;
+    --cal-today-bg:     rgba(0,0,0,0.05);
+    --cal-today-border: rgba(0,0,0,0.12);
+    --cal-today-color:  #374151;
 
     /* ── Muscle/category tags — light values ── */
     --tag-neutral-bg:    #f3f4f6;
@@ -490,27 +545,65 @@
     /* ── Section card containers — light values ── */
     --section-card-bg:       #ffffff;
     --section-card-border:   #e5e7eb;
+    --section-card-shadow:   0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --section-card-bg-2:     #f9fafb;
+    --section-card-shadow-2: 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.6);
+    --section-hero-shadow:   0 10px 32px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+
+    /* ── Sheets/modals — light values ── */
+    --sheet-bg:    #ffffff;
+    --sheet-bg-2:  #f3f4f6;
+
+    /* ── 4-level elevation scale — light values ──
+       2ª tentativa (degradê de cinza mais espaçado) ficou "suja"/pesada na
+       prática, segundo o Lucas — a escala de tons não é o recurso certo pro
+       claro. Abandonada: as 4 camadas agora usam o mesmo branco + borda fina
+       que já funciona bem em outras telas (ex: cards de Meus Clientes,
+       --section-card-bg) — separação vem da borda/sombra, não do tom. */
+    --lvl-plan-bg:    #ffffff;
+    --lvl-block-bg:   #ffffff;
+    --lvl-session-bg: #ffffff;
+    --lvl-item-bg:    #ffffff;
+
+    /* ── Tab bar text — light values ── */
+    --tab-text-active:   #111827;
+    --tab-text-inactive: rgba(0,0,0,0.45);
+    --tab-text-hover:    rgba(0,0,0,0.75);
+
+    /* ── Inactive-student avatar — light values ── */
+    --avatar-inactive-bg:   #e5e7eb;
+    --avatar-inactive-text: rgba(0,0,0,0.40);
+    --avatar-fallback-bg:   #e5e7eb;
+    --upload-hover-scrim:   rgba(17,24,39,0.25);
+
+    /* ── Progress bar track — light values ── */
+    --progress-track-bg: rgba(0,0,0,0.08);
+
+    /* ── List rows — light values ── */
+    --row-divider:     rgba(0,0,0,0.06);
+    --list-header-bg:  rgba(0,0,0,0.02);
+    --subtle-overlay:  rgba(0,0,0,0.05);
     --section-header-bg:     #f9fafb;
     --section-header-border: #e5e7eb;
 
-    /* ── Notification dropdown — dark panel (same as dark mode) ── */
-    --notif-bg:           #17171a;
-    --notif-border:       rgba(255,255,255,0.10);
-    --notif-divider:      rgba(255,255,255,0.07);
-    --notif-item-divider: rgba(255,255,255,0.04);
-    --notif-hover-bg:     rgba(255,255,255,0.05);
-    --notif-icon-bg:      rgba(255,255,255,0.05);
-    --notif-icon-color:   rgba(255,255,255,0.30);
-    --notif-text-read:    rgba(255,255,255,0.50);
-    --notif-text-unread:  #ffffff;
-    --notif-meta-color:   rgba(255,255,255,0.35);
-    --notif-date-color:   rgba(255,255,255,0.20);
-    --notif-empty-icon:   rgba(255,255,255,0.10);
-    --notif-empty-text:   rgba(255,255,255,0.30);
-    /* Bell sits on always-dark sidebar → keep white-based colors */
-    --notif-bell-color:       rgba(255,255,255,0.50);
-    --notif-bell-color-open:  rgba(255,255,255,0.90);
-    --notif-bell-hover-bg:    rgba(255,255,255,0.06);
+    /* ── Notification dropdown — light values ── */
+    --notif-bg:           #ffffff;
+    --notif-border:       #e5e7eb;
+    --notif-divider:      rgba(0,0,0,0.08);
+    --notif-item-divider: rgba(0,0,0,0.05);
+    --notif-hover-bg:     rgba(0,0,0,0.04);
+    --notif-icon-bg:      rgba(0,0,0,0.05);
+    --notif-icon-color:   rgba(0,0,0,0.35);
+    --notif-text-read:    rgba(0,0,0,0.50);
+    --notif-text-unread:  #111827;
+    --notif-meta-color:   rgba(0,0,0,0.40);
+    --notif-date-color:   rgba(0,0,0,0.30);
+    --notif-empty-icon:   rgba(0,0,0,0.12);
+    --notif-empty-text:   rgba(0,0,0,0.35);
+    /* Bell sits in the light-mode header now (not an always-dark sidebar) → dark-based colors */
+    --notif-bell-color:       rgba(0,0,0,0.50);
+    --notif-bell-color-open:  rgba(0,0,0,0.85);
+    --notif-bell-hover-bg:    rgba(0,0,0,0.05);
   }
 }
 
@@ -701,32 +794,37 @@
     --tw-gradient-to: hsl(var(--background));
   }
 
-  /* ── Text ── */
+  /* ── Text ──
+     Curva refeita em 2026-08-17: a versão anterior espelhava a opacidade do
+     dark mode 1:1, o que deixava rótulo/legenda pequena (as faixas /20-/45,
+     as mais usadas em caption/label) cinza claro demais pra ler no claro —
+     achado ao vivo pelo Lucas em várias telas (Anamnese, Avaliação Física,
+     legendas de foto na Evolução). Piso mais alto pra faixa baixa/média. */
   .light .text-white      { color: rgb(24 24 27); }
-  .light .text-white\/90  { color: rgb(24 24 27 / 0.9); }
-  .light .text-white\/85  { color: rgb(24 24 27 / 0.85); }
-  .light .text-white\/80  { color: rgb(24 24 27 / 0.8); }
-  .light .text-white\/75  { color: rgb(24 24 27 / 0.75); }
-  .light .text-white\/70  { color: rgb(24 24 27 / 0.7); }
-  .light .text-white\/65  { color: rgb(24 24 27 / 0.65); }
-  .light .text-white\/60  { color: rgb(24 24 27 / 0.6); }
-  .light .text-white\/55  { color: rgb(24 24 27 / 0.55); }
-  .light .text-white\/50  { color: rgb(24 24 27 / 0.5); }
-  .light .text-white\/45  { color: rgb(24 24 27 / 0.45); }
-  .light .text-white\/40  { color: rgb(24 24 27 / 0.42); }
-  .light .text-white\/35  { color: rgb(24 24 27 / 0.37); }
-  .light .text-white\/30  { color: rgb(24 24 27 / 0.32); }
-  .light .text-white\/25  { color: rgb(24 24 27 / 0.28); }
-  .light .text-white\/20  { color: rgb(24 24 27 / 0.22); }
-  .light .text-white\/15  { color: rgb(24 24 27 / 0.18); }
-  .light .text-white\/10  { color: rgb(24 24 27 / 0.14); }
+  .light .text-white\/90  { color: rgb(24 24 27 / 0.92); }
+  .light .text-white\/85  { color: rgb(24 24 27 / 0.88); }
+  .light .text-white\/80  { color: rgb(24 24 27 / 0.85); }
+  .light .text-white\/75  { color: rgb(24 24 27 / 0.82); }
+  .light .text-white\/70  { color: rgb(24 24 27 / 0.80); }
+  .light .text-white\/65  { color: rgb(24 24 27 / 0.77); }
+  .light .text-white\/60  { color: rgb(24 24 27 / 0.74); }
+  .light .text-white\/55  { color: rgb(24 24 27 / 0.72); }
+  .light .text-white\/50  { color: rgb(24 24 27 / 0.70); }
+  .light .text-white\/45  { color: rgb(24 24 27 / 0.68); }
+  .light .text-white\/40  { color: rgb(24 24 27 / 0.65); }
+  .light .text-white\/35  { color: rgb(24 24 27 / 0.62); }
+  .light .text-white\/30  { color: rgb(24 24 27 / 0.60); }
+  .light .text-white\/25  { color: rgb(24 24 27 / 0.58); }
+  .light .text-white\/20  { color: rgb(24 24 27 / 0.55); }
+  .light .text-white\/15  { color: rgb(24 24 27 / 0.50); }
+  .light .text-white\/10  { color: rgb(24 24 27 / 0.45); }
 
-  /* ── Borders ── */
-  .light .border-white\/5  { border-color: rgb(0 0 0 / 0.08); }
-  .light .border-white\/6  { border-color: rgb(0 0 0 / 0.10); }
-  .light .border-white\/8  { border-color: rgb(0 0 0 / 0.13); }
-  .light .border-white\/10 { border-color: rgb(0 0 0 / 0.15); }
-  .light .border-white\/20 { border-color: rgb(0 0 0 / 0.22); }
+  /* ── Borders ── (mesmo motivo: contorno sumindo, piso mais alto) */
+  .light .border-white\/5  { border-color: rgb(0 0 0 / 0.12); }
+  .light .border-white\/6  { border-color: rgb(0 0 0 / 0.14); }
+  .light .border-white\/8  { border-color: rgb(0 0 0 / 0.17); }
+  .light .border-white\/10 { border-color: rgb(0 0 0 / 0.19); }
+  .light .border-white\/20 { border-color: rgb(0 0 0 / 0.26); }
 
   /* ── Hover backgrounds ── */
   .light .hover\:bg-white\/3:hover   { background-color: rgb(0 0 0 / 0.03); }
@@ -800,8 +898,8 @@
   .light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
   .light textarea:focus,
   .light select:focus {
-    border-color: #ea580c !important;
-    box-shadow: 0 0 0 2px rgba(234,88,12,0.12) !important;
+    border-color: var(--cp-600) !important;
+    box-shadow: 0 0 0 2px rgba(var(--cp-rgb), 0.12) !important;
     outline: none !important;
   }
 

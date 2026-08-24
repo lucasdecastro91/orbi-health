@@ -24,6 +24,11 @@ export interface Organization {
   slug: string;
   owner_id: string;
   logo_url: string | null;
+  /** Logo específica pra tela de login — opcional, cai em logo_url se null.
+   *  Existe porque o header do app é sempre escuro (a logo dele pode assumir
+   *  texto branco sempre), mas o login segue o tema da org — uma logo pensada
+   *  só pra fundo escuro fica ilegível se a org estiver no tema claro. */
+  login_logo_url: string | null;
   /** Ícone quadrado (favicon, ícone PWA). Null = sem ícone customizado. */
   icon_url: string | null;
   primary_color: string;
@@ -136,13 +141,14 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
 
     const effectiveColor = org.primary_color;
     const color = getColorEntry(effectiveColor);
-    applyColorVars(color.hsl, color.rgb, color.gradient, color.light, color.mid, color.textOn);
+    const isLightTheme = org.theme === "light";
+    applyColorVars(color.hsl, color.rgb, color.gradient, color.light, color.mid, color.textOn, isLightTheme);
 
     return () => {
       const def = getColorEntry("#16a34a");
-      applyColorVars(def.hsl, def.rgb, def.gradient, def.light, def.mid, def.textOn);
+      applyColorVars(def.hsl, def.rgb, def.gradient, def.light, def.mid, def.textOn, isLightTheme);
     };
-  }, [org?.primary_color, isGetShapeOrg]);
+  }, [org?.primary_color, org?.theme, isGetShapeOrg]);
 
   // ── Aplica branding de aba (título + favicon) por tenant ──────
   useEffect(() => {
@@ -311,6 +317,7 @@ function applyColorVars(
   light: string,
   mid: string,
   textOn: string,
+  isLightTheme: boolean = false,
 ) {
   const el = document.documentElement;
   el.style.setProperty("--primary",      hsl);
@@ -318,8 +325,13 @@ function applyColorVars(
   el.style.setProperty("--accent",       hsl);
   el.style.setProperty("--cp-gradient",  gradient);
   el.style.setProperty("--cp-rgb",       rgb);
-  el.style.setProperty("--cp-400",       light);
-  el.style.setProperty("--cp-500",       mid);
+  // --cp-400/--cp-500 (paleta em colors.ts) foram calibrados pra contraste
+  // em fundo escuro — em fundo claro ficam claros demais pra texto (achado
+  // ao vivo pelo Lucas, ex: pills de dias da semana em DietManager). No
+  // tema claro usamos a cor-base (--cp-600) pros três, que já é escura o
+  // bastante pra ler em branco.
+  el.style.setProperty("--cp-400",       isLightTheme ? `hsl(${hsl})` : light);
+  el.style.setProperty("--cp-500",       isLightTheme ? `hsl(${hsl})` : mid);
   el.style.setProperty("--cp-600",       `hsl(${hsl})`);
   el.style.setProperty("--cp-text",      textOn);
 }

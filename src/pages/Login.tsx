@@ -28,6 +28,7 @@ interface TenantBranding {
   name: string;
   slug: string;
   logo_url: string | null;
+  login_logo_url: string | null;
   icon_url: string | null;
   primary_color: string | null;
   theme: "dark" | "light";
@@ -95,13 +96,16 @@ const Login = () => {
   const [tenant, setTenant] = useState<TenantBranding | null>(null);
 
   useEffect(() => {
-    const gsLogin  = email.trim().toLowerCase() === GET_SHAPE_EMAIL
-                     || (!!gsOrgSlug && !!tenant && tenant.slug === gsOrgSlug);
-    const colorHex = gsLogin ? "#d97706" : (tenant?.primary_color ?? null);
-    const color    = getColorEntry(colorHex);
+    // Cor primária vem sempre da org (independente de ser "Get Shape"/is_gs_brand
+    // ou não) — antes disso ficava travado em "#d97706" (âmbar) pra qualquer login
+    // GS, ignorando o primary_color de verdade da org (ex: Get Shape mudou pra
+    // #16a34a e o botão continuava âmbar). Sem org identificada ainda (ou sem
+    // primary_color salvo), getColorEntry(null) cai no primeiro item da paleta —
+    // Verde Esmeralda #16a34a — que é o verde padrão da própria ORBI.
+    const color = getColorEntry(tenant?.primary_color ?? null);
     applyColorVars(color);
     return () => { applyColorVars(getColorEntry("#16a34a")); };
-  }, [tenant?.primary_color, tenant?.slug, email]);
+  }, [tenant?.primary_color]);
 
   useEffect(() => {
     const gsLogin   = email.trim().toLowerCase() === GET_SHAPE_EMAIL
@@ -125,7 +129,7 @@ const Login = () => {
     setSlugLoading(true);
     supabase
       .from("organizations")
-      .select("name, slug, logo_url, icon_url, primary_color, theme, is_gs_brand")
+      .select("name, slug, logo_url, login_logo_url, icon_url, primary_color, theme, is_gs_brand")
       .eq("slug", orgSlug)
       .eq("active", true)
       .maybeSingle()
@@ -381,7 +385,7 @@ const Login = () => {
           {/* Logo */}
           <div className="relative z-10 px-10 text-center select-none">
             {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant.name} style={{ maxHeight: 64, maxWidth: 240, objectFit: "contain", display: "block", margin: "0 auto" }} />
+              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} style={{ maxHeight: 64, maxWidth: 240, objectFit: "contain", display: "block", margin: "0 auto" }} />
             ) : isGetShapeLogin ? (
               <img src="/logo-gs.png" alt="Get Shape Training" className="h-28 mx-auto object-contain" />
             ) : (
@@ -578,7 +582,7 @@ const Login = () => {
             </svg>
 
             {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={tenant.name} className="relative object-contain" style={{ maxHeight: 64, maxWidth: 240 }} />
+              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} className="relative object-contain" style={{ maxHeight: 64, maxWidth: 240 }} />
             ) : isGetShapeLogin ? (
               <img src="/logo-full.png" alt="Get Shape Training" className="relative h-[90px] w-auto object-contain" />
             ) : (

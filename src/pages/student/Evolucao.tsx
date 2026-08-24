@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
@@ -53,7 +53,7 @@ const BUCKET = "evolution-photos";
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "#1a1a1d" }}>
+    <div className="rounded-xl border border-white/10 px-3 py-2" style={{ backgroundColor: "var(--sheet-bg-2)" }}>
       <p className="text-[11px] text-white/40 mb-0.5">{label}</p>
       <p className="text-sm font-bold text-green-500">{payload[0].value} kg</p>
     </div>
@@ -82,7 +82,7 @@ const Lightbox = ({
         />
         <div className="flex items-center justify-between mt-3">
           <p className="text-sm text-white/50">{slots.find((s) => s.key === photo.slot)?.label} — {format(parseISO(photo.taken_at), "dd/MM/yyyy")}</p>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.1)" }}>
             <X className="w-4 h-4 text-white/70" />
           </button>
         </div>
@@ -149,11 +149,11 @@ const EvolucaoCompareModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.88)" }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl flex flex-col" style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "92vh" }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl flex flex-col" style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", maxHeight: "92vh" }} onClick={e => e.stopPropagation()}>
         {/* Cabeçalho fixo */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center justify-between px-4 py-3.5 border-b shrink-0" style={{ borderColor: "hsl(var(--foreground) / 0.07)" }}>
           <p className="text-sm font-semibold text-white/80">Comparar Fotos</p>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}>
             <X className="w-4 h-4 text-white/50" />
           </button>
         </div>
@@ -167,8 +167,8 @@ const EvolucaoCompareModal = ({
                 <button key={s.key} onClick={() => setSelectedSlot(s.key)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={{
-                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "rgba(255,255,255,0.06)",
-                    color: selectedSlot === s.key ? "var(--cp-400)" : "rgba(255,255,255,0.5)",
+                    backgroundColor: selectedSlot === s.key ? "rgba(var(--cp-rgb),0.18)" : "hsl(var(--foreground) / 0.06)",
+                    color: selectedSlot === s.key ? "var(--cp-400)" : "hsl(var(--foreground) / 0.5)",
                     border: `1px solid ${selectedSlot === s.key ? "rgba(var(--cp-rgb),0.35)" : "transparent"}`,
                   }}>
                   {s.label}
@@ -186,9 +186,9 @@ const EvolucaoCompareModal = ({
                   <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1.5">{label}</p>
                   <select value={val} onChange={e => { (set as (v: string) => void)(e.target.value); setSliderPos(50); }}
                     className="w-full h-9 rounded-xl text-xs px-2 outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>
+                    style={{ backgroundColor: "hsl(var(--foreground) / 0.07)", border: "1px solid hsl(var(--foreground) / 0.1)", color: "hsl(var(--foreground) / 0.8)" }}>
                     {availDates.map(d => (
-                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "#1a1a1d" }}>
+                      <option key={d} value={d} disabled={d === other} style={{ backgroundColor: "var(--sheet-bg-2)" }}>
                         {format(parseISO(d), "dd/MM/yyyy")}
                       </option>
                     ))}
@@ -208,7 +208,7 @@ const EvolucaoCompareModal = ({
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>ANTES</div>
                 <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-semibold text-white pointer-events-none" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>DEPOIS</div>
                 <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}>
-                  <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2" style={{ backgroundColor: "rgba(255,255,255,0.85)" }} />
+                  <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2" style={{ backgroundColor: "hsl(var(--foreground) / 0.85)" }} />
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: "white" }}>
                     <ChevronLeft className="w-3 h-3 text-black" />
                     <ChevronRight className="w-3 h-3 text-black" />
@@ -573,11 +573,11 @@ const Evolucao = () => {
         >
           <div
             className="w-full max-w-[390px] rounded-t-2xl"
-            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none" }}
+            style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", borderBottom: "none" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-9 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.15)" }} />
+              <div className="w-9 h-1 rounded-full" style={{ backgroundColor: "hsl(var(--foreground) / 0.15)" }} />
             </div>
             <p className="text-xs text-white/40 uppercase tracking-wider text-center py-2">
               {slots.find(s => s.key === photoPickerSlot)?.label}
@@ -586,7 +586,7 @@ const Evolucao = () => {
               <button
                 onClick={() => pickSource("camera")}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/85 transition-colors"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
               >
                 <Camera className="w-5 h-5 text-white/50" />
                 Tirar foto com câmera
@@ -594,7 +594,7 @@ const Evolucao = () => {
               <button
                 onClick={() => pickSource("gallery")}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/85 transition-colors"
-                style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
               >
                 <ImagePlus className="w-5 h-5 text-white/50" />
                 Escolher da galeria
@@ -653,7 +653,7 @@ const Evolucao = () => {
               <div
                 key={stat.label}
                 className="rounded-2xl border border-white/8 px-4 py-3"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
               >
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{stat.label}</p>
                 <p className={`text-lg font-bold ${stat.colorClass}`}>{stat.value}</p>
@@ -664,7 +664,7 @@ const Evolucao = () => {
 
         {/* Chart */}
         {chartData.length >= 2 && (
-          <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Gráfico de peso</p>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -689,7 +689,7 @@ const Evolucao = () => {
 
         {/* Medidas corporais */}
         {hasAnyMeasurement(bodyMeasurements) && (
-          <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+          <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Medidas corporais</p>
             <p className="text-[11px] text-muted-foreground opacity-70 mb-3">Da última avaliação física feita pelo seu treinador</p>
             <BodyMeasurementsList measurements={bodyMeasurements} />
@@ -697,7 +697,7 @@ const Evolucao = () => {
         )}
 
         {/* Register weight */}
-        <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Registrar peso</p>
           <form onSubmit={handleSave} className="flex gap-3 items-end">
             <div className="flex-1 min-w-0">
@@ -730,7 +730,7 @@ const Evolucao = () => {
         </div>
 
         {/* ── Photos section ─────────────────────────────── */}
-        <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+        <div className="rounded-2xl border border-white/8 p-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fotos de progresso</p>
             <Camera className="w-4 h-4 text-muted-foreground opacity-40" />
@@ -752,8 +752,8 @@ const Evolucao = () => {
                   <div
                     className="w-full aspect-square rounded-xl overflow-hidden relative"
                     style={{
-                      backgroundColor: latest ? undefined : "rgba(255,255,255,0.05)",
-                      border: `1px solid ${latest ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.08)"}`,
+                      backgroundColor: latest ? undefined : "hsl(var(--foreground) / 0.05)",
+                      border: `1px solid ${latest ? "hsl(var(--foreground) / 0.1)" : "hsl(var(--foreground) / 0.08)"}`,
                     }}
                   >
                     {latest ? (
@@ -811,7 +811,7 @@ const Evolucao = () => {
                       return next;
                     })}
                     className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-white/3 transition-colors"
-                    style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+                    style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
                       {format(parseISO(date), "dd 'de' MMMM yyyy", { locale: ptBR })}
                     </p>
@@ -820,7 +820,7 @@ const Evolucao = () => {
                       : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground -rotate-90 shrink-0" />}
                   </button>
                   {isExpanded && (
-                    <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "rgba(255,255,255,0.01)" }}>
+                    <div className="px-3 pb-3 pt-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.01)" }}>
                       <div className="grid grid-cols-3 gap-2">
                         {byDate[date].map((photo) => {
                           const flatIdx = allPhotosFlat.indexOf(photo);
@@ -863,7 +863,7 @@ const Evolucao = () => {
               <span className="text-sm">Carregando...</span>
             </div>
           ) : registros.length === 0 ? (
-            <div className="rounded-2xl border border-white/8 py-10 text-center" style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
+            <div className="rounded-2xl border border-white/8 py-10 text-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
               <Weight className="w-8 h-8 text-muted-foreground opacity-30 mx-auto mb-2" />
               <p className="text-muted-foreground text-sm">Nenhum registro ainda.</p>
               <p className="text-muted-foreground opacity-60 text-xs mt-1">Registre seu peso acima para começar.</p>
@@ -874,7 +874,7 @@ const Evolucao = () => {
                 <div
                   key={r.id}
                   className="flex items-center justify-between px-4 py-3 hover:bg-white/3 transition-colors"
-                  style={{ borderBottom: idx < registros.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                  style={{ borderBottom: idx < registros.length - 1 ? "1px solid hsl(var(--foreground) / 0.04)" : "none" }}
                 >
                   <p className="text-sm font-medium text-foreground">
                     {format(parseISO(r.data_registro), "dd 'de' MMMM yyyy", { locale: ptBR })}

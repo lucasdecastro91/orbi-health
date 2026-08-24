@@ -178,7 +178,7 @@ const FeedbackManager = ({ studentId }: FeedbackManagerProps) => {
       {feedbacks.length === 0 ? (
         <Card
           className="rounded-2xl"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
         >
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">
@@ -192,7 +192,7 @@ const FeedbackManager = ({ studentId }: FeedbackManagerProps) => {
             <Card
               key={feedback.id}
               className="rounded-2xl"
-              style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+              style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
             >
               <CardHeader>
                 <div className="flex justify-between items-start">

@@ -24,7 +24,7 @@ export default function NotificationSettings() {
       {/* Push permission */}
       {push.supported && push.permission !== "denied" && (
         <div className="rounded-2xl border border-white/8 p-4 space-y-3"
-          style={{ background: "rgba(255,255,255,0.03)" }}>
+          style={{ background: "hsl(var(--foreground) / 0.03)" }}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center"
               style={{ background: "rgba(var(--cp-rgb,22,163,74),0.12)" }}>
@@ -44,7 +44,7 @@ export default function NotificationSettings() {
               className="text-xs px-3 py-1.5 rounded-lg font-semibold shrink-0"
               style={
                 push.subscribed
-                  ? { border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }
+                  ? { border: "1px solid hsl(var(--foreground) / 0.1)", color: "hsl(var(--foreground) / 0.5)" }
                   : { background: "var(--cp-gradient, linear-gradient(135deg,#22b45a,#16a34a))", color: "#fff" }
               }
             >
@@ -63,7 +63,7 @@ export default function NotificationSettings() {
 
       {push.permission === "denied" && (
         <div className="rounded-2xl border border-white/8 p-4 flex items-center gap-3"
-          style={{ background: "rgba(255,255,255,0.03)" }}>
+          style={{ background: "hsl(var(--foreground) / 0.03)" }}>
           <BellOff className="w-4 h-4 text-white/40 shrink-0" />
           <p className="text-xs text-white/40">
             As notificações estão bloqueadas nas permissões do navegador/dispositivo. Ative manualmente nas configurações pra receber os lembretes.

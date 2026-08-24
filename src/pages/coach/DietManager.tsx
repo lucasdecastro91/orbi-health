@@ -94,9 +94,9 @@ const FoodBlock = ({
       style={{
         // Superfície própria + relevo: antes eram linhas separadas só por borda,
         // sem volume. mb-1.5 é o mínimo pra sombra aparecer entre os blocos.
-        backgroundColor: "#141417",
+        backgroundColor: "var(--section-card-bg)",
         border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 3px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        boxShadow: "var(--section-card-shadow-2)",
         // Sem transform: quem segue o cursor é o DragOverlay, imune ao scroll
         // interno do dialog. Aqui só marcamos origem e destino.
         opacity: isDragging ? 0.35 : 1,
@@ -837,7 +837,7 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                   transparente que sumia contra o fundo do dialog */}
               <Button type="button" size="sm" variant="outline"
                 onClick={() => setNewAlimentoModal({ open: true, nome: "", foodKey: "" })}
-                className="rounded-md h-8 px-3 text-xs border-white/[0.09] text-white/70 hover:text-white hover:brightness-125 bg-[#141417] shadow-[0_3px_10px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                className="rounded-md h-8 px-3 text-xs border-white/[0.09] text-white/70 hover:text-white hover:brightness-125 bg-[var(--section-card-bg)] shadow-[var(--section-card-shadow-2)]">
                 <Plus className="w-3.5 h-3.5 mr-1.5" />Criar Novo Alimento
               </Button>
             </div>
@@ -850,9 +850,9 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
             <div
               className="rounded-lg overflow-visible p-1.5"
               style={{
-                backgroundColor: "#0f0f12",
+                backgroundColor: "var(--sheet-bg)",
                 border: "1px solid rgba(255,255,255,0.09)",
-                boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                boxShadow: "var(--section-card-shadow)",
               }}
             >
 
@@ -1063,7 +1063,7 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
               })}
 
               {/* Totals row */}
-              <div className="flex items-center gap-1 px-2 py-2 mt-1.5 rounded-lg" style={{ backgroundColor: "#17181c", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 3px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)" }}>
+              <div className="flex items-center gap-1 px-2 py-2 mt-1.5 rounded-lg" style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid hsl(var(--border))", boxShadow: "var(--section-card-shadow-2)" }}>
                 <span className="w-5 shrink-0" />
                 <span className="flex-1 text-xs text-white/40 font-medium">Totais da refeição</span>
                 <span className="w-14 shrink-0" />
@@ -1078,7 +1078,7 @@ const MealEditModal = ({ open, meal, orgId, onClose, onSave, onAlternatives }: M
                 {dragFoodKey ? (
                   <div className="px-3 py-2 rounded-lg text-sm text-white pointer-events-none"
                     style={{
-                      backgroundColor: "#17181c",
+                      backgroundColor: "var(--section-card-bg-2)",
                       border: "1px solid var(--cp-500)",
                       boxShadow: "0 14px 34px rgba(0,0,0,0.6)",
                       cursor: "grabbing",
@@ -1556,9 +1556,9 @@ const NutritionalAnalysis = ({ macros, studentWeight, weightDate }: NutritionalA
                   </Pie>
                   <Tooltip
                     formatter={(value: number, name: string) => [`${value} kcal`, name]}
-                    contentStyle={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, fontSize: 11 }}
-                    labelStyle={{ color: "rgba(255,255,255,0.7)" }}
-                    itemStyle={{ color: "rgba(255,255,255,0.7)" }}
+                    contentStyle={{ background: "var(--section-card-bg-2)", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 11 }}
+                    labelStyle={{ color: "hsl(var(--foreground) / 0.7)" }}
+                    itemStyle={{ color: "hsl(var(--foreground) / 0.7)" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -1739,7 +1739,7 @@ const DietDropdown = ({ diets, selectedId, onSelect }: DietDropdownProps) => {
       {open && (
         <div
           className="absolute left-0 top-10 z-50 min-w-[260px] rounded-xl border border-white/10 shadow-2xl overflow-hidden"
-          style={{ backgroundColor: "#0f0f0f" }}
+          style={{ backgroundColor: "var(--sheet-bg)" }}
         >
           <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
           {diets.map((d) => (

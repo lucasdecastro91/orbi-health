@@ -116,21 +116,31 @@ const normalizeTipo = (tipo: string): string => {
   }
 };
 
-/** Return summary string showing only work sets count × reps */
+/** Return compact summary string with all set types, grouped in appearance
+ *  order (ex: "1× 15, 1× 2-4, 2× 6-9, 1× 6" para warm-up/feeder/work/cluster).
+ *  Antes mostrava só work set — trocado a pedido do Lucas, só no painel do
+ *  aluno (o painel do treinador já mostra tudo, não precisou mudar). */
 const getWorkSetSummary = (exercise: Exercise): string => {
   const sd = exercise.series_detalhadas;
   if (!sd || !Array.isArray(sd) || sd.length === 0) {
     return `${exercise.series}×${exercise.repeticoes}`;
   }
-  const workSets = sd.filter((s: any) => normalizeTipo(s.tipo ?? '') === 'trabalho');
-  if (workSets.length === 0) {
-    return `${exercise.series}×${exercise.repeticoes}`;
+  const order: string[] = [];
+  const groups: Record<string, any[]> = {};
+  for (const s of sd) {
+    const tipo = normalizeTipo(s.tipo ?? '') || 'trabalho';
+    if (!groups[tipo]) { groups[tipo] = []; order.push(tipo); }
+    groups[tipo].push(s);
   }
-  const totalQty = workSets.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' ? s.quantidade : 1), 0);
-  const reps = workSets.map((s: any) => s.repeticoes).filter(Boolean);
-  const uniqueReps = [...new Set(reps)];
-  const repStr = uniqueReps.length === 1 ? uniqueReps[0] : uniqueReps.join('/');
-  return `${totalQty}× ${repStr}`;
+  const parts = order.map((tipo) => {
+    const group = groups[tipo];
+    const totalQty = group.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' ? s.quantidade : 1), 0);
+    const reps = group.map((s: any) => s.repeticoes).filter(Boolean);
+    const uniqueReps = [...new Set(reps)];
+    const repStr = uniqueReps.length === 1 ? uniqueReps[0] : uniqueReps.join('/');
+    return `${totalQty}× ${repStr}`;
+  });
+  return parts.join(', ');
 };
 
 /** Agrupa exercícios encadeados por `conjugado_com_proximo` (bi-set/tri-set/giant-set) */
@@ -281,14 +291,14 @@ const TrainingBlock = ({
         {training.descricao_geral && (
           <div
             className="mx-4 mb-3 mt-1 px-3 py-2.5 rounded-xl text-xs text-muted-foreground leading-relaxed whitespace-pre-line"
-            style={{ backgroundColor: "rgba(255,255,255,0.04)", borderLeft: "2px solid var(--cp-500)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", borderLeft: "2px solid var(--cp-500)" }}
           >
             {training.descricao_geral}
           </div>
         )}
 
         {/* Exercise list — exercícios conjugados (bi-set/tri-set) ficam agrupados visualmente */}
-        <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+        <div className="divide-y" style={{ borderColor: "hsl(var(--foreground) / 0.04)" }}>
           {groupExercises(training.exercicios).map((group) => {
             if (group.length === 1) {
               const ex = group[0];
@@ -494,7 +504,7 @@ const AlongamentosSection = ({ stretchings }: { stretchings: Stretching[] }) => 
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3"
-              style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}>
               <p className="text-sm font-semibold text-white truncate pr-3">{videoModal.title}</p>
               <button onClick={() => setVideoModal(null)}
                 className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
@@ -875,11 +885,11 @@ const Treinos = () => {
         {/* Empty card */}
         <div
           className="rounded-2xl border border-border py-14 flex flex-col items-center gap-3 text-center px-6"
-          style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
         >
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
           >
             <Dumbbell className="w-6 h-6 text-muted-foreground opacity-50" />
           </div>
@@ -919,7 +929,7 @@ const Treinos = () => {
         <button
           onClick={() => navigate(`/${slug}/aluno/treinos/historico`)}
           className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
-          style={{ backgroundColor: "rgba(255,255,255,0.06)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
           title="Ver histórico"
         >
           <History className="w-4 h-4 text-white/40" />
@@ -998,7 +1008,7 @@ const Treinos = () => {
       {weeks.length === 0 ? (
         <div
           className="rounded-2xl border border-border py-10 text-center"
-          style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
         >
           <p className="text-muted-foreground text-sm">Nenhum treino cadastrado neste plano ainda.</p>
         </div>

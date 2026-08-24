@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -221,7 +221,7 @@ const MensagensAluno = () => {
                 <div
                   className="max-w-[78%] rounded-2xl px-4 py-2.5"
                   style={{
-                    background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "rgba(255,255,255,0.07)",
+                    background: isMe ? "linear-gradient(135deg, var(--cp-500), hsl(var(--primary)))" : "hsl(var(--foreground) / 0.07)",
                     borderBottomRightRadius: isMe ? "6px" : undefined,
                     borderBottomLeftRadius:  isMe ? undefined : "6px",
                   }}

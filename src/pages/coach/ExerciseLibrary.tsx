@@ -3,10 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { VideoModal } from "@/components/ui/video-modal";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus, MoreVertical, Pencil, Trash2, Play, Search,
-  Dumbbell, Loader2, X, Youtube, ChevronDown, ChevronUp,
+  Dumbbell, Loader2, X, Youtube, ChevronDown, ChevronUp, Globe,
 } from "lucide-react";
+
+// Mesmo e-mail/lógica de isSuperAdmin já usada em CoachLayout.tsx — decide
+// quem vê o toggle de "liberar pra outras orgs" (a escrita em si já é
+// protegida pela RLS normal de exercicios_base, isso aqui é só UI).
+const SUPERADMIN_EMAIL = "lucas.melo1991@gmail.com";
 
 // Grupos "gerais" sempre visíveis + "específicos" (porções de um grupo maior)
 // ocultos por padrão — mesmo padrão já usado pras técnicas de série avançadas
@@ -32,6 +38,8 @@ interface Exercise {
   musculos_principais: string | null;
   grupo_muscular_principal: string | null;
   grupo_muscular_secundario: string | null;
+  org_id: string | null;
+  liberado_outras_orgs: boolean;
 }
 
 const emptyForm = {
@@ -63,10 +71,7 @@ const ExerciseMenu = ({
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
-        style={{ color: "rgba(255,255,255,0.4)" }}
-        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)")}
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+        className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-white/40 hover:bg-white/8"
       >
         <MoreVertical className="w-4 h-4" />
       </button>
@@ -76,7 +81,7 @@ const ExerciseMenu = ({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
             className="absolute right-0 top-8 z-20 w-44 rounded-xl py-1 border border-white/8"
-            style={{ backgroundColor: "#1a1a1d" }}
+            style={{ backgroundColor: "var(--sheet-bg-2)" }}
           >
             <button
               onClick={() => { setOpen(false); onEdit(); }}
@@ -157,9 +162,9 @@ const ModalChipSelect = ({
       <button key={g} type="button" onClick={() => toggle(g)}
         className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
         style={{
-          backgroundColor: active ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)",
-          color: active ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.45)",
-          border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.08)"}`,
+          backgroundColor: active ? "rgba(245,158,11,0.2)" : "var(--tag-neutral-bg)",
+          color: active ? "hsl(42 95% 58%)" : "var(--tag-neutral-color)",
+          border: `1px solid ${active ? "rgba(245,158,11,0.35)" : "hsl(var(--border))"}`,
         }}>
         {g}
       </button>
@@ -169,7 +174,7 @@ const ModalChipSelect = ({
     <div>
       <label className="text-[11px] text-white/50 uppercase tracking-wider mb-1.5 block">
         {label}
-        {hint && <span className="ml-1 normal-case" style={{ color: "rgba(255,255,255,0.25)" }}>{hint}</span>}
+        {hint && <span className="ml-1 normal-case" style={{ color: "hsl(var(--foreground) / 0.25)" }}>{hint}</span>}
       </label>
       <div className="flex flex-wrap gap-1.5">
         {GRUPOS_MUSCULARES_GERAIS.map(chip)}
@@ -264,7 +269,7 @@ const ExerciseModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
-      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#111113" }}>
+      <div className="w-full max-w-md rounded-2xl border border-white/8 overflow-hidden" style={{ backgroundColor: "var(--sheet-bg)" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
           <h2 className="text-sm font-semibold text-white">
@@ -329,7 +334,7 @@ const DeleteModal = ({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
-      <div className="w-full max-w-sm rounded-2xl border border-white/8 p-6" style={{ backgroundColor: "#111113" }}>
+      <div className="w-full max-w-sm rounded-2xl border border-white/8 p-6" style={{ backgroundColor: "var(--sheet-bg)" }}>
         <h2 className="text-base font-semibold text-white mb-2">Excluir exercício?</h2>
         <p className="text-sm text-white/50 mb-5">Esta ação não pode ser desfeita.</p>
         <div className="flex gap-3">
@@ -348,7 +353,7 @@ const DeleteModal = ({
 // ── Main Page ──────────────────────────────────────────────────────
 export default function ExerciseLibrary() {
   const { toast } = useToast();
-  const { orgId } = useTenantContext();
+  const { orgId, isGetShapeOrg } = useTenantContext();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filtered,  setFiltered]  = useState<Exercise[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -359,6 +364,17 @@ export default function ExerciseLibrary() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [videoOpen,  setVideoOpen]  = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ url: string | null; title: string } | null>(null);
+  const [userEmail, setUserEmail] = useState("");
+
+  // Mesma regra de CoachLayout.tsx: dono da Get Shape por e-mail, ou
+  // qualquer sessão dentro da própria org da Get Shape (cobre colaboradores
+  // futuros). A escrita real é protegida pela RLS de exercicios_base — isso
+  // aqui só decide se o toggle aparece na tela.
+  const isSuperAdmin = userEmail === SUPERADMIN_EMAIL || isGetShapeOrg;
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ""));
+  }, []);
 
   useEffect(() => { if (orgId) loadExercises(); }, [orgId]);
 
@@ -379,17 +395,34 @@ export default function ExerciseLibrary() {
   const loadExercises = async () => {
     if (!orgId) return;
     try {
-      const { data, error } = await supabase
-        .from("exercicios_base")
-        .select("*")
-        .eq("org_id", orgId)
-        .order("nome");
-      if (error) throw error;
-      setExercises(data || []);
+      // Própria org + exercícios liberados de outras orgs (biblioteca global
+      // do superadmin) — 2 queries porque são fontes conceitualmente
+      // diferentes (própria vs. de terceiros) e a segunda já exclui a
+      // própria org pra não duplicar quando o Lucas mesmo estiver olhando.
+      const [ownRes, globalRes] = await Promise.all([
+        supabase.from("exercicios_base").select("*").eq("org_id", orgId).order("nome"),
+        supabase.from("exercicios_base").select("*").eq("liberado_outras_orgs", true).neq("org_id", orgId).order("nome"),
+      ]);
+      if (ownRes.error) throw ownRes.error;
+      if (globalRes.error) throw globalRes.error;
+      setExercises([...(ownRes.data || []), ...(globalRes.data || [])]);
     } catch (err: any) {
       toast({ title: "Erro ao carregar exercícios", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleLiberado = async (ex: Exercise) => {
+    const next = !ex.liberado_outras_orgs;
+    // Otimista — a tela não devia esperar round-trip pra refletir o clique.
+    setExercises((prev) => prev.map((e) => (e.id === ex.id ? { ...e, liberado_outras_orgs: next } : e)));
+    const { error } = await supabase.from("exercicios_base").update({ liberado_outras_orgs: next }).eq("id", ex.id);
+    if (error) {
+      setExercises((prev) => prev.map((e) => (e.id === ex.id ? { ...e, liberado_outras_orgs: !next } : e)));
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: next ? "Exercício liberado pra outras orgs" : "Exercício não liberado mais" });
     }
   };
 
@@ -460,7 +493,7 @@ export default function ExerciseLibrary() {
       {/* Empty state */}
       {!loading && exercises.length === 0 && (
         <div className="rounded-2xl py-16 flex flex-col items-center gap-4"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "rgba(var(--cp-rgb),0.1)" }}>
             <Dumbbell className="w-7 h-7 text-green-500/60" />
           </div>
@@ -481,7 +514,7 @@ export default function ExerciseLibrary() {
       {/* No search results */}
       {!loading && exercises.length > 0 && filtered.length === 0 && (
         <div className="rounded-2xl py-12 text-center"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-white/40 text-sm">Nenhum resultado para "{search}"</p>
         </div>
       )}
@@ -495,7 +528,7 @@ export default function ExerciseLibrary() {
               <div
                 key={ex.id}
                 className="rounded-2xl overflow-hidden group"
-                style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+                style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
               >
                 {/* Thumbnail / placeholder */}
                 {ex.video_url ? (
@@ -506,7 +539,7 @@ export default function ExerciseLibrary() {
                     {thumb ? (
                       <img src={thumb} alt={ex.nome} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.03)" }}>
+                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.03)" }}>
                         <Play className="w-8 h-8 text-white/20" />
                       </div>
                     )}
@@ -519,7 +552,7 @@ export default function ExerciseLibrary() {
                 ) : (
                   <div
                     className="aspect-video flex items-center justify-center"
-                    style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+                    style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
                   >
                     <Dumbbell className="w-8 h-8 text-white/10" />
                   </div>
@@ -529,8 +562,28 @@ export default function ExerciseLibrary() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="text-sm font-semibold text-white leading-tight flex-1">{ex.nome}</h3>
-                    <ExerciseMenu exercise={ex} onEdit={() => openEdit(ex)} onDelete={() => openDel(ex.id)} />
+                    {/* Exercício de outra org (liberado pelo superadmin) — só visualização,
+                        nem editável nem excluível aqui (RLS já bloquearia mesmo assim). */}
+                    {ex.org_id === orgId && (
+                      <ExerciseMenu exercise={ex} onEdit={() => openEdit(ex)} onDelete={() => openDel(ex.id)} />
+                    )}
                   </div>
+
+                  {ex.org_id !== orgId && (
+                    <div className="flex items-center gap-1 mb-2 text-[11px] font-medium" style={{ color: "var(--cp-400)" }}>
+                      <Globe className="w-3 h-3" />
+                      Biblioteca ORBI
+                    </div>
+                  )}
+                  {isSuperAdmin && ex.org_id === orgId && (
+                    <div className="flex items-center gap-1.5 mb-2 text-[11px] font-medium"
+                      style={{ color: ex.liberado_outras_orgs ? "var(--cp-400)" : "var(--tag-neutral-color)" }}
+                    >
+                      <Switch checked={ex.liberado_outras_orgs} onCheckedChange={() => toggleLiberado(ex)}
+                        className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3" />
+                      {ex.liberado_outras_orgs ? "Liberado pra outras orgs" : "Liberar pra outras orgs"}
+                    </div>
+                  )}
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-2">

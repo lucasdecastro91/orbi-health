@@ -232,7 +232,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
     >
       <div
         className="w-full max-w-lg rounded-t-3xl pb-10 pt-6 px-6"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-5" />
@@ -247,7 +247,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
           >
             <X className="w-4 h-4 text-white/50" />
           </button>
@@ -256,7 +256,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
         <div className="flex flex-col items-center gap-5">
           <div className="relative flex items-center justify-center">
             <svg width={200} height={200} style={{ transform: "rotate(-90deg)" }}>
-              <circle cx={100} cy={100} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={8} />
+              <circle cx={100} cy={100} r={r} fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth={8} />
               <circle
                 cx={100} cy={100} r={r} fill="none"
                 stroke={done ? "var(--cp-500)" : "hsl(var(--primary))"}
@@ -287,7 +287,7 @@ const RestTimerSheet = ({ open, seconds, exerciseName, onClose }: RestTimerSheet
               <button
                 onClick={() => setRunning((v) => !v)}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
-                style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "hsl(var(--foreground) / 0.7)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.07)", color: "hsl(var(--foreground) / 0.7)" }}
               >
                 {running
                   ? <><Pause className="w-4 h-4" /> Pausar</>
@@ -361,8 +361,14 @@ const TreinoHoje = () => {
       if (!aluno) { setLoading(false); return; }
       setAlunoId(aluno.id);
 
+      // .order + .limit(1) antes do .maybeSingle(): se por algum motivo o
+      // aluno tiver mais de um plano com ativo=true (não deveria, mas
+      // .single() quebra silenciosamente nesse caso — não lança erro, só
+      // devolve null — e o aluno via "nenhum treino ativo" tendo um de
+      // verdade), pega o mais recente em vez de falhar.
       const { data: plano } = await supabase
-        .from("planos_treino").select("id").eq("aluno_id", aluno.id).eq("ativo", true).single();
+        .from("planos_treino").select("id").eq("aluno_id", aluno.id).eq("ativo", true)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!plano) { setLoading(false); return; }
 
       const { data: semana } = await supabase
@@ -404,14 +410,21 @@ const TreinoHoje = () => {
             : (() => {
                 const count = parseInt(ex.series);
                 if (!count || count <= 0) return null;
-                return Array.from({ length: count }, () => ({
+                // Um único bloco com quantidade=count — mesmo formato que o coach usa em
+                // migrateToDetailed() (TrainingPlanManager.tsx) e que ExerciseDetail.tsx
+                // também usa. Antes isso gerava `count` blocos com quantidade=1 cada, o
+                // que duplicava a linha em qualquer tela que resume por bloco (ex:
+                // "Séries Detalhadas" em ExerciseDetail.tsx mostrava N linhas "Nx" iguais
+                // em vez de uma só). expandSeries() abaixo já cuida de expandir por
+                // quantidade quando o que se quer é uma linha por série física.
+                return [{
                   id: crypto.randomUUID(),
                   tipo: 'trabalho' as const,
                   repeticoes: ex.repeticoes || '',
                   tipo_calculo: 'manual' as TipoCalculo,
                   valor_calculo: '',
-                  quantidade: 1,
-                }));
+                  quantidade: count,
+                }];
               })();
 
           const grupoMuscular = (ex.exercicios_base as any)?.grupo_muscular_principal ?? null;
@@ -576,7 +589,7 @@ const TreinoHoje = () => {
         </button>
         <div
           className="rounded-2xl border border-white/8 py-16 flex flex-col items-center gap-3 text-center"
-          style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
         >
           <Dumbbell className="w-10 h-10 text-white/15" />
           <p className="text-foreground/50 font-medium">Sem treino programado</p>
@@ -628,7 +641,7 @@ const TreinoHoje = () => {
               style={{
                 backgroundColor: allDone
                   ? "rgba(var(--cp-rgb),0.15)"
-                  : "rgba(255,255,255,0.06)",
+                  : "hsl(var(--foreground) / 0.06)",
                 color: allDone ? "var(--cp-500)" : "hsl(var(--muted-foreground))",
               }}
             >
@@ -664,12 +677,12 @@ const TreinoHoje = () => {
                     ? "1px solid rgba(var(--cp-rgb), 0.28)"
                     : isActive
                       ? "1px solid rgba(var(--cp-rgb), 0.40)"
-                      : "1px solid rgba(255,255,255,0.07)",
+                      : "1px solid hsl(var(--foreground) / 0.07)",
                   backgroundColor: allExDone
                     ? "rgba(var(--cp-rgb), 0.04)"
                     : isActive
                       ? "rgba(var(--cp-rgb), 0.025)"
-                      : "rgba(255,255,255,0.02)",
+                      : "hsl(var(--foreground) / 0.02)",
                   boxShadow: isActive && !allExDone
                     ? "0 0 28px rgba(var(--cp-rgb), 0.13), inset 0 1px 0 rgba(var(--cp-rgb), 0.08)"
                     : "none",
@@ -688,7 +701,7 @@ const TreinoHoje = () => {
                           ? "rgba(var(--cp-rgb), 0.18)"
                           : isActive
                             ? "rgba(var(--cp-rgb), 0.12)"
-                            : "rgba(255,255,255,0.06)",
+                            : "hsl(var(--foreground) / 0.06)",
                       }}
                     >
                       {allExDone ? (
@@ -702,7 +715,7 @@ const TreinoHoje = () => {
                           style={{
                             color: isActive
                               ? "var(--cp-400)"
-                              : "rgba(255,255,255,0.3)",
+                              : "hsl(var(--foreground) / 0.3)",
                           }}
                         >
                           {String(exIdx + 1).padStart(2, "0")}
@@ -734,7 +747,7 @@ const TreinoHoje = () => {
                           style={{
                             backgroundColor: isActive && !allExDone
                               ? "rgba(var(--cp-rgb), 0.1)"
-                              : "rgba(255,255,255,0.06)",
+                              : "hsl(var(--foreground) / 0.06)",
                             color: isActive && !allExDone
                               ? "var(--cp-400)"
                               : "hsl(var(--muted-foreground))",
@@ -750,7 +763,7 @@ const TreinoHoje = () => {
                           <span
                             className="text-[11px] font-semibold px-2 py-0.5 rounded-lg flex items-center gap-1"
                             style={{
-                              backgroundColor: "rgba(255,255,255,0.05)",
+                              backgroundColor: "hsl(var(--foreground) / 0.05)",
                               color: "hsl(var(--muted-foreground))",
                             }}
                           >
@@ -780,8 +793,8 @@ const TreinoHoje = () => {
                     <div
                       className="mt-3 px-3 py-2 rounded-xl flex items-start gap-2"
                       style={{
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.06)",
+                        backgroundColor: "hsl(var(--foreground) / 0.03)",
+                        border: "1px solid hsl(var(--foreground) / 0.06)",
                       }}
                     >
                       <span className="text-sm shrink-0" style={{ marginTop: 1 }}>💡</span>
@@ -808,18 +821,18 @@ const TreinoHoje = () => {
                         }}
                         placeholder="Ex: 40kg"
                         className="flex-1 h-8 rounded-xl px-3 text-sm outline-none"
-                        style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "hsl(var(--foreground))" }}
+                        style={{ backgroundColor: "hsl(var(--foreground) / 0.07)", border: "1px solid hsl(var(--foreground) / 0.12)", color: "hsl(var(--foreground))" }}
                       />
                       <button onClick={() => handleSaveCargaTreino(ex.id)} className="h-8 px-3 rounded-xl text-xs font-semibold" style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}>OK</button>
-                      <button onClick={() => setEditingCargaId(null)} className="h-8 px-2.5 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.45)" }}><X className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setEditingCargaId(null)} className="h-8 px-2.5 rounded-xl" style={{ backgroundColor: "hsl(var(--foreground) / 0.07)", color: "hsl(var(--foreground) / 0.45)" }}><X className="w-3.5 h-3.5" /></button>
                     </div>
                   ) : (
                     <button
                       onClick={() => { setEditingCargaId(ex.id); setEditingCargaValue(cargasBase[ex.id] ?? ""); }}
                       className="flex items-center gap-1.5 text-xs"
                     >
-                      <span style={{ color: "rgba(255,255,255,0.2)" }}>Carga:</span>
-                      <span className="font-semibold" style={{ color: cargasBase[ex.id] ? "hsl(42 95% 58%)" : "rgba(255,255,255,0.2)" }}>
+                      <span style={{ color: "hsl(var(--foreground) / 0.2)" }}>Carga:</span>
+                      <span className="font-semibold" style={{ color: cargasBase[ex.id] ? "hsl(42 95% 58%)" : "hsl(var(--foreground) / 0.2)" }}>
                         {cargasBase[ex.id] ?? "— toque para registrar"}
                       </span>
                     </button>
@@ -829,7 +842,7 @@ const TreinoHoje = () => {
                 {/* ── Separator ── */}
                 <div
                   className="mx-4 h-px"
-                  style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+                  style={{ backgroundColor: "hsl(var(--foreground) / 0.05)" }}
                 />
 
                 {/* ── Set rows ── */}
@@ -840,8 +853,8 @@ const TreinoHoje = () => {
                     const tipoCfg  = detalhe
                       ? (SERIE_TIPO_CONFIG[detalhe.tipo] ?? {
                           label: detalhe.tipo || 'Custom',
-                          bg: 'rgba(255,255,255,0.08)',
-                          text: 'rgba(255,255,255,0.55)',
+                          bg: 'hsl(var(--foreground) / 0.08)',
+                          text: 'hsl(var(--foreground) / 0.55)',
                         })
                       : null;
                     const repsLabel = detalhe?.repeticoes
@@ -867,14 +880,14 @@ const TreinoHoje = () => {
                         key={i}
                         className="flex items-center gap-2.5 px-2 py-2 rounded-xl transition-all duration-200"
                         style={{
-                          backgroundColor: isDone ? 'rgba(var(--cp-rgb), 0.08)' : 'rgba(255,255,255,0.02)',
+                          backgroundColor: isDone ? 'rgba(var(--cp-rgb), 0.08)' : 'hsl(var(--foreground) / 0.02)',
                         }}
                       >
                         <div
                           className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-all"
                           style={{
-                            backgroundColor: isDone ? 'rgba(var(--cp-rgb), 0.2)' : 'rgba(255,255,255,0.06)',
-                            color: isDone ? 'var(--cp-500)' : 'rgba(255,255,255,0.3)',
+                            backgroundColor: isDone ? 'rgba(var(--cp-rgb), 0.2)' : 'hsl(var(--foreground) / 0.06)',
+                            color: isDone ? 'var(--cp-500)' : 'hsl(var(--foreground) / 0.3)',
                           }}
                         >
                           {isDone ? '✓' : i + 1}
@@ -891,7 +904,7 @@ const TreinoHoje = () => {
                         {showCounter && (
                           <span
                             className="text-[9px] font-bold tabular-nums shrink-0"
-                            style={{ color: isDone ? 'var(--cp-500)' : 'rgba(255,255,255,0.22)', minWidth: 18 }}
+                            style={{ color: isDone ? 'var(--cp-500)' : 'hsl(var(--foreground) / 0.22)', minWidth: 18 }}
                           >
                             {grp!.pos}/{grp!.total}
                           </span>
@@ -903,7 +916,7 @@ const TreinoHoje = () => {
                           >
                             {repsLabel}
                             {!detalhe && ex.descanso && !isDone && (
-                              <span className="text-[11px] ml-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                              <span className="text-[11px] ml-2" style={{ color: 'hsl(var(--foreground) / 0.2)' }}>
                                 ⏱ {ex.descanso}s
                               </span>
                             )}
@@ -918,7 +931,7 @@ const TreinoHoje = () => {
                         {loadLabel && (
                           <div className="flex items-center gap-1 shrink-0">
                             {calculatedLoad && base && (
-                              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                              <span className="text-[10px]" style={{ color: 'hsl(var(--foreground) / 0.25)' }}>
                                 {base} →
                               </span>
                             )}
@@ -936,7 +949,7 @@ const TreinoHoje = () => {
                           style={
                             isDone
                               ? { backgroundColor: 'rgba(var(--cp-rgb), 0.15)', color: 'var(--cp-500)' }
-                              : { backgroundColor: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)' }
+                              : { backgroundColor: 'hsl(var(--foreground) / 0.07)', color: 'hsl(var(--foreground) / 0.55)' }
                           }
                         >
                           {isDone ? '✓ Feito' : 'Marcar'}
@@ -957,7 +970,7 @@ const TreinoHoje = () => {
                       display: "block",
                       aspectRatio: "16 / 6",
                       backgroundColor: "rgba(0,0,0,0.3)",
-                      border: "1px solid rgba(255,255,255,0.07)",
+                      border: "1px solid hsl(var(--foreground) / 0.07)",
                       textDecoration: "none",
                     }}
                   >
@@ -985,7 +998,7 @@ const TreinoHoje = () => {
                         className="w-9 h-9 rounded-full flex items-center justify-center"
                         style={{
                           backgroundColor: "rgba(0,0,0,0.55)",
-                          border: "1.5px solid rgba(255,255,255,0.25)",
+                          border: "1.5px solid hsl(var(--foreground) / 0.25)",
                           backdropFilter: "blur(4px)",
                           WebkitBackdropFilter: "blur(4px)",
                         }}
@@ -1006,7 +1019,7 @@ const TreinoHoje = () => {
                 <button
                   onClick={() => navigate(`/${slug}/aluno/exercicio/${ex.id}`)}
                   className="mx-3 mb-3 flex items-center gap-1.5 text-xs"
-                  style={{ color: "rgba(255,255,255,0.25)" }}
+                  style={{ color: "hsl(var(--foreground) / 0.25)" }}
                 >
                   <TrendingUp className="w-3 h-3" />
                   Ver evolução de carga
@@ -1057,18 +1070,18 @@ const TreinoHoje = () => {
           <div className="max-w-lg mx-auto px-4 pb-4">
             <div
               className="rounded-2xl border p-4"
-              style={{ borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.02)" }}
+              style={{ borderColor: "hsl(var(--foreground) / 0.07)", backgroundColor: "hsl(var(--foreground) / 0.02)" }}
             >
-              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.35)" }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "hsl(var(--foreground) / 0.35)" }}>
                 Volume do treino
               </p>
               <div className="space-y-2">
                 {entries.map(([grupo, vol]) => (
                   <div key={grupo} className="flex items-center gap-2.5">
-                    <span className="text-xs w-24 shrink-0 text-right" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    <span className="text-xs w-24 shrink-0 text-right" style={{ color: "hsl(var(--foreground) / 0.55)" }}>
                       {grupo}
                     </span>
-                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}>
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
@@ -1078,13 +1091,13 @@ const TreinoHoje = () => {
                         }}
                       />
                     </div>
-                    <span className="text-xs w-8 shrink-0" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    <span className="text-xs w-8 shrink-0" style={{ color: "hsl(var(--foreground) / 0.35)" }}>
                       {vol}
                     </span>
                   </div>
                 ))}
               </div>
-              <p className="text-xs mt-2.5" style={{ color: "rgba(255,255,255,0.2)" }}>
+              <p className="text-xs mt-2.5" style={{ color: "hsl(var(--foreground) / 0.2)" }}>
                 Volume = séries × repetições por grupamento
               </p>
             </div>
@@ -1113,10 +1126,10 @@ const TreinoHoje = () => {
             style={{
               background: allDone
                 ? "var(--cp-gradient)"
-                : "rgba(255,255,255,0.08)",
+                : "hsl(var(--foreground) / 0.08)",
               color: allDone
                 ? "var(--cp-text, #ffffff)"
-                : "rgba(255,255,255,0.45)",
+                : "hsl(var(--foreground) / 0.45)",
               boxShadow: allDone
                 ? "0 4px 24px rgba(var(--cp-rgb), 0.32)"
                 : "none",
@@ -1158,7 +1171,7 @@ const TreinoHoje = () => {
               </span>
               <div
                 className="w-20 h-1.5 rounded-full overflow-hidden"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.08)" }}
               >
                 <div
                   className="h-full rounded-full transition-all duration-500"

@@ -132,7 +132,7 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { slug, orgId } = useTenantContext();
-  const { hasAvaliacaoPostural } = usePlanFeatures();
+  const { hasAvaliacaoPostural, hasDiet } = usePlanFeatures();
   const base = `/${slug}/aluno`;
 
   useEffect(() => {
@@ -704,7 +704,9 @@ const StudentDashboard = () => {
           )}
         </section>
 
-        {/* ── Dieta do dia ── */}
+        {/* ── Dieta do dia + Água — só orgs com plano que inclui dieta (Motion é só treino) ── */}
+        {hasDiet && (
+        <>
         <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
           <div className="relative flex items-center gap-2.5 mb-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
@@ -759,7 +761,7 @@ const StudentDashboard = () => {
               </p>
             </div>
           </div>
-          <div className="relative h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+          <div className="relative h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.08)" }}>
             <div
               className="h-full rounded-full transition-all duration-300"
               style={{ width: `${Math.min(100, (aguaMl / aguaMetaMl) * 100)}%`, background: "var(--cp-gradient)" }}
@@ -790,6 +792,8 @@ const StudentDashboard = () => {
             <ChevronRight className="w-3 h-3" />
           </button>
         </section>
+        </>
+        )}
 
         {/* ── Cardio ── */}
         <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>

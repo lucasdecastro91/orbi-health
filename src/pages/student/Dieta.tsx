@@ -194,18 +194,18 @@ const RecipeSheet = ({ meal, onClose }: RecipeSheetProps) => (
   >
     <div
       className="w-full max-w-lg rounded-t-3xl overflow-hidden"
-      style={{ backgroundColor: "#0f0f10", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none" }}
+      style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", borderBottom: "none" }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex justify-center pt-3 pb-1">
-        <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+        <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "hsl(var(--foreground) / 0.12)" }} />
       </div>
-      <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+      <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "hsl(var(--foreground) / 0.07)" }}>
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-white/50" />
           <p className="text-sm font-semibold text-white">{meal.name}</p>
         </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.07)" }}>
+        <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}>
           <X className="w-4 h-4 text-white/50" />
         </button>
       </div>
@@ -245,7 +245,7 @@ const InlineSubstitutions = ({ food, options, loading, selectedId, onSelect, onR
   const originalMacros = calcFoodMacros(food);
 
   return (
-    <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+    <div className="border-t" style={{ borderColor: "hsl(var(--foreground) / 0.05)" }}>
       {/* Indented section — same left accent as ChildSubsList */}
       <div
         className="mx-3 my-3"
@@ -280,14 +280,14 @@ const InlineSubstitutions = ({ food, options, loading, selectedId, onSelect, onR
                   onClick={() => onSelect(food.id, opt.id)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
                   style={{
-                    backgroundColor: isSelected ? "rgba(var(--cp-rgb), 0.12)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${isSelected ? "rgba(var(--cp-rgb), 0.25)" : "rgba(255,255,255,0.06)"}`,
+                    backgroundColor: isSelected ? "rgba(var(--cp-rgb), 0.12)" : "hsl(var(--foreground) / 0.04)",
+                    border: `1px solid ${isSelected ? "rgba(var(--cp-rgb), 0.25)" : "hsl(var(--foreground) / 0.06)"}`,
                   }}
                 >
                   {/* Radio dot */}
                   <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all"
                     style={{
-                      borderColor:     isSelected ? "var(--cp-500)" : "rgba(255,255,255,0.2)",
+                      borderColor:     isSelected ? "var(--cp-500)" : "hsl(var(--foreground) / 0.2)",
                       backgroundColor: isSelected ? "var(--cp-500)" : "transparent",
                     }}
                   >
@@ -315,7 +315,7 @@ const InlineSubstitutions = ({ food, options, loading, selectedId, onSelect, onR
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0"
                       style={{
                         backgroundColor:
-                          kcalDiff === 0 ? "rgba(255,255,255,0.06)"
+                          kcalDiff === 0 ? "hsl(var(--foreground) / 0.06)"
                           : kcalDiff > 0  ? "rgba(239,68,68,0.1)"
                                           : "rgba(34,197,94,0.1)",
                         color:
@@ -359,7 +359,7 @@ interface ChildSubsListProps {
 const ChildSubsList = ({ foods, onListaRef }: ChildSubsListProps) => {
   if (foods.length === 0) return null;
   return (
-    <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+    <div className="border-t" style={{ borderColor: "hsl(var(--foreground) / 0.05)" }}>
       {/* Indented section — left accent line signals "filhos" do alimento */}
       <div
         className="mx-3 my-3"
@@ -421,8 +421,8 @@ const ChildSubsList = ({ foods, onListaRef }: ChildSubsListProps) => {
                 key={f.id}
                 className="flex items-start gap-2 px-2.5 py-2 rounded-lg"
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.05)",
+                  backgroundColor: "hsl(var(--foreground) / 0.03)",
+                  border: "1px solid hsl(var(--foreground) / 0.05)",
                 }}
               >
                 {/* Dot */}
@@ -470,15 +470,15 @@ const OptionCard = ({ name, foods, macros, isSelected, onSelect }: {
     onClick={onSelect}
     className="w-full rounded-2xl p-4 text-left transition-all"
     style={{
-      backgroundColor: isSelected ? "rgba(var(--cp-rgb), 0.1)" : "rgba(255,255,255,0.04)",
-      border: `1.5px solid ${isSelected ? "rgba(var(--cp-rgb), 0.3)" : "rgba(255,255,255,0.07)"}`,
+      backgroundColor: isSelected ? "rgba(var(--cp-rgb), 0.1)" : "hsl(var(--foreground) / 0.04)",
+      border: `1.5px solid ${isSelected ? "rgba(var(--cp-rgb), 0.3)" : "hsl(var(--foreground) / 0.07)"}`,
     }}
   >
     {/* Name row */}
     <div className="flex items-center gap-3 mb-3">
       <div className="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all"
         style={{
-          borderColor:     isSelected ? "var(--cp-500)" : "rgba(255,255,255,0.2)",
+          borderColor:     isSelected ? "var(--cp-500)" : "hsl(var(--foreground) / 0.2)",
           backgroundColor: isSelected ? "var(--cp-500)" : "transparent",
         }}
       >
@@ -502,7 +502,7 @@ const OptionCard = ({ name, foods, macros, isSelected, onSelect }: {
         {foods.map((f, i) => (
           <div key={i} className="flex items-baseline gap-2">
             <span className="w-1 h-1 rounded-full shrink-0 self-center"
-              style={{ backgroundColor: isSelected ? "rgba(var(--cp-rgb),0.4)" : "rgba(255,255,255,0.2)" }} />
+              style={{ backgroundColor: isSelected ? "rgba(var(--cp-rgb),0.4)" : "hsl(var(--foreground) / 0.2)" }} />
             <span className="text-xs text-foreground flex-1 break-words">{f.nome}</span>
             {f.qty && <span className="text-[10px] text-muted-foreground shrink-0">{f.qty}</span>}
           </div>
@@ -552,8 +552,8 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
         className="fixed left-0 right-0 z-40 rounded-t-3xl flex flex-col"
         style={{
           bottom: 64,
-          backgroundColor: "#0f0f10",
-          border: "1px solid rgba(255,255,255,0.08)",
+          backgroundColor: "var(--sheet-bg)",
+          border: "1px solid hsl(var(--border))",
           borderBottom: "none",
           maxHeight: "calc(100vh - 64px - 60px)",
         }}
@@ -561,18 +561,18 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "hsl(var(--foreground) / 0.12)" }} />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b shrink-0"
-          style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+          style={{ borderColor: "hsl(var(--foreground) / 0.07)" }}>
           <div>
             <p className="text-[10px] text-white/35 uppercase tracking-wider mb-0.5">Versão da refeição</p>
             <p className="text-sm font-semibold text-white">{meal.name}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)" }}>
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}>
             <X className="w-4 h-4 text-white/50" />
           </button>
         </div>
@@ -585,7 +585,7 @@ const AlternativeSelectionSheet = ({ meal, alternatives, loading, selectedAltId,
           {loading ? (
             <div className="flex justify-center py-10">
               <div className="w-5 h-5 rounded-full border-2 animate-spin"
-                style={{ borderColor: "rgba(255,255,255,0.1)", borderTopColor: "rgba(255,255,255,0.5)" }} />
+                style={{ borderColor: "hsl(var(--foreground) / 0.1)", borderTopColor: "hsl(var(--foreground) / 0.5)" }} />
             </div>
           ) : (
             <>
@@ -660,8 +660,8 @@ const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetPro
       <div
         className="w-full max-w-lg rounded-t-3xl flex flex-col"
         style={{
-          backgroundColor: "#0f0f10",
-          border: "1px solid rgba(255,255,255,0.08)",
+          backgroundColor: "var(--sheet-bg)",
+          border: "1px solid hsl(var(--border))",
           borderBottom: "none",
           maxHeight: "82vh",
         }}
@@ -669,13 +669,13 @@ const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetPro
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "hsl(var(--foreground) / 0.12)" }} />
         </div>
 
         {/* Header */}
         <div
           className="flex items-start justify-between px-5 py-3 border-b shrink-0"
-          style={{ borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ borderColor: "hsl(var(--foreground) / 0.07)" }}
         >
           <div>
             <p className="text-[10px] text-white/35 uppercase tracking-wider mb-0.5">
@@ -697,7 +697,7 @@ const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetPro
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
           >
             <X className="w-4 h-4 text-white/50" />
           </button>
@@ -709,7 +709,7 @@ const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetPro
             <div className="flex justify-center py-10">
               <div
                 className="w-5 h-5 rounded-full border-2 animate-spin"
-                style={{ borderColor: "rgba(255,255,255,0.1)", borderTopColor: "rgba(255,255,255,0.5)" }}
+                style={{ borderColor: "hsl(var(--foreground) / 0.1)", borderTopColor: "hsl(var(--foreground) / 0.5)" }}
               />
             </div>
           ) : !data || data.itens.length === 0 ? (
@@ -734,8 +734,8 @@ const ListaSubstSheet = ({ porcoes, loading, data, onClose }: ListaSubstSheetPro
                     key={item.id}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
                     style={{
-                      backgroundColor: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.06)",
+                      backgroundColor: "hsl(var(--foreground) / 0.04)",
+                      border: "1px solid hsl(var(--foreground) / 0.06)",
                     }}
                   >
                     <div
@@ -1232,18 +1232,18 @@ const Dieta = () => {
         >
           <div
             className="w-full max-w-lg rounded-t-3xl overflow-hidden"
-            style={{ backgroundColor: "#0f0f10", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none" }}
+            style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))", borderBottom: "none" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.12)" }} />
+              <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "hsl(var(--foreground) / 0.12)" }} />
             </div>
-            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+            <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "hsl(var(--foreground) / 0.07)" }}>
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-white/50" />
                 <p className="text-sm font-semibold text-white">Observações</p>
               </div>
-              <button onClick={() => setObsOpen(false)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.07)" }}>
+              <button onClick={() => setObsOpen(false)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}>
                 <X className="w-4 h-4 text-white/50" />
               </button>
             </div>
@@ -1453,7 +1453,7 @@ const Dieta = () => {
                     {hasRecipe && (
                       <button onClick={() => setRecipeMeal(meal)}
                         className="px-3 py-3 flex items-center justify-center border-l self-stretch"
-                        style={{ borderColor: isDone ? "rgba(var(--cp-rgb),0.15)" : "rgba(255,255,255,0.06)" }}
+                        style={{ borderColor: isDone ? "rgba(var(--cp-rgb),0.15)" : "hsl(var(--foreground) / 0.06)" }}
                         title="Ver receita">
                         <ChefHat className="w-4 h-4 text-white/25 hover:text-white/60 transition-colors" />
                       </button>
@@ -1468,7 +1468,7 @@ const Dieta = () => {
                 {altFoodsLoading ? (
                   <div className="py-5 flex justify-center">
                     <div className="w-4 h-4 rounded-full border-2 animate-spin"
-                      style={{ borderColor: "rgba(255,255,255,0.1)", borderTopColor: "rgba(255,255,255,0.4)" }} />
+                      style={{ borderColor: "hsl(var(--foreground) / 0.1)", borderTopColor: "hsl(var(--foreground) / 0.4)" }} />
                   </div>
 
                 ) : showAltFoods ? (
@@ -1587,7 +1587,7 @@ const Dieta = () => {
 
                               {/* 1b. lista_subst_grupo_id set directly on this food (not covered by childSubs) */}
                               {food.lista_subst_grupo_id && !childSubs.some(c => c.lista_subst_grupo_id) && (
-                                <div className="border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+                                <div className="border-t" style={{ borderColor: "hsl(var(--foreground) / 0.05)" }}>
                                   <div
                                     className="mx-3 my-3"
                                     style={{ paddingLeft: "10px", borderLeft: "2px solid rgba(var(--cp-rgb), 0.2)" }}
@@ -1648,13 +1648,13 @@ const Dieta = () => {
 
                 {/* Alternatives button */}
                 {hasAlts && (
-                  <div className="px-3 pb-3" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "10px" }}>
+                  <div className="px-3 pb-3" style={{ borderTop: "1px solid hsl(var(--foreground) / 0.05)", paddingTop: "10px" }}>
                     <button
                       onClick={() => openAltSheet(meal)}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all"
                       style={{
-                        backgroundColor: activeAlt ? "rgba(var(--cp-rgb), 0.08)" : "rgba(255,255,255,0.03)",
-                        border: `1px solid ${activeAlt ? "rgba(var(--cp-rgb), 0.2)" : "rgba(255,255,255,0.07)"}`,
+                        backgroundColor: activeAlt ? "rgba(var(--cp-rgb), 0.08)" : "hsl(var(--foreground) / 0.03)",
+                        border: `1px solid ${activeAlt ? "rgba(var(--cp-rgb), 0.2)" : "hsl(var(--foreground) / 0.07)"}`,
                       }}
                     >
                       <Shuffle className="w-3.5 h-3.5 shrink-0"

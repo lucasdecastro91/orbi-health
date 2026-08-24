@@ -71,8 +71,8 @@ const fullFmtDate = (iso: string): string => {
 };
 
 const cellColor = (d: DayData): string => {
-  if (d.isFuture) return "rgba(255,255,255,0.015)";
-  if (!d.isScheduled) return "rgba(255,255,255,0.04)";
+  if (d.isFuture) return "hsl(var(--foreground) / 0.015)";
+  if (!d.isScheduled) return "hsl(var(--foreground) / 0.04)";
   return d.done ? "var(--cp-500)" : "hsl(0 70% 55%)";
 };
 
@@ -203,7 +203,7 @@ const TreinoHistory = () => {
         <button
           onClick={() => navigate(`${base}/treinos`)}
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: "rgba(255,255,255,0.07)" }}
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
         >
           <ArrowLeft className="w-4 h-4 text-white/70" />
         </button>
@@ -245,7 +245,7 @@ const TreinoHistory = () => {
               </div>
               <div
                 className="rounded-2xl p-3 flex flex-col items-center gap-1 border"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", borderColor: "hsl(var(--foreground) / 0.07)" }}
               >
                 <Zap className="w-4 h-4 text-yellow-400" />
                 <p className="text-[10px] text-white/40 uppercase tracking-wider text-center">Sequência</p>
@@ -253,7 +253,7 @@ const TreinoHistory = () => {
               </div>
               <div
                 className="rounded-2xl p-3 flex flex-col items-center gap-1 border"
-                style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.03)", borderColor: "hsl(var(--foreground) / 0.07)" }}
               >
                 <CalendarDays className="w-4 h-4 text-green-500" />
                 <p className="text-[10px] text-white/40 uppercase tracking-wider text-center">Concluídos</p>
@@ -264,7 +264,7 @@ const TreinoHistory = () => {
             {/* Dot grid heatmap */}
             <div
               className="rounded-2xl border p-4"
-              style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.06)" }}
             >
               <p className="text-[10px] text-white/35 uppercase tracking-wider mb-3">Dias do mês</p>
               <div className="flex flex-wrap gap-1.5">
@@ -276,7 +276,7 @@ const TreinoHistory = () => {
                     style={{ backgroundColor: cellColor(d) }}
                   >
                     {d.isScheduled && !d.isFuture && (
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.done ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)" }} />
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.done ? "hsl(var(--foreground) / 0.9)" : "hsl(var(--foreground) / 0.5)" }} />
                     )}
                   </div>
                 ))}
@@ -292,11 +292,11 @@ const TreinoHistory = () => {
                   <span className="text-[10px] text-white/35">Não feito</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.04)" }} />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }} />
                   <span className="text-[10px] text-white/35">Descanso</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.015)" }} />
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "hsl(var(--foreground) / 0.015)" }} />
                   <span className="text-[10px] text-white/35">Ainda não chegou</span>
                 </div>
               </div>
@@ -309,8 +309,8 @@ const TreinoHistory = () => {
                   key={d.date}
                   className="rounded-2xl border px-4 py-3 flex items-center justify-between"
                   style={{
-                    backgroundColor: d.done ? "rgba(var(--cp-rgb),0.05)" : "rgba(255,255,255,0.015)",
-                    borderColor: d.done ? "rgba(var(--cp-rgb),0.2)" : "rgba(255,255,255,0.05)",
+                    backgroundColor: d.done ? "rgba(var(--cp-rgb),0.05)" : "hsl(var(--foreground) / 0.015)",
+                    borderColor: d.done ? "rgba(var(--cp-rgb),0.2)" : "hsl(var(--foreground) / 0.05)",
                   }}
                 >
                   <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
@@ -330,7 +330,7 @@ const TreinoHistory = () => {
             {availableMonths.length > 1 && (
               <div
                 className="rounded-2xl border overflow-hidden"
-                style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+                style={{ backgroundColor: "hsl(var(--foreground) / 0.02)", borderColor: "hsl(var(--foreground) / 0.06)" }}
               >
                 <button
                   onClick={() => setMesesOpen((v) => !v)}
@@ -360,7 +360,7 @@ const TreinoHistory = () => {
                           onClick={() => { setSelectedMonth(mk); setMesesOpen(false); }}
                           className="w-full rounded-xl px-3 py-2.5 flex items-center justify-between text-sm"
                           style={{
-                            backgroundColor: mk === selectedMonth ? "rgba(var(--cp-rgb),0.12)" : "rgba(255,255,255,0.03)",
+                            backgroundColor: mk === selectedMonth ? "rgba(var(--cp-rgb),0.12)" : "hsl(var(--foreground) / 0.03)",
                             color: mk === selectedMonth ? "var(--cp-400)" : "hsl(var(--foreground))",
                             fontWeight: mk === selectedMonth ? 600 : 400,
                           }}

@@ -76,9 +76,10 @@ const EditableText = ({
   return (
     <button
       onClick={() => { setDraft(value); setEditing(true); }}
-      className={`text-left hover:opacity-75 transition-opacity ${className}`}
+      className={`text-left hover:opacity-75 transition-opacity inline-flex items-center gap-1.5 min-w-0 ${className}`}
     >
-      {value || <span className="opacity-30 italic">{placeholder}</span>}
+      <span className="truncate">{value || <span className="opacity-30 italic">{placeholder}</span>}</span>
+      <Pencil className="w-3 h-3 opacity-35 shrink-0" />
     </button>
   );
 };
@@ -292,7 +293,7 @@ const ListaSubstituicao = () => {
       {/* Add group */}
       <div
         className="rounded-2xl p-4 mb-5"
-        style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+        style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
       >
         <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
           Novo Grupo
@@ -320,7 +321,7 @@ const ListaSubstituicao = () => {
       {grupos.length === 0 ? (
         <div
           className="rounded-2xl p-8 text-center"
-          style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}
         >
           <ListOrdered className="w-8 h-8 mx-auto mb-3 text-white/15" />
           <p className="text-sm text-muted-foreground">Nenhum grupo cadastrado ainda.</p>
@@ -341,9 +342,9 @@ const ListaSubstituicao = () => {
                 key={grupo.id}
                 className="rounded-2xl overflow-hidden"
                 style={{
-                  backgroundColor: "#141417",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                  boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                  backgroundColor: "var(--section-card-bg)",
+                  border: "1px solid var(--section-card-border)",
+                  boxShadow: "var(--section-card-shadow)",
                 }}
               >
                 {/* Group header */}
@@ -379,7 +380,7 @@ const ListaSubstituicao = () => {
                   <button
                     onClick={() => deleteGrupo(grupo.id)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0"
-                    style={{ color: "rgba(255,255,255,0.2)" }}
+                    style={{ color: "var(--ui-inactive-color)" }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
                     onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}
                   >
@@ -506,7 +507,7 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
   return (
     <div
       className="flex items-center gap-2 px-2.5 py-2 rounded-xl group"
-      style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+      style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow-2)" }}
     >
       {/* Dot */}
       <div
@@ -528,9 +529,10 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
         ) : (
           <button
             onClick={() => { setDraftNome(item.nome); setEditingNome(true); }}
-            className="text-sm text-foreground text-left hover:opacity-75 transition-opacity w-full truncate"
+            className="flex items-center gap-1.5 text-sm text-foreground text-left hover:opacity-75 transition-opacity w-full min-w-0"
           >
-            {item.nome}
+            <span className="truncate">{item.nome}</span>
+            <Pencil className="w-3 h-3 opacity-35 shrink-0" style={{ color: "var(--ui-inactive-color)" }} />
           </button>
         )}
       </div>
@@ -551,7 +553,8 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
           ) : (
             <button
               onClick={() => { setDraftPorcao(item.porcao ?? ""); setEditingPorcao(true); }}
-              className="text-xs text-muted-foreground hover:opacity-75 transition-opacity w-full text-right"
+              className="text-xs text-muted-foreground hover:opacity-75 transition-opacity w-full text-right rounded-md px-1.5 py-0.5"
+              style={{ backgroundColor: "var(--ui-inactive-bg)" }}
             >
               {item.porcao || <span className="opacity-30 italic">porção</span>}
             </button>
@@ -563,7 +566,7 @@ const ItemRow = ({ item, showPorcao, onUpdate, onDelete }: ItemRowProps) => {
       <button
         onClick={() => onDelete(item)}
         className="w-6 h-6 rounded-lg flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-        style={{ color: "rgba(255,255,255,0.25)" }}
+        style={{ color: "var(--ui-inactive-color)" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#f87171"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.25)"; }}
       >

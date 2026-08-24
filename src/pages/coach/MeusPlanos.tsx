@@ -121,7 +121,7 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))" }}
         onClick={(e) => e.stopPropagation()}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />

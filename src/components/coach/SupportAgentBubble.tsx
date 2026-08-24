@@ -139,7 +139,7 @@ const SupportAgentBubble = () => {
       {open && (
         <div
           className="fixed bottom-20 right-4 z-50 w-[min(380px,calc(100vw-2.5rem))] h-[min(560px,calc(100vh-8rem))] rounded-2xl border flex flex-col overflow-hidden"
-          style={{ backgroundColor: "#0f0f11", borderColor: "rgba(255,255,255,0.1)", boxShadow: "0 12px 40px rgba(0,0,0,0.4)" }}
+          style={{ backgroundColor: "var(--sheet-bg)", borderColor: "hsl(var(--border))", boxShadow: "0 12px 40px rgba(0,0,0,0.4)" }}
         >
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3.5 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>

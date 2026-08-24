@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar, Camera, Trash2, GripVertical, Plus, X, ChevronDown, MessageCircle, User, Palette } from "lucide-react";
+import { Upload, Lock, Moon, Sun, Check, Loader2, CreditCard, Crown, AlertCircle, ExternalLink, Ban, Calendar, Camera, Trash2, GripVertical, Plus, X, ChevronDown, MessageCircle, User, Palette, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTenantContext } from "@/contexts/TenantContext";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { COLOR_PALETTE, ColorEntry } from "@/lib/colors";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
@@ -75,7 +76,7 @@ const SlotInput = ({
 // ProfileForm (campo "Nome"), corrigido hoisteando os dois pra cá.
 const Section = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
   <div className="rounded-2xl overflow-hidden"
-    style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+    style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
     <div className="px-6 py-4 border-b border-white/6">
       <h2 className="text-sm font-semibold text-white">{title}</h2>
       {subtitle && <p className="text-xs text-white/40 mt-0.5">{subtitle}</p>}
@@ -194,14 +195,15 @@ const OrgNameSection = ({
 // treinador está tentando fazer", não por componente: Tema/Cor/Logo/Ícone/Slots
 // são todos "como a plataforma se parece", então caem juntos em "Aparência".
 const SETTINGS_NAV = [
-  { key: "perfil"     as const, label: "Perfil",     icon: User },
-  { key: "aparencia"  as const, label: "Aparência",  icon: Palette },
-  { key: "whatsapp"   as const, label: "WhatsApp",   icon: MessageCircle },
-  { key: "assinatura" as const, label: "Assinatura", icon: CreditCard },
-  { key: "seguranca"  as const, label: "Segurança",  icon: Lock },
+  { key: "perfil"        as const, label: "Perfil",        icon: User },
+  { key: "aparencia"     as const, label: "Aparência",     icon: Palette },
+  { key: "whatsapp"      as const, label: "WhatsApp",      icon: MessageCircle },
+  { key: "notificacoes"  as const, label: "Notificações",  icon: Bell },
+  { key: "assinatura"    as const, label: "Assinatura",    icon: CreditCard },
+  { key: "seguranca"     as const, label: "Segurança",     icon: Lock },
 ];
 
-const VALID_SETTINGS_TABS = ["perfil", "aparencia", "whatsapp", "assinatura", "seguranca"] as const;
+const VALID_SETTINGS_TABS = ["perfil", "aparencia", "whatsapp", "notificacoes", "assinatura", "seguranca"] as const;
 type SettingsTab = typeof VALID_SETTINGS_TABS[number];
 
 const Settings = () => {
@@ -252,6 +254,15 @@ const Settings = () => {
   const [uploadingLogo,   setUploadingLogo]   = useState(false);
   const [removingLogo,    setRemovingLogo]    = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Logo da tela de login — separada da logo do header (opcional, cai na
+  // logo normal se não configurada). Ver TenantContext.tsx pro motivo.
+  const [loginLogoUrl,         setLoginLogoUrl]         = useState<string | null>(null);
+  const [loginLogoPreview,     setLoginLogoPreview]     = useState<string | null>(null);
+  const [pendingLoginLogoFile, setPendingLoginLogoFile] = useState<File | null>(null);
+  const [uploadingLoginLogo,   setUploadingLoginLogo]   = useState(false);
+  const [removingLoginLogo,    setRemovingLoginLogo]    = useState(false);
+  const loginLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Ícone do app (favicon)
   const [iconUrl,         setIconUrl]         = useState<string | null>(null);
@@ -386,6 +397,10 @@ const Settings = () => {
   useEffect(() => {
     setLogoUrl(org?.logo_url ?? null);
   }, [org?.logo_url]);
+
+  useEffect(() => {
+    setLoginLogoUrl(org?.login_logo_url ?? null);
+  }, [org?.login_logo_url]);
 
   useEffect(() => {
     setIconUrl(org?.icon_url ?? null);
@@ -798,6 +813,87 @@ const Settings = () => {
     }
   };
 
+  // ── Seleciona logo do login (preview local, sem upload ainda) ──
+  const handleLoginLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/svg+xml", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Formato não suportado. Use PNG, JPG, SVG ou WebP.", variant: "destructive" });
+      if (loginLogoInputRef.current) loginLogoInputRef.current.value = "";
+      return;
+    }
+    if (file.size > 2097152) {
+      toast({ title: "Imagem muito grande. Máximo 2MB.", variant: "destructive" });
+      if (loginLogoInputRef.current) loginLogoInputRef.current.value = "";
+      return;
+    }
+
+    setLoginLogoPreview(URL.createObjectURL(file));
+    setPendingLoginLogoFile(file);
+  };
+
+  // ── Salva logo do login no Storage e atualiza org ───────────────
+  const handleSaveLoginLogo = async () => {
+    if (!pendingLoginLogoFile || !orgId || !org?.slug) return;
+    setUploadingLoginLogo(true);
+    try {
+      if (loginLogoUrl) {
+        const logoPath = loginLogoUrl.split("/logos/")[1];
+        if (logoPath) await supabase.storage.from("logos").remove([decodeURIComponent(logoPath)]);
+      }
+
+      const ext      = pendingLoginLogoFile.name.split(".").pop();
+      const filePath = `${org.slug}/login-logo-${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage.from("logos").upload(filePath, pendingLoginLogoFile);
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage.from("logos").getPublicUrl(filePath);
+
+      const { error: dbErr } = await supabase
+        .from("organizations")
+        .update({ login_logo_url: publicUrl })
+        .eq("id", orgId);
+      if (dbErr) throw dbErr;
+
+      setLoginLogoUrl(publicUrl);
+      setLoginLogoPreview(null);
+      setPendingLoginLogoFile(null);
+      if (loginLogoInputRef.current) loginLogoInputRef.current.value = "";
+      toast({ title: "Logo do login atualizada com sucesso!" });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar logo do login", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingLoginLogo(false);
+    }
+  };
+
+  // ── Remove logo do login ─────────────────────────────────────────
+  const handleRemoveLoginLogo = async () => {
+    if (!orgId) return;
+    setRemovingLoginLogo(true);
+    try {
+      if (loginLogoUrl) {
+        const logoPath = loginLogoUrl.split("/logos/")[1];
+        if (logoPath) await supabase.storage.from("logos").remove([decodeURIComponent(logoPath)]);
+      }
+      await supabase.from("organizations").update({ login_logo_url: null }).eq("id", orgId);
+      setLoginLogoUrl(null);
+      setLoginLogoPreview(null);
+      setPendingLoginLogoFile(null);
+      if (loginLogoInputRef.current) loginLogoInputRef.current.value = "";
+      toast({ title: "Logo do login removida." });
+      reload();
+    } catch (err: any) {
+      toast({ title: "Erro ao remover logo do login", description: err.message, variant: "destructive" });
+    } finally {
+      setRemovingLoginLogo(false);
+    }
+  };
+
   // ── Seleciona ícone (preview local, sem upload ainda) ──────────
   const handleIconSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1036,7 +1132,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
       {/* Live preview */}
       <div
         className="rounded-xl p-4 mb-4 space-y-3"
-        style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+        style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow-2)" }}
       >
         <p className="text-[10px] text-white/30 uppercase tracking-wider">Preview</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -1094,8 +1190,8 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             className="relative flex items-center justify-center rounded-xl overflow-hidden cursor-pointer group"
             style={{
               height: 96,
-              backgroundColor: "rgba(255,255,255,0.04)",
-              border: "1px dashed rgba(255,255,255,0.12)",
+              backgroundColor: "hsl(var(--foreground) / 0.04)",
+              border: "1px dashed hsl(var(--foreground) / 0.15)",
             }}
             onClick={() => logoInputRef.current?.click()}
           >
@@ -1116,7 +1212,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             {/* Hover overlay */}
             <div
               className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+              style={{ backgroundColor: "var(--upload-hover-scrim)" }}
             >
               <Upload className="w-5 h-5 text-white" />
             </div>
@@ -1191,6 +1287,112 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
     );
   };
 
+  const LoginLogoSection = () => {
+    // O header do app é sempre escuro por design (independente do tema da
+    // org), então a logo dele pode assumir texto branco sempre. A tela de
+    // login segue o tema da org — se não tiver uma logo própria, cai na logo
+    // do header, o que quebra visualmente se a org estiver no tema claro.
+    const displaySrc = loginLogoPreview ?? loginLogoUrl;
+    return (
+      <Section title="Logo da tela de login" subtitle="Opcional — se não enviar, usa a mesma logo do header. Útil se sua logo tem texto branco e sua org usa tema claro.">
+        <div className="space-y-4">
+          {/* Preview */}
+          <div
+            className="relative flex items-center justify-center rounded-xl overflow-hidden cursor-pointer group"
+            style={{
+              height: 96,
+              backgroundColor: "hsl(var(--foreground) / 0.04)",
+              border: "1px dashed hsl(var(--foreground) / 0.15)",
+            }}
+            onClick={() => loginLogoInputRef.current?.click()}
+          >
+            {displaySrc ? (
+              <img
+                src={displaySrc}
+                alt="Logo da tela de login"
+                style={{ maxHeight: 72, maxWidth: "80%", objectFit: "contain" }}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Camera className="w-7 h-7 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Clique para enviar logo do login
+                </span>
+              </div>
+            )}
+            {/* Hover overlay */}
+            <div
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundColor: "var(--upload-hover-scrim)" }}
+            >
+              <Upload className="w-5 h-5 text-white" />
+            </div>
+          </div>
+
+          {/* Input hidden */}
+          <input
+            ref={loginLogoInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+            onChange={handleLoginLogoSelect}
+            className="hidden"
+          />
+
+          {/* Orientação */}
+          <p className="text-xs text-muted-foreground">
+            Use PNG com fundo transparente, preferencialmente 600x170px. Máx 2MB.
+          </p>
+
+          {/* Botões */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => loginLogoInputRef.current?.click()}
+              disabled={uploadingLoginLogo || removingLoginLogo}
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+              style={{ backgroundColor: "var(--btn-soft-bg)", color: "var(--btn-soft-color)" }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Enviar Logo
+            </button>
+
+            {pendingLoginLogoFile && (
+              <button
+                type="button"
+                onClick={handleSaveLoginLogo}
+                disabled={uploadingLoginLogo}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40 text-black"
+                style={{ background: "var(--cp-gradient)" }}
+              >
+                {uploadingLoginLogo
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Check className="w-3.5 h-3.5" />
+                }
+                Salvar
+              </button>
+            )}
+
+            {loginLogoUrl && !pendingLoginLogoFile && (
+              <button
+                type="button"
+                onClick={handleRemoveLoginLogo}
+                disabled={removingLoginLogo}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-40"
+                style={{ backgroundColor: "rgba(239,68,68,0.10)", color: "rgba(239,68,68,0.75)" }}
+              >
+                {removingLoginLogo
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+                Remover Logo
+              </button>
+            )}
+          </div>
+        </div>
+      </Section>
+    );
+  };
+
   const IconSection = () => {
     const displaySrc = iconPreview ?? iconUrl;
     return (
@@ -1203,8 +1405,8 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
               style={{
                 width: 64,
                 height: 64,
-                backgroundColor: "rgba(255,255,255,0.04)",
-                border: "1px dashed rgba(255,255,255,0.12)",
+                backgroundColor: "hsl(var(--foreground) / 0.04)",
+                border: "1px dashed hsl(var(--foreground) / 0.15)",
               }}
               onClick={() => iconInputRef.current?.click()}
             >
@@ -1219,7 +1421,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
               )}
               <div
                 className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+                style={{ backgroundColor: "var(--upload-hover-scrim)" }}
               >
                 <Upload className="w-4 h-4 text-white" />
               </div>
@@ -1301,9 +1503,9 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
       <div
         className="rounded-2xl overflow-hidden"
         style={{
-          backgroundColor: "#141417",
-          border: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+          backgroundColor: "var(--section-card-bg)",
+          border: "1px solid var(--section-card-border)",
+          boxShadow: "var(--section-card-shadow)",
         }}
       >
         <div className="px-6 py-5">
@@ -1327,7 +1529,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             <div className="space-y-3">
               <div
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}
+                style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow-2)" }}
               >
                 <Check className="w-4 h-4" style={{ color: "#5DCAA5" }} />
                 <span className="text-xs text-white">
@@ -1361,6 +1563,82 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
           <p className="text-[11px] text-white/25 mt-3 text-center">
             Use o WhatsApp do seu atendimento — evite conectar seu número pessoal.
           </p>
+        </div>
+      </div>
+    );
+  };
+
+  const NotificationsSection = () => {
+    const push = usePushNotifications(orgId);
+    const status = !push.supported
+      ? { label: "Indisponível", bg: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }
+      : push.permission === "denied"
+      ? { label: "Bloqueado", bg: "rgba(226,75,74,0.18)", color: "#F09595" }
+      : push.subscribed
+      ? { label: "Ativado", bg: "rgba(93,202,165,0.18)", color: "#5DCAA5" }
+      : { label: "Desativado", bg: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" };
+
+    return (
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{
+          backgroundColor: "var(--section-card-bg)",
+          border: "1px solid var(--section-card-border)",
+          boxShadow: "var(--section-card-shadow)",
+        }}
+      >
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-white/70" />
+              <h2 className="text-sm font-semibold text-white">Notificações push</h2>
+            </div>
+            <span
+              className="text-[11px] px-2.5 py-1 rounded-full font-medium"
+              style={{ background: status.bg, color: status.color }}
+            >
+              {status.label}
+            </span>
+          </div>
+          <p className="text-xs text-white/45 mt-1 mb-4">
+            Receba avisos de agendamento, cobrança e alunos sem atualização direto no seu celular, mesmo com o app fechado.
+          </p>
+
+          {push.supported && push.permission !== "denied" && (
+            <button
+              type="button"
+              onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+              disabled={push.subscribing}
+              className="h-10 w-full rounded-xl text-sm font-semibold flex items-center justify-center"
+              style={
+                push.subscribed
+                  ? { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }
+                  : { background: "var(--cp-gradient)", color: "var(--cp-text)" }
+              }
+            >
+              {push.subscribing
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : push.subscribed
+                ? "Desativar notificações"
+                : "Ativar notificações"}
+            </button>
+          )}
+
+          {push.permission === "denied" && (
+            <p className="text-xs text-white/45">
+              As notificações estão bloqueadas nas permissões do navegador/dispositivo. Ative manualmente nas configurações do site pra receber os avisos.
+            </p>
+          )}
+
+          {!push.supported && (
+            <p className="text-xs text-white/45">
+              Seu navegador não suporta notificações push.
+            </p>
+          )}
+
+          {push.error && (
+            <p className="text-[11px] mt-2 text-center" style={{ color: "#F09595" }}>{push.error}</p>
+          )}
         </div>
       </div>
     );
@@ -1464,7 +1742,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
           <div className="space-y-4">
             {/* Status card */}
             <div className="rounded-xl p-4 space-y-3"
-              style={{ backgroundColor: "#1b1c21", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+              style={{ backgroundColor: "var(--section-card-bg-2)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow-2)" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Crown className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
@@ -1596,11 +1874,13 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             handleSaveProfile={handleSaveProfile}
           />
           <WhatsAppSection />
+          <NotificationsSection />
           <OrgNameSection
             orgName={orgName} setOrgName={setOrgName} savingOrgName={savingOrgName}
             currentName={org?.name ?? ""} handleSaveOrgName={handleSaveOrgName}
           />
           <LogoSection />
+          <LoginLogoSection />
           <IconSection />
           <ThemeSelector />
           <ColorPicker />
@@ -1623,11 +1903,11 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
                   onClick={() => setActiveSection(item.key)}
                   className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors"
                   style={{
-                    color: active ? "#ffffff" : "rgba(255,255,255,0.45)",
+                    color: active ? "var(--tab-text-active)" : "var(--tab-text-inactive)",
                     borderBottomColor: active ? "var(--cp-500)" : "transparent",
                   }}
-                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.75)"; }}
-                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.45)"; }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--tab-text-hover)"; }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--tab-text-inactive)"; }}
                 >
                   <item.icon
                     className="w-3.5 h-3.5 shrink-0"
@@ -1657,11 +1937,13 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
                   currentName={org?.name ?? ""} handleSaveOrgName={handleSaveOrgName}
                 />
                 <LogoSection />
+                <LoginLogoSection />
                 <IconSection />
                 <PhotoSlotsSection />
               </>
             )}
             {activeSection === "whatsapp" && <WhatsAppSection />}
+            {activeSection === "notificacoes" && <NotificationsSection />}
             {activeSection === "assinatura" && (
               <>
                 <PlanSection />
@@ -1682,7 +1964,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
         >
           <div
             className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
-            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+            style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))" }}
           >
             <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               <h2 className="text-base font-semibold text-white">Conectar WhatsApp</h2>
@@ -1722,7 +2004,7 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
         >
           <div
             className="w-full max-w-sm rounded-2xl flex flex-col overflow-hidden"
-            style={{ backgroundColor: "#111113", border: "1px solid rgba(255,255,255,0.08)" }}
+            style={{ backgroundColor: "var(--sheet-bg)", border: "1px solid hsl(var(--border))" }}
           >
             {/* Header */}
             <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>

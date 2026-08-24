@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { ArrowLeft, Moon, Clock } from "lucide-react";
 
-const CARD_BG     = "#141417";
-const CARD_BG_2   = "#1b1c21";
-const CARD_BORDER = "rgba(255,255,255,0.09)";
-const CARD_SHADOW = "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)";
+const CARD_BG     = "var(--section-card-bg)";
+const CARD_BG_2   = "var(--section-card-bg-2)";
+const CARD_BORDER = "var(--section-card-border)";
+const CARD_SHADOW = "var(--section-card-shadow)";
 
 // ── Ciclo de sono médio ≈ 90min, tempo médio pra pegar no sono ≈ 15min ──────
 const CYCLE_MIN       = 90;
@@ -136,9 +136,9 @@ const SleepCalculator = () => {
               const ideal = r.cycles >= 5;
               return (
                 <div key={r.time} className="flex items-center justify-between px-5 py-3.5"
-                  style={{ borderBottom: i === results.length - 1 ? "none" : "1px solid rgba(255,255,255,0.06)" }}>
+                  style={{ borderBottom: i === results.length - 1 ? "none" : "1px solid hsl(var(--foreground) / 0.06)" }}>
                   <div>
-                    <p className="text-base font-bold" style={{ color: ideal ? "var(--cp-400)" : "var(--text-dim, rgba(255,255,255,0.4))" }}>
+                    <p className="text-base font-bold" style={{ color: ideal ? "var(--cp-400)" : "var(--text-dim, hsl(var(--foreground) / 0.4))" }}>
                       {r.time}
                     </p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -154,7 +154,7 @@ const SleepCalculator = () => {
                 </div>
               );
             })}
-            <p className="px-5 py-3 text-[11px] text-muted-foreground" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <p className="px-5 py-3 text-[11px] text-muted-foreground" style={{ borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
               Considera ~15min pra pegar no sono e ciclos de ~90min. Acordar ao final de um
               ciclo (durante o sono leve) costuma dar mais disposição do que acordar no meio dele.
             </p>
