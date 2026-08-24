@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { Plus, X, Pencil, Trash2, Loader2, CreditCard, Smartphone, ToggleLeft, ToggleRight, ListChecks } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Loader2, CreditCard, Smartphone, ToggleLeft, ToggleRight, ListChecks, Calculator, Zap, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -35,18 +36,34 @@ const fmtBRL = (v: number) =>
 const parseBRL = (s: string): number =>
   parseFloat(s.replace(/\./g, "").replace(",", "."));
 
+// Formata float pra string editável em pt-BR ("3845.15" -> "3.845,15"),
+// compatível com parseBRL (que trata "." como separador de milhar)
+const toBRLInput = (v: number): string =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const CALC_LIMITE_LIQUIDO  = 5000;
+const CALC_LIMITE_PARCELAS = 12;
+
+interface CalcResult {
+  totalCharged: number;
+  perInstallment: number;
+  netEstimated: number;
+  marginApplied: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal de criar / editar plano
 // ─────────────────────────────────────────────────────────────────────────────
 interface PlanModalProps {
   orgId: string;
   trainerId: string;
+  isGsBrand: boolean;
   plan?: Plan;
   onClose: () => void;
   onSaved: (plan: Plan) => void;
 }
 
-const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps) => {
+const PlanModal = ({ orgId, trainerId, isGsBrand, plan, onClose, onSaved }: PlanModalProps) => {
   const { toast } = useToast();
   const isEdit = !!plan;
 
@@ -55,29 +72,80 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
   const [options,     setOptions]     = useState<InstallmentOption[]>(plan?.installment_options ?? []);
   const [saving,      setSaving]      = useState(false);
 
-  // Row temporária para nova opção de parcelamento
+  // Row temporária para nova opção de parcelamento — um único valor, cobrado
+  // do cliente e enviado à API são sempre o mesmo número (ver nota em addOption)
   const [newInstall,      setNewInstall]      = useState("");
-  const [newValue,        setNewValue]        = useState(""); // valor Asaas
-  const [newClientValue,  setNewClientValue]  = useState(""); // valor cobrado do cliente
+  const [newValue,        setNewValue]        = useState("");
+
+  // Calculadora de repasse (preenche newValue automaticamente)
+  const [calcNetValue,   setCalcNetValue]   = useState("");
+  const [calcAnticipate, setCalcAnticipate] = useState(false);
+  const [calculating,    setCalculating]    = useState(false);
+  const [calcResult,     setCalcResult]     = useState<CalcResult | null>(null);
+  const [calcErro,       setCalcErro]       = useState("");
+
+  const calcNetNum   = parseBRL(calcNetValue || "0") || 0;
+  const calcInstNum  = parseInt(newInstall) || 0;
+  const calcOverLimit = calcNetNum > CALC_LIMITE_LIQUIDO || calcInstNum > CALC_LIMITE_PARCELAS;
+
+  // Valor da parcela exibido ao vivo em "Confirmar parcelamento" — sempre
+  // recalculado do que está nos campos, nunca do resultado (possivelmente
+  // desatualizado) do passo 1
+  const newValueNum = parseBRL(newValue || "0") || 0;
+  const newInstNum  = parseInt(newInstall) || 0;
+
+  const handleCalcular = async () => {
+    setCalcErro(""); setCalcResult(null);
+    const net  = parseBRL(calcNetValue);
+    const inst = parseInt(newInstall);
+    if (isNaN(net) || net <= 0) { setCalcErro("Informe o valor líquido desejado."); return; }
+    if (!inst || inst < 1) { setCalcErro("Informe o número de parcelas."); return; }
+    if (net > CALC_LIMITE_LIQUIDO || inst > CALC_LIMITE_PARCELAS) {
+      setCalcErro(`Cálculo automático disponível até ${CALC_LIMITE_PARCELAS}x e ${fmtBRL(CALC_LIMITE_LIQUIDO)} líquidos. Pra valores maiores, fale com o suporte (bolha de ajuda no canto da tela).`);
+      return;
+    }
+
+    setCalculating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("calcular-repasse-cartao", {
+        body: { netDesired: net, installments: inst, anticipate: calcAnticipate },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message ?? data.error);
+
+      // `value` enviado ao POST /payments da Asaas é o bruto cobrado do
+      // aluno (confirmado ao vivo por Lucas, 2026-08-23) — "repassar taxas"
+      // do simulador só vale pro checkout hospedado da Asaas, não pra cobrança
+      // criada direto via API.
+      setNewValue(toBRLInput(data.totalCharged));
+      setCalcResult({
+        totalCharged:    data.totalCharged,
+        perInstallment:  data.perInstallment,
+        netEstimated:    data.netEstimated,
+        marginApplied:   data.marginApplied,
+      });
+    } catch (e: any) {
+      setCalcErro(e.message ?? "Erro ao calcular");
+    } finally { setCalculating(false); }
+  };
 
   const addOption = () => {
-    const inst        = parseInt(newInstall);
-    const val         = parseBRL(newValue);
-    const clientVal   = parseBRL(newClientValue);
+    const inst = parseInt(newInstall);
+    const val  = parseBRL(newValue);
     if (!inst || inst < 1 || isNaN(val) || val <= 0) {
-      toast({ title: "Informe parcelas e valor Asaas válidos", variant: "destructive" }); return;
-    }
-    if (isNaN(clientVal) || clientVal <= 0) {
-      toast({ title: "Informe o valor cobrado do cliente", variant: "destructive" }); return;
+      toast({ title: "Informe parcelas e valor válidos", variant: "destructive" }); return;
     }
     if (options.find((o) => o.installments === inst)) {
       toast({ title: `Opção de ${inst}x já existe`, variant: "destructive" }); return;
     }
+    // client_value = value: o mesmo número serve pro `value` enviado à API e
+    // pro que é exibido como total pago pelo cliente (são a mesma coisa)
     setOptions((prev) =>
-      [...prev, { installments: inst, value: val, client_value: clientVal }]
+      [...prev, { installments: inst, value: val, client_value: val }]
         .sort((a, b) => a.installments - b.installments)
     );
-    setNewInstall(""); setNewValue(""); setNewClientValue("");
+    setNewInstall(""); setNewValue("");
+    setCalcNetValue(""); setCalcResult(null); setCalcErro("");
   };
 
   const removeOption = (inst: number) =>
@@ -183,10 +251,102 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
             </div>
           )}
 
-          {/* Adicionar nova opção */}
+          {/* Calculadora de repasse — só a base de cálculo da conta master (sem
+              split). Outras orgs vão ter o % da ORBI descontado quando Subcontas
+              existir, e essa fórmula não contempla isso ainda. */}
+          {isGsBrand ? (
+            <div className="space-y-2.5 rounded-xl p-3"
+              style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+              <div className="flex items-center gap-1.5">
+                <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold text-black shrink-0"
+                  style={{ background: "var(--cp-gradient)" }}>1</span>
+                <Calculator className="w-3 h-3 text-white/40" />
+                <p className="text-[10px] text-white/30 uppercase tracking-wider">Calcular automaticamente</p>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="w-16 space-y-1 shrink-0">
+                  <p className="text-[10px] text-white/25">Parcelas</p>
+                  <Input value={newInstall} onChange={(e) => { setNewInstall(e.target.value); setCalcResult(null); }}
+                    placeholder="6" inputMode="numeric"
+                    className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-[10px] text-white/25">Valor líquido desejado (R$)</p>
+                  <Input value={calcNetValue} onChange={(e) => { setCalcNetValue(e.target.value); setCalcResult(null); }}
+                    placeholder="1000,00" inputMode="decimal"
+                    className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-0.5">
+                <Label className="text-xs text-white/50">Antecipar recebimento</Label>
+                <Switch checked={calcAnticipate} onCheckedChange={(v) => { setCalcAnticipate(v); setCalcResult(null); }} />
+              </div>
+
+              {calcOverLimit && (calcNetValue || newInstall) && (
+                <p className="text-[10px] text-amber-400/80">
+                  Cálculo automático vai até {CALC_LIMITE_PARCELAS}x e {fmtBRL(CALC_LIMITE_LIQUIDO)} líquidos. Acima disso, fale com o suporte.
+                </p>
+              )}
+              {calcErro && <p className="text-[11px] text-red-400">{calcErro}</p>}
+
+              <Button onClick={handleCalcular} disabled={calculating || calcOverLimit}
+                className="w-full h-9 rounded-xl font-semibold text-white text-xs"
+                style={{ background: "var(--cp-gradient)" }}>
+                {calculating
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Calculando...</>
+                  : <><Zap className="w-3.5 h-3.5 mr-1.5" />Calcular</>}
+              </Button>
+
+              {calcResult && (
+                <div className="rounded-lg px-3 py-2 space-y-0.5"
+                  style={{ backgroundColor: "var(--tag-dieta-bg)", border: "1px solid var(--tag-dieta-border)" }}>
+                  <p className="text-xs text-white font-medium">
+                    Aluno paga {fmtBRL(calcResult.totalCharged)}
+                    {calcInstNum > 1 && <span className="text-white/50"> · {fmtBRL(calcResult.perInstallment)}/mês</span>}
+                  </p>
+                  <p className="text-[11px]" style={{ color: "var(--tag-dieta-color)" }}>
+                    Você recebe {fmtBRL(calcResult.netEstimated)} líquidos
+                    {calcAnticipate && calcResult.marginApplied > 0 && (
+                      <span className="text-white/30"> (margem de segurança de {fmtBRL(calcResult.marginApplied)} já embutida)</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+            </div>
+          ) : (
+            <div className="rounded-xl p-3 flex items-start gap-2"
+              style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
+              <Calculator className="w-3.5 h-3.5 text-white/25 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-white/35">
+                Calculadora automática ainda não disponível pra essa organização — a base de cálculo muda quando
+                a comissão da plataforma entrar em cena. Informe os valores manualmente abaixo.
+              </p>
+            </div>
+          )}
+
+          {/* Conector visual entre os dois passos */}
+          {isGsBrand && (
+            <div className="flex items-center justify-center gap-1.5 -my-1">
+              <ArrowDown className="w-3 h-3 text-white/15" />
+              <p className="text-[9px] text-white/20">valores calculados caem aqui embaixo</p>
+            </div>
+          )}
+
+          {/* Adicionar / confirmar opção de parcelamento (via calculadora ou manual) */}
           <div className="space-y-2 rounded-xl p-3"
             style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
-            <p className="text-[10px] text-white/30 uppercase tracking-wider">Nova opção</p>
+            <div className="flex items-center gap-1.5">
+              {isGsBrand && (
+                <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold text-black shrink-0"
+                  style={{ background: "var(--cp-gradient)" }}>2</span>
+              )}
+              <p className="text-[10px] text-white/30 uppercase tracking-wider">
+                {isGsBrand ? "Confirmar parcelamento" : "Opção de parcelamento"}
+              </p>
+            </div>
             <div className="flex gap-2">
               <div className="w-16 space-y-1 shrink-0">
                 <p className="text-[10px] text-white/25">Parcelas</p>
@@ -195,17 +355,16 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
                   className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-[10px] text-white/25">Valor base Asaas (R$)</p>
+                <p className="text-[10px] text-white/25">Valor cobrado do cliente (R$)</p>
                 <Input value={newValue} onChange={(e) => setNewValue(e.target.value)}
-                  placeholder="3845,15" inputMode="decimal"
-                  className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="text-[10px] text-white/25">Cobrado do cliente (R$)</p>
-                <Input value={newClientValue} onChange={(e) => setNewClientValue(e.target.value)}
                   placeholder="3943,74" inputMode="decimal"
                   className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
               </div>
+              {newValueNum > 0 && newInstNum > 1 && (
+                <p className="text-sm font-bold text-white/90 whitespace-nowrap self-end h-9 flex items-center shrink-0">
+                  = {fmtBRL(newValueNum / newInstNum)}/mês
+                </p>
+              )}
               <button onClick={addOption}
                 className="h-9 w-9 flex items-center justify-center rounded-xl shrink-0 self-end transition-all"
                 style={{ background: "var(--cp-gradient)" }}>
@@ -213,7 +372,9 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
               </button>
             </div>
             <p className="text-[10px] text-white/20">
-              Use os valores da simulação do Asaas. "Base" = enviado à API. "Cobrado" = total pago pelo cliente.
+              {isGsBrand
+                ? "Preenchido pelo passo 1, ou digite direto — é o valor total enviado à API e pago pelo cliente."
+                : "Total que o cliente paga, já com as taxas embutidas."}
             </p>
           </div>
         </div>
@@ -232,7 +393,7 @@ const PlanModal = ({ orgId, trainerId, plan, onClose, onSaved }: PlanModalProps)
 // ProdutosPlanos — página principal
 // ─────────────────────────────────────────────────────────────────────────────
 const ProdutosPlanos = () => {
-  const { orgId } = useTenantContext();
+  const { orgId, org } = useTenantContext();
   const { toast } = useToast();
 
   const [plans,      setPlans]      = useState<Plan[]>([]);
@@ -301,6 +462,7 @@ const ProdutosPlanos = () => {
         <PlanModal
           orgId={orgId}
           trainerId={trainerId}
+          isGsBrand={org?.is_gs_brand ?? false}
           plan={editPlan}
           onClose={() => { setModalOpen(false); setEditPlan(undefined); }}
           onSaved={handleSaved}
@@ -334,7 +496,7 @@ const ProdutosPlanos = () => {
           </div>
         ) : plans.length === 0 ? (
           <div className="rounded-2xl text-center py-16 space-y-3"
-            style={{ backgroundColor: "#141417", border: "1px solid rgba(255,255,255,0.09)", boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)" }}>
+            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
             <ListChecks className="w-8 h-8 text-white/10 mx-auto" />
             <p className="text-sm text-white/25">Nenhum plano cadastrado ainda.</p>
             <p className="text-xs text-white/20">Crie planos para agilizar a emissão de cobranças.</p>
@@ -344,9 +506,9 @@ const ProdutosPlanos = () => {
             <div key={plan.id}
               className="rounded-2xl p-4"
               style={{
-                backgroundColor: "#141417",
-                border: "1px solid rgba(255,255,255,0.09)",
-                boxShadow: "0 10px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.25)",
+                backgroundColor: "var(--section-card-bg)",
+                border: "1px solid var(--section-card-border)",
+                boxShadow: "var(--section-card-shadow)",
                 opacity: plan.active ? 1 : 0.7,
               }}>
 
