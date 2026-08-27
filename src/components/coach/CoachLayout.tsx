@@ -274,19 +274,25 @@ const CoachLayout = () => {
 
   // ── Força cor âmbar para Get Shape ───────────────────────────
   // useLayoutEffect: aplica ANTES do paint, eliminando o flash verde
-  // na montagem inicial (lê cache do localStorage).
+  // na montagem inicial (lê cache do localStorage) — só quando o slug
+  // salvo em cache bate com o slug da URL atual, senão qualquer outra
+  // org herda o flash âmbar de uma visita anterior à Get Shape no
+  // mesmo aparelho (gs_brand é uma flag global, não por org).
   useLayoutEffect(() => {
     if (localStorage.getItem("gs_brand") !== "1") return;
+    if (localStorage.getItem("gs_org_slug") !== slug) return;
     applyAmber();
-  }, []);
+  }, [slug]);
 
   // useEffect: confirma após email carregado e reaplica sempre que
-  // TenantContext sobrescrever com a cor do banco.
+  // TenantContext sobrescrever com a cor do banco. Usa isGetShapeOrg
+  // (a org atual), não isSuperAdmin (o usuário) — senão o próprio Lucas
+  // logado força âmbar em qualquer outra org que ele visitar/for membro.
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!isGetShapeOrg) return;
     localStorage.setItem("gs_brand", "1");
     applyAmber();
-  }, [isSuperAdmin, org?.primary_color]);
+  }, [isGetShapeOrg, org?.primary_color]);
 
   // Mobile bottom-nav items (flat, no sub-items)
   const menuItems = [

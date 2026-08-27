@@ -158,23 +158,33 @@ const App = () => {
         }
 
         // ── Camada 2: e-mail do owner na sessão ───────────────────────────
+        // Só aplica a marca GS se a URL não aponta pra uma org específica
+        // diferente (pathSlug vazio = rota genérica) — senão o próprio Lucas
+        // logado como si mesmo, visitando outra org (ex: testando a Orbi
+        // Demo), herdava o emblema/título da Get Shape na splash antes de
+        // corrigir (achado 2026-08-24, mesma causa raiz do flash de cor
+        // em CoachLayout.tsx).
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.email === GET_SHAPE_EMAIL) {
-          localStorage.setItem("gs_brand", "1");
-          setIsGetShapeUser(true);
-          document.title = "Get Shape";
-          applyFavicon("/favicon-gs.png", "image/png");
           const { data: freshOrg } = await supabase
             .from("organizations")
-            .select("id, icon_url")
+            .select("id, slug, icon_url")
             .eq("owner_id", session.user.id)
             .eq("is_gs_brand", true)
             .maybeSingle();
-          const freshIconUrl = freshOrg?.icon_url ?? null;
-          if (freshOrg?.id) localStorage.setItem("gs_org_id", freshOrg.id);
-          localStorage.setItem("gs_icon_url", freshIconUrl ?? "");
-          setSplashIconUrl(freshIconUrl);
-          return;
+          if (freshOrg && (!pathSlug || freshOrg.slug === pathSlug)) {
+            localStorage.setItem("gs_brand", "1");
+            setIsGetShapeUser(true);
+            document.title = "Get Shape";
+            applyFavicon("/favicon-gs.png", "image/png");
+            localStorage.setItem("gs_org_id",   freshOrg.id);
+            localStorage.setItem("gs_org_slug", freshOrg.slug);
+            localStorage.setItem("gs_icon_url", freshOrg.icon_url ?? "");
+            setSplashIconUrl(freshOrg.icon_url ?? null);
+            return;
+          }
+          // pathSlug aponta pra outra org — segue pra Camada 3, que decide
+          // com base na org real sendo visitada, não no e-mail da sessão.
         }
 
         // ── Camada 3: primeiro acesso em dispositivo novo ─────────────────
