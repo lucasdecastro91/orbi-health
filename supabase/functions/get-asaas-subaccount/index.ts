@@ -101,7 +101,7 @@ serve(async (req) => {
 
   const { data: sub } = await supabase
     .from("asaas_subaccounts")
-    .select("status, created_at, api_key")
+    .select("status, created_at, api_key, pix_key, pix_key_type")
     .eq("org_id", organization_id)
     .maybeSingle();
 
@@ -122,10 +122,48 @@ serve(async (req) => {
     }
   }
 
+  // Saques recentes — atualiza no nosso banco os que ainda não chegaram num
+  // status final (a transferência processa de forma assíncrona na Asaas).
+  const { data: withdrawals } = await supabase
+    .from("asaas_subaccount_withdrawals")
+    .select("id, asaas_transfer_id, value, status, fail_reason, created_at")
+    .eq("org_id", organization_id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  const TERMINAL = new Set(["done", "failed", "cancelled"]);
+  if (withdrawals?.length) {
+    for (const w of withdrawals) {
+      if (TERMINAL.has(w.status) || !w.asaas_transfer_id) continue;
+      try {
+        const res = await fetch(`${ASAAS_BASE}/transfers/${w.asaas_transfer_id}`, {
+          headers: { "access_token": sub.api_key },
+        });
+        if (!res.ok) continue;
+        const fresh = await res.json();
+        const freshStatus = String(fresh?.status ?? "").toLowerCase();
+        if (freshStatus && freshStatus !== w.status) {
+          w.status = freshStatus;
+          w.fail_reason = fresh?.failReason ?? w.fail_reason;
+          await supabase
+            .from("asaas_subaccount_withdrawals")
+            .update({ status: freshStatus, fail_reason: fresh?.failReason ?? null, updated_at: new Date().toISOString() })
+            .eq("id", w.id);
+        }
+      } catch (e) {
+        console.error("[get-asaas-subaccount] falha ao atualizar saque:", e instanceof Error ? e.message : e);
+      }
+    }
+  }
+
   return json({
     exists: true,
     status: sub.status,
     created_at: sub.created_at,
     balance,
+    pixKeySet: !!sub.pix_key,
+    pixKey: sub.pix_key,
+    pixKeyType: sub.pix_key_type,
+    withdrawals: withdrawals ?? [],
   });
 });

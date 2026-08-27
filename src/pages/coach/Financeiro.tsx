@@ -96,6 +96,30 @@ const CARTEIRA_CHECKLIST = [
   { label: "Conta liberada pra saque",    done: false },
 ];
 
+const PIX_KEY_TYPES = [
+  { value: "CPF",   label: "CPF" },
+  { value: "CNPJ",  label: "CNPJ" },
+  { value: "EMAIL", label: "E-mail" },
+  { value: "PHONE", label: "Telefone" },
+  { value: "EVP",   label: "Chave aleatória" },
+];
+
+interface Withdrawal {
+  id: string;
+  value: number;
+  status: string;
+  fail_reason: string | null;
+  created_at: string;
+}
+
+const WITHDRAWAL_STATUS_CFG: Record<string, { label: string; bg: string; text: string }> = {
+  pending:         { label: "Pendente",    bg: "rgba(251,191,36,0.12)",  text: "#fbbf24" },
+  bank_processing: { label: "Processando", bg: "rgba(251,191,36,0.12)",  text: "#fbbf24" },
+  done:            { label: "Concluído",   bg: "rgba(34,197,94,0.12)",   text: "#4ade80" },
+  failed:          { label: "Falhou",      bg: "rgba(239,68,68,0.12)",   text: "#f87171" },
+  cancelled:       { label: "Cancelado",   bg: "rgba(107,114,128,0.12)", text: "#9ca3af" },
+};
+
 const fmtDate = (iso: string) => {
   try { return format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR }); }
   catch { return iso; }
@@ -584,6 +608,118 @@ function SubaccountOnboardingForm({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PixKeyForm — cadastro/edição da chave Pix de destino do saque
+// ─────────────────────────────────────────────────────────────────────────────
+function PixKeyForm({
+  keyType, keyValue, onChangeType, onChangeValue, onSubmit, onCancel, submitting,
+}: {
+  keyType: string;
+  keyValue: string;
+  onChangeType: (v: string) => void;
+  onChangeValue: (v: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  submitting: boolean;
+}) {
+  return (
+    <div className="rounded-2xl p-5 space-y-4"
+      style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+      <div>
+        <p className="text-sm font-semibold text-white">Cadastrar chave Pix</p>
+        <p className="text-xs text-white/40 mt-1">É pra essa chave que o saldo vai quando você solicitar um saque.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-white/50 uppercase tracking-wider">Tipo</Label>
+          <div className="relative">
+            <select value={keyType} onChange={(e) => onChangeType(e.target.value)}
+              className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl h-11 px-3 text-sm text-white focus:outline-none cursor-pointer">
+              {PIX_KEY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-white/50 uppercase tracking-wider">Chave Pix</Label>
+          <Input value={keyValue} onChange={(e) => onChangeValue(e.target.value)}
+            placeholder="Sua chave Pix" className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+        </div>
+      </div>
+      <div className="flex gap-3 pt-1">
+        <Button variant="outline" className="flex-1 h-11 rounded-xl border-white/10 text-white/70" onClick={onCancel} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button
+          className="flex-1 h-11 rounded-xl text-white font-semibold"
+          style={{ background: "var(--cp-gradient)" }}
+          onClick={onSubmit}
+          disabled={submitting}
+        >
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar chave"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SaqueModal — confirmação de solicitação de saque
+// ─────────────────────────────────────────────────────────────────────────────
+function SaqueModal({
+  balance, onClose, onConfirm, submitting,
+}: {
+  balance: number;
+  onClose: () => void;
+  onConfirm: (value: number) => void;
+  submitting: boolean;
+}) {
+  const [value, setValue] = useState(balance.toFixed(2));
+  const numericValue = Number(value.replace(",", "."));
+  const invalid = !numericValue || numericValue <= 0 || numericValue > balance;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 lg:pb-0"
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4"
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
+        onClick={(e) => e.stopPropagation()}>
+
+        <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
+
+        <div>
+          <p className="text-base font-bold text-white">Solicitar saque</p>
+          <p className="text-xs text-white/40">Saldo disponível: {fmtBRL(balance)}</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-white/50 uppercase tracking-wider">Valor a sacar</Label>
+          <Input type="number" step="0.01" min="0" max={balance} value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+          {numericValue > balance && (
+            <p className="text-xs" style={{ color: "#f87171" }}>Valor maior que o saldo disponível.</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <Button variant="outline" className="flex-1 h-11 rounded-xl border-white/10 text-white/70" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1 h-11 rounded-xl text-white font-semibold"
+            style={{ background: "var(--cp-gradient)" }}
+            onClick={() => onConfirm(numericValue)}
+            disabled={submitting || invalid}
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar saque"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Financeiro = () => {
   const { orgId } = useTenantContext();
   const { toast } = useToast();
@@ -609,7 +745,10 @@ const Financeiro = () => {
   const [successData,  setSuccessData]  = useState<{ cobranca: Cobranca; nome: string } | null>(null);
 
   // ── Carteira / subconta ──────────────────────────────────────────────────
-  const [subStatus, setSubStatus] = useState<{ exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string } | null>(null);
+  const [subStatus, setSubStatus] = useState<{
+    exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string;
+    pixKeySet?: boolean; pixKey?: string | null; pixKeyType?: string | null; withdrawals?: Withdrawal[];
+  } | null>(null);
   const [subLoading, setSubLoading] = useState(false);
   const [showSubForm, setShowSubForm] = useState(false);
   const [creatingSub, setCreatingSub] = useState(false);
@@ -619,6 +758,14 @@ const Financeiro = () => {
     cep: "", address: "", number: "", complement: "", bairro: "",
     incomeValue: "",
   });
+
+  // ── Chave Pix / saque ────────────────────────────────────────────────────
+  const [showPixKeyForm, setShowPixKeyForm] = useState(false);
+  const [savingPixKey, setSavingPixKey] = useState(false);
+  const [pixKeyType, setPixKeyType] = useState("CPF");
+  const [pixKeyValue, setPixKeyValue] = useState("");
+  const [showSaqueModal, setShowSaqueModal] = useState(false);
+  const [submittingSaque, setSubmittingSaque] = useState(false);
 
   const loadSubaccountStatus = async () => {
     if (!orgId) return;
@@ -693,6 +840,52 @@ const Financeiro = () => {
       toast({ title: "Erro ao criar conta", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally {
       setCreatingSub(false);
+    }
+  };
+
+  const handleSavePixKey = async () => {
+    if (!pixKeyValue.trim()) {
+      toast({ title: "Chave Pix obrigatória", variant: "destructive" });
+      return;
+    }
+    setSavingPixKey(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-asaas-pix-key", {
+        body: { organization_id: orgId, pix_key: pixKeyValue.trim(), pix_key_type: pixKeyType },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Chave Pix salva!" });
+      setShowPixKeyForm(false);
+      await loadSubaccountStatus();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao salvar chave Pix", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSavingPixKey(false);
+    }
+  };
+
+  const handleRequestSaque = async (value: number) => {
+    if (!value || value <= 0) {
+      toast({ title: "Valor inválido", variant: "destructive" });
+      return;
+    }
+    setSubmittingSaque(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("solicitar-saque-asaas", {
+        body: { organization_id: orgId, value },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Saque solicitado!", description: "Acompanhe o status no extrato." });
+      setShowSaqueModal(false);
+      await loadSubaccountStatus();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao solicitar saque", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSubmittingSaque(false);
     }
   };
 
@@ -1055,12 +1248,13 @@ const Financeiro = () => {
                 <p className="text-xs text-white/30 mt-2">Nenhuma conta criada ainda</p>
               )}
             </div>
-            <button disabled
-              className="h-10 px-5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-2 opacity-40 cursor-not-allowed"
+            <button
+              onClick={() => setShowSaqueModal(true)}
+              disabled={!(subStatus?.status === "aprovado" && subStatus?.pixKeySet && (subStatus?.balance ?? 0) > 0)}
+              className="h-10 px-5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
               <Landmark className="w-4 h-4" />
               Sacar
-              <span className="text-[10px] font-normal opacity-80 ml-1">(em breve)</span>
             </button>
           </div>
         </div>
@@ -1071,11 +1265,10 @@ const Financeiro = () => {
           <p className="text-sm font-semibold text-white">Finalize sua conta pra vender e receber</p>
           <div className="space-y-2.5">
             {CARTEIRA_CHECKLIST.map((step, i) => {
-              // Só o 1º item (identidade) já é real hoje — os outros 2
-              // dependem de features ainda não construídas (cadastro de Pix,
-              // liberação de saque), então continuam mostrando "pendente" de
-              // propósito, não é um bug.
-              const done = i === 0 ? subStatus?.status === "aprovado" : false;
+              const done =
+                i === 0 ? subStatus?.status === "aprovado"
+                : i === 1 ? !!subStatus?.pixKeySet
+                : subStatus?.status === "aprovado" && !!subStatus?.pixKeySet;
               return (
                 <div key={step.label} className="flex items-center gap-2.5">
                   {done
@@ -1101,6 +1294,28 @@ const Financeiro = () => {
               </div>
             )
           )}
+
+          {!subLoading && subStatus?.status === "aprovado" && !subStatus?.pixKeySet && !showPixKeyForm && (
+            <Button
+              className="w-full h-10 rounded-xl text-white font-semibold text-sm mt-2"
+              style={{ background: "var(--cp-gradient)" }}
+              onClick={() => { setPixKeyType("CPF"); setPixKeyValue(""); setShowPixKeyForm(true); }}
+            >
+              Cadastrar chave Pix
+            </Button>
+          )}
+          {!subLoading && subStatus?.pixKeySet && !showPixKeyForm && (
+            <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 mt-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+              <p className="text-xs text-white/50 truncate">
+                Chave Pix: <span className="text-white/70 font-mono">{subStatus.pixKey}</span>
+              </p>
+              <button
+                onClick={() => { setPixKeyType(subStatus.pixKeyType ?? "CPF"); setPixKeyValue(subStatus.pixKey ?? ""); setShowPixKeyForm(true); }}
+                className="text-xs font-medium shrink-0" style={{ color: "var(--cp-400)" }}>
+                Alterar
+              </button>
+            </div>
+          )}
         </div>
 
         {showSubForm && (
@@ -1114,17 +1329,63 @@ const Financeiro = () => {
           />
         )}
 
+        {showPixKeyForm && (
+          <PixKeyForm
+            keyType={pixKeyType}
+            keyValue={pixKeyValue}
+            onChangeType={setPixKeyType}
+            onChangeValue={setPixKeyValue}
+            onSubmit={handleSavePixKey}
+            onCancel={() => setShowPixKeyForm(false)}
+            submitting={savingPixKey}
+          />
+        )}
+
         {/* Extrato */}
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2 px-1">Extrato</p>
-          <div className="rounded-2xl text-center py-16 space-y-2"
-            style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
-            <ReceiptText className="w-8 h-8 text-white/10 mx-auto" />
-            <p className="text-sm text-white/25">Nenhuma movimentação ainda.</p>
-          </div>
+          {subStatus?.withdrawals && subStatus.withdrawals.length > 0 ? (
+            <div className="space-y-2">
+              {subStatus.withdrawals.map((w) => {
+                const cfg = WITHDRAWAL_STATUS_CFG[w.status] ?? WITHDRAWAL_STATUS_CFG.pending;
+                return (
+                  <div key={w.id} className="rounded-2xl p-4 flex items-center justify-between gap-2"
+                    style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white">Saque Pix</p>
+                      <p className="text-xs text-white/40">{fmtDate(w.created_at)}</p>
+                      {w.fail_reason && <p className="text-xs mt-0.5" style={{ color: "#f87171" }}>{w.fail_reason}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-white">{fmtBRL(Number(w.value))}</p>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                        style={{ backgroundColor: cfg.bg, color: cfg.text }}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl text-center py-16 space-y-2"
+              style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+              <ReceiptText className="w-8 h-8 text-white/10 mx-auto" />
+              <p className="text-sm text-white/25">Nenhuma movimentação ainda.</p>
+            </div>
+          )}
         </div>
 
       </div>
+      )}
+
+      {showSaqueModal && (
+        <SaqueModal
+          balance={subStatus?.balance ?? 0}
+          onClose={() => setShowSaqueModal(false)}
+          onConfirm={handleRequestSaque}
+          submitting={submittingSaque}
+        />
       )}
       </div>
     </div>
