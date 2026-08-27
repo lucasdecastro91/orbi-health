@@ -1,0 +1,33 @@
+workflows:
+  ios-build:
+    name: iOS — build (sem publicar ainda)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic CI
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.orbihealth.app
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+    scripts:
+      - name: Instalar dependências do Node
+        script: npm install
+      - name: Build do app web (Vite)
+        script: npm run build
+      - name: Sincronizar com o projeto iOS (Capacitor)
+        script: npx cap sync ios
+      - name: Buscar certificados e provisioning profiles (Apple Developer Portal)
+        script: xcode-project use-profiles
+      - name: Compilar e gerar o .ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
