@@ -13,18 +13,47 @@ const ASAAS_BASE = ASAAS_ENV === "production"
   ? "https://www.asaas.com/api/v3"
   : "https://sandbox.asaas.com/api/v3";
 
+// Taxa Orbi Pay — percentual sobre cada cobrança de org com subconta aprovada,
+// via split pra carteira master. Decisão de negócio (Lucas, 2026-08-26).
+const ORBI_SPLIT_PERCENT = 3;
+
+// Se ASAAS_MASTER_WALLET_ID não estiver configurado como secret, busca via API
+// (GET /v3/wallets) e usa a primeira carteira retornada. Evita depender de
+// alguém achar o walletId manualmente no painel — mas se a conta tiver mais
+// de uma carteira, LOGA um aviso pra confirmar que é a certa antes de confiar
+// cegamente (nesse caso, configurar o secret manualmente resolve de vez).
+async function getMasterWalletId(): Promise<string> {
+  const fromEnv = Deno.env.get("ASAAS_MASTER_WALLET_ID");
+  if (fromEnv) return fromEnv;
+
+  const res = await fetch(`${ASAAS_BASE}/wallets`, {
+    headers: { "access_token": ASAAS_API_KEY },
+  });
+  if (!res.ok) throw new Error(`Falha ao buscar walletId master: ${await res.text()}`);
+  const data = await res.json();
+  const wallets = data?.data ?? [];
+  if (wallets.length === 0) throw new Error("Conta master não tem nenhuma carteira (wallet) — impossível montar o split.");
+  if (wallets.length > 1) {
+    console.warn("[asaas-create-charge] conta master tem múltiplas carteiras, usando a primeira:", JSON.stringify(wallets));
+  }
+  return wallets[0].id;
+}
+
 const cors = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const asaasGet  = (path: string) =>
-  fetch(`${ASAAS_BASE}${path}`, { headers: { "access_token": ASAAS_API_KEY } });
+// apiKey por chamada: master (padrão, org sem subconta aprovada) ou da
+// subconta do treinador — cada cobrança escolhe a chave certa depois de
+// checar o status em asaas_subaccounts (ver "Subconta da org" mais abaixo).
+const asaasGet  = (path: string, apiKey: string) =>
+  fetch(`${ASAAS_BASE}${path}`, { headers: { "access_token": apiKey } });
 
-const asaasPost = (path: string, body: unknown) =>
+const asaasPost = (path: string, body: unknown, apiKey: string) =>
   fetch(`${ASAAS_BASE}${path}`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json", "access_token": ASAAS_API_KEY },
+    headers: { "Content-Type": "application/json", "access_token": apiKey },
     body:    JSON.stringify(body),
   });
 
@@ -139,6 +168,21 @@ serve(async (req) => {
       .eq("id", aluno.user_id)
       .maybeSingle();
 
+    // ── Subconta da org — se aprovada, cobra por ela e faz split da Taxa Orbi
+    // Pay; senão (pending/em análise/sem subconta), mantém o comportamento de
+    // hoje via conta master. Customers de contas diferentes não são
+    // compatíveis entre si — por isso o lookup abaixo também é escopado.
+    const { data: subaccount } = await supabase
+      .from("asaas_subaccounts")
+      .select("id, api_key, status")
+      .eq("org_id", org_id)
+      .maybeSingle();
+
+    const useSubaccount = subaccount?.status === "aprovado";
+    const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
+    const subaccountId  = useSubaccount ? subaccount!.id : null;
+    const masterWalletId = useSubaccount ? await getMasterWalletId() : "";
+
     const { data: { user: alunoUser } } = await supabase.auth.admin.getUserById(aluno.user_id);
     const email = alunoUser?.email ?? "";
     const name  = profile?.nome ?? email ?? "Aluno";
@@ -159,11 +203,14 @@ serve(async (req) => {
     // ── 3. Customer Asaas (cria se não existir) ──────────────────────────────
     let asaasCustomerId: string;
 
-    const { data: existingCust } = await supabase
+    let custQuery = supabase
       .from("asaas_customers_alunos")
       .select("asaas_id")
-      .eq("aluno_id", aluno_id)
-      .maybeSingle();
+      .eq("aluno_id", aluno_id);
+    custQuery = subaccountId
+      ? custQuery.eq("asaas_subaccount_id", subaccountId)
+      : custQuery.is("asaas_subaccount_id", null);
+    const { data: existingCust } = await custQuery.maybeSingle();
 
     if (existingCust?.asaas_id) {
       asaasCustomerId = existingCust.asaas_id;
@@ -171,7 +218,7 @@ serve(async (req) => {
       // existir (idempotente, custo baixo — evita reintroduzir o e-mail com
       // branding Asaas pra quem já tinha cliente cadastrado).
       try {
-        await asaasPost(`/customers/${asaasCustomerId}`, { notificationDisabled: true });
+        await asaasPost(`/customers/${asaasCustomerId}`, { notificationDisabled: true }, chargeApiKey);
       } catch { /* não bloqueia a cobrança se isso falhar */ }
     } else {
       const cpfCnpj = (body.cpf ?? "").replace(/\D/g, "");
@@ -184,12 +231,12 @@ serve(async (req) => {
       const custPayload: Record<string, unknown> = { name, email, cpfCnpj, notificationDisabled: true };
       if (mobilePhone) custPayload.mobilePhone = mobilePhone;
 
-      const custRes  = await asaasPost("/customers", custPayload);
+      const custRes  = await asaasPost("/customers", custPayload, chargeApiKey);
       const custData = await custRes.json();
       if (!custData.id) throw new Error(`Asaas customer error: ${JSON.stringify(custData)}`);
 
       await supabase.from("asaas_customers_alunos").insert({
-        org_id, aluno_id, asaas_id: custData.id,
+        org_id, aluno_id, asaas_id: custData.id, asaas_subaccount_id: subaccountId,
       });
       asaasCustomerId = custData.id;
     }
@@ -205,7 +252,11 @@ serve(async (req) => {
       ...(forma_pagamento === "CREDIT_CARD" && installCount > 1
         ? { installmentCount: installCount, installmentValue: Number(valor) / installCount }
         : {}),
-    });
+      // Taxa Orbi Pay — só quando a cobrança nasce numa subconta aprovada.
+      ...(useSubaccount
+        ? { split: [{ walletId: masterWalletId, percentualValue: ORBI_SPLIT_PERCENT }] }
+        : {}),
+    }, chargeApiKey);
     const payment = await payRes.json();
     if (!payment.id) throw new Error(`Asaas payment error: ${JSON.stringify(payment)}`);
 
@@ -213,7 +264,7 @@ serve(async (req) => {
     let pixKey: string | null = null;
     if (forma_pagamento === "PIX") {
       try {
-        const pixRes  = await asaasGet(`/payments/${payment.id}/pixQrCode`);
+        const pixRes  = await asaasGet(`/payments/${payment.id}/pixQrCode`, chargeApiKey);
         const pixData = await pixRes.json();
         pixKey = pixData.payload ?? null;
       } catch { /* usa só o invoiceUrl se falhar */ }

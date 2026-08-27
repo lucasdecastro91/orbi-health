@@ -453,6 +453,26 @@ serve(async (req) => {
       break;
     }
 
+    // Aprovação/reprovação da subconta (Fluxo A) — payload não tem payment
+    // nem subscription, vem em payload.account.id. Sem isso, o status em
+    // asaas_subaccounts fica preso em "pending" pra sempre mesmo depois da
+    // Asaas aprovar de verdade (achado ao vivo, 2026-08-26).
+    case "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED":
+    case "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED": {
+      const accountObj = payload.account as Record<string, unknown> | undefined;
+      const asaasAccountId = accountObj?.id as string | undefined;
+      if (asaasAccountId) {
+        await supabase
+          .from("asaas_subaccounts")
+          .update({
+            status: event === "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED" ? "aprovado" : "rejeitado",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("asaas_account_id", asaasAccountId);
+      }
+      break;
+    }
+
     default:
       // Outros eventos apenas logados
       break;

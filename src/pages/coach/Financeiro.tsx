@@ -508,6 +508,82 @@ const FILTER_TABS = [
   { key: "VENCIDAS",  label: "Vencidas"  },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Onboarding de subconta (Carteira) — içado pro escopo do módulo de propósito
+// (mesmo padrão de OrgNameSection/ProfileForm): um componente definido dentro
+// do corpo de Financeiro seria recriado a cada render e re-montaria os
+// inputs a cada tecla digitada, perdendo foco (bug já documentado no
+// projeto). Formulário só de KYC — dados de quem vai receber, não da org.
+// ─────────────────────────────────────────────────────────────────────────────
+interface SubaccountFormValues {
+  name: string; email: string; cpf: string; birthDate: string; phone: string;
+  cep: string; address: string; number: string; complement: string; bairro: string;
+  incomeValue: string;
+}
+
+function SubaccountOnboardingForm({
+  values, onChange, onSubmit, onCancel, submitting, cepLoading,
+}: {
+  values: SubaccountFormValues;
+  onChange: (field: keyof SubaccountFormValues, value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  submitting: boolean;
+  cepLoading: boolean;
+}) {
+  const field = (key: keyof SubaccountFormValues, label: string, placeholder: string, colSpan2 = false, type: "text" | "date" = "text") => (
+    <div className={`space-y-1.5 ${colSpan2 ? "col-span-2" : ""}`}>
+      <Label className="text-xs text-white/50 uppercase tracking-wider">{label}</Label>
+      <Input
+        type={type}
+        value={values[key]}
+        onChange={(e) => onChange(key, e.target.value)}
+        placeholder={placeholder}
+        className="bg-white/5 border-white/10 text-white rounded-xl h-11"
+      />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl p-5 space-y-4"
+      style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+      <div>
+        <p className="text-sm font-semibold text-white">Criar sua conta</p>
+        <p className="text-xs text-white/40 mt-1">
+          Dados de quem vai receber os pagamentos — depois de criada, você recebe um e-mail com os próximos passos pra completar a verificação de identidade.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {field("name", "Nome completo", "Nome como no documento", true)}
+        {field("email", "E-mail de contato", "Onde você vai receber o acesso", true)}
+        {field("cpf", "CPF", "000.000.000-00")}
+        {field("birthDate", "Data de nascimento", "", false, "date")}
+        {field("phone", "Telefone/WhatsApp", "(11) 99999-9999", true)}
+        {field("cep", "CEP", "00000-000")}
+        {field("number", "Número", "123")}
+        {field("address", "Endereço", "Rua, avenida...", true)}
+        {field("bairro", "Bairro", "Bairro")}
+        {field("complement", "Complemento", "Opcional")}
+        {field("incomeValue", "Renda mensal declarada", "5000", true)}
+      </div>
+      {cepLoading && <p className="text-xs text-white/30">Buscando endereço pelo CEP...</p>}
+      <div className="flex gap-3 pt-1">
+        <Button variant="outline" className="flex-1 h-11 rounded-xl border-white/10 text-white/70" onClick={onCancel} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button
+          className="flex-1 h-11 rounded-xl text-white font-semibold"
+          style={{ background: "var(--cp-gradient)" }}
+          onClick={onSubmit}
+          disabled={submitting}
+        >
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar conta"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const Financeiro = () => {
   const { orgId } = useTenantContext();
   const { toast } = useToast();
@@ -531,6 +607,94 @@ const Financeiro = () => {
   const [statusFilter, setStatusFilter] = useState("TODAS");
   const [modalOpen,    setModalOpen]    = useState(false);
   const [successData,  setSuccessData]  = useState<{ cobranca: Cobranca; nome: string } | null>(null);
+
+  // ── Carteira / subconta ──────────────────────────────────────────────────
+  const [subStatus, setSubStatus] = useState<{ exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string } | null>(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [showSubForm, setShowSubForm] = useState(false);
+  const [creatingSub, setCreatingSub] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [subForm, setSubForm] = useState<SubaccountFormValues>({
+    name: "", email: "", cpf: "", birthDate: "", phone: "",
+    cep: "", address: "", number: "", complement: "", bairro: "",
+    incomeValue: "",
+  });
+
+  const loadSubaccountStatus = async () => {
+    if (!orgId) return;
+    setSubLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-asaas-subaccount", {
+        body: { organization_id: orgId },
+      });
+      if (error) throw error;
+      setSubStatus(data);
+    } catch (e) {
+      console.error("[Financeiro] loadSubaccountStatus falhou:", e instanceof Error ? e.message : e);
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "carteira" && orgId) loadSubaccountStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, orgId]);
+
+  const handleSubFormChange = (field: keyof SubaccountFormValues, value: string) => {
+    setSubForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "cep") {
+      const digits = value.replace(/\D/g, "").slice(0, 8);
+      if (digits.length === 8) {
+        setCepLoading(true);
+        fetch(`https://viacep.com.br/ws/${digits}/json/`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data.erro) {
+              setSubForm((prev) => ({ ...prev, address: data.logradouro ?? prev.address, bairro: data.bairro ?? prev.bairro }));
+            }
+          })
+          .catch(() => { /* CEP + número já bastam pra Asaas — falha na busca não bloqueia */ })
+          .finally(() => setCepLoading(false));
+      }
+    }
+  };
+
+  const handleCreateSubaccount = async () => {
+    if (!subForm.email) {
+      toast({ title: "E-mail obrigatório", description: "Informe o e-mail que vai receber o acesso pra completar o cadastro.", variant: "destructive" });
+      return;
+    }
+    setCreatingSub(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-asaas-subaccount", {
+        body: {
+          organization_id: orgId,
+          name: subForm.name,
+          email: subForm.email,
+          cpfCnpj: subForm.cpf.replace(/\D/g, ""),
+          birthDate: subForm.birthDate,
+          mobilePhone: subForm.phone.replace(/\D/g, ""),
+          postalCode: subForm.cep.replace(/\D/g, ""),
+          address: subForm.address,
+          addressNumber: subForm.number,
+          ...(subForm.complement ? { complement: subForm.complement } : {}),
+          province: subForm.bairro,
+          incomeValue: Number(subForm.incomeValue),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Conta criada!", description: data?.message ?? "Verifique seu e-mail pra completar a verificação." });
+      setShowSubForm(false);
+      await loadSubaccountStatus();
+    } catch (e: unknown) {
+      toast({ title: "Erro ao criar conta", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setCreatingSub(false);
+    }
+  };
 
   useEffect(() => { if (orgId) loadData(); }, [orgId]);
 
@@ -879,8 +1043,17 @@ const Financeiro = () => {
           <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2">Saldo disponível</p>
-              <p className="text-3xl font-bold text-white leading-none">{fmtBRL(0)}</p>
-              <p className="text-xs text-white/30 mt-2">{fmtBRL(0)} pendente de liquidação</p>
+              <p className="text-3xl font-bold text-white leading-none">
+                {fmtBRL(subStatus?.balance ?? 0)}
+              </p>
+              {subStatus?.exists ? (
+                <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full mt-2"
+                  style={{ background: "rgba(var(--cp-rgb), 0.15)", color: "var(--cp-400)" }}>
+                  {subStatus.status === "aprovado" ? "Conta aprovada" : "Aguardando aprovação"}
+                </span>
+              ) : (
+                <p className="text-xs text-white/30 mt-2">Nenhuma conta criada ainda</p>
+              )}
             </div>
             <button disabled
               className="h-10 px-5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-2 opacity-40 cursor-not-allowed"
@@ -897,16 +1070,49 @@ const Financeiro = () => {
           style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
           <p className="text-sm font-semibold text-white">Finalize sua conta pra vender e receber</p>
           <div className="space-y-2.5">
-            {CARTEIRA_CHECKLIST.map((step) => (
-              <div key={step.label} className="flex items-center gap-2.5">
-                {step.done
-                  ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "#4ade80" }} />
-                  : <Circle className="w-4 h-4 shrink-0 text-white/20" />}
-                <span className={`text-sm ${step.done ? "text-white/70" : "text-white/40"}`}>{step.label}</span>
-              </div>
-            ))}
+            {CARTEIRA_CHECKLIST.map((step, i) => {
+              // Só o 1º item (identidade) já é real hoje — os outros 2
+              // dependem de features ainda não construídas (cadastro de Pix,
+              // liberação de saque), então continuam mostrando "pendente" de
+              // propósito, não é um bug.
+              const done = i === 0 ? subStatus?.status === "aprovado" : false;
+              return (
+                <div key={step.label} className="flex items-center gap-2.5">
+                  {done
+                    ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "#4ade80" }} />
+                    : <Circle className="w-4 h-4 shrink-0 text-white/20" />}
+                  <span className={`text-sm ${done ? "text-white/70" : "text-white/40"}`}>{step.label}</span>
+                </div>
+              );
+            })}
           </div>
+          {!subLoading && !subStatus?.exists && !showSubForm && (
+            subStatus?.eligible ? (
+              <Button
+                className="w-full h-10 rounded-xl text-white font-semibold text-sm mt-2"
+                style={{ background: "var(--cp-gradient)" }}
+                onClick={() => setShowSubForm(true)}
+              >
+                Criar minha conta
+              </Button>
+            ) : (
+              <div className="rounded-xl px-3 py-2.5 mt-2" style={{ background: "rgba(255,255,255,0.04)" }}>
+                <p className="text-xs text-white/40">{subStatus?.reason ?? "Ainda não disponível."}</p>
+              </div>
+            )
+          )}
         </div>
+
+        {showSubForm && (
+          <SubaccountOnboardingForm
+            values={subForm}
+            onChange={handleSubFormChange}
+            onSubmit={handleCreateSubaccount}
+            onCancel={() => setShowSubForm(false)}
+            submitting={creatingSub}
+            cepLoading={cepLoading}
+          />
+        )}
 
         {/* Extrato */}
         <div>

@@ -65,6 +65,16 @@ serve(async (req) => {
     }
     if (!cobranca.asaas_id) return json({ error: "Cobrança sem referência de pagamento válida." }, 500);
 
+    // A cobrança foi criada (em asaas-create-charge) na conta master ou na
+    // subconta da org — payWithCreditCard precisa da mesma api_key, senão o
+    // ID da cobrança não é reconhecido (é de outra conta Asaas).
+    const { data: subaccount } = await supabase
+      .from("asaas_subaccounts")
+      .select("api_key, status")
+      .eq("org_id", cobranca.org_id)
+      .maybeSingle();
+    const chargeApiKey = subaccount?.status === "aprovado" ? subaccount.api_key : ASAAS_API_KEY;
+
     // ── 2. Cliente Asaas — deve já existir (criado quando o treinador gerou
     // a cobrança em asaas-create-charge). Sem criação às cegas aqui: quem
     // preenche o cartão pode ser pessoa diferente do aluno cadastrado. ──────
@@ -85,7 +95,7 @@ serve(async (req) => {
 
     const payRes = await fetch(`${ASAAS_BASE}/payments/${cobranca.asaas_id}/payWithCreditCard`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "access_token": ASAAS_API_KEY },
+      headers: { "Content-Type": "application/json", "access_token": chargeApiKey },
       body: JSON.stringify({
         creditCard: {
           holderName: card_holder_name,
