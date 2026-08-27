@@ -1,6 +1,6 @@
 workflows:
   ios-build:
-    name: iOS — build (sem publicar ainda)
+    name: iOS — build e envio pro TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
@@ -40,3 +40,11 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Sem beta_groups de propósito — vai só pra testadores internos
+        # (você), sem passar pela Beta App Review da Apple. Testadores
+        # externos (treinadores do beta) entram só quando o app for pra
+        # App Store de verdade.
+        submit_to_testflight: true
