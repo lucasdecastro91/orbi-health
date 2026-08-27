@@ -90,7 +90,7 @@ const Card = ({
 }) => {
   const accent = accentColor ?? "#16a34a";
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative"
+    <div className="min-h-screen flex justify-center p-4 pt-16 sm:pt-24 relative"
       style={{
         backgroundColor: dark ? "#0a0a0b" : "#f4f4f5",
         backgroundImage: dark

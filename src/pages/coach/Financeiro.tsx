@@ -392,7 +392,7 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
           <div className="flex items-center justify-between">
             <Label className="text-[11px] text-white/40 uppercase tracking-wider">Plano *</Label>
             {!plansLoading && plans.length === 0 && (
-              <button onClick={() => { onClose(); navigate("../planos"); }}
+              <button onClick={() => { onClose(); navigate("../produtos"); }}
                 className="flex items-center gap-1 text-[10px] text-amber-400/70 hover:text-amber-400 transition-colors">
                 <Settings className="w-3 h-3" />Cadastrar planos
               </button>

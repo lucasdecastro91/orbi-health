@@ -160,17 +160,18 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       setFavicon(org.icon_url ?? "/favicon-gs.png");
     } else {
       document.title = org.name ?? "ORBI Health";
-      // Outros tenants: usa icon_url se disponível; sem icon_url → remove favicon
-      if (org.icon_url) {
-        setFavicon(org.icon_url);
-      } else {
-        removeFavicon();
-      }
+      // Outros tenants: usa icon_url se disponível, senão o favicon padrão da
+      // ORBI. Precisa SEMPRE setar um novo href (nunca só remover o <link>) —
+      // o navegador não limpa visualmente o ícone da aba quando o elemento
+      // some do DOM, só quando um href novo é aplicado. Sem isso, trocar de
+      // uma org com favicon próprio (ex: Get Shape) pra uma sem, na mesma aba,
+      // deixava o ícone "grudado" no anterior (achado ao vivo, 2026-08-26).
+      setFavicon(org.icon_url ?? "/logos/orbi-logo-icon-hd.png");
     }
 
     return () => {
       document.title = "ORBI Health";
-      setFavicon("/logos/orbi-logo-icon.svg");
+      setFavicon("/logos/orbi-logo-icon-hd.png");
     };
   }, [org?.name, org?.icon_url, isGetShapeOrg]);
 
@@ -296,15 +297,6 @@ function setFavicon(href: string) {
     link.href = href;
     document.head.appendChild(link);
   }
-}
-
-// ----------------------------------------------------------------
-// Utilitário: remove o favicon da aba (sem ícone customizado)
-// ----------------------------------------------------------------
-function removeFavicon() {
-  document.querySelectorAll<HTMLLinkElement>(
-    'link[rel="icon"], link[rel="shortcut icon"]'
-  ).forEach((el) => el.parentNode?.removeChild(el));
 }
 
 // ----------------------------------------------------------------
