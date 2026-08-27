@@ -46,9 +46,9 @@ ORBI Health é a plataforma — nunca confundir com os nomes dos planos (ORBI Mo
 
 ## Planos e preços
 
-- **ORBI Motion**: treinos personalizados, app com marca própria, agenda e frequência, financeiro e cobranças. R$ 59,90/mês (até 50 alunos) ou R$ 99,90/mês (alunos ilimitados).
-- **ORBI Pro**: tudo do Motion + gestão de dieta completa + banco de alimentos completo + IA para análise de check-ins. R$ 129,90/mês (até 50 alunos) ou R$ 189,90/mês (alunos ilimitados).
-- Plano anual sai por 10 meses (~2 meses grátis) nos dois planos e tiers.
+- **ORBI Motion**: treinos personalizados, app com marca própria, agenda e frequência, financeiro e cobranças. R$ 39,90/mês (até 50 alunos) ou R$ 79,90/mês (alunos ilimitados).
+- **ORBI Pro**: tudo do Motion + gestão de dieta completa + banco de alimentos completo + IA para análise de check-ins. R$ 89,90/mês (até 50 alunos) ou R$ 149,90/mês (alunos ilimitados).
+- Plano anual sai com 25% de desconto sobre o mensal, nos dois planos e tiers.
 - Tier "alunos ilimitados" também libera o módulo de Colaboradores/equipe.
 
 ## Painel do treinador

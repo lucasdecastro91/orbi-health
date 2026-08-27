@@ -29,15 +29,15 @@ interface CardFields {
 
 // ── Preços — mesmos valores da landing page (seção #precos) ────────────────
 
-const PRICES: Record<PlanType, Record<AlunosTier, Record<Cycle, number>>> = {
-  motion: {
-    "50":      { mensal: 59.90,  anual: 539.10 },
-    ilimitado: { mensal: 99.90,  anual: 899.10 },
-  },
-  pro: {
-    "50":      { mensal: 129.90, anual: 1169.10 },
-    ilimitado: { mensal: 189.90, anual: 1709.10 },
-  },
+// Anual = 9x o mensal (25% off) — mesma regra usada em toda a base de preços.
+const MONTHLY_PRICES: Record<PlanType, Record<AlunosTier, number>> = {
+  motion: { "50": 39.90,  ilimitado: 79.90 },
+  pro:    { "50": 89.90,  ilimitado: 149.90 },
+};
+
+const getPrice = (plan: PlanType, tier: AlunosTier, cycle: Cycle) => {
+  const monthly = MONTHLY_PRICES[plan][tier];
+  return cycle === "anual" ? monthly * 9 : monthly;
 };
 
 const formatBRL = (v: number) =>
@@ -355,7 +355,13 @@ export default function PlanSelection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-4 mb-8 px-4 sm:px-0">
             {PLAN_CARDS.map((p) => {
               const tier = tierByPlan[p.id];
-              const price = PRICES[p.id][tier][cycle];
+              const monthly = MONTHLY_PRICES[p.id][tier];
+              const monthlyCents = Math.round(monthly * 100);
+              const annualCents = monthlyCents * 9;
+              const equivCents = Math.round(annualCents / 12);
+              const annual = annualCents / 100;
+              const equiv = equivCents / 100;
+              const savings = (monthlyCents * 12 - annualCents) / 100;
               return (
                 <div
                   key={p.id}
@@ -386,9 +392,22 @@ export default function PlanSelection() {
                     ))}
                   </div>
 
-                  <div className="mb-1">
-                    <span className="text-4xl sm:text-2xl font-bold text-white">{formatBRL(price)}</span>
-                    <span className="text-white/40 text-base sm:text-sm">{cycle === "mensal" ? "/mês" : "/ano"}</span>
+                  <div className="mb-1" style={{ minHeight: "4.6rem" }}>
+                    {cycle === "anual" && (
+                      <p className="text-sm sm:text-xs text-white/40 line-through mb-0.5">{formatBRL(monthly)}</p>
+                    )}
+                    <div>
+                      <span className="text-4xl sm:text-2xl font-bold text-white">
+                        {formatBRL(cycle === "anual" ? equiv : monthly)}
+                      </span>
+                      <span className="text-white/40 text-base sm:text-sm">/mês</span>
+                    </div>
+                    {cycle === "anual" && (
+                      <p className="text-xs text-white/50 mt-1">
+                        Cobrado {formatBRL(annual)}/ano · economize{" "}
+                        <span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{formatBRL(savings)}</span>
+                      </p>
+                    )}
                   </div>
                   <p className="text-sm sm:text-xs text-white/50 mb-4 sm:mb-3">{p.desc}</p>
                   <ul className="space-y-2 sm:space-y-1.5 mb-5 sm:mb-6">
@@ -430,8 +449,8 @@ export default function PlanSelection() {
             <h2 className="text-2xl font-bold text-white mb-1">Dados de pagamento</h2>
             <p className="text-white/40 text-sm">
               {planType === "motion" ? "ORBI Motion" : "ORBI Pro"} — {method === "CREDIT_CARD"
-                ? <>R$ 5 no 1º mês, depois {formatBRL(PRICES[planType][tierByPlan[planType]][cycle])}{cycle === "mensal" ? "/mês" : "/ano"}</>
-                : <>{formatBRL(PRICES[planType][tierByPlan[planType]][cycle])}{cycle === "mensal" ? "/mês" : "/ano"} (PIX, valor integral)</>}
+                ? <>R$ 5 no 1º mês, depois {formatBRL(getPrice(planType, tierByPlan[planType], cycle))}{cycle === "mensal" ? "/mês" : "/ano"}</>
+                : <>{formatBRL(getPrice(planType, tierByPlan[planType], cycle))}{cycle === "mensal" ? "/mês" : "/ano"} (PIX, valor integral)</>}
             </p>
           </div>
 
@@ -585,7 +604,7 @@ export default function PlanSelection() {
             <div className="px-6 pt-5 pb-4 sm:px-5 sm:pt-4 sm:pb-3">
               <p className="text-xs text-zinc-400 mb-1">Você está pagando</p>
               <p className="text-[28px] font-semibold text-zinc-900 leading-tight">
-                {formatBRL(PRICES[planType][tierByPlan[planType]][cycle])}
+                {formatBRL(getPrice(planType, tierByPlan[planType], cycle))}
               </p>
               <p className="text-sm text-zinc-500 mt-0.5">
                 {planType === "motion" ? "ORBI Motion" : "ORBI Pro"} — assinatura {cycle}

@@ -166,27 +166,45 @@ function initPricingToggle() {
   let isAnnual = false;
   const tierState = { motion: '50', pro: '50' };
 
+  const fmtBRL = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  // Anual = 9x o mensal (25% off) — mesma regra usada em todo o checkout.
+  function updatePlanPrice(plan) {
+    const amountEl  = document.querySelector(`[data-${plan}-price]`);
+    const periodEl  = document.querySelector(`[data-${plan}-period]`);
+    const strikeEl  = document.querySelector(`[data-${plan}-strike]`);
+    const savingsEl = document.querySelector(`[data-${plan}-savings]`);
+    if (!amountEl) return;
+
+    const tierKey = tierState[plan] === '50' ? '50' : 'unlimited';
+    const monthly = parseFloat(amountEl.getAttribute(`data-monthly-${tierKey}`));
+
+    if (!isAnnual) {
+      amountEl.textContent = fmtBRL(monthly);
+      periodEl.textContent = '/mês';
+      strikeEl.style.display  = 'none';
+      savingsEl.style.display = 'none';
+      return;
+    }
+
+    const monthlyCents = Math.round(monthly * 100);
+    const annualCents  = monthlyCents * 9;
+    const equivCents   = Math.round(annualCents / 12);
+    const annual  = annualCents / 100;
+    const equiv   = equivCents / 100;
+    const savings = (monthlyCents * 12 - annualCents) / 100;
+
+    amountEl.textContent   = fmtBRL(equiv);
+    periodEl.textContent   = '/mês';
+    strikeEl.textContent   = fmtBRL(monthly);
+    strikeEl.style.display = '';
+    savingsEl.innerHTML    = `Cobrado ${fmtBRL(annual)} uma vez no ano · economize <b>${fmtBRL(savings)}</b>`;
+    savingsEl.style.display = '';
+  }
+
   function updatePrices() {
-    const billing = isAnnual ? 'annual' : 'monthly';
-    const period  = isAnnual ? '/ano'   : '/mês';
-
-    // Motion
-    const motionEl     = document.querySelector('[data-motion-price]');
-    const motionPeriod = document.querySelector('[data-motion-period]');
-    if (motionEl) {
-      const key = `data-${billing}-${tierState.motion === '50' ? '50' : 'unlimited'}`;
-      motionEl.textContent     = motionEl.getAttribute(key);
-      motionPeriod.textContent = period;
-    }
-
-    // Pro
-    const proEl     = document.querySelector('[data-pro-price]');
-    const proPeriod = document.querySelector('[data-pro-period]');
-    if (proEl) {
-      const key = `data-${billing}-${tierState.pro === '50' ? '50' : 'unlimited'}`;
-      proEl.textContent     = proEl.getAttribute(key);
-      proPeriod.textContent = period;
-    }
+    updatePlanPrice('motion');
+    updatePlanPrice('pro');
 
     // CTAs — leva o tier escolhido pro cadastro
     const motionCta = document.querySelector('a[href^="https://app.orbihealth.com.br/cadastro?plano=motion"]');

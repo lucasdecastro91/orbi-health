@@ -14,10 +14,7 @@ const PLANS = [
     id: "motion",
     badge: "Mais popular",
     name: "ORBI Motion",
-    price: {
-      monthly: { "50": "R$59,90", ilimitado: "R$99,90" },
-      annual:  { "50": "R$539,10", ilimitado: "R$899,10" },
-    },
+    monthly: { "50": 39.90, ilimitado: 79.90 },
     desc: "Para personal trainers em crescimento",
     features: [
       "Treinos personalizados",
@@ -30,10 +27,7 @@ const PLANS = [
     id: "pro",
     badge: "Mais completo",
     name: "ORBI Pro",
-    price: {
-      monthly: { "50": "R$129,90", ilimitado: "R$189,90" },
-      annual:  { "50": "R$1.169,10", ilimitado: "R$1.709,10" },
-    },
+    monthly: { "50": 89.90, ilimitado: 149.90 },
     desc: "Para coaches com equipe integrada",
     features: [
       "Tudo do Motion",
@@ -44,6 +38,9 @@ const PLANS = [
   },
 ];
 
+// Anual = 9x o mensal (25% off, mesma regra usada em todo o checkout)
+const formatBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 const PlanoAtual = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -53,7 +50,6 @@ const PlanoAtual = () => {
   const [tiers, setTiers] = useState<Record<string, Tier>>({ motion: "50", pro: "50" });
   const [billing, setBilling] = useState<Billing>("monthly");
   const [saving, setSaving] = useState<string | null>(null);
-  const period = billing === "annual" ? "/ano" : "/mês";
 
   const handleChangePlan = async (planId: "motion" | "pro", tier: Tier) => {
     if (!orgId) return;
@@ -127,6 +123,13 @@ const PlanoAtual = () => {
             const hasCollab = tier === "ilimitado";
             const isCurrent = currentPlan === p.id && currentTier === tier;
             const key = `${p.id}-${tier}`;
+            const monthly = p.monthly[tier];
+            const monthlyCents = Math.round(monthly * 100);
+            const annualCents = monthlyCents * 9;
+            const equivCents = Math.round(annualCents / 12);
+            const annual = annualCents / 100;
+            const equiv = equivCents / 100;
+            const savings = (monthlyCents * 12 - annualCents) / 100;
             return (
               <div key={p.id} className="relative">
                 <div
@@ -169,9 +172,22 @@ const PlanoAtual = () => {
                     ))}
                   </div>
 
-                  <div className="mt-1 mb-1">
-                    <span className="text-3xl font-bold text-white">{p.price[billing][tier]}</span>
-                    <span className="text-white/40 text-sm">{period}</span>
+                  <div className="mt-1 mb-1" style={{ minHeight: "4.2rem" }}>
+                    {billing === "annual" && (
+                      <p className="text-sm text-white/40 line-through mb-0.5">{formatBRL(monthly)}</p>
+                    )}
+                    <div>
+                      <span className="text-3xl font-bold text-white">
+                        {formatBRL(billing === "annual" ? equiv : monthly)}
+                      </span>
+                      <span className="text-white/40 text-sm">/mês</span>
+                    </div>
+                    {billing === "annual" && (
+                      <p className="text-xs text-white/50 mt-1">
+                        Cobrado {formatBRL(annual)} uma vez no ano · economize{" "}
+                        <span className="font-semibold" style={{ color: "#4ade80" }}>{formatBRL(savings)}</span>
+                      </p>
+                    )}
                   </div>
                   <p className="text-sm text-white/40 mb-5">{p.desc}</p>
 

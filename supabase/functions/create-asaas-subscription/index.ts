@@ -14,12 +14,12 @@ const ASAAS_BASE = ASAAS_ENV === "production"
 // Mesmos valores publicados na landing page (landing-page/index.html, seção #precos).
 const PRICES: Record<string, Record<string, { mensal: number; anual: number }>> = {
   motion: {
-    "50":       { mensal: 59.90,  anual: 539.10 },
-    ilimitado:  { mensal: 99.90,  anual: 899.10 },
+    "50":       { mensal: 39.90,  anual: 359.10 },
+    ilimitado:  { mensal: 79.90,  anual: 719.10 },
   },
   pro: {
-    "50":       { mensal: 129.90, anual: 1169.10 },
-    ilimitado:  { mensal: 189.90, anual: 1709.10 },
+    "50":       { mensal: 89.90,  anual: 809.10 },
+    ilimitado:  { mensal: 149.90, anual: 1349.10 },
   },
 };
 

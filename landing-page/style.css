@@ -1014,6 +1014,16 @@ ul { list-style: none; }
   color: var(--text-muted);
   margin-top: -.5rem;
 }
+.pricing-card__strike {
+  font-size: .9375rem;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  margin: 0 0 .125rem;
+}
+.pricing-card__savings b {
+  color: #16a34a;
+  font-weight: 700;
+}
 .pricing-card__desc {
   font-size: .9375rem;
   color: var(--text-muted);
