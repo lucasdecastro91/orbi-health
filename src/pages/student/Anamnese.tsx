@@ -8,6 +8,7 @@ import {
   ChevronRight, ChevronLeft, Check, Loader2, Upload, X as XIcon,
   ClipboardCheck,
 } from "lucide-react";
+import { compressImage } from "@/lib/imageCompression";
 
 // ── Tipos ──────────────────────────────────────────────────────
 type TipoCampo = "text" | "textarea" | "number" | "radio" | "checkbox" | "file";
@@ -270,7 +271,8 @@ const Anamnese = () => {
   // ── Upload file helper ────────────────────────────────────────
   const uploadFiles = async (campoId: string, files: File[]): Promise<string[]> => {
     const paths: string[] = [];
-    for (const file of files) {
+    for (const rawFile of files) {
+      const file = await compressImage(rawFile);
       const path = `${studentId}/anamnese/${campoId}/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage.from("atualizacoes").upload(path, file, { upsert: true });
       if (!error) paths.push(path);

@@ -16,6 +16,7 @@ import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { compressImage } from "@/lib/imageCompression";
 
 interface StudentData {
   id: string;
@@ -5034,11 +5035,12 @@ const AvalFisicaViewer = ({
       let foto_url: string | null = editingId ? editingExistingFotoUrl : null;
 
       if (photoFile) {
-        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const compressed = await compressImage(photoFile);
+        const ext  = compressed.name.split(".").pop() ?? "jpg";
         const path = `${orgId}/${studentUserId}/aval-fisica_${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from(AVAL_FISICA_BUCKET)
-          .upload(path, photoFile, { upsert: false });
+          .upload(path, compressed, { upsert: false });
         if (upErr) throw upErr;
         foto_url = supabase.storage.from(AVAL_FISICA_BUCKET).getPublicUrl(path).data.publicUrl;
       }

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { useToast } from "@/hooks/use-toast";
 import { grantXP } from "@/lib/xp";
+import { compressImage } from "@/lib/imageCompression";
 import {
   ChevronLeft, ChevronRight, Upload, Check, Loader2,
   X, AlertTriangle, ClipboardList,
@@ -228,7 +229,8 @@ const Atualizacao = () => {
         }
       }
 
-      for (const { campo_id, file } of todosArquivos) {
+      for (const { campo_id, file: rawFile } of todosArquivos) {
+        const file = await compressImage(rawFile);
         const path = `${session.user.id}/${respostaId}/${campo_id}/${Date.now()}_${file.name}`;
         const { error: upErr } = await supabase.storage
           .from("atualizacoes")
@@ -249,7 +251,7 @@ const Atualizacao = () => {
 
       const slotsComFoto = evoSlots.filter(slot => !!slotFiles[slot.key]);
       await Promise.all(slotsComFoto.map(async (slot) => {
-        const file = slotFiles[slot.key]!;
+        const file = await compressImage(slotFiles[slot.key]!);
         const ext     = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
         const atuPath = `${session.user.id}/${respostaId}/${campoFotoId}/${slot.key}_${Date.now()}.${ext}`;
         const evoPath = `${orgId}/${session.user.id}/${today}_${slot.key}.${ext}`;
@@ -674,7 +676,7 @@ const Atualizacao = () => {
           <button
             onClick={nextStep}
             className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-xl text-sm font-semibold transition-all"
-            style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}
+            style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
           >
             Próximo <ChevronRight className="w-4 h-4" />
           </button>
@@ -683,7 +685,7 @@ const Atualizacao = () => {
             onClick={handleSubmit}
             disabled={submitting}
             className="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}
+            style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}
           >
             {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Check className="w-4 h-4" /> Enviar Atualização</>}
           </button>
