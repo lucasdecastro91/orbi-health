@@ -263,6 +263,10 @@ const StudentLayout = () => {
             // GetShape logo is light-on-dark → always keep header dark regardless of theme
             backgroundColor: isGetShape ? "rgba(9,9,11,0.96)" : "var(--header-bg)",
             borderBottom: "2px solid rgba(var(--cp-rgb),0.55)",
+            // Empurra o conteúdo do header pra baixo da status bar/notch no app
+            // nativo (viewport-fit=cover deixa o conteúdo ir por baixo dela por
+            // padrão) — o fundo do header continua se estendendo até o topo.
+            paddingTop: "env(safe-area-inset-top, 0px)",
           }}
         >
           <div className="flex items-center justify-between px-4 py-1">
