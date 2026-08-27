@@ -26,8 +26,8 @@ workflows:
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
-      - name: Usar o keychain padrão do CI
-        script: keychain use-default
+      - name: Inicializar o keychain do CI
+        script: keychain initialize
       - name: Adicionar certificado ao keychain
         script: keychain add-certificates
       - name: Aplicar assinatura no projeto Xcode
