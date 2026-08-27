@@ -12,6 +12,7 @@ workflows:
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.orbihealth.app"
       node: 20
       xcode: latest
     scripts:
@@ -21,7 +22,16 @@ workflows:
         script: npm run build
       - name: Sincronizar com o projeto iOS (Capacitor)
         script: npx cap sync ios
-      - name: Buscar certificados e provisioning profiles (Apple Developer Portal)
+      - name: Buscar ou gerar certificado e provisioning profile
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Usar o keychain padrão do CI
+        script: keychain use-default
+      - name: Adicionar certificado ao keychain
+        script: keychain add-certificates
+      - name: Aplicar assinatura no projeto Xcode
         script: xcode-project use-profiles
       - name: Compilar e gerar o .ipa
         script: |
