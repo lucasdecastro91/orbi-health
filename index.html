@@ -2,7 +2,13 @@
 <html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- initial-scale=1.0 exato tem um bug conhecido no WKWebView (o motor do
+         Capacitor no iOS) onde o viewport é calculado maior que a tela real,
+         cortando conteúdo sem dar pra ajustar (zoom desabilitado). 1.0001 força
+         o WebKit a recalcular certo — sem efeito visível, resolve só dentro do
+         app nativo. viewport-fit=cover também habilita env(safe-area-inset-*)
+         corretamente (notch/home indicator). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0001, viewport-fit=cover" />
     <title>ORBI Health</title>
     <meta name="description" content="ORBI Health é a plataforma white-label para personal trainers e coaches venderem seus serviços online com dieta, treino e acompanhamento completo." />
 

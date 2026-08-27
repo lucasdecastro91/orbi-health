@@ -490,6 +490,12 @@ const StudentLayout = () => {
           WebkitBackdropFilter: "blur(12px)",
           left: "max(0px, calc(50vw - 195px))",
           width: "min(100vw, 390px)",
+          // fixed + backdrop-filter some/pisca durante o scroll no WKWebView
+          // (bug conhecido do WebKit no iOS) — força uma camada de composição
+          // própria pro elemento, resolve sem afetar a aparência.
+          transform: "translateZ(0)",
+          WebkitTransform: "translateZ(0)",
+          willChange: "transform",
         }}
       >
         <div
