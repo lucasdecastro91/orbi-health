@@ -21,6 +21,19 @@ workflows:
         script: npm run build
       - name: Sincronizar com o projeto iOS (Capacitor)
         script: npx cap sync ios
+      - name: Incrementar número da build
+        # CURRENT_PROJECT_VERSION fica fixo em "1" no projeto (gerado pelo
+        # Capacitor) e nunca foi incrementado — a Apple rejeita qualquer
+        # build com o mesmo número já usado no App Store Connect/TestFlight
+        # ("The bundle version must be higher than the previously uploaded
+        # version"). Busca o último número já usado e soma 1 a cada build.
+        script: |
+          #!/usr/bin/env bash
+          set -e
+          set -x
+          cd "$CM_BUILD_DIR/ios/App"
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-build-number "$BUNDLE_ID")
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
       - name: Buscar ou gerar certificado e provisioning profile
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
