@@ -13,6 +13,14 @@ const config: CapacitorConfig = {
     url: 'https://app.orbihealth.com.br',
     cleartext: false,
   },
+  ios: {
+    // 'automatic' deixa o WKWebView calcular os insets de safe-area sozinho,
+    // o que soma com o padding-top: env(safe-area-inset-top) que o CSS já
+    // aplica (StudentLayout.tsx) — resultado: área de conteúdo maior que a
+    // tela, arrastável em qualquer direção. 'never' desliga o ajuste
+    // automático do WebKit e deixa 100% por conta do CSS.
+    contentInset: 'never',
+  },
   plugins: {
     SplashScreen: {
       // Mesmo preto do manifest.json (background_color/theme_color) e do
