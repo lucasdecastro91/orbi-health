@@ -615,10 +615,23 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Nunca existiu trava de overflow horizontal em lugar nenhum do app —
+       no WKWebView do app nativo (iOS), diferente da Safari solta, o
+       gesto de pan/scroll do próprio container atua sobre o documento
+       inteiro. Qualquer elemento passando 1px de 100vw (comum com
+       gradientes/blur decorativos, ou o próprio viewport-fit=cover)
+       deixa a tela inteira arrastável pros lados, revelando conteúdo
+       "fantasma" atrás dos elementos fixed. Reproduzia até na tela de
+       login (Auth.tsx), antes de qualquer layout autenticado — travado
+       aqui, na raiz, em vez de em cada página. */
+    overflow-x: hidden;
+    width: 100%;
   }
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    width: 100%;
   }
 
   /* Scrollbar premium */
