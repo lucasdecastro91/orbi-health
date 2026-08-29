@@ -331,7 +331,19 @@ const StudentLayout = () => {
         <PlanExpiredBanner dataExpiracaoPlano={dataExpiracaoPlano} />
 
         {/* Main Content */}
-        <main style={{ paddingBottom: showTimerBar ? 136 : 80 }}>
+        <main
+          style={{
+            // 80/136px sozinho não sobra espaço suficiente no app nativo:
+            // a nav inferior soma env(safe-area-inset-bottom) à própria altura
+            // (home indicator do iPhone) e esse valor precisa entrar aqui
+            // também, senão o último card fica cortado por trás da nav —
+            // no navegador não aparecia porque a barra do Safari já ocupava
+            // essa área, então não faltava respiro ali.
+            paddingBottom: showTimerBar
+              ? "calc(136px + env(safe-area-inset-bottom, 0px))"
+              : "calc(80px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           <Outlet />
         </main>
       </div>
