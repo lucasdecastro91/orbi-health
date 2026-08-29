@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -695,6 +695,7 @@ export type Database = {
         Row: {
           aluno_id: string
           asaas_id: string
+          asaas_subaccount_id: string | null
           created_at: string
           id: string
           org_id: string
@@ -702,6 +703,7 @@ export type Database = {
         Insert: {
           aluno_id: string
           asaas_id: string
+          asaas_subaccount_id?: string | null
           created_at?: string
           id?: string
           org_id: string
@@ -709,6 +711,7 @@ export type Database = {
         Update: {
           aluno_id?: string
           asaas_id?: string
+          asaas_subaccount_id?: string | null
           created_at?: string
           id?: string
           org_id?: string
@@ -722,9 +725,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "asaas_customers_alunos_asaas_subaccount_id_fkey"
+            columns: ["asaas_subaccount_id"]
+            isOneToOne: false
+            referencedRelation: "asaas_subaccounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "asaas_customers_alunos_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asaas_subaccount_withdrawals: {
+        Row: {
+          asaas_transfer_id: string | null
+          created_at: string
+          fail_reason: string | null
+          id: string
+          org_id: string
+          pix_key: string
+          pix_key_type: string
+          status: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          asaas_transfer_id?: string | null
+          created_at?: string
+          fail_reason?: string | null
+          id?: string
+          org_id: string
+          pix_key: string
+          pix_key_type: string
+          status?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          asaas_transfer_id?: string | null
+          created_at?: string
+          fail_reason?: string | null
+          id?: string
+          org_id?: string
+          pix_key?: string
+          pix_key_type?: string
+          status?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_subaccount_withdrawals_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asaas_subaccounts: {
+        Row: {
+          api_key: string
+          asaas_account_id: string
+          created_at: string
+          id: string
+          onboarding_url: string | null
+          org_id: string
+          pix_key: string | null
+          pix_key_type: string | null
+          status: string
+          updated_at: string
+          wallet_id: string
+        }
+        Insert: {
+          api_key: string
+          asaas_account_id: string
+          created_at?: string
+          id?: string
+          onboarding_url?: string | null
+          org_id: string
+          pix_key?: string | null
+          pix_key_type?: string | null
+          status?: string
+          updated_at?: string
+          wallet_id: string
+        }
+        Update: {
+          api_key?: string
+          asaas_account_id?: string
+          created_at?: string
+          id?: string
+          onboarding_url?: string | null
+          org_id?: string
+          pix_key?: string | null
+          pix_key_type?: string | null
+          status?: string
+          updated_at?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_subaccounts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -1942,6 +2049,7 @@ export type Database = {
           categoria: string | null
           created_at: string | null
           descricao: string | null
+          forked_from_id: string | null
           grupo_muscular_principal: string | null
           grupo_muscular_secundario: string | null
           id: string
@@ -1957,6 +2065,7 @@ export type Database = {
           categoria?: string | null
           created_at?: string | null
           descricao?: string | null
+          forked_from_id?: string | null
           grupo_muscular_principal?: string | null
           grupo_muscular_secundario?: string | null
           id?: string
@@ -1972,6 +2081,7 @@ export type Database = {
           categoria?: string | null
           created_at?: string | null
           descricao?: string | null
+          forked_from_id?: string | null
           grupo_muscular_principal?: string | null
           grupo_muscular_secundario?: string | null
           id?: string
@@ -1983,6 +2093,13 @@ export type Database = {
           video_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "exercicios_base_forked_from_id_fkey"
+            columns: ["forked_from_id"]
+            isOneToOne: false
+            referencedRelation: "exercicios_base"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "exercicios_base_org_id_fkey"
             columns: ["org_id"]
@@ -2871,9 +2988,9 @@ export type Database = {
           icon_url: string | null
           id: string
           is_gs_brand: boolean
+          login_logo_url: string | null
           logo_dark_url: string | null
           logo_url: string | null
-          login_logo_url: string | null
           meta_faturamento: number
           name: string
           nome_marca: string | null
@@ -2906,9 +3023,9 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_gs_brand?: boolean
+          login_logo_url?: string | null
           logo_dark_url?: string | null
           logo_url?: string | null
-          login_logo_url?: string | null
           meta_faturamento?: number
           name: string
           nome_marca?: string | null
@@ -2941,9 +3058,9 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_gs_brand?: boolean
+          login_logo_url?: string | null
           logo_dark_url?: string | null
           logo_url?: string | null
-          login_logo_url?: string | null
           meta_faturamento?: number
           name?: string
           nome_marca?: string | null
@@ -3957,6 +4074,11 @@ export type Database = {
     Functions: {
       alertar_cobrancas_vencendo: { Args: never; Returns: undefined }
       alternative_meal_id: { Args: { p_alt_id: string }; Returns: string }
+      configurar_series_exercicios: { Args: { p_rows: Json }; Returns: number }
+      fork_exercicio_base: {
+        Args: { p_org_id: string; p_original_id: string; p_updates: Json }
+        Returns: string
+      }
       get_exercicios_by_org: {
         Args: { p_org_id: string }
         Returns: {

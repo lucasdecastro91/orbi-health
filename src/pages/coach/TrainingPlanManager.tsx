@@ -159,6 +159,8 @@ interface ExerciseBase {
   descricao: string | null;
   grupo_muscular_principal: string | null;
   grupo_muscular_secundario: string | null;
+  org_id?: string | null;
+  forked_from_id?: string | null;
 }
 
 /** Técnica de série personalizada, salva na biblioteca da org */
@@ -412,11 +414,15 @@ const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
 
       const { data: baseData, error: baseError } = await supabase
         .from("exercicios_base")
-        .select("id, nome, video_url, descricao, grupo_muscular_principal, grupo_muscular_secundario")
+        .select("id, nome, video_url, descricao, grupo_muscular_principal, grupo_muscular_secundario, org_id, forked_from_id")
         .or(`org_id.eq.${orgId},liberado_outras_orgs.eq.true`)
         .order("nome");
       if (baseError) throw baseError;
-      setImportExercisesBase(baseData || []);
+      // Mesmo dedup de original-vs-fork da Biblioteca de Exercícios — o
+      // seletor manual de vínculo não deve oferecer as duas versões.
+      const baseRows = (baseData || []) as ExerciseBase[];
+      const forkedIds = new Set(baseRows.filter((r) => r.org_id === orgId && r.forked_from_id).map((r) => r.forked_from_id));
+      setImportExercisesBase(baseRows.filter((r) => !forkedIds.has(r.id)));
 
       const rawPlano = data.plano;
       const semanas: DraftSemana[] = (rawPlano.semanas ?? []).map((sem: any, si: number) => ({
@@ -1480,7 +1486,13 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
         supabase.from("custom_techniques").select("id, name, description").eq("org_id", orgId).order("name"),
       ]);
       if (baseRes.error) console.error("Erro ao carregar biblioteca:", baseRes.error);
-      else setExercisesBase(baseRes.data || []);
+      else {
+        const rows = (baseRes.data || []) as ExerciseBase[];
+        // Esconde o original liberado quando a própria org já tem uma cópia
+        // editada dele (fork) — mesmo critério da Biblioteca de Exercícios.
+        const forkedIds = new Set(rows.filter((r) => r.org_id === orgId && r.forked_from_id).map((r) => r.forked_from_id));
+        setExercisesBase(rows.filter((r) => !forkedIds.has(r.id)));
+      }
       if (tiposRes.error) console.error("Erro ao carregar técnicas:", tiposRes.error);
       else setCustomTipos(tiposRes.data || []);
     })();
@@ -2623,15 +2635,20 @@ const TrainingExercises = ({
     if (toSave.length === 0) { closeConfigureModal(); return; }
     setConfigureSaving(true);
     try {
-      const results = await Promise.all(toSave.map((r) =>
-        supabase.from("exercicios").update({
+      // Um único UPDATE atômico via RPC em vez de N updates concorrentes
+      // (Promise.all) — cada UPDATE em `exercicios` custa ~160ms nesta base,
+      // e vários ao mesmo tempo disputavam lock até estourar o
+      // statement_timeout de 8s (achado 2026-08-24, mesma causa do timeout
+      // já corrigido no drag de exercícios — ver reordenar_exercicios).
+      const { error } = await supabase.rpc("configurar_series_exercicios", {
+        p_rows: toSave.map((r) => ({
+          id: r.id,
           series: r.series.trim(),
           repeticoes: r.reps.trim(),
           descanso: r.descanso.trim() || null,
-        }).eq("id", r.id)
-      ));
-      const failed = results.find((res) => res.error);
-      if (failed?.error) throw failed.error;
+        })),
+      });
+      if (error) throw error;
       closeConfigureModal();
     } catch (error: any) {
       toast({ title: "Erro ao salvar configuração", description: error.message, variant: "destructive" });

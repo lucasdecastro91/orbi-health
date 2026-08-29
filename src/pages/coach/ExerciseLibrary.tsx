@@ -40,6 +40,7 @@ interface Exercise {
   grupo_muscular_secundario: string | null;
   org_id: string | null;
   liberado_outras_orgs: boolean;
+  forked_from_id: string | null;
 }
 
 const emptyForm = {
@@ -64,7 +65,8 @@ const ExerciseMenu = ({
   exercise,
   onEdit,
   onDelete,
-}: { exercise: Exercise; onEdit: () => void; onDelete: () => void }) => {
+  canDelete = true,
+}: { exercise: Exercise; onEdit: () => void; onDelete: () => void; canDelete?: boolean }) => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -90,13 +92,15 @@ const ExerciseMenu = ({
               <Pencil className="w-3.5 h-3.5" />
               Editar
             </button>
-            <button
-              onClick={() => { setOpen(false); onDelete(); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/8 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Excluir
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => { setOpen(false); onDelete(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/8 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Excluir
+              </button>
+            )}
           </div>
         </>
       )}
@@ -247,9 +251,25 @@ const ExerciseModal = ({
       };
 
       if (editing) {
-        const { error } = await supabase.from("exercicios_base").update(payload).eq("id", editing.id);
-        if (error) throw error;
-        toast({ title: "Exercício atualizado!" });
+        if (editing.org_id !== orgId) {
+          // Exercício da biblioteca compartilhada (liberado por outra org) —
+          // RLS bloqueia UPDATE direto (dono é sempre quem criou). Em vez
+          // disso, cria/reaproveita a cópia editável desta org via RPC —
+          // o original de quem liberou nunca é alterado, e passa a aparecer
+          // só a versão editada pra quem editou (ver migration
+          // fork_exercicio_base_por_org).
+          const { error } = await supabase.rpc("fork_exercicio_base", {
+            p_original_id: editing.id,
+            p_org_id: orgId,
+            p_updates: payload,
+          });
+          if (error) throw error;
+          toast({ title: "Exercício personalizado pra sua organização!" });
+        } else {
+          const { error } = await supabase.from("exercicios_base").update(payload).eq("id", editing.id);
+          if (error) throw error;
+          toast({ title: "Exercício atualizado!" });
+        }
       } else {
         const { error } = await supabase.from("exercicios_base").insert({ ...payload, treinador_id: user.id, org_id: orgId });
         if (error) throw error;
@@ -405,7 +425,13 @@ export default function ExerciseLibrary() {
       ]);
       if (ownRes.error) throw ownRes.error;
       if (globalRes.error) throw globalRes.error;
-      setExercises([...(ownRes.data || []), ...(globalRes.data || [])]);
+      const own = ownRes.data || [];
+      const global = globalRes.data || [];
+      // Esconde o original assim que a própria org já tem uma cópia editada
+      // dele (forked_from_id aponta pro original) — só a versão editada
+      // aparece, nunca as duas.
+      const forkedIds = new Set(own.map((e) => e.forked_from_id).filter(Boolean));
+      setExercises([...own, ...global.filter((e) => !forkedIds.has(e.id))]);
     } catch (err: any) {
       toast({ title: "Erro ao carregar exercícios", description: err.message, variant: "destructive" });
     } finally {
@@ -562,11 +588,10 @@ export default function ExerciseLibrary() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="text-sm font-semibold text-white leading-tight flex-1">{ex.nome}</h3>
-                    {/* Exercício de outra org (liberado pelo superadmin) — só visualização,
-                        nem editável nem excluível aqui (RLS já bloquearia mesmo assim). */}
-                    {ex.org_id === orgId && (
-                      <ExerciseMenu exercise={ex} onEdit={() => openEdit(ex)} onDelete={() => openDel(ex.id)} />
-                    )}
+                    {/* Exercício de outra org (liberado pelo superadmin) — editável (vira
+                        cópia própria via fork, ver handleSubmit), mas não excluível aqui. */}
+                    <ExerciseMenu exercise={ex} onEdit={() => openEdit(ex)} onDelete={() => openDel(ex.id)}
+                      canDelete={ex.org_id === orgId} />
                   </div>
 
                   {ex.org_id !== orgId && (
