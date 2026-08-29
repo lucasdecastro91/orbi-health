@@ -236,11 +236,19 @@ const Atualizacao = () => {
           .from("atualizacoes")
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
-        await supabase.from("atualizacao_resposta_arquivos").insert({
+        const { error: insErr } = await supabase.from("atualizacao_resposta_arquivos").insert({
           resposta_id: respostaId, campo_id,
           storage_path: path, nome_original: file.name,
           mime_type: file.type, tamanho: file.size,
         });
+        if (insErr) {
+          // Desfaz o upload pra não deixar arquivo órfão no Storage (achado
+          // 2026-08-27: sem esse rollback, uploads com erro silencioso no
+          // insert acumularam 187MB de arquivos sem registro no banco).
+          console.error("[Atualizacao] insert atualizacao_resposta_arquivos falhou, revertendo upload:", insErr);
+          await supabase.storage.from("atualizacoes").remove([path]).catch(() => null);
+          throw insErr;
+        }
       }
 
       // 2b. Upload de fotos por slot — paralelo para reduzir tempo de envio
@@ -262,13 +270,21 @@ const Atualizacao = () => {
             .from("atualizacoes")
             .upload(atuPath, file, { contentType: file.type, upsert: false });
           if (!atuErr) {
-            await supabase.from("atualizacao_resposta_arquivos").insert({
+            const { error: insErr } = await supabase.from("atualizacao_resposta_arquivos").insert({
               resposta_id: respostaId, campo_id: campoFotoId,
               storage_path: atuPath, nome_original: `${slot.label}.${ext}`,
               mime_type: file.type, tamanho: file.size,
             });
+            if (insErr) {
+              console.error("[Atualizacao] insert atualizacao_resposta_arquivos (slot) falhou, revertendo upload:", insErr);
+              await supabase.storage.from("atualizacoes").remove([atuPath]).catch(() => null);
+            }
           }
-        } catch { /* falha silenciosa por slot — não bloqueia os demais */ }
+        } catch (e) {
+          // Falha silenciosa por slot — não bloqueia os demais — mas fica no
+          // console pra dar pra investigar em vez de só sumir sem rastro.
+          console.error("[Atualizacao] falha no upload de atualizações (slot):", e);
+        }
 
         // Salva na Evolução com o slot correspondente
         try {
@@ -276,15 +292,21 @@ const Atualizacao = () => {
             .from(EVOLUTION_BUCKET)
             .upload(evoPath, file, { upsert: true, contentType: file.type });
           if (!evoUpErr) {
-            await supabase.from("evolution_photos").upsert({
+            const { error: evoInsErr } = await supabase.from("evolution_photos").upsert({
               student_id:   session.user.id,
               org_id:       orgId,
               slot:         slot.key,
               storage_path: evoPath,
               taken_at:     today,
             }, { onConflict: "student_id,org_id,slot,taken_at" });
+            if (evoInsErr) {
+              console.error("[Atualizacao] upsert evolution_photos falhou, revertendo upload:", evoInsErr);
+              await supabase.storage.from(EVOLUTION_BUCKET).remove([evoPath]).catch(() => null);
+            }
           }
-        } catch { /* falha silenciosa por slot */ }
+        } catch (e) {
+          console.error("[Atualizacao] falha no upload de evolução (slot):", e);
+        }
       }));
 
       // 3. Inserir valores

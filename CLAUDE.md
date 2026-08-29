@@ -342,6 +342,7 @@ bun run build
 
 | Bug | Causa raiz | Solução aplicada |
 |---|---|---|
+| App inteiro parou de responder ("Disk IO Budget" esgotado no painel Supabase, compute Nano), 2026-08-27 | `cron.job_run_details` (231MB) + `net._http_response` (85MB) — logs internos do pg_cron/pg_net, nunca limpos — somavam 316MB de um banco de 353MB. 3 cron jobs rodando a cada minuto geravam volume alto de inserts nessas tabelas, esgotando o orçamento de IO do compute pequeno. Storage/imagens **não tinham nada a ver** — são recursos separados do disco do Postgres, apagar imagens não teve efeito nenhum nisso. | Restart do projeto (destravou conexões na hora, não devolveu o IO Budget sozinho) + `TRUNCATE` manual das duas tabelas (banco caiu pra 37MB) + cron job novo `limpar-logs-cron-net` (roda 3h da manhã, apaga logs com mais de 3 dias) pra nunca mais acumular sem limite. |
 | Cards brancos no modo dark | `:root` tinha valores light; sem a classe `.dark` tudo ficava branco | `:root` agora tem valores dark; `.dark` é redundante mas necessário para Tailwind |
 | "Perfil não encontrado" após cadastro | `COALESCE(..., 'aluno')` falhava por incompatibilidade de tipo com `app_role` enum | Cast explícito: `'aluno'::public.app_role` (migration 4) |
 | Trigger revertia profile quando org falhava | Sem `EXCEPTION` block, erro na org fazia rollback do profile | Bloco `BEGIN...EXCEPTION WHEN OTHERS THEN RAISE WARNING` (migration 4) |
