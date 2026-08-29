@@ -12,9 +12,9 @@ const MUTED = "A3A3AA";
 const MUTED2 = "6B7280";
 const FONT = "Arial";
 
-const IMG_BASE = "C:/Users/gabri/OneDrive/Documentos/PROJETOS CLAUDE/getshapetraining/landing-page/screenshots";
-const CAP_BASE = "C:/Users/gabri/OneDrive/Documentos/PROJETOS CLAUDE/getshapetraining/materiais/apresentacao-parceria/assets";
-const LOGO = "C:/Users/gabri/OneDrive/Documentos/PROJETOS CLAUDE/getshapetraining/public/logos/orbi-logo-horizontal-dark-hd.png";
+const IMG_BASE = "C:/Users/gabri/OneDrive/Documentos/PROJETOS/getshapetraining/landing-page/screenshots";
+const CAP_BASE = "C:/Users/gabri/OneDrive/Documentos/PROJETOS/getshapetraining/materiais/apresentacao-parceria/assets";
+const LOGO = "C:/Users/gabri/OneDrive/Documentos/PROJETOS/getshapetraining/public/logos/orbi-logo-horizontal-dark-hd.png";
 const LOGO_AR = 864 / 256;
 const IMG = {
   // capturas reais da landing ao vivo (Playwright headless), pixel-a-pixel

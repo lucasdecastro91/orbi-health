@@ -1,8 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont
 import os
 
-BASE = r"C:\Users\gabri\OneDrive\Documentos\PROJETOS CLAUDE\getshapetraining\landing-page\screenshots"
-OUT  = r"C:\Users\gabri\OneDrive\Documentos\PROJETOS CLAUDE\getshapetraining\landing-page\screenshots\processed"
+BASE = r"C:\Users\gabri\OneDrive\Documentos\PROJETOS\getshapetraining\landing-page\screenshots"
+OUT  = r"C:\Users\gabri\OneDrive\Documentos\PROJETOS\getshapetraining\landing-page\screenshots\processed"
 os.makedirs(OUT, exist_ok=True)
 
 # --- IMAGENS MOBILE DO ALUNO ---
