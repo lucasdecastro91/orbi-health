@@ -463,30 +463,55 @@ const CoachLayout = () => {
       ═══════════════════════════════════════════ */}
 
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 flex items-center justify-between px-4 backdrop-blur-sm"
-        style={{ backgroundColor: S.bg, borderBottom: `1px solid ${S.border}` }}
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 backdrop-blur-sm"
+        style={{
+          backgroundColor: S.bg,
+          borderBottom: `1px solid ${S.border}`,
+          // Empurra o conteúdo do header pra baixo da status bar/notch no app
+          // nativo (viewport-fit=cover deixa o conteúdo ir por baixo dela por
+          // padrão) — mesmo padrão do StudentLayout.tsx. O fundo do header
+          // continua se estendendo até o topo.
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          // fixed + backdrop-filter some/pisca durante o scroll no WKWebView
+          // (bug conhecido do WebKit no iOS) — força uma camada de
+          // composição própria, mesmo padrão do StudentLayout.tsx.
+          transform: "translateZ(0)",
+          WebkitTransform: "translateZ(0)",
+          willChange: "transform",
+        }}
       >
-        {org?.logo_url ? (
-          <img src={org.logo_url} alt={org?.name ?? "ORBI Health"} className="h-[44px] w-auto object-contain" />
-        ) : (
-          <OrgWordmark emblemSize={34} iconUrl={org?.icon_url} name={org?.name ?? "ORBI Health"} />
-        )}
-        <div className="flex items-center gap-2">
-          <NotificationBell role="coach" />
-          <button
-            onClick={handleLogout}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-            style={{ backgroundColor: "rgba(255,255,255,0.07)", color: S.textMuted }}
-            title="Sair da conta"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+        <div className="h-14 flex items-center justify-between px-4">
+          {org?.logo_url ? (
+            <img src={org.logo_url} alt={org?.name ?? "ORBI Health"} className="h-[44px] w-auto object-contain" />
+          ) : (
+            <OrgWordmark emblemSize={34} iconUrl={org?.icon_url} name={org?.name ?? "ORBI Health"} />
+          )}
+          <div className="flex items-center gap-2">
+            <NotificationBell role="coach" />
+            <button
+              onClick={handleLogout}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{ backgroundColor: "rgba(255,255,255,0.07)", color: S.textMuted }}
+              title="Sair da conta"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-sm"
-        style={{ backgroundColor: S.bg, borderTop: `1px solid ${S.border}` }}
+        style={{
+          backgroundColor: S.bg,
+          borderTop: `1px solid ${S.border}`,
+          // fixed + backdrop-filter some/pisca durante o scroll no WKWebView
+          // (bug conhecido do WebKit no iOS) — força uma camada de
+          // composição própria, mesmo padrão do StudentLayout.tsx.
+          transform: "translateZ(0)",
+          WebkitTransform: "translateZ(0)",
+          willChange: "transform",
+        }}
       >
         <div className="flex items-stretch h-16">
           {menuItems.map((item) => {
@@ -514,6 +539,9 @@ const CoachLayout = () => {
             );
           })}
         </div>
+
+        {/* Safe area para dispositivos com home indicator (iOS) */}
+        <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </nav>
 
       {/* ═══════════════════════════════════════════
@@ -838,7 +866,7 @@ const CoachLayout = () => {
       {/* ═══════════════════════════════════════════
           CONTEÚDO PRINCIPAL — segue o tema
       ═══════════════════════════════════════════ */}
-      <main className="min-h-screen pt-14 pb-20 lg:pt-0 lg:pb-0 lg:ml-[280px] bg-background">
+      <main className="min-h-screen pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pt-0 lg:pb-0 lg:ml-[280px] bg-background">
         {/* Barra superior (desktop) — atalho de mensagens + sino + menu de
             conta no canto superior direito. Mensagens usa o mesmo padrão de
             ícone+badge já usado no header mobile do aluno (StudentLayout.tsx). */}
