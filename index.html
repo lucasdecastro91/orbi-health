@@ -5,10 +5,16 @@
     <!-- initial-scale=1.0 exato tem um bug conhecido no WKWebView (o motor do
          Capacitor no iOS) onde o viewport é calculado maior que a tela real,
          cortando conteúdo sem dar pra ajustar (zoom desabilitado). 1.0001 força
-         o WebKit a recalcular certo — sem efeito visível, resolve só dentro do
-         app nativo. viewport-fit=cover também habilita env(safe-area-inset-*)
-         corretamente (notch/home indicator). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0001, viewport-fit=cover" />
+         o WebKit a recalcular certo. Essa correção sozinha (2026-08-27) NÃO
+         resolveu o bug de tela "arrastável"/maior que o device relatado ao
+         vivo (2026-08-29) — o que faltava era travar o zoom de verdade:
+         sem maximum-scale/user-scalable, nada impede o WKWebView de ficar
+         com um zoomScale > 1 preso (gesto de pinça, ou o próprio WebKit
+         recalculando errado), e aí a tela toda vira arrastável revelando
+         conteúdo atrás de elementos fixed. maximum-scale=1 + user-scalable=no
+         bloqueiam qualquer zoom, nativo ou por gesto. viewport-fit=cover
+         habilita env(safe-area-inset-*) corretamente (notch/home indicator). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0001, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ORBI Health</title>
     <meta name="description" content="ORBI Health é a plataforma white-label para personal trainers e coaches venderem seus serviços online com dieta, treino e acompanhamento completo." />
 
