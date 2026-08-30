@@ -179,8 +179,17 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     setCamBlocked(false);
     setCamRequesting(true);
     try {
+      // Sem width/height, o WebKit escolhia uma resolução padrão bem modesta
+      // pra câmera (provavelmente bem abaixo de PHOTO_MAX_DIM) — o downscale
+      // em capture() nunca tinha o que fazer, porque a imagem já chegava
+      // pequena da própria câmera. "ideal" pede a maior resolução que a
+      // câmera suportar, sem travar se ela não existir exatamente.
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing },
+        video: {
+          facingMode: facing,
+          width:  { ideal: 1920 },
+          height: { ideal: 1920 },
+        },
         audio: false,
       });
       streamRef.current = s;
