@@ -358,10 +358,20 @@ const Login = () => {
       ================================================================== */}
       <div className="md:hidden min-h-screen w-full flex flex-col" style={{ backgroundColor: isOrgLight ? "#F4F6F4" : "#0A0A0A" }}>
 
-        {/* TOPO — fundo na cor do tenant (preto para Get Shape) */}
+        {/* TOPO — preto pro Get Shape; org com logo própria segue o tema
+            (preto/branco, reportado como o comportamento esperado — antes
+            ficava sempre no gradiente colorido mesmo com logo customizada);
+            sem logo própria (fallback ORBI) mantém o gradiente. */}
         <div
           className="relative flex-none flex items-center justify-center overflow-hidden"
-          style={{ height: "48vh", background: isGetShapeLogin ? "#0A0A0A" : "var(--cp-gradient)" }}
+          style={{
+            height: "48vh",
+            background: isGetShapeLogin
+              ? "#0A0A0A"
+              : hasCustomBranding
+                ? (isOrgLight ? "#F4F6F4" : "#0A0A0A")
+                : "var(--cp-gradient)",
+          }}
         >
           {/* Brilho interno */}
           <div
