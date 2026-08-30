@@ -22,7 +22,11 @@ const SplashScreen = ({ isGetShape = false, iconUrl }: SplashScreenProps) => {
         className={
           iconUrl
             ? "w-[120px] h-[120px] object-contain"
-            : "w-[110px] h-[110px] md:w-[140px] md:h-[140px] object-contain"
+            // Reduzido de 110/140px pra bater com o tamanho da splash nativa
+            // (Capacitor) — do jeito que era antes, essa tela web aparecia
+            // visivelmente maior que a nativa, dando a sensação de "dois
+            // ícones diferentes" quando o carregamento demorava mais.
+            : "w-[76px] h-[76px] md:w-[96px] md:h-[96px] object-contain"
         }
       />
     </div>

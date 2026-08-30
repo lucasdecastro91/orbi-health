@@ -68,10 +68,6 @@ const applyColorVars = (color: ReturnType<typeof getColorEntry>) => {
   el.style.setProperty("--cp-text",     color.textOn);
 };
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
-
-const GET_SHAPE_EMAIL = "lucas.melo1991@gmail.com";
-
 // ─── Login ─────────────────────────────────────────────────────────────────────
 
 const Login = () => {
@@ -108,8 +104,7 @@ const Login = () => {
   }, [tenant?.primary_color]);
 
   useEffect(() => {
-    const gsLogin   = email.trim().toLowerCase() === GET_SHAPE_EMAIL
-                      || (!!gsOrgSlug && !!tenant && tenant.slug === gsOrgSlug);
+    const gsLogin   = !!gsOrgSlug && !!tenant && tenant.slug === gsOrgSlug;
     const forceLight = !gsLogin && tenant?.theme === "light";
     if (forceLight) {
       document.documentElement.classList.add("light");
@@ -180,7 +175,7 @@ const Login = () => {
     const gsSlug = localStorage.getItem("gs_org_slug");
     if (orgSlug && gsSlug && orgSlug === gsSlug) return;
 
-    if (isGetShapeEmail || isGetShapeTenant) {
+    if (isGetShapeTenant) {
       applyFavicon("/favicon-gs.png", "image/png");
       document.title = "Get Shape Training";
     } else if (orgSlug && tenant) {
@@ -322,13 +317,14 @@ const Login = () => {
     }
   };
 
-  // Detecta branding Get Shape em duas camadas:
-  // 1. E-mail digitado é o do owner (lucas) → resposta imediata ao digitar
-  // 2. Tenant carregado tem o slug da org Get Shape → cobre alunos e outros usuários
-  const isGetShapeEmail   = email.trim().toLowerCase() === GET_SHAPE_EMAIL;
+  // Branding Get Shape detectado só pelo tenant real (slug salvo de uma
+  // resolução anterior) — antes também disparava só pelo e-mail digitado
+  // ser o do Lucas, sem checar a logo/config real da org (reportado como
+  // errado: a tela deve refletir o que está configurado no painel do
+  // treinador, não um atalho fixo pra um e-mail específico).
   const gsOrgSlug         = localStorage.getItem("gs_org_slug");
   const isGetShapeTenant  = !!gsOrgSlug && !!tenant && tenant.slug === gsOrgSlug;
-  const isGetShapeLogin   = isGetShapeEmail || isGetShapeTenant;
+  const isGetShapeLogin   = isGetShapeTenant;
   const isGetShape        = !!tenant && isGetShapeLogin;
 
   // Só assume o branding próprio da org quando ela configurou uma logo em
