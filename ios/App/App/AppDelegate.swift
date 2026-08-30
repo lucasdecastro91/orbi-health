@@ -41,4 +41,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         config.delegateClass = SceneDelegate.self
         return config
     }
+
+    // @capacitor/push-notifications exige esses dois métodos — eles só
+    // repassam o resultado do registro (token ou erro) pro NotificationCenter,
+    // de onde o plugin escuta e dispara os eventos 'registration'/
+    // 'registrationError' que o JS (usePushNotifications.ts) consome.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
 }

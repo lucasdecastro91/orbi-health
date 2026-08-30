@@ -9,6 +9,7 @@ import { SplashScreen as NativeSplashScreen } from "@capacitor/splash-screen";
 import { supabase } from "@/integrations/supabase/client";
 import { TenantProvider } from "@/contexts/TenantContext";
 import SplashScreen from "@/components/SplashScreen";
+import { useNativePushListeners } from "@/hooks/useNativePushListeners";
 
 // Pages — auth & público
 import Auth          from "./pages/Auth";
@@ -92,6 +93,17 @@ const OrgWrapper = () => (
     <Outlet />
   </TenantProvider>
 );
+
+// ----------------------------------------------------------------
+// NativePushBridge: escuta push nativo (APNs) chegando em foreground e
+// toque em notificação — precisa de useNavigate(), por isso vive dentro
+// do BrowserRouter em vez de junto com o resto da inicialização do App.
+// No-op fora do app nativo (useNativePushListeners já se auto-desliga).
+// ----------------------------------------------------------------
+const NativePushBridge = () => {
+  useNativePushListeners();
+  return null;
+};
 
 // ----------------------------------------------------------------
 // Utilitário: troca favicon da aba (usado antes do TenantContext montar)
@@ -247,6 +259,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <NativePushBridge />
           <Routes>
             {/* ── Rotas públicas / sem contexto de org ── */}
             {/* Novo fluxo 2 etapas com branding por tenant */}

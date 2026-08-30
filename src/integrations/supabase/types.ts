@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -3302,32 +3302,35 @@ export type Database = {
       }
       push_subscriptions: {
         Row: {
-          auth_key: string
+          auth_key: string | null
           created_at: string | null
           endpoint: string
           id: string
           org_id: string | null
-          p256dh: string
+          p256dh: string | null
+          platform: string
           user_agent: string | null
           user_id: string
         }
         Insert: {
-          auth_key: string
+          auth_key?: string | null
           created_at?: string | null
           endpoint: string
           id?: string
           org_id?: string | null
-          p256dh: string
+          p256dh?: string | null
+          platform?: string
           user_agent?: string | null
           user_id: string
         }
         Update: {
-          auth_key?: string
+          auth_key?: string | null
           created_at?: string | null
           endpoint?: string
           id?: string
           org_id?: string | null
-          p256dh?: string
+          p256dh?: string | null
+          platform?: string
           user_agent?: string | null
           user_id?: string
         }
@@ -4127,6 +4130,12 @@ export type Database = {
       is_org_owner: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_treinador: { Args: { _user_id: string }; Returns: boolean }
+      listar_storage_orfaos: {
+        Args: { p_bucket: string; p_table: string }
+        Returns: {
+          name: string
+        }[]
+      }
       match_alimento: {
         Args: { min_score?: number; termo: string }
         Returns: {

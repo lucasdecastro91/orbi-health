@@ -76,5 +76,9 @@
 	<string>Usamos a câmera pra tirar as fotos da avaliação postural.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Usamos sua galeria pra escolher fotos da avaliação postural, avatar e outros uploads do app.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
