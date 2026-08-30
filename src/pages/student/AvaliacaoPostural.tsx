@@ -29,6 +29,14 @@ interface TesteSlide {
 
 const BUCKET = "evolution-photos";
 
+// Fotos saíam no tamanho nativo da câmera (podendo passar de 3000px de lado,
+// vários MB cada) — só a qualidade JPEG (0.88) era comprimida, nunca a
+// resolução. Pra comparação visual de postura, 1080px no lado maior já é
+// nítido de sobra numa tela de celular; corta drasticamente o peso de cada
+// upload (13 fotos por avaliação) sem perda perceptível.
+const PHOTO_MAX_DIM = 1080;
+const PHOTO_QUALITY = 0.85;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase = "intro" | "testing" | "review" | "uploading" | "done" | "history";
@@ -252,11 +260,20 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
     sw = Math.min(sw, vw); sh = Math.min(sh, vh);
     sx = Math.max(0, Math.min(sx, vw - sw));
     sy = Math.max(0, Math.min(sy, vh - sh));
-    c.width  = sw;
-    c.height = sh;
-    ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
 
-    const url = c.toDataURL("image/jpeg", 0.88);
+    // Downscale pro tamanho final direto no draw (evita um segundo encode) —
+    // câmera nativa entrega bem mais que isso, não precisa desse tanto de pixel.
+    let outW = sw, outH = sh;
+    if (Math.max(sw, sh) > PHOTO_MAX_DIM) {
+      const scale = PHOTO_MAX_DIM / Math.max(sw, sh);
+      outW = Math.round(sw * scale);
+      outH = Math.round(sh * scale);
+    }
+    c.width  = outW;
+    c.height = outH;
+    ctx.drawImage(tmp, sx, sy, sw, sh, 0, 0, outW, outH);
+
+    const url = c.toDataURL("image/jpeg", PHOTO_QUALITY);
     setPreview(url);
     streamRef.current?.getTracks().forEach((t) => t.stop());
   };
@@ -721,8 +738,27 @@ const AvaliacaoPostural = () => {
     const pi = galleryTargetPi;
     const reader = new FileReader();
     reader.onload = () => {
-      const key = captureKey(currentTeste.key, pi);
-      setCaptures((prev) => ({ ...prev, [key]: reader.result as string }));
+      // Foto da galeria vem sem nenhum tratamento (podia ser 12MP+ do rolo
+      // de câmera do aparelho) — redimensiona igual à captura ao vivo, pro
+      // peso final não depender de qual caminho o aluno escolheu.
+      const img = new Image();
+      img.onload = () => {
+        let outW = img.naturalWidth, outH = img.naturalHeight;
+        if (Math.max(outW, outH) > PHOTO_MAX_DIM) {
+          const scale = PHOTO_MAX_DIM / Math.max(outW, outH);
+          outW = Math.round(outW * scale);
+          outH = Math.round(outH * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width  = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, outW, outH);
+        const url = canvas.toDataURL("image/jpeg", PHOTO_QUALITY);
+        const key = captureKey(currentTeste.key, pi);
+        setCaptures((prev) => ({ ...prev, [key]: url }));
+      };
+      img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
     setGalleryTargetPi(null);
