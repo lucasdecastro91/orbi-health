@@ -376,9 +376,15 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
         </div>
       )}
 
-      {/* ── Floating top bar ── */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-3"
-        style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)" }}>
+      {/* ── Floating top bar — pt-12 fixo (48px) era só uma estimativa pra
+          limpar a status bar, sem usar o safe-area real (Dynamic Island é
+          mais alto que isso em alguns modelos). Troca por um respiro
+          pequeno + o safe-area de verdade. */}
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pb-3"
+        style={{
+          paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%)",
+        }}>
         <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full"
           style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <X className="w-5 h-5 text-white" />
@@ -881,7 +887,8 @@ const AvaliacaoPostural = () => {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black"
       onClick={() => setViewPhoto(null)}>
       <img src={viewPhoto} alt="" className="max-w-full max-h-full object-contain" />
-      <button className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/70 text-white"
+      <button className="absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/70 text-white"
+        style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
         onClick={() => setViewPhoto(null)}>
         <X className="w-5 h-5" />
       </button>
