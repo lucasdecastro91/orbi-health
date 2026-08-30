@@ -72,5 +72,9 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Usamos a câmera pra tirar as fotos da avaliação postural.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Usamos sua galeria pra escolher fotos da avaliação postural, avatar e outros uploads do app.</string>
 </dict>
 </plist>
