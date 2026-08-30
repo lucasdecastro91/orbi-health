@@ -27,8 +27,15 @@ const config: CapacitorConfig = {
       // splash.png gerado — evita qualquer flash de cor diferente antes do
       // app React montar.
       backgroundColor: '#000000',
-      launchShowDuration: 1500,
-      launchAutoHide: true,
+      // autoHide desligado de propósito: com true + launchShowDuration fixo,
+      // a splash nativa some sozinha depois de 1.5s independente do app já
+      // ter terminado de carregar — se o carregamento (checkSession em
+      // App.tsx) demorasse mais que isso, a tela de loading web
+      // (SplashScreen.tsx) aparecia por baixo, dando a sensação de "duas
+      // telas". Agora a splash nativa fica visível até o código chamar
+      // CapacitorSplashScreen.hide() explicitamente (App.tsx), exatamente
+      // quando o app está pronto — só uma tela, nunca duas.
+      launchAutoHide: false,
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
     },

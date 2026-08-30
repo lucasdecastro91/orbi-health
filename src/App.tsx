@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { SplashScreen as NativeSplashScreen } from "@capacitor/splash-screen";
 import { supabase } from "@/integrations/supabase/client";
 import { TenantProvider } from "@/contexts/TenantContext";
 import SplashScreen from "@/components/SplashScreen";
@@ -213,15 +215,31 @@ const App = () => {
           }
         }
       } finally {
-        const elapsed   = Date.now() - startTime;
-        const remaining = Math.max(0, minDisplay - elapsed);
-        setTimeout(() => setIsLoading(false), remaining);
+        if (Capacitor.isNativePlatform()) {
+          // No app nativo, a splash nativa (capacitor.config.ts,
+          // launchAutoHide: false) já cobre esse momento inteiro — sem
+          // delay artificial aqui, só esconde ela assim que terminar.
+          // O componente <SplashScreen> web nem chega a renderizar (ver
+          // abaixo), então não existe "segunda tela" pra evitar de propósito.
+          setIsLoading(false);
+          NativeSplashScreen.hide().catch(() => {});
+        } else {
+          const elapsed   = Date.now() - startTime;
+          const remaining = Math.max(0, minDisplay - elapsed);
+          setTimeout(() => setIsLoading(false), remaining);
+        }
       }
     };
     checkSession();
   }, []);
 
-  if (isLoading) return <SplashScreen isGetShape={isGetShapeUser} iconUrl={splashIconUrl} />;
+  if (isLoading) {
+    // Nativo: a splash nativa (ainda visível, launchAutoHide: false) já
+    // cobre isso — renderizar a versão web aqui só criaria uma segunda
+    // tela por baixo dela.
+    if (Capacitor.isNativePlatform()) return null;
+    return <SplashScreen isGetShape={isGetShapeUser} iconUrl={splashIconUrl} />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
