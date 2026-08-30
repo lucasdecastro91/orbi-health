@@ -31,11 +31,13 @@ const BUCKET = "evolution-photos";
 
 // Fotos saíam no tamanho nativo da câmera (podendo passar de 3000px de lado,
 // vários MB cada) — só a qualidade JPEG (0.88) era comprimida, nunca a
-// resolução. Pra comparação visual de postura, 1080px no lado maior já é
-// nítido de sobra numa tela de celular; corta drasticamente o peso de cada
-// upload (13 fotos por avaliação) sem perda perceptível.
-const PHOTO_MAX_DIM = 1080;
-const PHOTO_QUALITY = 0.85;
+// resolução. Primeira tentativa (1080px/0.85) cortou detalhe fino demais
+// (texto pequeno ficava ilegível, testado ao vivo) — resolução baixa mata
+// detalhe de alta frequência (bordas de letra) mais que a qualidade JPEG.
+// 1600px/0.92 preserva bem mais nitidez e ainda corta drasticamente o peso
+// comparado ao tamanho nativo da câmera (13 fotos por avaliação).
+const PHOTO_MAX_DIM = 1600;
+const PHOTO_QUALITY = 0.92;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
