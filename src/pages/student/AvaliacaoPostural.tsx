@@ -354,6 +354,13 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
           playsInline
           muted
           className="absolute inset-0 w-full h-full object-cover"
+          // getUserMedia entrega o feed cru (sem espelhar) — câmera nativa
+          // espelha só a pré-visualização da frontal pra parecer um espelho
+          // de verdade (senão o movimento horizontal parece invertido).
+          // CSS transform aqui não afeta o que capture() lê do <video> via
+          // drawImage — a foto final continua sem espelhar, representação
+          // real (útil pra comparar postura entre sessões sem trocar lado).
+          style={facingMode === "user" ? { transform: "scaleX(-1)" } : undefined}
         />
       ) : (
         <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
