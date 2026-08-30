@@ -1169,9 +1169,13 @@ const AvaliacaoPostural = () => {
             />
           </div>
 
-          {/* Bottom navigation — sits above the 64px student nav bar */}
+          {/* Bottom navigation — sits above the 64px student nav bar. bottom
+              fixo em 64px não bastava: a nav real soma env(safe-area-inset-
+              bottom) à própria altura (home indicator do iPhone), então esse
+              bloco ficava parcialmente atrás dela no app nativo — mesma
+              causa já corrigida em StudentLayout.tsx. */}
           <div className="fixed left-0 right-0 px-4 pt-4 pb-4"
-            style={{ bottom: 64, backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
+            style={{ bottom: "calc(64px + env(safe-area-inset-bottom, 0px))", backgroundColor: "rgba(9,9,11,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
             <div className="flex gap-3">
               {slideIndex > 0 && (
                 <button onClick={prevSlide}
@@ -1255,9 +1259,11 @@ const AvaliacaoPostural = () => {
             })}
           </div>
 
-          {/* Bottom actions */}
-          <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-4 space-y-2"
-            style={{ backgroundColor: "rgba(9,9,11,0.97)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
+          {/* Bottom actions — pb-8 fixo não cobre o home indicator do iPhone
+              no app nativo (mesma causa do bloco "Tirar foto" acima), soma
+              o safe-area real por cima do padding de sempre. */}
+          <div className="fixed bottom-0 left-0 right-0 px-4 pt-4 space-y-2"
+            style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))", backgroundColor: "rgba(9,9,11,0.97)", backdropFilter: "blur(12px)", borderTop: "1px solid hsl(var(--foreground) / 0.06)" }}>
             <button onClick={uploadAll}
               className="w-full h-12 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2"
               style={{ background: "var(--cp-gradient)" }}>
