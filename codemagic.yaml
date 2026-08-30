@@ -31,17 +31,17 @@ workflows:
         # Apple ID numérico, não o bundle id string — 404. (2) `$BUILD_NUMBER`
         # não é uma env var garantida pelo Codemagic nesse contexto — ficou
         # vazia, agvtool não fez nada, e a build instalada continuou como
-        # "1" (confirmado ao vivo no TestFlight, 2026-08-29). Agora usa
-        # `git rev-list --count HEAD` — número total de commits do repo,
-        # não depende de nenhuma API/env var externa, e só cresce a cada
-        # commit novo (175 no momento desse fix, bem acima do "1" travado).
+        # "1" (confirmado ao vivo no TestFlight, 2026-08-29). `git rev-list
+        # --count` foi cogitado mas depende do clone ser completo (não raso)
+        # — não verificado, risco desnecessário. Usa timestamp
+        # (AAAAMMDDHHMMSS) — não depende de nenhuma env var, API externa ou
+        # profundidade do clone, e é garantidamente crescente entre builds.
         script: |
           #!/usr/bin/env bash
           set -e
           set -x
-          cd "$CM_BUILD_DIR"
-          BUILD_NUM=$(git rev-list --count HEAD)
-          cd "ios/App"
+          BUILD_NUM=$(date -u +%Y%m%d%H%M%S)
+          cd "$CM_BUILD_DIR/ios/App"
           agvtool new-version -all "$BUILD_NUM"
       - name: Buscar ou gerar certificado e provisioning profile
         script: |
