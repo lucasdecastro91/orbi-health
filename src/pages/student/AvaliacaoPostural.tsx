@@ -184,11 +184,18 @@ const CameraOverlay = ({ teste, photoIndex, onCapture, onClose }: CameraOverlayP
       // em capture() nunca tinha o que fazer, porque a imagem já chegava
       // pequena da própria câmera. "ideal" pede a maior resolução que a
       // câmera suportar, sem travar se ela não existir exatamente.
+      //
+      // Só width, sem height: pedir os dois como 1920x1920 (quadrado) fazia o
+      // WebKit cortar as bordas do sensor (que não é quadrado, é 4:3/16:9) pra
+      // aproximar do alvo — na prática um zoom digital, mais perceptível na
+      // frontal (FOV nativo já mais estreito). Testado ao vivo: rosto quase
+      // preenchendo o quadro, mais próximo que antes. Só largura ideal deixa
+      // a câmera devolver a proporção nativa dela (sem cortar), só que na
+      // maior resolução disponível.
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facing,
-          width:  { ideal: 1920 },
-          height: { ideal: 1920 },
+          width: { ideal: 1920 },
         },
         audio: false,
       });
