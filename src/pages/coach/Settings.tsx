@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1790,13 +1791,21 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             {/* CTAs */}
             <div className="flex flex-wrap gap-2">
               {(orgStatus === "trial" || orgStatus === "suspended" || orgStatus === "cancelled") && (
-                <Button
-                  className="h-9 px-4 rounded-xl text-white font-semibold text-sm"
-                  style={{ background: "var(--cp-gradient)" }}
-                  onClick={() => navigate(`/assinar?org=${orgId}&slug=${slug}`)}>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  {orgStatus === "trial" ? "Assinar agora" : "Reativar assinatura"}
-                </Button>
+                Capacitor.isNativePlatform() ? (
+                  // App nativo não pode oferecer o formulário de pagamento aqui
+                  // (guideline 3.1.1 da Apple) — só orienta a renovar pelo navegador.
+                  <p className="text-xs text-foreground/50">
+                    Acesse pelo navegador em <span className="font-medium text-foreground/70">app.orbihealth.com.br</span> pra assinar ou reativar.
+                  </p>
+                ) : (
+                  <Button
+                    className="h-9 px-4 rounded-xl text-white font-semibold text-sm"
+                    style={{ background: "var(--cp-gradient)" }}
+                    onClick={() => navigate(`/assinar?org=${orgId}&slug=${slug}`)}>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    {orgStatus === "trial" ? "Assinar agora" : "Reativar assinatura"}
+                  </Button>
+                )
               )}
               {orgStatus === "active" && (
                 <Button

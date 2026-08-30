@@ -11,6 +11,7 @@ import {
   LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2, Trophy,
   User, CreditCard, Sun, Moon, Loader2,
 } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
@@ -169,14 +170,20 @@ const CoachLayout = () => {
       const days = Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000));
       setTrialDaysLeft(days);
 
-      // Redireciona para assinatura se trial expirou e não está na página de billing
-      if (days === 0 && status === "trial" && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar")) {
+      // Redireciona para assinatura se trial expirou e não está na página de billing.
+      // No app nativo (iOS/Android) NUNCA manda pra /assinar — a Apple rejeita apps
+      // com fluxo de compra de assinatura digital fora do sistema de compra deles
+      // (guideline 3.1.1). O bloqueio de acesso continua (ver isNativePaywallLocked
+      // logo abaixo do return), só o redirecionamento pro formulário de cartão que
+      // não acontece — no nativo o usuário só vê a tela de "renove pelo navegador".
+      if (days === 0 && status === "trial" && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar") && !Capacitor.isNativePlatform()) {
         navigate(`/assinar?org=${orgId}&slug=${slug}`);
       }
     }
 
     // Suspensa (carência esgotada) ou cancelada (assinatura removida na Asaas) → redireciona
-    if ((status === "suspended" || status === "cancelled") && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar")) {
+    // (mesma ressalva do app nativo acima)
+    if ((status === "suspended" || status === "cancelled") && !location.pathname.includes("configuracoes") && !location.pathname.includes("assinar") && !Capacitor.isNativePlatform()) {
       navigate(`/assinar?org=${orgId}&slug=${slug}`);
     }
   }, [org, isGetShapeOrg]);
@@ -454,6 +461,43 @@ const CoachLayout = () => {
     location.pathname.includes("/anamnese-builder") ||
     location.pathname.includes("/postural-eval-builder") ||
     location.pathname.includes("/colaboradores");
+
+  // App nativo (iOS/Android) não pode oferecer compra de assinatura digital
+  // dentro do app (guideline 3.1.1 da Apple) — mas isso não pode virar acesso
+  // grátis pra sempre pra quem instala pelo TestFlight/App Store. Bloqueia o
+  // app inteiro com uma tela sem nenhum botão de pagamento, pedindo pra
+  // renovar pelo navegador. Configurações continua acessível (mesma exceção
+  // que já existia pro redirecionamento web) pra dar pra ver o status da
+  // assinatura e sair da conta.
+  const isNativePaywallLocked =
+    !isGetShapeOrg &&
+    Capacitor.isNativePlatform() &&
+    ((orgStatus === "trial" && trialDaysLeft === 0) || orgStatus === "suspended" || orgStatus === "cancelled") &&
+    !location.pathname.includes("configuracoes");
+
+  if (isNativePaywallLocked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center bg-background">
+        <Lock className="w-10 h-10 text-foreground/30" />
+        <div className="space-y-1.5">
+          <p className="text-lg font-bold text-foreground">
+            {orgStatus === "trial" ? "Seu trial expirou" : "Assinatura pendente"}
+          </p>
+          <p className="text-sm text-foreground/50 max-w-xs">
+            Pra continuar usando o ORBI Health, acesse pelo navegador em{" "}
+            <span className="text-foreground/70 font-medium">app.orbihealth.com.br</span> e finalize sua assinatura.
+          </p>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-2 text-xs font-medium px-4 py-2 rounded-lg"
+          style={{ backgroundColor: "rgba(255,255,255,0.07)", color: S.textMuted }}
+        >
+          Sair da conta
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -985,14 +1029,22 @@ const CoachLayout = () => {
                   : `Seu trial termina em ${trialDaysLeft} dia${trialDaysLeft !== 1 ? "s" : ""}.`}
               </span>
             </div>
-            <button
-              onClick={() => navigate(`/assinar?org=${orgId}&slug=${slug}`)}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white shrink-0"
-              style={{ background: "var(--cp-gradient, linear-gradient(135deg,#22b45a,#16a34a))" }}
-            >
-              <Crown className="w-3.5 h-3.5" />
-              Assinar agora
-            </button>
+            {Capacitor.isNativePlatform() ? (
+              // App nativo não pode oferecer o formulário de pagamento aqui
+              // (guideline 3.1.1 da Apple) — só orienta a renovar pelo navegador.
+              <span className={`text-xs shrink-0 ${trialDaysLeft <= 2 ? "text-red-300/70" : "text-amber-300/70"}`}>
+                Renove pelo navegador
+              </span>
+            ) : (
+              <button
+                onClick={() => navigate(`/assinar?org=${orgId}&slug=${slug}`)}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white shrink-0"
+                style={{ background: "var(--cp-gradient, linear-gradient(135deg,#22b45a,#16a34a))" }}
+              >
+                <Crown className="w-3.5 h-3.5" />
+                Assinar agora
+              </button>
+            )}
           </div>
         )}
         <Outlet />
