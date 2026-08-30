@@ -385,7 +385,7 @@ const Login = () => {
           {/* Logo */}
           <div className="relative z-10 px-10 text-center select-none">
             {tenant?.logo_url ? (
-              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} style={{ maxHeight: 64, maxWidth: 240, objectFit: "contain", display: "block", margin: "0 auto" }} />
+              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} style={{ maxHeight: 170, maxWidth: 320, objectFit: "contain", display: "block", margin: "0 auto" }} />
             ) : isGetShapeLogin ? (
               <img src="/logo-gs.png" alt="Get Shape Training" className="h-28 mx-auto object-contain" />
             ) : (
@@ -582,7 +582,7 @@ const Login = () => {
             </svg>
 
             {tenant?.logo_url ? (
-              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} className="relative object-contain" style={{ maxHeight: 64, maxWidth: 240 }} />
+              <img src={tenant.login_logo_url ?? tenant.logo_url} alt={tenant.name} className="relative object-contain" style={{ maxHeight: 170, maxWidth: 320 }} />
             ) : isGetShapeLogin ? (
               <img src="/logo-full.png" alt="Get Shape Training" className="relative h-[90px] w-auto object-contain" />
             ) : (
