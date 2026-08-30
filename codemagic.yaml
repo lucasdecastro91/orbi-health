@@ -26,17 +26,23 @@ workflows:
         # Capacitor) e nunca foi incrementado — a Apple rejeita qualquer
         # build com o mesmo número já usado no App Store Connect/TestFlight
         # ("The bundle version must be higher than the previously uploaded
-        # version"). Tentativa anterior usava `app-store-connect
-        # get-latest-build-number "$BUNDLE_ID"`, mas esse comando espera o
-        # Apple ID numérico do app (não o bundle id string) e deu 404.
-        # $BUILD_NUMBER é gerado pelo próprio Codemagic, único e crescente
-        # a cada build desse workflow — não depende de consultar a Apple.
+        # version"). Duas tentativas anteriores falharam: (1)
+        # `app-store-connect get-latest-build-number "$BUNDLE_ID"` espera o
+        # Apple ID numérico, não o bundle id string — 404. (2) `$BUILD_NUMBER`
+        # não é uma env var garantida pelo Codemagic nesse contexto — ficou
+        # vazia, agvtool não fez nada, e a build instalada continuou como
+        # "1" (confirmado ao vivo no TestFlight, 2026-08-29). Agora usa
+        # `git rev-list --count HEAD` — número total de commits do repo,
+        # não depende de nenhuma API/env var externa, e só cresce a cada
+        # commit novo (175 no momento desse fix, bem acima do "1" travado).
         script: |
           #!/usr/bin/env bash
           set -e
           set -x
-          cd "$CM_BUILD_DIR/ios/App"
-          agvtool new-version -all "$BUILD_NUMBER"
+          cd "$CM_BUILD_DIR"
+          BUILD_NUM=$(git rev-list --count HEAD)
+          cd "ios/App"
+          agvtool new-version -all "$BUILD_NUM"
       - name: Buscar ou gerar certificado e provisioning profile
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
