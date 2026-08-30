@@ -340,7 +340,12 @@ const Login = () => {
   // orgSlug aqui — senão o tema da org é ignorado no fluxo de login por e-mail
   // (sem slug na URL), caindo incorretamente no fundo claro padrão.
   const isOrgDark  = !!tenant && hasCustomBranding && tenant.theme === "dark";
-  const isOrgLight = !!tenant && hasCustomBranding && tenant.theme === "light";
+  // Antes só ativava com logo de cabeçalho própria (hasCustomBranding) —
+  // orgs usando só a logo de login (login_logo_url, sem logo_url) nunca
+  // conseguiam sair do visual escuro padrão da ORBI, mesmo com o tema
+  // configurado como "light" em Configurações. Agora qualquer org com
+  // tenant resolvido segue o próprio tema.
+  const isOrgLight = !!tenant && tenant.theme === "light";
 
   // Login padrão ORBI (sem tenant resolvido ou sem logo própria) usa o mesmo visual dark do cadastro
   const useDarkTheme = isOrgDark || !hasCustomBranding;
