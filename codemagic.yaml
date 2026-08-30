@@ -65,8 +65,12 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # Sem beta_groups de propósito — vai só pra testadores internos
-        # (você), sem passar pela Beta App Review da Apple. Testadores
-        # externos (treinadores do beta) entram só quando o app for pra
-        # App Store de verdade.
+        # "Orbi Test" é grupo INTERNO (Users & Access, não Beta App Review) —
+        # associar aqui não passa pela Beta App Review da Apple, só evita ter
+        # que fazer manualmente no App Store Connect a cada build (reportado
+        # ao vivo por Lucas, 2026-08-30 — cada build nova exigia repetir os
+        # passos manuais toda hora). Testadores externos (treinadores do
+        # beta) entram só quando o app for pra App Store de verdade.
         submit_to_testflight: true
+        beta_groups:
+          - Orbi Test
