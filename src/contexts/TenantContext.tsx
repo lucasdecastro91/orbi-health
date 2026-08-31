@@ -158,6 +158,8 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       document.title = "Get Shape";
       // GS: usa icon_url se disponível, senão favicon padrão Get Shape
       setFavicon(org.icon_url ?? "/favicon-gs.png");
+      setAppleTouchIcon(org.icon_url ?? "/favicon-gs.png");
+      setAppleWebAppTitle("Get Shape");
     } else {
       document.title = org.name ?? "ORBI Health";
       // Outros tenants: usa icon_url se disponível, senão o favicon padrão da
@@ -167,11 +169,15 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       // uma org com favicon próprio (ex: Get Shape) pra uma sem, na mesma aba,
       // deixava o ícone "grudado" no anterior (achado ao vivo, 2026-08-26).
       setFavicon(org.icon_url ?? "/logos/orbi-logo-icon-hd.png");
+      setAppleTouchIcon(org.icon_url ?? "/logos/orbi-logo-icon-hd.png");
+      setAppleWebAppTitle(org.name ?? "ORBI Health");
     }
 
     return () => {
       document.title = "ORBI Health";
       setFavicon("/logos/orbi-logo-icon-hd.png");
+      setAppleTouchIcon("/logos/orbi-logo-icon-hd.png");
+      setAppleWebAppTitle("ORBI Health");
     };
   }, [org?.name, org?.icon_url, isGetShapeOrg]);
 
@@ -297,6 +303,38 @@ function setFavicon(href: string) {
     link.href = href;
     document.head.appendChild(link);
   }
+}
+
+// index.html tem 2 <link rel="apple-touch-icon"> estáticos (192/512px) —
+// é o que o iOS usa pro ícone da tela de início ao "Adicionar à Tela de
+// Início" (não lê o <link rel="icon"> normal, nem o manifest.json, pra
+// esse fluxo). Mesmo padrão do setFavicon: reescreve os <link> existentes
+// em vez de trocar por um só, então os dois tamanhos continuam declarados.
+// Ressalva do próprio iOS: o ícone só é lido no momento do toque em
+// "Adicionar à Tela de Início" — instalações já feitas antes dessa troca
+// não atualizam sozinhas, precisa remover e adicionar de novo.
+function setAppleTouchIcon(href: string) {
+  const links = document.querySelectorAll<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+  links.forEach((el) => { el.href = href; });
+
+  if (links.length === 0) {
+    const link = document.createElement("link");
+    link.rel = "apple-touch-icon";
+    link.href = href;
+    document.head.appendChild(link);
+  }
+}
+
+// Nome mostrado embaixo do ícone na tela de início do iOS — o Safari usa
+// esse meta tag específico, não o <title> da página.
+function setAppleWebAppTitle(title: string) {
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "apple-mobile-web-app-title";
+    document.head.appendChild(meta);
+  }
+  meta.content = title;
 }
 
 // ----------------------------------------------------------------

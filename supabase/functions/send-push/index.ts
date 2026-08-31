@@ -171,7 +171,11 @@ serve(async (req) => {
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
     const body = await req.json();
-    const { user_ids, title, body: msgBody, icon = "/logo-icon.png", url = "/", tag = "gst" } = body;
+    // icon sem default aqui — se o caller não passar um, cada inscrição web
+    // usa o icon_url da própria org (fallback pro genérico só se a org
+    // também não tiver um configurado). Nativo (APNs) sempre usa o ícone do
+    // app, a Apple não permite trocar por notificação.
+    const { user_ids, title, body: msgBody, icon, url = "/", tag = "gst" } = body;
 
     if (!user_ids?.length || !title || !msgBody) {
       return new Response(
@@ -184,7 +188,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, p256dh, auth_key, platform")
+      .select("endpoint, p256dh, auth_key, platform, org_id")
       .in("user_id", user_ids);
 
     if (error) throw error;
@@ -201,10 +205,23 @@ serve(async (req) => {
     let sent = 0, failed = 0;
     const expiredEndpoints: string[] = [];
 
-    // ─── Web Push (VAPID) — sem mudança nenhuma nessa parte ───────────────
-    const payload = JSON.stringify({ title, body: msgBody, icon, tag, data: { url } });
+    // ─── Web Push (VAPID) ───────────────────────────────────────────────
+    // Ícone por org: cada inscrição web pode pertencer a uma org diferente
+    // (personal-trainer branding), então o ícone é resolvido por assinatura,
+    // não um payload único pra todo mundo como antes.
+    const webOrgIds = [...new Set(webSubs.map((s) => s.org_id).filter(Boolean))];
+    const orgIconById = new Map<string, string | null>();
+    if (webOrgIds.length > 0) {
+      const { data: orgs } = await supabase
+        .from("organizations")
+        .select("id, icon_url")
+        .in("id", webOrgIds as string[]);
+      for (const o of orgs ?? []) orgIconById.set(o.id, o.icon_url);
+    }
 
     await Promise.all(webSubs.map(async (sub) => {
+      const subIcon = icon ?? (sub.org_id ? orgIconById.get(sub.org_id) : null) ?? "/logo-icon.png";
+      const payload = JSON.stringify({ title, body: msgBody, icon: subIcon, tag, data: { url } });
       try {
         await webpush.sendNotification(
           {
