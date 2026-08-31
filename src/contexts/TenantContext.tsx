@@ -168,15 +168,15 @@ export const TenantProvider = ({ children }: TenantProviderProps) => {
       // some do DOM, só quando um href novo é aplicado. Sem isso, trocar de
       // uma org com favicon próprio (ex: Get Shape) pra uma sem, na mesma aba,
       // deixava o ícone "grudado" no anterior (achado ao vivo, 2026-08-26).
-      setFavicon(org.icon_url ?? "/logos/orbi-logo-icon-hd.png");
-      setAppleTouchIcon(org.icon_url ?? "/logos/orbi-logo-icon-hd.png");
+      setFavicon(org.icon_url ?? "/logos/orbi-app-icon-hd.png");
+      setAppleTouchIcon(org.icon_url ?? "/logos/orbi-app-icon-hd.png");
       setAppleWebAppTitle(org.name ?? "ORBI Health");
     }
 
     return () => {
       document.title = "ORBI Health";
-      setFavicon("/logos/orbi-logo-icon-hd.png");
-      setAppleTouchIcon("/logos/orbi-logo-icon-hd.png");
+      setFavicon("/logos/orbi-app-icon-hd.png");
+      setAppleTouchIcon("/logos/orbi-app-icon-hd.png");
       setAppleWebAppTitle("ORBI Health");
     };
   }, [org?.name, org?.icon_url, isGetShapeOrg]);
