@@ -36,6 +36,12 @@ const StudentLayout = () => {
   // Fecha o menu ao navegar via hardware back / location change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
+  // Reseta o scroll ao trocar de tela — sem isso a posição rolada da tela
+  // anterior "vazava" pra tela nova (o scroll é da janela inteira, React
+  // Router não reseta sozinho). Ficava mais visível em telas curtas
+  // (Alterar Senha, Sono): abriam já perto do fim, com o topo cortado.
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
+
   useEffect(() => { loadUser(); }, []);
 
   // Reage na hora a start/pause/resume/cancel do timer ativo (descanso/cardio) via Realtime —
