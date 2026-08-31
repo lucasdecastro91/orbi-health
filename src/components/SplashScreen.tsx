@@ -19,15 +19,13 @@ const SplashScreen = ({ isGetShape = false, iconUrl }: SplashScreenProps) => {
       <img
         src={src}
         alt={alt}
-        className={
-          iconUrl
-            ? "w-[120px] h-[120px] object-contain"
-            // Reduzido de 110/140px pra bater com o tamanho da splash nativa
-            // (Capacitor) — do jeito que era antes, essa tela web aparecia
-            // visivelmente maior que a nativa, dando a sensação de "dois
-            // ícones diferentes" quando o carregamento demorava mais.
-            : "w-[76px] h-[76px] md:w-[96px] md:h-[96px] object-contain"
-        }
+        // Reduzido de 110/140px pra bater com o tamanho da splash nativa
+        // (Capacitor) — do jeito que era antes, essa tela web aparecia
+        // visivelmente maior que a nativa, dando a sensação de "dois
+        // ícones diferentes" quando o carregamento demorava mais. Vale pro
+        // ícone customizado da org também (antes só o padrão tinha o ajuste,
+        // ficando maior que deveria assim que uma org configurava icon_url).
+        className="w-[76px] h-[76px] md:w-[96px] md:h-[96px] object-contain"
       />
     </div>
   );

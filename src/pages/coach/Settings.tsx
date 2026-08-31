@@ -1429,6 +1429,9 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Use PNG com fundo transparente, preferencialmente 512×512px. Máx 2MB.
+              Preencha o quadrado até a borda, sem margem em volta da logo — esse ícone
+              aparece pequeno se sobrar espaço vazio (o arredondamento das bordas já é
+              feito automaticamente pelo celular).
             </p>
           </div>
 

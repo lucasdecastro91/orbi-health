@@ -153,7 +153,14 @@ const App = () => {
         const storedOrgId  = localStorage.getItem("gs_org_id");
         if (storedGsSlug && storedGsSlug === pathSlug) {
           localStorage.setItem("gs_brand", "1");
+          // setIsGetShapeUser(true) sozinho, antes do await abaixo, causava
+          // um render intermediário com isGetShapeUser=true mas
+          // splashIconUrl ainda no valor inicial (null) — nesse instante o
+          // SplashScreen caía no fallback estático /splash-getshape.png (a
+          // marca antiga), até a query abaixo resolver e trocar de novo.
+          // Setar o valor já cacheado aqui, no mesmo lote, evita esse flash.
           setIsGetShapeUser(true);
+          setSplashIconUrl(localStorage.getItem("gs_icon_url") || null);
           document.title = "Get Shape";
           applyFavicon("/favicon-gs.png", "image/png");
           if (storedOrgId) {
@@ -165,8 +172,6 @@ const App = () => {
             const freshIconUrl = freshOrg?.icon_url ?? null;
             localStorage.setItem("gs_icon_url", freshIconUrl ?? "");
             setSplashIconUrl(freshIconUrl);
-          } else {
-            setSplashIconUrl(localStorage.getItem("gs_icon_url") || null);
           }
           return;
         }
