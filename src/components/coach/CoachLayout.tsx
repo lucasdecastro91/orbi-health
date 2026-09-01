@@ -9,7 +9,7 @@ import {
   Apple, Database, ChevronDown, Calendar, MessageSquare,
   AlertCircle, Crown, Bell, ListOrdered, ClipboardList, ClipboardCheck, Package,
   LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2, Trophy,
-  User, CreditCard, Sun, Moon, Loader2, MoreHorizontal, X,
+  User, CreditCard, Sun, Moon, Loader2, MoreHorizontal, X, Sparkles,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
@@ -677,6 +677,23 @@ const CoachLayout = () => {
           Mais opções
         </p>
         <nav className="flex-1 overflow-y-auto px-3 space-y-0.5">
+          {/* Assistente de IA — a bolinha flutuante pode ter sido escondida
+              (opção de fechar no mobile, pra não ficar no caminho de algo em
+              tela pequena); esse item garante acesso mesmo assim. */}
+          {!isCollaborator && (
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                window.dispatchEvent(new Event("orbi:open-agent"));
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ color: S.textMuted }}
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Assistente ORBI Health</span>
+            </button>
+          )}
           {moreItems.map((item) => {
             const active = isActive(item.path);
             return (

@@ -43,11 +43,35 @@ const SupportAgentBubble = () => {
   const [teaserDismissed, setTeaserDismissed] = useState(
     () => localStorage.getItem("orbi_agent_teaser_dismissed") === "1"
   );
+  // Bolinha flutuante escondida (não o balão-teaser, nem o painel de chat em
+  // si) — pedido no mobile, onde ela pode ficar no caminho de algo em telas
+  // pequenas. Persistido, mas sempre reabrível pelo menu "Mais" do
+  // CoachLayout (evento "orbi:open-agent" abaixo), então nunca perde acesso.
+  const [bubbleHidden, setBubbleHidden] = useState(
+    () => localStorage.getItem("orbi_agent_bubble_hidden") === "1"
+  );
 
   const dismissTeaser = () => {
     localStorage.setItem("orbi_agent_teaser_dismissed", "1");
     setTeaserDismissed(true);
   };
+
+  const hideBubble = () => {
+    localStorage.setItem("orbi_agent_bubble_hidden", "1");
+    setBubbleHidden(true);
+  };
+
+  // Disparado pelo item "Assistente ORBI Health" no menu "Mais" (mobile) —
+  // reaparece a bolinha (se tinha sido escondida) e já abre o chat.
+  useEffect(() => {
+    const openFromMenu = () => {
+      localStorage.removeItem("orbi_agent_bubble_hidden");
+      setBubbleHidden(false);
+      setOpen(true);
+    };
+    window.addEventListener("orbi:open-agent", openFromMenu);
+    return () => window.removeEventListener("orbi:open-agent", openFromMenu);
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +130,7 @@ const SupportAgentBubble = () => {
   return (
     <>
       {/* Balão de saudação — teaser antes de abrir o chat */}
-      {!open && !teaserDismissed && (
+      {!open && !teaserDismissed && !bubbleHidden && (
         <div
           // No mobile, "bottom-20" sozinho não considerava a barra de navegação
           // fixa do CoachLayout (h-16 + safe-area do iOS) por baixo — o balão
@@ -128,18 +152,37 @@ const SupportAgentBubble = () => {
         </div>
       )}
 
-      {/* Balão flutuante */}
-      <button
-        type="button"
-        onClick={() => (open ? setOpen(false) : openChat())}
-        // Mesmo ajuste do balão-teaser acima — sobe o suficiente pra não
-        // cobrir a barra de navegação mobile do CoachLayout.
-        className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 lg:bottom-4"
-        style={{ background: "var(--cp-gradient)", boxShadow: "0 4px 20px rgba(var(--cp-rgb),0.4)" }}
-        title="Assistente ORBI Health"
-      >
-        {open ? <X className="w-5 h-5 text-white" /> : <OrbiMark size={48} color="#fff" />}
-      </button>
+      {/* Balão flutuante — escondível (bubbleHidden) fora do chat aberto.
+          Reaparece via evento "orbi:open-agent" (item "Assistente ORBI
+          Health" no menu "Mais" do CoachLayout mobile), nunca perde acesso. */}
+      {(!bubbleHidden || open) && (
+        <div
+          // Mesmo ajuste do balão-teaser acima — sobe o suficiente pra não
+          // cobrir a barra de navegação mobile do CoachLayout.
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] right-4 z-50 lg:bottom-4"
+        >
+          <button
+            type="button"
+            onClick={() => (open ? setOpen(false) : openChat())}
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+            style={{ background: "var(--cp-gradient)", boxShadow: "0 4px 20px rgba(var(--cp-rgb),0.4)" }}
+            title="Assistente ORBI Health"
+          >
+            {open ? <X className="w-5 h-5 text-white" /> : <OrbiMark size={48} color="#fff" />}
+          </button>
+          {!open && (
+            <button
+              type="button"
+              onClick={hideBubble}
+              className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "#3f3f46", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+              title="Esconder — acesse depois pelo menu Mais"
+            >
+              <X className="w-3 h-3 text-white/70" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Painel de chat */}
       {open && (
