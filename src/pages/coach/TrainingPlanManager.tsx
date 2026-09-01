@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +135,7 @@ interface SerieDetalhe {
   valor_calculo: string;
   quantidade: number; // quantas vezes repetir este bloco (default 1)
   descricao?: string; // descrição customizada da técnica (opcional, sobrescreve o padrão)
+  descanso?: string; // descanso específico desse tipo de série, em segundos (opcional — sobrescreve o "Tempo de Descanso" único do exercício só pra essa série)
 }
 
 interface Exercise {
@@ -257,6 +258,32 @@ const notifyTreinoAtualizado = (studentUserId: string, orgId: string) => {
     } catch {}
   })();
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DraggableSerieRow — dá capacidade de arrastar/soltar a um bloco de série do
+// editor de exercício, sem precisar extrair o JSX gigante do bloco pra um
+// componente à parte (render-prop expõe só o que os hooks de drag produzem;
+// o conteúdo em si continua fechado sobre os mesmos closures do .map() de
+// origem). Hooks de drag têm que viver aqui — não dá pra chamar useDraggable/
+// useDroppable dentro do callback de um .map(), isso violaria as Rules of
+// Hooks (loop não é um componente).
+// ─────────────────────────────────────────────────────────────────────────────
+function DraggableSerieRow({
+  id, children,
+}: {
+  id: string;
+  children: (drag: {
+    setNodeRef: (el: HTMLElement | null) => void;
+    dragHandleProps: Record<string, unknown>;
+    isDragging: boolean;
+    isOver: boolean;
+  }) => ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id });
+  const setNodeRef = (el: HTMLElement | null) => { setDragRef(el); setDropRef(el); };
+  return <>{children({ setNodeRef, dragHandleProps: { ...attributes, ...listeners }, isDragging, isOver })}</>;
+}
 
 const TrainingPlanManager = ({ studentId }: TrainingPlanManagerProps) => {
   const navigate = useNavigate();
@@ -1335,6 +1362,106 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
   // gerava 1 requisição por coluna simultaneamente e estourava o
   // statement_timeout de 8s do role `authenticated`. Ver seção 15 do CLAUDE.md.
   const [exercisesByTraining, setExercisesByTraining] = useState<Record<string, Exercise[]>>({});
+  // ── Seleção múltipla de exercícios — vive aqui (não em cada coluna) pra
+  // permitir marcar exercícios de sessões diferentes e agir sobre todos numa
+  // única barra de ação (decisão do Lucas, 2026-08-31). IDs de exercício são
+  // únicos no banco independente da sessão, então um Set simples basta.
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
+  const toggleExerciseSelected = (exerciseId: string) => {
+    setSelectedExerciseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) next.delete(exerciseId); else next.add(exerciseId);
+      return next;
+    });
+  };
+  const [confirmDeletingSelected, setConfirmDeletingSelected] = useState(false);
+  const [deletingSelected, setDeletingSelected] = useState(false);
+  // ── Editar selecionados em lote — mesmo padrão simples (séries/reps/
+  // descanso) já usado pra configurar exercícios recém-adicionados, mas
+  // aplicado a exercícios já existentes, de qualquer sessão. */
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditSaving, setBulkEditSaving] = useState(false);
+  const [bulkEditRows, setBulkEditRows] = useState<{ id: string; nome: string; series: string; reps: string; descanso: string; hasDetalhada: boolean }[]>([]);
+  const [bulkEditApplySeries, setBulkEditApplySeries] = useState('3');
+  const [bulkEditApplyReps, setBulkEditApplyReps] = useState('12');
+  const [bulkEditApplyDescanso, setBulkEditApplyDescanso] = useState('60');
+
+  const openBulkEdit = () => {
+    const all = Object.values(exercisesByTraining).flat();
+    const rows = all
+      .filter((e) => selectedExerciseIds.has(e.id))
+      .map((e) => ({
+        id: e.id,
+        nome: e.nome_exercicio,
+        series: e.series || bulkEditApplySeries,
+        reps: e.repeticoes || bulkEditApplyReps,
+        descanso: e.descanso || bulkEditApplyDescanso,
+        // Só conta como "detalhada" com MAIS DE UM bloco — um único bloco
+        // (tudo Work Set, por exemplo) se comporta igual ao formato simples
+        // na prática, não faz sentido avisar sobre isso (Lucas, 2026-08-31).
+        hasDetalhada: !!(e.series_detalhadas && e.series_detalhadas.length > 1),
+      }));
+    if (rows.length === 0) return;
+    setBulkEditRows(rows);
+    setBulkEditOpen(true);
+  };
+
+  const updateBulkEditRow = (id: string, field: 'series' | 'reps' | 'descanso', value: string) => {
+    setBulkEditRows((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r));
+  };
+
+  const applyToAllBulkEditRows = (series: string, reps: string, descanso: string) => {
+    setBulkEditRows((prev) => prev.map((r) => ({ ...r, series, reps, descanso })));
+  };
+
+  const handleSaveBulkEdit = async () => {
+    const toSave = bulkEditRows.filter((r) => r.series.trim() && parseInt(r.series) > 0);
+    if (toSave.length === 0) { setBulkEditOpen(false); return; }
+    setBulkEditSaving(true);
+    try {
+      // Mesmo RPC do fluxo de "configurar recém-adicionados" — um único UPDATE
+      // atômico (evita o statement timeout de N updates concorrentes, mesma
+      // causa raiz do reordenar_exercicios). Sempre zera series_detalhadas
+      // (migration 20260831000002), então um exercício com config detalhada
+      // vira simples ao ser editado em lote — por isso o aviso na tela antes.
+      const { error } = await supabase.rpc("configurar_series_exercicios", {
+        p_rows: toSave.map((r) => ({
+          id: r.id,
+          series: r.series.trim(),
+          repeticoes: r.reps.trim(),
+          descanso: r.descanso.trim() || null,
+        })),
+      });
+      if (error) throw error;
+      toast({ title: `${toSave.length} ${toSave.length === 1 ? "exercício atualizado" : "exercícios atualizados"}!` });
+      setBulkEditOpen(false);
+      setSelectedExerciseIds(new Set());
+      await loadTrainings();
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar edição em lote", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkEditSaving(false);
+    }
+  };
+
+  const deleteSelectedExercisesGlobal = async () => {
+    const ids = Array.from(selectedExerciseIds);
+    if (ids.length === 0) return;
+    setDeletingSelected(true);
+    try {
+      const { error } = await supabase.from("exercicios").delete().in("id", ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} ${ids.length === 1 ? "exercício excluído" : "exercícios excluídos"}!` });
+      setSelectedExerciseIds(new Set());
+      setConfirmDeletingSelected(false);
+      await loadTrainings();
+    } catch (error: any) {
+      toast({ title: "Erro ao excluir exercícios", description: error.message, variant: "destructive" });
+    } finally {
+      setDeletingSelected(false);
+    }
+  };
+
   // Biblioteca e técnicas da org: dependem só de orgId, então são buscadas uma
   // vez aqui e repassadas — antes eram refeitas identicamente em cada coluna.
   const [exercisesBase, setExercisesBase] = useState<ExerciseBase[]>([]);
@@ -1430,9 +1557,16 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
 
     const movedIdx = source.findIndex((e) => e.id === exerciseId);
     if (movedIdx === -1) return;
-    const [moved] = source.splice(movedIdx, 1);
 
+    // Acha a posição do alvo ANTES de remover o item arrastado. Quando é a
+    // mesma coluna, `dest` é o mesmo array que `source` — se o índice fosse
+    // recalculado depois do splice de remoção, um item logo abaixo do
+    // arrastado já teria "subido" uma posição, e inserir "na posição dele"
+    // devolvia o item exatamente pro lugar de origem (arrastar pra baixo, pro
+    // vizinho imediato, virava um no-op). Achado ao vivo, 2026-08-31.
     const overIdx = overData.exerciseId ? dest.findIndex((e) => e.id === overData.exerciseId) : -1;
+
+    const [moved] = source.splice(movedIdx, 1);
     dest.splice(overIdx === -1 ? dest.length : overIdx, 0, moved);
 
     const next: Record<string, Exercise[]> = {
@@ -1693,6 +1827,35 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
         )}
       </div>
 
+      {/* Barra de ação da seleção múltipla — única pro bloco inteiro, funciona
+          com exercícios de sessões diferentes selecionados ao mesmo tempo
+          (decisão do Lucas, 2026-08-31: unificar em vez de manter uma barra
+          por coluna, que só enxergava a própria seleção). */}
+      {selectedExerciseIds.size > 0 && (
+        <div className="rounded-lg p-3 flex items-center justify-between gap-3 border border-white/10" style={{ backgroundColor: 'rgba(var(--cp-rgb), 0.08)' }}>
+          <span className="text-sm font-medium">
+            {selectedExerciseIds.size} {selectedExerciseIds.size === 1 ? "exercício selecionado" : "exercícios selecionados"}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" className="text-xs h-8" onClick={() => setSelectedExerciseIds(new Set())}>
+              Limpar
+            </Button>
+            <Button size="sm" variant="outline" className="text-xs h-8 font-medium" onClick={openBulkEdit}>
+              <Pencil className="h-3 w-3 mr-1" />
+              Editar
+            </Button>
+            <Button
+              size="sm" className="text-xs h-8 font-medium"
+              onClick={() => setConfirmDeletingSelected(true)}
+              style={{ background: 'var(--cp-gradient)', color: 'var(--cp-text)' }}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Excluir
+            </Button>
+          </div>
+        </div>
+      )}
+
       {trainings.length === 0 ? (
         <div className="border border-dashed rounded-lg p-6 text-center space-y-3">
           <p className="text-sm text-muted-foreground">Nenhum treino adicionado</p>
@@ -1727,6 +1890,8 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
                   customTipos={customTipos}
                   onCustomTiposChange={setCustomTipos}
                   onExercisesChanged={loadTrainings}
+                  selectedExerciseIds={selectedExerciseIds}
+                  onToggleSelect={toggleExerciseSelected}
                 />
               </TrainingColumn>
             ))}
@@ -1846,6 +2011,113 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Excluir selecionados — pode incluir exercícios de sessões diferentes */}
+      <AlertDialog open={confirmDeletingSelected} onOpenChange={setConfirmDeletingSelected}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. {selectedExerciseIds.size} {selectedExerciseIds.size === 1 ? "exercício" : "exercícios"} {selectedExerciseIds.size === 1 ? "será" : "serão"} excluído(s) permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteSelectedExercisesGlobal}
+              disabled={deletingSelected}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingSelected ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Editar selecionados em lote — pode incluir exercícios de sessões
+          diferentes. Mesmo padrão simples (séries/reps/descanso aplicados
+          igual pra todos) do fluxo de configurar exercícios recém-adicionados,
+          adaptado pra exercícios já existentes. */}
+      <Dialog open={bulkEditOpen} onOpenChange={(open) => { if (!open) setBulkEditOpen(false); }}>
+        <DialogContent className="max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Editar exercícios selecionados</DialogTitle>
+            <DialogDescription>
+              Ajuste séries, reps e descanso de cada um — ou aplique o mesmo valor pra todos de uma vez.
+            </DialogDescription>
+          </DialogHeader>
+
+          {bulkEditRows.some((r) => r.hasDetalhada) && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-200">
+              <strong>Atenção:</strong> {bulkEditRows.every((r) => r.hasDetalhada) ? "Todos os exercícios selecionados já têm" : "Alguns dos exercícios selecionados já têm"}{" "}
+              configuração detalhada por tipo de série (warm-up, work set etc — veja o ⚠ ao lado do nome). Salvar aqui substitui isso por um bloco único simples, do tipo Work Set.
+            </div>
+          )}
+
+          {bulkEditRows.length > 1 && (
+            <div className="rounded-lg bg-accent/60 p-2 space-y-1.5">
+              <div className="flex items-center gap-1 flex-wrap">
+                <Input value={bulkEditApplySeries} onChange={(e) => setBulkEditApplySeries(e.target.value)} className="h-7 w-12 text-xs px-1.5" aria-label="Séries" />
+                <span className="text-[11px] text-muted-foreground">séries ·</span>
+                <Input value={bulkEditApplyReps} onChange={(e) => setBulkEditApplyReps(e.target.value)} className="h-7 w-14 text-xs px-1.5" aria-label="Repetições" />
+                <span className="text-[11px] text-muted-foreground">reps ·</span>
+                <div className="relative">
+                  <Input value={bulkEditApplyDescanso} onChange={(e) => setBulkEditApplyDescanso(e.target.value)} className="h-7 w-14 text-xs pl-1.5 pr-4" aria-label="Descanso em segundos" />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">s</span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm" variant="secondary" className="w-full h-7 text-xs"
+                onClick={() => applyToAllBulkEditRows(bulkEditApplySeries, bulkEditApplyReps, bulkEditApplyDescanso)}
+              >
+                <Wand2 className="h-3 w-3 mr-1" />
+                Aplicar aos {bulkEditRows.length}
+              </Button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-[80px] space-y-1">
+            {bulkEditRows.map((row) => (
+              <div key={row.id} className="flex items-center gap-1.5 py-1">
+                <span className="flex-1 min-w-0 text-sm truncate" title={row.nome}>
+                  {row.nome}{row.hasDetalhada ? " ⚠" : ""}
+                </span>
+                <Input
+                  value={row.series}
+                  onChange={(e) => updateBulkEditRow(row.id, 'series', e.target.value)}
+                  className="h-7 w-11 text-xs px-1 text-center"
+                  aria-label={`Séries — ${row.nome}`}
+                />
+                <Input
+                  value={row.reps}
+                  onChange={(e) => updateBulkEditRow(row.id, 'reps', e.target.value)}
+                  className="h-7 w-12 text-xs px-1 text-center"
+                  aria-label={`Repetições — ${row.nome}`}
+                />
+                <div className="relative">
+                  <Input
+                    value={row.descanso}
+                    onChange={(e) => updateBulkEditRow(row.id, 'descanso', e.target.value)}
+                    className="h-7 w-12 text-xs pl-1 pr-4 text-center"
+                    aria-label={`Descanso — ${row.nome}`}
+                  />
+                  <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="items-center sm:justify-between">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setBulkEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSaveBulkEdit} disabled={bulkEditSaving}>
+              {bulkEditSaving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -2068,16 +2340,16 @@ const ExerciseRow = ({
         ...style,
         backgroundColor: EXERCISE_CARD_BG,
         // --cp-500 é a cor primária da org (var real; --cp-color não existe)
-        borderColor: isSelected ? 'var(--cp-500)' : EXERCISE_CARD_BORDER,
-        borderWidth: isSelected ? '2px' : '1px',
+        // Contorno inteiro quando selecionado OU quando é o alvo do drag —
+        // mesmo padrão usado no contorno da coluna e no editor de séries
+        // (decisão do Lucas, 2026-08-31: unificar a pista visual de drop-target
+        // como contorno completo em vez da barra só no topo que tinha antes).
+        borderColor: (isSelected || isOver) ? 'var(--cp-500)' : EXERCISE_CARD_BORDER,
+        borderWidth: (isSelected || isOver) ? '2px' : '1px',
         borderStyle: 'solid',
         boxShadow: isSelected
           ? '0 0 0 1px rgba(var(--cp-rgb), 0.5), 0 0 14px rgba(var(--cp-rgb), 0.35), 0 10px 28px rgba(0,0,0,0.45)'
           : EXERCISE_CARD_SHADOW,
-        // Barra na cor primária no topo do card sob o cursor: mostra que o item
-        // arrastado vai ser inserido ANTES dele. Sem isso não havia nenhuma
-        // pista visual de onde o exercício ia cair.
-        borderTop: isOver ? '3px solid var(--cp-500)' : undefined,
       }}
       className={`rounded-lg text-card-foreground transition-all`}
       data-over={isOver || undefined}
@@ -2175,6 +2447,7 @@ const ExerciseRow = ({
 
 const TrainingExercises = ({
   trainingId, studentUserId, initialExercises, exercisesBase, customTipos, onCustomTiposChange, onExercisesChanged,
+  selectedExerciseIds, onToggleSelect,
 }: {
   trainingId: string;
   studentUserId?: string;
@@ -2190,6 +2463,11 @@ const TrainingExercises = ({
    *  depois da carga inicial não existe pra ele e o arraste simplesmente não sai
    *  do lugar. */
   onExercisesChanged: () => void | Promise<void>;
+  /** Seleção múltipla — vive no pai (WeekDetails), não aqui, pra permitir
+   *  selecionar exercícios de sessões diferentes ao mesmo tempo e agir sobre
+   *  todos numa única barra de ação (decisão do Lucas, 2026-08-31). */
+  selectedExerciseIds: Set<string>;
+  onToggleSelect: (exerciseId: string) => void;
 }) => {
   const [exercises, setExercises] = useState<Exercise[]>(initialExercises);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -2197,13 +2475,33 @@ const TrainingExercises = ({
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [detailedSeries, setDetailedSeries] = useState<SerieDetalhe[]>([]);
+  // Arrastar pra reordenar os blocos de série (substitui as antigas setas
+  // pra cima/baixo). Sensors com os mesmos limiares já usados no drag de
+  // exercícios do kanban, pra não disparar drag num toque comum de scroll.
+  const [draggingSerieId, setDraggingSerieId] = useState<string | null>(null);
+  const serieSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+  );
+  const handleSerieDragEnd = (event: DragEndEvent) => {
+    setDraggingSerieId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setDetailedSeries((prev) => {
+      const oldIndex = prev.findIndex((s) => s.id === active.id);
+      const newIndex = prev.findIndex((s) => s.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, moved);
+      return next;
+    });
+  };
   const [cargaBase, setCargaBase] = useState('');
   const [descansoEx, setDescansoEx] = useState('');
   // IDs de blocos de série que expandiram as Técnicas Avançadas no seletor
   const [showAdvancedFor, setShowAdvancedFor] = useState<Set<string>>(new Set());
   const [showDescFor, setShowDescFor] = useState<Set<string>>(new Set());
-  // ── Seleção múltipla de exercícios ─────────────────────────────────
-  const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
   // ── Adicionar exercícios (seleção múltipla da biblioteca) ──────────
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSearch, setBulkSearch] = useState('');
@@ -2339,16 +2637,6 @@ const TrainingExercises = ({
     }));
   };
 
-  const moveDetailedSerie = (idx: number, direction: 'up' | 'down') => {
-    setDetailedSeries(prev => {
-      const next = [...prev];
-      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= next.length) return prev;
-      [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
-      return next;
-    });
-  };
-
   // ── Normalize backward-compat serie (old: tipo_carga/valor_carga) ──
   const normalizeSerie = (s: any): SerieDetalhe => {
     const tipo = normalizeTipo(s.tipo ?? 'trabalho');
@@ -2362,6 +2650,7 @@ const TrainingExercises = ({
       quantidade: typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
       // Descrição por exercício tem prioridade; fallback na config global da org
       descricao: s.descricao?.trim() ? s.descricao : (globalConfig[tipo] || undefined),
+      descanso: s.descanso ?? undefined,
     };
   };
 
@@ -2672,35 +2961,8 @@ const TrainingExercises = ({
     }
   };
 
-  /** Deleta múltiplos exercícios selecionados */
-  const deleteSelectedExercises = async () => {
-    const ids = Array.from(selectedExerciseIds);
-    if (ids.length === 0) return;
-
-    try {
-      const { error } = await supabase
-        .from("exercicios")
-        .delete()
-        .in("id", ids);
-
-      if (error) throw error;
-
-      toast({ title: `${ids.length} ${ids.length === 1 ? "exercício excluído" : "exercícios excluídos"}!` });
-      setSelectedExerciseIds(new Set());
-      await onExercisesChanged();
-    } catch (error: any) {
-      toast({
-        title: "Erro ao excluir exercícios",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   // Sem estado de "Carregando..." aqui: os exercícios já chegam prontos por prop
   // junto com a sessão, então não existe janela de espera nesta coluna.
-
-  const selectedCount = selectedExerciseIds.size;
 
   /** Os exercícios marcados no modal, **na ordem em que foram clicados**.
    *  `Set` preserva ordem de inserção, então basta iterar o Set em vez de
@@ -2727,36 +2989,6 @@ const TrainingExercises = ({
         Adicionar exercícios
       </Button>
 
-      {selectedCount > 0 && (
-        <div className="rounded-lg p-3 flex items-center justify-between gap-3 border border-white/10" style={{ backgroundColor: 'rgba(var(--cp-rgb), 0.08)' }}>
-          <span className="text-sm font-medium">
-            {selectedCount} {selectedCount === 1 ? "exercício selecionado" : "exercícios selecionados"}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm" variant="ghost" className="text-xs h-8"
-              onClick={() => setSelectedExerciseIds(new Set())}
-            >
-              Limpar
-            </Button>
-            <Button
-              size="sm" className="text-xs h-8 font-medium"
-              onClick={() => {
-                if (selectedCount === 1) {
-                  deleteSelectedExercises();
-                } else {
-                  setDeletingExerciseId("multiple");
-                }
-              }}
-              style={{ background: 'var(--cp-gradient)', color: 'var(--cp-text)' }}
-            >
-              <Trash2 className="h-3 w-3 mr-1" />
-              Deletar
-            </Button>
-          </div>
-        </div>
-      )}
-
       <div
         ref={setColumnDropRef}
         className={`space-y-2 min-h-[16px] rounded-lg transition-colors ${isColumnOver ? "bg-accent/40" : ""}`}
@@ -2775,17 +3007,7 @@ const TrainingExercises = ({
               onToggleConjugado={() => toggleConjugado(exercise.id, !!exercise.conjugado_com_proximo)}
               onEdit={() => openDialog(exercise)}
               onDelete={() => setDeletingExerciseId(exercise.id)}
-              onToggleSelect={() => {
-                setSelectedExerciseIds(prev => {
-                  const next = new Set(prev);
-                  if (next.has(exercise.id)) {
-                    next.delete(exercise.id);
-                  } else {
-                    next.add(exercise.id);
-                  }
-                  return next;
-                });
-              }}
+              onToggleSelect={() => onToggleSelect(exercise.id)}
             />
           ))
         )}
@@ -2795,7 +3017,7 @@ const TrainingExercises = ({
         setDialogOpen(open);
         if (!open) { setDetailedSeries([]); setCargaBase(''); setDescansoEx(''); }
       }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingExercise ? "Editar Exercício" : "Adicionar Exercício"}
@@ -2899,6 +3121,13 @@ const TrainingExercises = ({
               )}
 
               {detailedSeries.length > 0 && (
+                <DndContext
+                  sensors={serieSensors}
+                  collisionDetection={pointerWithin}
+                  onDragStart={(e: DragStartEvent) => setDraggingSerieId(String(e.active.id))}
+                  onDragEnd={handleSerieDragEnd}
+                  onDragCancel={() => setDraggingSerieId(null)}
+                >
                 <div className="space-y-2">
                   {detailedSeries.map((serie, idx) => {
                     const preview = calcCarga(cargaBase, serie.tipo_calculo, serie.valor_calculo);
@@ -2917,9 +3146,15 @@ const TrainingExercises = ({
                     // evidente. Tokens também acompanham o light mode, que hex
                     // fixo não faz.
                     return (
+                      <DraggableSerieRow key={serie.id} id={serie.id}>
+                      {({ setNodeRef, dragHandleProps, isDragging, isOver }) => (
                       <div
-                        key={serie.id}
-                        className="rounded-xl p-3 space-y-2.5 bg-card/60 border border-border/60 shadow-sm"
+                        ref={setNodeRef}
+                        className="rounded-xl p-3 space-y-2.5 bg-card/60 border border-border/60 shadow-sm transition-colors"
+                        style={{
+                          ...(isOver ? { borderColor: 'var(--cp-500)' } : {}),
+                          opacity: isDragging ? 0.4 : 1,
+                        }}
                       >
                         {/* Row 1: [nº + setas] | tipo selector | delete
                             Número e setas ficam na MESMA coluna à esquerda: as
@@ -2927,39 +3162,22 @@ const TrainingExercises = ({
                             as setas ficavam à direita, encostadas na lixeira —
                             mesmo tamanho e mesma cor de uma ação destrutiva. */}
                         <div className="flex items-start gap-2">
-                          {/* Número + setas num bloco só: as duas coisas tratam
-                              da posição. As setas ficam SEMPRE as duas visíveis
-                              quando há mais de um bloco — antes a desabilitada
-                              usava opacity-20 e sumia, então cada card exibia uma
-                              seta solta em posição diferente do outro e parecia
-                              erro de renderização. */}
+                          {/* Número + handle de arrastar num bloco só: as duas coisas
+                              tratam da posição. Handle só aparece com mais de um bloco
+                              — com um só, não tem pra onde reordenar. */}
                           <div className="flex flex-col items-center shrink-0 rounded-lg bg-muted/40 py-1">
                             <span className="text-[10px] text-muted-foreground font-bold w-6 text-center">
                               {idx + 1}
                             </span>
-                            {/* 57% dos exercícios têm um único bloco; ali as duas
-                                setas ficariam permanentemente desabilitadas. */}
                             {detailedSeries.length > 1 && (
-                              <div className="flex flex-col mt-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => moveDetailedSerie(idx, 'up')}
-                                  disabled={idx === 0}
-                                  title="Mover para cima"
-                                  className="h-5 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default transition-colors"
-                                >
-                                  <ChevronUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => moveDetailedSerie(idx, 'down')}
-                                  disabled={idx === detailedSeries.length - 1}
-                                  title="Mover para baixo"
-                                  className="h-5 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-default transition-colors"
-                                >
-                                  <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                {...dragHandleProps}
+                                title="Arrastar pra reordenar"
+                                className="h-6 w-6 mt-0.5 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground hover:bg-foreground/10 cursor-grab active:cursor-grabbing touch-none transition-colors"
+                              >
+                                <GripVertical className="w-3.5 h-3.5" />
+                              </button>
                             )}
                           </div>
 
@@ -3202,9 +3420,11 @@ const TrainingExercises = ({
                           </Button>
                         </div>
 
-                        {/* Row 2: quantidade | reps | tipo_calculo buttons | valor | preview
+                        {/* Row 2: quantidade | reps | tipo_calculo buttons | valor | descanso | preview
                             ml-8 = w-6 da coluna de posição + gap-2, pra alinhar
-                            com o seletor de tipo da linha de cima. */}
+                            com o seletor de tipo da linha de cima. Precisa caber numa
+                            linha só (decisão do Lucas, 2026-08-31) — por isso o dialog
+                            ganhou sm:max-w-2xl em vez de deixar essa linha quebrar. */}
                         <div className="flex items-end gap-2 ml-8">
                           {/* Quantidade de blocos */}
                           <div className="shrink-0">
@@ -3259,8 +3479,10 @@ const TrainingExercises = ({
                             </div>
                           </div>
 
-                          {/* Valor */}
-                          <div className="w-[4.5rem] shrink-0">
+                          {/* Valor — mais estreito (w-14 em vez de w-[4.5rem]) pra abrir
+                              espaço pro campo de Descanso na mesma linha; "80kg" ainda
+                              cabe tranquilo em text-xs. */}
+                          <div className="w-14 shrink-0">
                             <Label className="text-[10px] text-muted-foreground">
                               {serie.tipo_calculo === 'manual'
                                 ? 'Valor'
@@ -3278,6 +3500,25 @@ const TrainingExercises = ({
                             />
                           </div>
 
+                          {/* Descanso específico dessa série — sempre em segundos, no
+                              máximo 3 dígitos, então cabe estreito (w-11) na mesma linha.
+                              Vazio = usa o "Tempo de Descanso" único do exercício (ou
+                              nenhum timer automático, se esse também estiver vazio) —
+                              nunca um valor de fábrica, cada treinador define o próprio
+                              padrão. */}
+                          <div className="w-11 shrink-0">
+                            <Label className="text-[10px] text-muted-foreground">Desc.</Label>
+                            <Input
+                              value={serie.descanso ?? ''}
+                              onChange={(e) => updateDetailedSerie(idx, 'descanso', e.target.value)}
+                              placeholder="—"
+                              maxLength={3}
+                              inputMode="numeric"
+                              title="Descanso (segundos) específico dessa série — em branco usa o Tempo de Descanso do exercício"
+                              className={`h-8 text-xs mt-1 px-1.5 text-center ${FIELD_CLS}`}
+                            />
+                          </div>
+
                           {/* Carga calculada */}
                           <div className="flex-1 text-right pb-0.5">
                             <p className="text-[9px] text-muted-foreground">Carga</p>
@@ -3287,9 +3528,23 @@ const TrainingExercises = ({
                           </div>
                         </div>
                       </div>
+                      )}
+                      </DraggableSerieRow>
                     );
                   })}
                 </div>
+                <DragOverlay dropAnimation={null}>
+                  {draggingSerieId ? (() => {
+                    const dragged = detailedSeries.find((s) => s.id === draggingSerieId);
+                    if (!dragged) return null;
+                    return (
+                      <div className="rounded-xl p-3 bg-card border shadow-lg" style={{ borderColor: 'var(--cp-500)' }}>
+                        <p className="text-xs font-medium">{dragged.tipo || 'Série'}</p>
+                      </div>
+                    );
+                  })() : null}
+                </DragOverlay>
+                </DndContext>
               )}
             </div>
 
@@ -3524,21 +3779,13 @@ const TrainingExercises = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deletingExerciseId === "multiple"
-                ? `Esta ação não pode ser desfeita. ${selectedCount} ${selectedCount === 1 ? "exercício" : "exercícios"} ${selectedCount === 1 ? "será" : "serão"} excluído(s) permanentemente.`
-                : "Esta ação não pode ser desfeita. O exercício será excluído permanentemente."}
+              Esta ação não pode ser desfeita. O exercício será excluído permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deletingExerciseId === "multiple") {
-                  deleteSelectedExercises();
-                } else {
-                  handleDeleteExercise();
-                }
-              }}
+              onClick={handleDeleteExercise}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir

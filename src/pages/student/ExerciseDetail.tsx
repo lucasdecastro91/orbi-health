@@ -29,6 +29,7 @@ interface SerieDetalhe {
   valor_calculo: string;
   quantidade: number; // quantas vezes repetir este bloco (default 1)
   observacoes?: string; // per-serie note set by trainer
+  descanso?: string | null; // descanso específico desse tipo de série (sobrescreve o do exercício)
 }
 
 /** Carga + reps realizadas num slot físico de uma série (uma série com quantidade=2 tem 2 slots) */
@@ -129,12 +130,6 @@ const SERIE_TIPO_CONFIG: Record<string, { label: string; bg: string; text: strin
   'cluster':      { label: 'Cluster',    bg: 'rgba(34,197,94,0.12)',     text: '#4ade80'       },
   'rest-pause':   { label: 'Rest Pause', bg: 'rgba(251,113,133,0.12)',   text: '#fb7185'       },
   'muscle-round': { label: 'Muscle Rnd', bg: 'rgba(34,211,238,0.12)',    text: '#22d3ee'       },
-};
-
-// Default rest times (seconds) per series type when no exercise rest is set
-const DEFAULT_REST_SECS: Record<string, number> = {
-  'warm-up': 45,
-  'feeder':  60,
 };
 
 // Hardcoded fallback hints — used only when org has no global config set.
@@ -657,7 +652,7 @@ const ExerciseDetail = () => {
     })();
   }, [studentUserId, exercise]);
 
-  const saveSingleSlot = async (serieKey: string, serieType: string, i: number) => {
+  const saveSingleSlot = async (serieKey: string, serieDescanso: string | null | undefined, i: number) => {
     if (!studentUserId || !id) return;
     const v = slots[slotKey(serieKey, i)] ?? { reps: "", carga: "" };
     if (!v.reps.trim() || !v.carga.trim()) return; // só salva com os dois campos preenchidos
@@ -682,8 +677,18 @@ const ExerciseDetail = () => {
 
       setSlots((prev) => ({ ...prev, [key]: { reps: row.reps_realizadas, carga: row.carga_realizada, saved: true } }));
 
-      const secs = DEFAULT_REST_SECS[serieType] ?? parseDescansoSecs(exercise?.descanso);
-      setTimeout(() => openRestTimer(secs), 150);
+      // Só abre timer automático se o treinador de fato configurou um descanso
+      // — nessa série específica, ou (fallback) no campo único do exercício.
+      // Nunca um valor "de fábrica" não configurado por ninguém: decisão do
+      // Lucas (2026-08-31) pra não vazar o padrão de um treinador (ex: 45s/60s
+      // fixos de warm-up/feeder que a Get Shape usa) pra orgs que não setaram
+      // nada — cada treinador define o próprio padrão explicitamente.
+      const secs = serieDescanso
+        ? parseDescansoSecs(serieDescanso)
+        : (exercise?.descanso ? parseDescansoSecs(exercise.descanso) : null);
+      if (secs != null) {
+        setTimeout(() => openRestTimer(secs), 150);
+      }
     } catch (err: any) {
       toast({ title: "Não foi possível salvar", description: err.message, variant: "destructive" });
     } finally {
@@ -783,6 +788,7 @@ const ExerciseDetail = () => {
         quantidade:    typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
         // Coach salva o texto em `descricao`; mantém retrocompatibilidade com `observacoes`
         observacoes:   s.observacoes ?? s.descricao ?? '',
+        descanso:      s.descanso ?? null,
       });
 
       const rawSd = (q as any).series_detalhadas;
@@ -1012,9 +1018,13 @@ const ExerciseDetail = () => {
 
       <div className="min-h-screen pb-24">
 
-        {/* ── Sticky back bar — full-width bg, content capped to match cards ── */}
+        {/* ── Sticky back bar — full-width bg, content capped to match cards ──
+             Rota é "sem layout" (App.tsx) — não herda o padding-top de
+             safe-area do StudentLayout, então essa barra precisa do próprio,
+             senão fica atrás da status bar (relógio/wifi/bateria) no app nativo. */}
         <div
-          className="sticky top-0 z-10 py-3 bg-background/90 backdrop-blur-md"
+          className="sticky top-0 z-10 bg-background/90 backdrop-blur-md"
+          style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))", paddingBottom: "0.75rem" }}
         >
           <div className="max-w-2xl mx-auto px-4 flex items-center gap-3">
             <button
@@ -1416,7 +1426,7 @@ const ExerciseDetail = () => {
                                   style={{ backgroundColor: 'hsl(var(--foreground) / 0.06)', border: '1px solid hsl(var(--foreground) / 0.09)' }}
                                 />
                                 <button
-                                  onClick={() => saveSingleSlot(serieKey, serie.tipo, i)}
+                                  onClick={() => saveSingleSlot(serieKey, serie.descanso, i)}
                                   disabled={!canSave || isSaving}
                                   className="w-6 h-6 flex items-center justify-center shrink-0 transition-transform active:scale-90 disabled:active:scale-100"
                                   aria-label={v.saved ? 'Set salvo' : 'Salvar set'}
