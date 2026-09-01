@@ -108,7 +108,11 @@ const SupportAgentBubble = () => {
       {/* Balão de saudação — teaser antes de abrir o chat */}
       {!open && !teaserDismissed && (
         <div
-          className="fixed bottom-20 right-4 z-50 flex items-center gap-2 rounded-2xl pl-4 pr-2.5 py-3 cursor-pointer"
+          // No mobile, "bottom-20" sozinho não considerava a barra de navegação
+          // fixa do CoachLayout (h-16 + safe-area do iOS) por baixo — o balão
+          // ficava sobreposto ao ícone de Configurações, bloqueando o toque.
+          // No desktop (lg:) não existe essa barra, mantém o offset original.
+          className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom,0px))] right-4 z-50 flex items-center gap-2 rounded-2xl pl-4 pr-2.5 py-3 cursor-pointer lg:bottom-20"
           style={{ backgroundColor: "#fff", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}
           onClick={openChat}
         >
@@ -128,7 +132,9 @@ const SupportAgentBubble = () => {
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openChat())}
-        className="fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+        // Mesmo ajuste do balão-teaser acima — sobe o suficiente pra não
+        // cobrir a barra de navegação mobile do CoachLayout.
+        className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] right-4 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 lg:bottom-4"
         style={{ background: "var(--cp-gradient)", boxShadow: "0 4px 20px rgba(var(--cp-rgb),0.4)" }}
         title="Assistente ORBI Health"
       >
@@ -138,7 +144,8 @@ const SupportAgentBubble = () => {
       {/* Painel de chat */}
       {open && (
         <div
-          className="fixed bottom-20 right-4 z-50 w-[min(380px,calc(100vw-2.5rem))] h-[min(560px,calc(100vh-8rem))] rounded-2xl border flex flex-col overflow-hidden"
+          // Mesmo ajuste do teaser/balão acima.
+          className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom,0px))] right-4 z-50 w-[min(380px,calc(100vw-2.5rem))] h-[min(560px,calc(100vh-8rem))] rounded-2xl border flex flex-col overflow-hidden lg:bottom-20"
           style={{ backgroundColor: "var(--sheet-bg)", borderColor: "hsl(var(--border))", boxShadow: "0 12px 40px rgba(0,0,0,0.4)" }}
         >
           {/* Header */}

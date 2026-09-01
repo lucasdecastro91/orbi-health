@@ -9,7 +9,7 @@ import {
   Apple, Database, ChevronDown, Calendar, MessageSquare,
   AlertCircle, Crown, Bell, ListOrdered, ClipboardList, ClipboardCheck, Package,
   LayoutDashboard, ScanLine, Target, Wallet, Lock, Users2, Trophy,
-  User, CreditCard, Sun, Moon, Loader2,
+  User, CreditCard, Sun, Moon, Loader2, MoreHorizontal, X,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,6 +106,7 @@ const CoachLayout = () => {
   const [metaInput,   setMetaInput]       = useState("");
   const [savingMeta,  setSavingMeta]      = useState(false);
   const [metaPopoverOpen, setMetaPopoverOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate  = useNavigate();
   const location  = useLocation();
   const { slug, org, orgId, isGetShapeOrg, reload } = useTenantContext();
@@ -115,6 +116,9 @@ const CoachLayout = () => {
   const base = `/${slug}/treinador`;
 
   useEffect(() => { loadProfile(); }, []);
+
+  // Fecha o menu "Mais" (mobile) ao navegar
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
   // Meta de faturamento (barra no topo) — recebido do mês atual, mesma
   // lógica de período já usada em Financeiro.tsx (data_pagamento no mês corrente).
@@ -301,13 +305,41 @@ const CoachLayout = () => {
     applyAmber();
   }, [isGetShapeOrg, org?.primary_color]);
 
-  // Mobile bottom-nav items (flat, no sub-items)
+  // Mobile bottom-nav items (flat, no sub-items) — os 4 mais usados no dia a
+  // dia do treinador; o resto (Agenda, Ranking, Leads, Financeiro, Produtos,
+  // Biblioteca, Modelos, Notificações, Alimentos, Anamnese, Avaliação
+  // Postural, Formulário, Colaboradores) fica no botão "Mais" abaixo, nunca
+  // duplicado aqui.
   const menuItems = [
     { icon: LayoutDashboard, label: "Resumo",   path: base,                    badge: 0 },
     ...(can("treino",         "clientes"      ) ? [{ icon: Users,         label: "Clientes",  path: `${base}/clientes`,      badge: 0           }] : []),
     ...(can("gestao",         "mensagens"     ) ? [{ icon: MessageSquare, label: "Mensagens", path: `${base}/mensagens`,     badge: unreadCount }] : []),
-    ...(hasDiet && can("nutricao", "alimentos") ? [{ icon: Apple,         label: "Alimentos", path: `${base}/alimentos`,     badge: 0           }] : []),
     ...(can("administracao",  "configuracoes" ) ? [{ icon: Settings,      label: "Config.",   path: `${base}/configuracoes`, badge: 0           }] : []),
+  ];
+
+  // Itens do menu "Mais" (mobile) — mesma regra de permissão que a sidebar
+  // desktop já usa pros grupos equivalentes (midItems/bottomItems/
+  // alimentosItems/configItems), só reorganizados numa lista só.
+  const moreItems = [
+    ...(can("treino",  "agenda")             ? [{ icon: Calendar,       label: "Agenda",                    path: `${base}/agenda`      }] : []),
+    ...(can("gestao",  "ranking")            ? [{ icon: Trophy,         label: "Ranking",                   path: `${base}/ranking`     }] : []),
+    ...(can("gestao",  "leads_crm")          ? [{ icon: Target,         label: "Leads / CRM",               path: `${base}/leads`       }] : []),
+    ...(can("gestao",  "financeiro")         ? [{ icon: Wallet,         label: "Financeiro",                path: `${base}/financeiro`  }] : []),
+    ...(can("gestao",  "produtos_planos")    ? [{ icon: Package,        label: "Produtos / Planos",         path: `${base}/produtos`    }] : []),
+    ...(hasTraining && can("treino", "biblioteca_exercicios") ? [{ icon: BookOpen, label: "Biblioteca de Exercícios", path: `${base}/biblioteca` }] : []),
+    ...(hasTraining && can("treino", "modelos_treino")        ? [{ icon: FileText, label: "Modelos de Treino",        path: `${base}/modelos`    }] : []),
+    ...(can("gestao",  "notificacoes")       ? [{ icon: Bell,           label: "Notificações",              path: `${base}/notificacoes` }] : []),
+    ...(hasDiet && can("nutricao", "alimentos") ? [
+      { icon: Apple,        label: "Banco de Alimentos",       path: `${base}/alimentos` },
+      { icon: ListOrdered,  label: "Lista de Substituição",    path: `${base}/lista-substituicao` },
+      ...(isSuperAdmin ? [{ icon: ShieldCheck, label: "Revisão", path: `${base}/revisao-alimentos` }] : []),
+    ] : []),
+    ...(can("administracao", "configuracoes") ? [
+      { icon: ClipboardCheck, label: "Anamnese",                    path: `${base}/anamnese-builder` },
+      ...(hasAvaliacaoPostural ? [{ icon: ScanLine, label: "Avaliação Postural", path: `${base}/postural-eval-builder` }] : []),
+      { icon: ClipboardList,  label: "Formulário de Atualização",  path: `${base}/formulario` },
+      ...(!isCollaborator ? [{ icon: Users2, label: "Colaboradores", path: `${base}/colaboradores` }] : []),
+    ] : []),
   ];
 
   // Sidebar items (desktop) — split into groups to allow expandable sections in between
@@ -462,6 +494,10 @@ const CoachLayout = () => {
     location.pathname.includes("/postural-eval-builder") ||
     location.pathname.includes("/colaboradores");
 
+  // Mobile: destaca o botão "Mais" quando a tela atual é um dos itens só
+  // acessíveis por dentro do menu expansível (não tem ícone fixo pra ela).
+  const isMoreActive = moreItems.some((item) => isActive(item.path));
+
   // App nativo (iOS/Android) não pode oferecer compra de assinatura digital
   // dentro do app (guideline 3.1.1 da Apple) — mas isso não pode virar acesso
   // grátis pra sempre pra quem instala pelo TestFlight/App Store. Bloqueia o
@@ -582,11 +618,85 @@ const CoachLayout = () => {
               </Link>
             );
           })}
+
+          {/* Botão "Mais" — abre o painel com o resto da navegação (não repete os 4 itens acima) */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
+            style={{ color: mobileMenuOpen || isMoreActive ? "var(--cp-500)" : S.textDim }}
+          >
+            <div style={{ transition: "transform 200ms ease", transform: mobileMenuOpen ? "rotate(90deg)" : "rotate(0deg)" }}>
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
+            </div>
+            <span className="text-[10px] font-medium">Mais</span>
+          </button>
         </div>
 
         {/* Safe area para dispositivos com home indicator (iOS) */}
         <div style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
       </nav>
+
+      {/* ── Mobile: backdrop + painel "Mais" (desliza da esquerda, mesmo
+          lado da sidebar desktop, por pedido do Lucas) ───────────────── */}
+      <div
+        onClick={() => setMobileMenuOpen(false)}
+        className="lg:hidden"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 40,
+          backgroundColor: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
+          opacity: mobileMenuOpen ? 1 : 0,
+          pointerEvents: mobileMenuOpen ? "auto" : "none",
+          transition: "opacity 250ms ease",
+        }}
+      />
+      <aside
+        className="lg:hidden"
+        style={{
+          position: "fixed",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 45,
+          width: "min(80vw, 300px)",
+          backgroundColor: S.bg,
+          borderRight: `1px solid ${S.border}`,
+          transform: mobileMenuOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 300ms cubic-bezier(0.32, 0.72, 0, 1)",
+          display: "flex",
+          flexDirection: "column",
+          paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
+          paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        <p className="px-4 pb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>
+          Mais opções
+        </p>
+        <nav className="flex-1 overflow-y-auto px-3 space-y-0.5">
+          {moreItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <Link key={item.path} to={item.path}>
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  style={
+                    active
+                      ? { background: "var(--cp-gradient)", color: "#ffffff" }
+                      : { color: S.textMuted }
+                  }
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
 
       {/* ═══════════════════════════════════════════
           DESKTOP — sidebar fixa (sempre dark)
