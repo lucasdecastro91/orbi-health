@@ -8,11 +8,13 @@ import {
   Plus, Search, X, Copy, Check, Loader2, CreditCard,
   Wallet, ChevronDown, CheckCircle2, AlertTriangle,
   Smartphone, TrendingUp, Settings, Landmark, Circle, ReceiptText,
+  Calculator, Zap,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -74,6 +76,18 @@ const FORMA_LABEL: Record<string, string> = {
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Converte string no formato brasileiro ("1.800,00" ou "1800,00") pra float —
+// substitui o parseFloat(v.replace(",", ".")) antigo, que quebrava com
+// separador de milhar (ex: "1.412,87" virava 1.412, não 1412.87).
+const parseBRL = (s: string): number =>
+  parseFloat(s.replace(/\./g, "").replace(",", "."));
+
+const toBRLInput = (v: number): string =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const CALC_LIMITE_LIQUIDO  = 5000;
+const CALC_LIMITE_PARCELAS = 12;
+
 // Nosso checkout (/pagar/:id) cobre Pix e Cartão (tokenizado via
 // pagar-cobranca-cartao) — só boleto ainda cai no link hospedado pelo Asaas
 // (não construímos boleto na nossa página, e o projeto decidiu não usar
@@ -95,6 +109,12 @@ const CARTEIRA_CHECKLIST = [
   { label: "Dados bancários / chave Pix", done: false },
   { label: "Conta liberada pra saque",    done: false },
 ];
+
+// Selo oficial de identificação do Asaas como Instituição Prestadora
+// (exigência da Resolução Conjunta nº 16/2025 pro modelo BaaS — sem isso, a
+// Asaas não homologa a operação). URL real enviada pela Estela (gerente de
+// contas) em 2026-08-28, não é o exemplo genérico do Playbook.
+const ASAAS_SELO_URL = "https://baas.asaas.com/selos/Servicos_financeiros_Asaas-Reduzida-Negativo-Branco.svg?id=6bb12931-3438-4d1a-b8fc-3f3406d38a44";
 
 const PIX_KEY_TYPES = [
   { value: "CPF",   label: "CPF" },
@@ -217,6 +237,7 @@ const PaymentSuccessModal = ({
 // ─────────────────────────────────────────────────────────────────────────────
 interface NovaCobrancaProps {
   orgId: string;
+  isGsBrand: boolean;
   alunos: AlunoOption[];
   onClose: () => void;
   onCreated: (c: Cobranca) => void;
@@ -224,7 +245,7 @@ interface NovaCobrancaProps {
 
 const CUSTOM_PLAN_ID = "__custom__";
 
-const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaProps) => {
+const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: NovaCobrancaProps) => {
   const { toast }  = useToast();
   const navigate   = useNavigate();
 
@@ -244,6 +265,52 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
   const [vencimento,   setVencimento]   = useState(defaultDueStr);
   const [saving,       setSaving]       = useState(false);
   const [cpf,          setCpf]          = useState("");
+
+  // Calculadora de repasse pra cobrança personalizada no cartão — o valor
+  // digitado em "Valor (R$)" nesse caso é o líquido desejado, não o bruto;
+  // precisa do mesmo cálculo de repasse de taxa + antecipação já usado em
+  // Produtos & Planos (mesma Edge Function), já que aqui não existe um plano
+  // pré-configurado com installment_options prontos.
+  const [calcNetValue,   setCalcNetValue]   = useState("");
+  const [calcAnticipate, setCalcAnticipate] = useState(false);
+  const [calcInstall,    setCalcInstall]    = useState("1");
+  const [calculating,    setCalculating]    = useState(false);
+  const [calcResult,     setCalcResult]     = useState<{ totalCharged: number; perInstallment: number; netEstimated: number; marginApplied: number } | null>(null);
+  const [calcErro,       setCalcErro]       = useState("");
+
+  const calcNetNum   = parseBRL(calcNetValue || "0") || 0;
+  const calcInstNum  = parseInt(calcInstall) || 0;
+  const calcOverLimit = calcNetNum > CALC_LIMITE_LIQUIDO || calcInstNum > CALC_LIMITE_PARCELAS;
+
+  const handleCalcularCustom = async () => {
+    setCalcErro(""); setCalcResult(null);
+    const net  = parseBRL(calcNetValue);
+    const inst = parseInt(calcInstall);
+    if (isNaN(net) || net <= 0) { setCalcErro("Informe o valor líquido desejado."); return; }
+    if (!inst || inst < 1) { setCalcErro("Informe o número de parcelas."); return; }
+    if (net > CALC_LIMITE_LIQUIDO || inst > CALC_LIMITE_PARCELAS) {
+      setCalcErro(`Cálculo automático disponível até ${CALC_LIMITE_PARCELAS}x e ${fmtBRL(CALC_LIMITE_LIQUIDO)} líquidos. Pra valores maiores, fale com o suporte.`);
+      return;
+    }
+    setCalculating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("calcular-repasse-cartao", {
+        body: { netDesired: net, installments: inst, anticipate: calcAnticipate },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message ?? data.error);
+      setManualValor(toBRLInput(data.totalCharged));
+      setInstallments(inst);
+      setCalcResult({
+        totalCharged:   data.totalCharged,
+        perInstallment: data.perInstallment,
+        netEstimated:   data.netEstimated,
+        marginApplied:  data.marginApplied,
+      });
+    } catch (e: any) {
+      setCalcErro(e.message ?? "Erro ao calcular");
+    } finally { setCalculating(false); }
+  };
 
   useEffect(() => {
     supabase.from("plans").select("*").eq("org_id", orgId).eq("active", true)
@@ -307,7 +374,7 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
 
     let valorNum: number;
     if (isCustom) {
-      valorNum = parseFloat(manualValor.replace(",", "."));
+      valorNum = parseBRL(manualValor);
       if (isNaN(valorNum) || valorNum <= 0) {
         toast({ title: "Informe um valor válido", variant: "destructive" }); return;
       }
@@ -354,10 +421,9 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.65)" }} onClick={onClose}>
+      style={{ backgroundColor: "rgba(0,0,0,0.65)" }}>
       <div className="w-full max-w-lg rounded-t-3xl pb-8 pt-5 px-5 space-y-4 overflow-y-auto max-h-[92vh]"
-        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}
-        onClick={(e) => e.stopPropagation()}>
+        style={{ backgroundColor: "var(--modal-bg)", border: "1px solid var(--modal-border)" }}>
 
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-2" />
         <div className="flex items-center justify-between">
@@ -458,6 +524,72 @@ const NovaCobrancaModal = ({ orgId, alunos, onClose, onCreated }: NovaCobrancaPr
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Calculadora de repasse — cobrança personalizada no cartão */}
+        {isCustom && forma === "CREDIT_CARD" && isGsBrand && (
+          <div className="space-y-2.5 rounded-xl p-3"
+            style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="flex items-center gap-1.5">
+              <Calculator className="w-3 h-3 text-white/40" />
+              <p className="text-[10px] text-white/30 uppercase tracking-wider">Calcular quanto cobrar (valor acima = líquido)</p>
+            </div>
+
+            <div className="flex gap-2">
+              <div className="w-20 space-y-1 shrink-0">
+                <p className="text-[10px] text-white/25">Parcelas</p>
+                <Input value={calcInstall} onChange={(e) => { setCalcInstall(e.target.value); setCalcResult(null); }}
+                  placeholder="1" inputMode="numeric"
+                  className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-[10px] text-white/25">Valor líquido desejado (R$)</p>
+                <Input value={calcNetValue} onChange={(e) => { setCalcNetValue(e.target.value); setCalcResult(null); }}
+                  placeholder="1300,00" inputMode="decimal"
+                  className="bg-white/5 border-white/10 text-white rounded-xl h-9 text-sm" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-0.5">
+              <Label className="text-xs text-white/50">Antecipar recebimento</Label>
+              <Switch checked={calcAnticipate} onCheckedChange={(v) => { setCalcAnticipate(v); setCalcResult(null); }} />
+            </div>
+
+            {calcOverLimit && (calcNetValue || calcInstall !== "1") && (
+              <p className="text-[10px] text-amber-400/80">
+                Cálculo automático vai até {CALC_LIMITE_PARCELAS}x e {fmtBRL(CALC_LIMITE_LIQUIDO)} líquidos. Acima disso, fale com o suporte.
+              </p>
+            )}
+            {calcErro && <p className="text-[11px] text-red-400">{calcErro}</p>}
+
+            <Button onClick={handleCalcularCustom} disabled={calculating || calcOverLimit}
+              className="w-full h-9 rounded-xl font-semibold text-white text-xs"
+              style={{ background: "var(--cp-gradient)" }}>
+              {calculating
+                ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Calculando...</>
+                : <><Zap className="w-3.5 h-3.5 mr-1.5" />Calcular</>}
+            </Button>
+
+            {calcResult && (
+              <div className="rounded-lg px-3 py-2 space-y-0.5"
+                style={{ backgroundColor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <p className="text-xs text-white font-medium">
+                  Aluno paga {fmtBRL(calcResult.totalCharged)}
+                  {calcInstNum > 1 && <span className="text-white/50"> · {fmtBRL(calcResult.perInstallment)}/mês</span>}
+                </p>
+                <p className="text-[11px] text-green-400">
+                  Você recebe {fmtBRL(calcResult.netEstimated)} líquidos
+                  {calcAnticipate && calcResult.marginApplied > 0 && (
+                    <span className="text-white/30"> (margem de segurança de {fmtBRL(calcResult.marginApplied)} já embutida)</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <p className="text-[10px] text-white/20">
+              Preenche o campo "Valor (R$)" acima automaticamente com o total a cobrar do aluno.
+            </p>
           </div>
         )}
 
@@ -591,18 +723,21 @@ function SubaccountOnboardingForm({
         {field("incomeValue", "Renda mensal declarada", "5000", true)}
       </div>
       {cepLoading && <p className="text-xs text-white/30">Buscando endereço pelo CEP...</p>}
-      <div className="flex gap-3 pt-1">
-        <Button variant="outline" className="flex-1 h-11 rounded-xl border-white/10 text-white/70" onClick={onCancel} disabled={submitting}>
-          Cancelar
-        </Button>
-        <Button
-          className="flex-1 h-11 rounded-xl text-white font-semibold"
-          style={{ background: "var(--cp-gradient)" }}
-          onClick={onSubmit}
-          disabled={submitting}
-        >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar conta"}
-        </Button>
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <img src={ASAAS_SELO_URL} alt="Serviços financeiros prestados pelo Asaas" className="h-8 w-auto shrink-0" />
+        <div className="flex gap-3 flex-1 justify-end">
+          <Button variant="outline" className="h-11 px-5 rounded-xl border-white/10 text-white/70" onClick={onCancel} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button
+            className="h-11 px-5 rounded-xl text-white font-semibold"
+            style={{ background: "var(--cp-gradient)" }}
+            onClick={onSubmit}
+            disabled={submitting}
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar conta"}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -721,7 +856,7 @@ function SaqueModal({
 }
 
 const Financeiro = () => {
-  const { orgId } = useTenantContext();
+  const { orgId, org } = useTenantContext();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1004,6 +1139,7 @@ const Financeiro = () => {
       {modalOpen && (
         <NovaCobrancaModal
           orgId={orgId}
+          isGsBrand={org?.is_gs_brand ?? false}
           alunos={alunos}
           onClose={() => setModalOpen(false)}
           onCreated={handleCreated}
@@ -1256,6 +1392,12 @@ const Financeiro = () => {
               <Landmark className="w-4 h-4" />
               Sacar
             </button>
+          </div>
+          <div className="relative flex items-center justify-between gap-3 mt-5 pt-4" style={{ borderTop: "1px solid var(--section-card-border)" }}>
+            <img src={ASAAS_SELO_URL} alt="Serviços financeiros prestados pelo Asaas" className="h-7 w-auto shrink-0" />
+            <p className="text-[11px] text-white/30 text-right">
+              Dúvidas sobre pagamentos/saques? <a href="mailto:contato@asaas.com.br" className="underline">contato@asaas.com.br</a> · 0800 009 0037
+            </p>
           </div>
         </div>
 

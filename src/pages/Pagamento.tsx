@@ -14,6 +14,7 @@ interface CobrancaPublica {
   forma_pagamento: string;
   data_vencimento: string;
   pix_key:         string | null;
+  installment_count: number;
   org_nome:        string;
   org_slug:        string | null;
   org_logo_url:    string | null;
@@ -23,6 +24,12 @@ interface CobrancaPublica {
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// Selo oficial do Asaas (Instituição Prestadora) — variante escura porque o
+// card do checkout é sempre branco por dentro, independente do tema da org
+// (ver Card abaixo). URL real enviada pela Estela (gerente de contas Asaas)
+// em 2026-08-28, mesma usada em Financeiro.tsx (Carteira).
+const ASAAS_SELO_URL = "https://baas.asaas.com/selos/Servicos_financeiros_Asaas-Reduzida-Negativo-Preto.svg?id=6bb12931-3438-4d1a-b8fc-3f3406d38a44";
 
 // Evita bug de fuso horário de `new Date("YYYY-MM-DD")` — monta a data direto da string.
 const fmtDataBR = (iso: string) => {
@@ -274,6 +281,11 @@ const Pagamento = () => {
           {data ? fmtBRL(Number(data.valor)) : ""}
         </p>
         <p className="text-sm text-zinc-500 mt-0.5">{data?.descricao}</p>
+        {data && data.forma_pagamento === "CREDIT_CARD" && data.installment_count > 1 && (
+          <p className="text-xs text-zinc-500 mt-1">
+            Em até {data.installment_count}x de {fmtBRL(Number(data.valor) / data.installment_count)}
+          </p>
+        )}
         {data?.data_vencimento && (
           <p className="text-xs text-zinc-400 mt-1">Vence em {fmtDataBR(data.data_vencimento)}</p>
         )}
@@ -345,9 +357,12 @@ const Pagamento = () => {
         )}
       </div>
 
-      <div className="border-t border-zinc-100 px-5 py-3 flex items-center justify-center gap-1.5">
-        <Lock className="w-3 h-3 text-zinc-300" />
-        <p className="text-[11px] text-zinc-400">Pagamento processado com segurança por ORBI Health</p>
+      <div className="border-t border-zinc-100 px-5 py-3 flex flex-col items-center justify-center gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <Lock className="w-3 h-3 text-zinc-300" />
+          <p className="text-[11px] text-zinc-400">Pagamento processado com segurança</p>
+        </div>
+        <img src={ASAAS_SELO_URL} alt="Serviços financeiros prestados pelo Asaas" className="h-4 w-auto opacity-80" />
       </div>
     </Card>
   );

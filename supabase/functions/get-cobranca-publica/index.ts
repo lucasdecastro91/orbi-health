@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const { data: cobranca, error: cobErr } = await supabase
       .from("cobrancas")
-      .select("id, org_id, descricao, valor, status, forma_pagamento, data_vencimento, pix_key")
+      .select("id, org_id, descricao, valor, status, forma_pagamento, data_vencimento, pix_key, installment_count")
       .eq("id", cobranca_id)
       .maybeSingle();
 
@@ -54,6 +54,7 @@ serve(async (req) => {
       forma_pagamento: cobranca.forma_pagamento,
       data_vencimento: cobranca.data_vencimento,
       pix_key:         cobranca.pix_key,
+      installment_count: cobranca.installment_count ?? 1,
       org_nome:        org?.name ?? "ORBI Health",
       org_slug:        org?.slug ?? null,
       org_logo_url:    org?.logo_url ?? null,

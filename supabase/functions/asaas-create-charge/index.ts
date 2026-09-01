@@ -285,6 +285,7 @@ serve(async (req) => {
         data_vencimento: vencimento,
         invoice_url:     payment.invoiceUrl ?? null,
         pix_key:         pixKey,
+        installment_count: installCount,
       })
       .select()
       .single();
