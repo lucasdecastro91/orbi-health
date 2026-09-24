@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { startTimer, pauseTimer, clearTimer, getActiveTimer } from "@/lib/activeTimer";
+import { markTreinoComplete } from "@/lib/trainingCompletion";
+import { FinishTrainingSheet } from "@/components/student/FinishTrainingSheet";
 import {
   ArrowLeft, Play, Weight,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, X,
   Timer, Pause, SkipForward, CheckCircle, TrendingUp,
-  Circle, AlertCircle, Link2,
+  Circle, AlertCircle, Link2, Trophy, Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -184,6 +186,21 @@ const fmtTime = (s: number) =>
 const brazilToday = (): string => {
   const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
   return brazil.toISOString().slice(0, 10);
+};
+
+/** Quantas séries um exercício espera (série detalhada, ou fallback pro campo `series`) —
+ *  mesma fórmula de Treinos.tsx:getExpectedSerieCount, usada aqui pro gate de "Concluir
+ *  treino" no modo sequência (?seq=1). */
+const getExpectedSerieCount = (ex: { series: string; series_detalhadas?: any }): number => {
+  const raw = ex.series_detalhadas;
+  if (raw) {
+    const arr = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw); } catch { return null; } })();
+    if (Array.isArray(arr) && arr.length > 0) {
+      return arr.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1), 0);
+    }
+  }
+  const count = parseInt(ex.series);
+  return !count || count <= 0 ? 0 : count;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -575,6 +592,18 @@ const ExerciseDetail = () => {
       void startTimer(studentUserId, orgId ?? null, "descanso", exercise.nome_exercicio, restSecs, exercise.id, new Date(newStartedAt));
     }
   };
+  // ── Modo sequência (?seq=1) — fluxo guiado de execução do treino, ativado
+  // a partir do botão "Iniciar treino" em Treinos.tsx. Fora desse modo, nada
+  // aqui muda o comportamento de navegação livre já existente.
+  const isSeq = searchParams.get("seq") === "1";
+  const [seqPlanoId,     setSeqPlanoId]     = useState<string | null>(null);
+  const [seqTreinadorId, setSeqTreinadorId] = useState<string | null>(null);
+  const [seqAlunoNome,   setSeqAlunoNome]   = useState<string | null>(null);
+  const [seqResolved,    setSeqResolved]    = useState(0);
+  const [seqTotal,       setSeqTotal]       = useState(0);
+  const [finishing,      setFinishing]      = useState(false);
+  const [finishSheetOpen, setFinishSheetOpen] = useState(false);
+
   const [historico, setHistorico]         = useState<HistoricoEntry[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(true);
   const [pairedNames, setPairedNames]     = useState<string[]>([]);
@@ -676,6 +705,7 @@ const ExerciseDetail = () => {
       if (error) throw error;
 
       setSlots((prev) => ({ ...prev, [key]: { reps: row.reps_realizadas, carga: row.carga_realizada, saved: true } }));
+      if (isSeq && exercise?.treino_id) void loadSeqProgress(exercise.treino_id);
 
       // Só abre timer automático se o treinador de fato configurou um descanso
       // — nessa série específica, ou (fallback) no campo único do exercício.
@@ -743,6 +773,7 @@ const ExerciseDetail = () => {
   useEffect(() => { getAlunoId(); }, []);
   useEffect(() => { if (alunoId && id) { loadCarga(); loadHistorico(); } }, [alunoId, id]);
   useEffect(() => { if (studentUserId && id) loadSerieCompletions(); }, [studentUserId, id]);
+  useEffect(() => { if (isSeq && alunoId) loadSeqMeta(); }, [isSeq, alunoId]);
 
   // Pre-fill carga from exercise.carga_base when student has no saved carga
   useEffect(() => {
@@ -759,8 +790,8 @@ const ExerciseDetail = () => {
       if (!user) return;
       setStudentUserId(user.id);
       const { data } = await supabase
-        .from("alunos").select("id").eq("user_id", user.id).single();
-      if (data) setAlunoId(data.id);
+        .from("alunos").select("id, treinador_id").eq("user_id", user.id).single();
+      if (data) { setAlunoId(data.id); setSeqTreinadorId(data.treinador_id ?? null); }
     } catch { /* silent */ }
   };
 
@@ -859,7 +890,7 @@ const ExerciseDetail = () => {
       } else {
         const { data } = await supabase
           .from("exercicios")
-          .select("id, nome_exercicio, ordem, conjugado_com_proximo")
+          .select("id, nome_exercicio, ordem, conjugado_com_proximo, series, series_detalhadas")
           .eq("treino_id", treinoId)
           .order("ordem");
         if (!data) return;
@@ -884,7 +915,82 @@ const ExerciseDetail = () => {
               .map((e) => e.nome_exercicio)
           : []
       );
+
+      if (isSeq) void loadSeqProgress(treinoId);
     } catch { /* silent */ }
+  };
+
+  /** Carrega plano ativo + nome do aluno — só usado no modo sequência, pra
+   *  alimentar markTreinoComplete (mesmos dados que Treinos.tsx já tem em mãos). */
+  const loadSeqMeta = async () => {
+    if (!alunoId) return;
+    try {
+      const { data: planoData } = await supabase
+        .from("planos_treino").select("id").eq("aluno_id", alunoId).eq("ativo", true).maybeSingle();
+      if (planoData) setSeqPlanoId(planoData.id);
+      if (studentUserId) {
+        const { data: profile } = await supabase.from("profiles").select("nome").eq("id", studentUserId).maybeSingle();
+        if (profile?.nome) setSeqAlunoNome(profile.nome);
+      }
+    } catch { /* silent */ }
+  };
+
+  /** Quantos exercícios do treino já estão resolvidos (série completa OU pulado
+   *  explicitamente) hoje — alimenta o gate do botão "Concluir treino". */
+  /** Quantos exercícios do treino já têm todas as séries registradas hoje —
+   *  mesma lógica/tabela que Treinos.tsx já usa pro gate do botão manual
+   *  ("Conclua todas as séries para liberar"). Sem conceito de "pular de
+   *  vez" — todo exercício com séries precisa ser registrado de verdade. */
+  const loadSeqProgress = async (treinoId: string) => {
+    if (!studentUserId) return;
+    const siblings = siblingsCacheRef.current?.treinoId === treinoId ? siblingsCacheRef.current.list : null;
+    if (!siblings) return;
+    try {
+      const { data: completions } = await supabase
+        .from("serie_completions").select("exercicio_id")
+        .eq("student_id", studentUserId).eq("date", brazilToday());
+      const doneCounts: Record<string, number> = {};
+      for (const row of (completions ?? []) as any[]) {
+        doneCounts[row.exercicio_id] = (doneCounts[row.exercicio_id] ?? 0) + 1;
+      }
+
+      let resolved = 0, total = 0;
+      for (const s of siblings) {
+        const expected = getExpectedSerieCount(s);
+        if (expected <= 0) continue;
+        total += 1;
+        if ((doneCounts[s.id] ?? 0) >= expected) resolved += 1;
+      }
+      setSeqResolved(resolved);
+      setSeqTotal(total);
+    } catch { /* silent */ }
+  };
+
+  /** Conclui o treino a partir do modo sequência — mesmo insert usado pelo
+   *  botão manual em Treinos.tsx, só que disparado direto do último exercício. */
+  const finishTreino = async (avaliacao: number, comentario: string) => {
+    if (!alunoId || !exercise?.treino_id) return;
+    setFinishing(true);
+    try {
+      await markTreinoComplete({
+        alunoId,
+        treinoId: exercise.treino_id,
+        planoId: seqPlanoId,
+        studentUserId,
+        orgId: orgId ?? null,
+        treinadorId: seqTreinadorId,
+        alunoNome: seqAlunoNome,
+        avaliacao,
+        comentario,
+      });
+      setFinishSheetOpen(false);
+      toast({ title: "Treino concluído! 🏆", description: "Continue assim" });
+      navigate(`/${slug}/aluno/treinos?treinoId=${exercise.treino_id}`);
+    } catch (err: any) {
+      toast({ title: "Erro ao concluir treino", description: err.message, variant: "destructive" });
+    } finally {
+      setFinishing(false);
+    }
   };
 
   const loadCarga = async () => {
@@ -959,7 +1065,11 @@ const ExerciseDetail = () => {
   /** Navega pro exercício anterior/próximo do mesmo treino, sem passar pela tela do treino */
   const goToExercise = (exerciseId: string) => {
     const treinoId = searchParams.get("treinoId");
-    navigate(`/${slug}/aluno/exercicio/${exerciseId}${treinoId ? `?treinoId=${treinoId}` : ""}`);
+    const params = new URLSearchParams();
+    if (treinoId) params.set("treinoId", treinoId);
+    if (isSeq) params.set("seq", "1");
+    const qs = params.toString();
+    navigate(`/${slug}/aluno/exercicio/${exerciseId}${qs ? `?${qs}` : ""}`);
   };
 
   // ── Loading ───────────────────────────────────────────────
@@ -1011,12 +1121,20 @@ const ExerciseDetail = () => {
         onTogglePause={() => (restPaused ? resumeRest() : pauseRest())}
       />
 
+      {/* Avaliação ao concluir treino — só existe no modo sequência */}
+      <FinishTrainingSheet
+        open={finishSheetOpen}
+        submitting={finishing}
+        onSubmit={finishTreino}
+        onClose={() => setFinishSheetOpen(false)}
+      />
+
       {/* Video modal */}
       {videoOpen && videoId && (
         <VideoModal videoId={videoId} title={exercise.nome_exercicio} onClose={() => setVideoOpen(false)} />
       )}
 
-      <div className="min-h-screen pb-24">
+      <div className={isSeq ? "min-h-screen pb-28" : "min-h-screen pb-24"}>
 
         {/* ── Sticky back bar — full-width bg, content capped to match cards ──
              Rota é "sem layout" (App.tsx) — não herda o padding-top de
@@ -1026,7 +1144,8 @@ const ExerciseDetail = () => {
           className="sticky top-0 z-10 bg-background/90 backdrop-blur-md"
           style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))", paddingBottom: "0.75rem" }}
         >
-          <div className="max-w-2xl mx-auto px-4 flex items-center gap-3">
+          <div className="max-w-2xl mx-auto px-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleBack}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
@@ -1036,11 +1155,18 @@ const ExerciseDetail = () => {
             </button>
             <h1 className="text-base font-semibold text-foreground truncate flex-1">{exercise.nome_exercicio}</h1>
 
-            {/* Navegação entre exercícios do mesmo treino — par discreto, separado
-                do botão "voltar" pra não confundir as duas ações. Tamanho igual
-                ao botão "voltar" (w-9 h-9) e gap maior entre as duas: alunos
-                relataram toque errado entre elas por ficarem pequenas e coladas. */}
-            {(prevExerciseId || nextExerciseId) && (
+            {/* Navegação entre exercícios do mesmo treino — só na navegação
+                livre (fora do modo sequência). Par discreto, separado do
+                botão "voltar" pra não confundir as duas ações. Tamanho igual
+                ao botão "voltar" (w-9 h-9): alunos relataram toque errado
+                entre elas por ficarem pequenas e coladas.
+                No modo sequência (?seq=1) esse par some inteiro — "Voltar"/
+                "Avançar" ficam juntos na barra fixa embaixo (mesmo padrão
+                de wizard step-by-step: as duas ações de navegar entre
+                exercícios vivem no mesmo lugar, fácil de alcançar com o
+                polegar, em vez de espalhadas entre topo e rodapé). O
+                cabeçalho no modo sequência fica só com "sair" + título. */}
+            {!isSeq && (prevExerciseId || nextExerciseId) && (
               <div className="flex items-center gap-2.5 shrink-0">
                 <button
                   onClick={() => prevExerciseId && goToExercise(prevExerciseId)}
@@ -1062,6 +1188,15 @@ const ExerciseDetail = () => {
                 </button>
               </div>
             )}
+          </div>
+
+          {/* ── Modo sequência — progresso do treino (quantos exercícios já
+              têm todas as séries registradas) ── */}
+          {isSeq && seqTotal > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              {seqResolved}/{seqTotal} exercícios registrados
+            </p>
+          )}
           </div>
         </div>
 
@@ -1547,6 +1682,70 @@ const ExerciseDetail = () => {
 
         </div>
       </div>
+
+      {/* ── Barra fixa do modo sequência — só aparece com ?seq=1. "Voltar" e
+          "Avançar" ficam juntos aqui (em vez de espalhados entre cabeçalho
+          e rodapé) — mesmo padrão de wizard step-by-step. "Avançar" leva
+          pro próximo exercício do treino; no último, vira "Concluir treino" e
+          fica bloqueado até todo exercício com séries estar resolvido —
+          mesmo gate que Treinos.tsx já usava pro botão manual (removido). ── */}
+      {isSeq && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-3"
+          style={{
+            background: "linear-gradient(to top, hsl(var(--background)) 60%, transparent 100%)",
+            paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))",
+          }}
+        >
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => prevExerciseId && goToExercise(prevExerciseId)}
+                disabled={!prevExerciseId}
+                aria-label="Exercício anterior"
+                className="h-12 px-5 rounded-2xl flex items-center justify-center gap-1.5 shrink-0 text-sm font-semibold transition-colors disabled:opacity-30"
+                style={{ border: "1.5px solid var(--cp-500)", color: "var(--cp-400)", backgroundColor: "rgba(var(--cp-rgb),0.06)" }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Voltar
+              </button>
+              {nextExerciseId ? (
+                <button
+                  onClick={() => goToExercise(nextExerciseId)}
+                  className="flex-1 h-12 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2"
+                  style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}
+                >
+                  Avançar
+                </button>
+              ) : (
+                <button
+                  onClick={() => setFinishSheetOpen(true)}
+                  disabled={finishing || seqTotal > seqResolved}
+                  className="flex-1 h-12 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  style={{
+                    background: seqTotal > seqResolved ? "hsl(var(--foreground) / 0.08)" : "var(--cp-gradient)",
+                    color: seqTotal > seqResolved ? "hsl(var(--foreground) / 0.45)" : "var(--cp-text, #fff)",
+                  }}
+                >
+                  {finishing
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Trophy className="w-4 h-4" />}
+                  Concluir treino
+                </button>
+              )}
+            </div>
+            {!nextExerciseId && (
+              <>
+                {seqTotal > seqResolved && (
+                  <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+                    Resolva todos os exercícios para liberar ({seqResolved}/{seqTotal})
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

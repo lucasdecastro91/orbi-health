@@ -140,15 +140,32 @@ const Agua = () => {
 
   return (
     <div className="min-h-screen pb-10">
-      <div className="px-4 pt-6 pb-4 flex items-center gap-3">
-        <button type="button" onClick={() => navigate(base)} className="w-8 h-8 flex items-center justify-center -ml-1">
-          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-        </button>
-        <Droplet className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-        <h1 className="text-xl font-bold text-foreground">Água</h1>
+      {/* ══════════════════════════════════════════════════════════════
+          Cabeçalho colorido — só ícone+título (nada de conteúdo/ação aqui
+          dentro). Mesmo degradê vertical + divisão arredondada do bloco do
+          Dashboard, replicado como cabeçalho enxuto em cada tela individual
+          do aluno (padrão pedido pelo Lucas 2026-09-09, ref.: telas da
+          Prime). O resto da tela continua exatamente como estava antes. ── */}
+      <div
+        className="relative px-4 pt-3 pb-9"
+        style={{
+          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
+          color: "#fff",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => navigate(base)} className="w-8 h-8 flex items-center justify-center -ml-1">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <Droplet className="w-5 h-5 shrink-0" />
+          <h1 className="text-xl font-bold">Água</h1>
+        </div>
       </div>
 
-      <div className="px-4 space-y-5">
+      <div
+        className="relative px-4 pt-6 pb-10 space-y-5 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
         {/* ── Círculo de onda líquida ── */}
         <div className="flex flex-col items-center py-2">
           <WaterWaveCircle

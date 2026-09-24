@@ -68,6 +68,7 @@ import StudentAlterarSenha from "./pages/student/AlterarSenha";
 import CheckIn            from "./pages/student/CheckIn";
 import Atualizacao        from "./pages/student/Atualizacao";
 import Profile            from "./pages/student/Profile";
+import OrbiHub             from "./pages/student/OrbiHub";
 import Feedbacks          from "./pages/student/Feedbacks";
 import Evolucao           from "./pages/student/Evolucao";
 import AgendaAluno        from "./pages/student/AgendaAluno";
@@ -331,6 +332,7 @@ const App = () => {
                   <Route path="atualizacao"      element={<Atualizacao />} />
                   <Route path="feedbacks"        element={<Feedbacks />} />
                   <Route path="perfil"           element={<Profile />} />
+                  <Route path="mais"             element={<OrbiHub />} />
                   <Route path="alterar-senha"    element={<StudentAlterarSenha />} />
                   <Route path="evolucao"         element={<Evolucao />} />
                   <Route path="agenda"           element={<AgendaAluno />} />

@@ -375,18 +375,24 @@ const StudentCardio = () => {
 
   return (
     <div className="pb-6">
-      {/* Page header */}
-      <div className="px-4 pt-6 pb-4">
+      {/* Cabeçalho colorido enxuto — só ícone+título (padrão replicado em
+          todas as telas individuais do aluno, 2026-09-09) */}
+      <div
+        className="relative px-4 pt-3 pb-9"
+        style={{
+          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
+        }}
+      >
         <div className="flex items-center gap-3">
-          <HeartPulse className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Cardio</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Seu plano de cardio prescrito</p>
-          </div>
+          <HeartPulse className="w-5 h-5 shrink-0 text-white" />
+          <h1 className="text-2xl font-bold text-white tracking-tight">Cardio</h1>
         </div>
       </div>
 
-      <div className="px-4 space-y-3">
+      <div
+        className="relative px-4 space-y-3 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
         {!(idade && sexo) && (
           <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", borderColor: "rgba(var(--cp-rgb),0.2)" }}>
             <div>

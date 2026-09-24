@@ -41,9 +41,14 @@ const TIPO_ICON: Record<string, React.ElementType> = {
 interface NotificationBellProps {
   /** "coach" renders coach-side routes; "student" (default) renders student-side routes */
   role?: "coach" | "student";
+  /** Cor de fundo do badge de contagem — default vermelho. O dashboard do
+   *  aluno passa uma cor âmbar aqui, porque vermelho-sobre-verde (bloco
+   *  colorido) quebra visualmente; nos outros lugares o padrão continua. */
+  badgeColor?: string;
+  badgeTextColor?: string;
 }
 
-const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
+const NotificationBell = ({ role = "student", badgeColor = "hsl(0 70% 55%)", badgeTextColor = "#fff" }: NotificationBellProps) => {
   const navigate      = useNavigate();
   const { slug }      = useTenantContext();
 
@@ -189,7 +194,7 @@ const NotificationBell = ({ role = "student" }: NotificationBellProps) => {
         {unread > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none"
-            style={{ backgroundColor: "hsl(0 70% 55%)", color: "#fff" }}
+            style={{ backgroundColor: badgeColor, color: badgeTextColor }}
           >
             {unread > 9 ? "9+" : unread}
           </span>

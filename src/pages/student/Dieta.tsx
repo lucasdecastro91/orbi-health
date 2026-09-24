@@ -1290,21 +1290,29 @@ const Dieta = () => {
 
       <div className="min-h-screen pb-24">
 
-        {/* ── Page header ── */}
-        <div className="px-4 pt-6 pb-4">
+        {/* ── Cabeçalho colorido enxuto — ícone+título + os ícones de ação
+            que já existiam aqui (chip de refeições, observações, histórico),
+            recoloridos de branco. "Day macros summary" abaixo desce pra
+            zona neutra — padrão replicado em todas as telas do aluno,
+            2026-09-09. ── */}
+        <div
+          className="relative px-4 pt-3 pb-9"
+          style={{
+            background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
+          }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <Utensils className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-              <h1 className="text-xl font-bold text-foreground tracking-tight">{diet.title}</h1>
+              <Utensils className="w-5 h-5 shrink-0 text-white" />
+              <h1 className="text-xl font-bold text-white tracking-tight">{diet.title}</h1>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               {totalMeals > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
                   style={{
-                    backgroundColor: allDone ? "rgba(var(--cp-rgb),0.15)" : "rgba(var(--cp-rgb),0.06)",
-                    border: "1px solid rgba(var(--cp-rgb),0.25)",
-                    color: "var(--cp-400)",
+                    backgroundColor: allDone ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.3)",
                   }}>
                   {allDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Utensils className="w-3.5 h-3.5" />}
                   {doneMealsCount}/{totalMeals}
@@ -1314,23 +1322,29 @@ const Dieta = () => {
                 <button
                   onClick={() => setObsOpen(true)}
                   className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.25)" }}
+                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.3)" }}
                   title="Ver observações"
                 >
-                  <FileText className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+                  <FileText className="w-4 h-4 text-white" />
                 </button>
               )}
               <button
                 onClick={() => navigate(`/${slug}/aluno/dieta/historico`)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.25)" }}
+                style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.3)" }}
                 title="Ver histórico"
               >
-                <History className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+                <History className="w-4 h-4 text-white" />
               </button>
             </div>
           </div>
+        </div>
 
+        <div
+          className="relative rounded-t-[28px]"
+          style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+        >
+        <div className="px-4 pt-3 pb-4">
           {/* Day macros summary */}
           {hasAnyMacros && (
             <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}>
@@ -1717,6 +1731,7 @@ const Dieta = () => {
             </div>
           </div>
         )}
+      </div>
       </div>
     </>
   );

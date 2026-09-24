@@ -159,16 +159,26 @@ const Evolucao = () => {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="pb-6">
 
-      {/* ── Weight header ─────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <Activity className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Evolução</h1>
-          <p className="text-muted-foreground text-sm">Peso e medidas corporais</p>
+      {/* ── Cabeçalho colorido enxuto — só ícone+título (padrão replicado
+          em todas as telas individuais do aluno, 2026-09-09) ── */}
+      <div
+        className="relative px-4 pt-3 pb-9"
+        style={{
+          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <Activity className="w-5 h-5 text-white" />
+          <h1 className="text-xl font-bold text-white">Evolução</h1>
         </div>
       </div>
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 space-y-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
       {/* Weight stats */}
       {withWeight.length >= 2 && (
@@ -320,6 +330,7 @@ const Evolucao = () => {
         )}
       </div>
 
+      </div>
     </div>
   );
 };

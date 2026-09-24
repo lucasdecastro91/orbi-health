@@ -73,7 +73,7 @@ const SleepCalculator = () => {
           <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <Moon className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-        <h1 className="text-xl font-bold text-foreground">ORBI Sleep</h1>
+        <h1 className="text-xl font-bold text-foreground">Calculadora de Sono</h1>
       </div>
 
       <div className="px-4 space-y-5">

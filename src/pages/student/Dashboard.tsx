@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import NotificationBell from "@/components/NotificationBell";
 import {
   Activity,
   AlertCircle,
+  Check,
   ChevronRight,
   ClipboardCheck,
   Download,
@@ -15,17 +17,20 @@ import {
   Dumbbell,
   FileText,
   HeartPulse,
+  LogOut,
   MessageSquare,
   Plus,
   ScanLine,
+  User,
   Utensils,
   Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import { pickTodaysSession, type TodaysSession, type WeekLite } from "@/lib/trainingSchedule";
+import { getCurrentWeek, pickTodaysSession, type TodaysSession, type WeekLite } from "@/lib/trainingSchedule";
 import { AGUA_META_ML } from "@/lib/agua";
 import { grantXP } from "@/lib/xp";
 import { evaluateAndUpdateStreak } from "@/lib/streaks";
+import { computeCycleAdherence, type CycleAdherence } from "@/lib/cycleAdherence";
 
 interface Plano {
   id: string;
@@ -72,10 +77,11 @@ interface PesoStats {
   chart: { peso: number }[];
 }
 
-interface CardioLast {
-  tipo: string;
-  duracao_minutos: number;
-  data_sessao: string;
+interface DietMacros {
+  kcal: number;
+  carb: number;
+  prot: number;
+  gord: number;
 }
 
 const EmptyState = ({ children }: { children: React.ReactNode }) => (
@@ -87,6 +93,11 @@ const EmptyState = ({ children }: { children: React.ReactNode }) => (
 
 // Segunda a domingo — mesma ordem usada no mockup
 const WEEK_STRIP_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+// Mesmas cores da distribuição de macros do painel do treinador
+// (DietManager.tsx ~1510) — não é cor primária, é a identidade fixa de
+// cada macronutriente, igual nos dois lados (treinador/aluno).
+const MACRO_COLORS = { carb: "#fb923c", prot: "#f87171", gord: "#60a5fa" };
 
 /** Data local do Brasil (YYYY-MM-DD) — mesma convenção usada em Agua.tsx pra "hoje" baterem os dois */
 const brazilToday = (): string => {
@@ -119,19 +130,60 @@ const StudentDashboard = () => {
   const [introAnamnese,      setIntroAnamnese]      = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [totalXp, setTotalXp] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [todaysSession, setTodaysSession] = useState<TodaysSession | null>(null);
   const [pesoStats, setPesoStats] = useState<PesoStats | null>(null);
-  const [selectedPesoIdx, setSelectedPesoIdx] = useState<number | null>(null);
   const [aguaMl, setAguaMl] = useState(0);
   const [aguaMetaMl, setAguaMetaMl] = useState(AGUA_META_ML);
   const [aguaSaving, setAguaSaving] = useState(false);
   const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
   const [dietaMealCount, setDietaMealCount] = useState<number | null>(null);
-  const [cardioLast, setCardioLast] = useState<CardioLast | null>(null);
+  const [dietaMacros, setDietaMacros] = useState<DietMacros | null>(null);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [cardioDoneToday, setCardioDoneToday] = useState(false);
+  const [dietaRefeicoesFeitasHoje, setDietaRefeicoesFeitasHoje] = useState(0);
+  const [cycleAdherence, setCycleAdherence] = useState<CycleAdherence | null>(null);
+  const [selectedChip, setSelectedChip] = useState<"treino" | "dieta" | "cardio" | "agua" | null>(null);
+  // Tamanho do anel medido de verdade a partir da altura renderizada dos 4
+  // chips — CSS Grid (aspect-ratio + stretch) não dava pra confiar aqui:
+  // testado com h-full/justify-self-start e o anel continuava sendo ditado
+  // pela largura da coluna, não pela altura dos chips. Medindo via ref não
+  // depende de nenhuma ambiguidade de spec, sempre bate certinho.
+  //
+  // colShift fecha o vão horizontal que sobra à direita do anel (que agora
+  // é menor que a coluna de 1fr onde vive) — SEM deixar a largura da coluna
+  // depender do tamanho do anel (isso já causou um loop: coluna "auto" >
+  // anel cresce > chips espremem > chips crescem > ResizeObserver dispara >
+  // anel cresce mais). Em vez disso a coluna continua fixa em 1fr, e o
+  // bloco de chips só recebe uma margem negativa (não muda o próprio
+  // tamanho dele, só a posição) igual à diferença entre a largura real da
+  // coluna e o tamanho do anel — sem risco nenhum de retroalimentação.
+  const chipsBlockRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [ringSize, setRingSize] = useState<number | null>(null);
+  const [colShift, setColShift] = useState(0);
+  useLayoutEffect(() => {
+    const chipsEl = chipsBlockRef.current;
+    const gridEl = gridRef.current;
+    if (!chipsEl || !gridEl) return;
+    const GAP = 8; // gap-2
+    const measure = () => {
+      const h = chipsEl.offsetHeight;
+      setRingSize(h);
+      const col1Width = (gridEl.offsetWidth - GAP * 2) / 3;
+      setColShift(Math.max(col1Width - h, 0));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(chipsEl);
+    ro.observe(gridEl);
+    return () => ro.disconnect();
+  }, []);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { slug, orgId } = useTenantContext();
+  const { slug, orgId, org } = useTenantContext();
   const { hasAvaliacaoPostural, hasDiet } = usePlanFeatures();
   const base = `/${slug}/aluno`;
 
@@ -167,7 +219,7 @@ const StudentDashboard = () => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("tipo_usuario, nome")
+        .select("tipo_usuario, nome, avatar_url")
         .eq("id", session.user.id)
         .single();
 
@@ -176,6 +228,7 @@ const StudentDashboard = () => {
         return;
       }
       if (profile?.nome) setUserName(profile.nome);
+      setAvatarUrl(profile?.avatar_url ?? null);
 
       const { data: aluno } = await (supabase as any)
         .from("alunos")
@@ -239,6 +292,10 @@ const StudentDashboard = () => {
 
       setPlano(planoData);
 
+      // Hoisted (não fica só dentro do if) — reaproveitado depois pra calcular
+      // a frequência semanal de treino do ciclo de aderência.
+      let weeksForAdherence: WeekLite[] = [];
+
       if (planoData) {
         const { data: semanasLite } = await supabase
           .from("semanas")
@@ -248,6 +305,7 @@ const StudentDashboard = () => {
 
         if (semanasLite && semanasLite.length > 0) {
           const weeks = semanasLite as unknown as WeekLite[];
+          weeksForAdherence = weeks;
           setTodaysSession(pickTodaysSession(weeks, planoData.data_inicio));
         }
       }
@@ -263,15 +321,57 @@ const StudentDashboard = () => {
 
       if (activeDietError) throw activeDietError;
 
+      // Capturados localmente (não como state) porque são usados ainda
+      // dentro desta função, no cálculo de aderência — setState não fica
+      // disponível de volta na mesma execução (é assíncrono/em lote).
+      let totalMealsForAdherence = 0;
+      let metaAguaForAdherence = AGUA_META_ML;
+
       if (activeDiet) {
         setDieta({ type: "structured", data: activeDiet as DietaAtiva });
-        if ((activeDiet as any).meta_agua_ml != null) setAguaMetaMl((activeDiet as any).meta_agua_ml);
+        if ((activeDiet as any).meta_agua_ml != null) {
+          setAguaMetaMl((activeDiet as any).meta_agua_ml);
+          metaAguaForAdherence = (activeDiet as any).meta_agua_ml;
+        }
 
-        const { count: mealCount } = await supabase
+        const { data: mealsWithFoods, count: mealCount } = await supabase
           .from("diet_meals")
-          .select("id", { count: "exact", head: true })
+          .select(
+            "id, diet_meal_foods ( quantidade, parent_food_id, lista_subst_grupo_id, alimentos ( porcao_gramas, kcal, proteina_g, carb_g, gordura_g ) )",
+            { count: "exact" },
+          )
           .eq("diet_id", activeDiet.id);
         setDietaMealCount(mealCount ?? null);
+        totalMealsForAdherence = mealCount ?? 0;
+
+        // Soma só os alimentos principais de cada refeição (sem substitutos nem
+        // referências de lista, que não têm macro próprio) — mesma regra usada
+        // em DietManager.tsx (totalMacros/mealMacros) pro painel do treinador.
+        if (mealsWithFoods) {
+          const totals = (mealsWithFoods as any[]).reduce(
+            (acc, meal) => {
+              const foods = (meal.diet_meal_foods ?? []) as any[];
+              for (const f of foods) {
+                if (f.parent_food_id || f.lista_subst_grupo_id !== null) continue;
+                const alimento = f.alimentos;
+                if (!alimento?.porcao_gramas) continue;
+                const r = (parseFloat(f.quantidade) || 0) / alimento.porcao_gramas;
+                acc.kcal += (alimento.kcal ?? 0) * r;
+                acc.carb += (alimento.carb_g ?? 0) * r;
+                acc.prot += (alimento.proteina_g ?? 0) * r;
+                acc.gord += (alimento.gordura_g ?? 0) * r;
+              }
+              return acc;
+            },
+            { kcal: 0, carb: 0, prot: 0, gord: 0 },
+          );
+          setDietaMacros({
+            kcal: Math.round(totals.kcal),
+            carb: Math.round(totals.carb * 10) / 10,
+            prot: Math.round(totals.prot * 10) / 10,
+            gord: Math.round(totals.gord * 10) / 10,
+          });
+        }
       } else {
         const { data: dietaPdfData } = await supabase
           .from("dietas_pdf")
@@ -331,14 +431,43 @@ const StudentDashboard = () => {
         .lte("data_conclusao", weekDates[6]);
       setCompletedDates(new Set((completions as any[] ?? []).map((c) => c.data_conclusao)));
 
-      const { data: cardioRow } = await supabase
-        .from("cardio_sessoes")
-        .select("tipo, duracao_minutos, data_sessao")
-        .eq("student_id", session.user.id)
-        .order("data_sessao", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setCardioLast((cardioRow as CardioLast) ?? null);
+      const { count: msgCount } = await supabase
+        .from("mensagens")
+        .select("id", { count: "exact", head: true })
+        .eq("destinatario_id", session.user.id)
+        .eq("lida", false);
+      setUnreadCount(msgCount ?? 0);
+
+      // Status de "hoje" pra cada chip do bloco colorido — separado do
+      // percentual do ciclo (que é sobre o período todo, não só hoje).
+      const [{ count: cardioTodayCount }, { data: mealTodayLogs }] = await Promise.all([
+        supabase
+          .from("cardio_sessoes")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", session.user.id)
+          .eq("data_sessao", todayStr),
+        supabase
+          .from("meal_completions")
+          .select("id")
+          .eq("student_id", session.user.id)
+          .eq("date", todayStr),
+      ]);
+      setCardioDoneToday((cardioTodayCount ?? 0) > 0);
+      setDietaRefeicoesFeitasHoje((mealTodayLogs ?? []).length);
+
+      // Aderência no ciclo atual — só calcula se já existe pelo menos um
+      // treino ativo (pra ter frequência semanal) ou dieta (pra ter total de
+      // refeições); os dois entram como 0 se não existirem, o que já é
+      // tratado dentro de computeCycleAdherence.
+      const treinoWeeklyFreq = getCurrentWeek(weeksForAdherence, planoData?.data_inicio ?? null)?.treinos.length ?? 0;
+      const adherence = await computeCycleAdherence({
+        studentId: session.user.id,
+        alunoId: aluno.id,
+        treinoWeeklyFreq,
+        dietaTotalMeals: totalMealsForAdherence,
+        aguaMetaMl: metaAguaForAdherence,
+      });
+      setCycleAdherence(adherence);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -349,8 +478,6 @@ const StudentDashboard = () => {
       setLoading(false);
     }
   };
-
-  const formatDate = (date: string) => new Date(date).toLocaleDateString("pt-BR");
 
   const handleViewDiet = async () => {
     if (!dieta) return;
@@ -385,7 +512,7 @@ const StudentDashboard = () => {
 
   const handleStartTraining = () => {
     if (todaysSession) {
-      navigate(`${base}/treinos?weekId=${todaysSession.weekId}&treinoId=${todaysSession.treinoId}`);
+      navigate(`${base}/treinos?weekId=${todaysSession.weekId}&treinoId=${todaysSession.treinoId}&autostart=1`);
     } else {
       navigate(`${base}/treinos`);
     }
@@ -418,6 +545,11 @@ const StudentDashboard = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate(slug ? `/entrar/${slug}` : "/auth");
+  };
+
   const isPlanoNovo = plano && (!plano.visto_pelo_aluno_em || new Date(plano.atualizado_em) > new Date(plano.visto_pelo_aluno_em));
   const isDietaNova =
     dieta?.type === "pdf" &&
@@ -445,25 +577,36 @@ const StudentDashboard = () => {
     };
   });
 
-  /** Ponto do gráfico de peso — mostra o kg só quando clicado, pra não poluir com todos os valores à mostra */
-  const renderPesoDot = (props: any) => {
-    const { cx, cy, index, payload } = props;
-    const isSelected = selectedPesoIdx === index;
-    return (
-      <g
-        key={`peso-dot-${index}`}
-        onClick={() => setSelectedPesoIdx(isSelected ? null : index)}
-        style={{ cursor: "pointer" }}
-      >
-        <circle cx={cx} cy={cy} r={4} fill="var(--cp-500)" />
-        {isSelected && (
-          <text x={cx} y={cy - 8} textAnchor="middle" style={{ fontSize: 9, fontWeight: 600, fill: "var(--cp-400)" }}>
-            {payload.peso}kg
-          </text>
-        )}
-      </g>
-    );
-  };
+  // ── Anel do bloco colorido — geometria do SVG (o dado exibido agora é
+  //     aderência do ciclo, calculada em ringDisplayPct mais abaixo) ──
+  const RING_R = 34;
+  const RING_CIRC = 2 * Math.PI * RING_R;
+
+  const macroChartData = dietaMacros
+    ? [
+        { name: "Carboidratos", value: Math.round(dietaMacros.carb * 4), color: MACRO_COLORS.carb },
+        { name: "Proteína", value: Math.round(dietaMacros.prot * 4), color: MACRO_COLORS.prot },
+        { name: "Gorduras", value: Math.round(dietaMacros.gord * 9), color: MACRO_COLORS.gord },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  // ── Dados do bloco colorido (chips + anel de aderência) ──────────
+  const CHIP_LABELS = { agua: "Água", dieta: "Dieta", treino: "Treino", cardio: "Cardio" } as const;
+  const CHIP_UNIT = { agua: "dias", dieta: "dias", treino: "treinos", cardio: "sessões" } as const;
+
+  const todayStrForChips = brazilToday();
+  const aguaDoneToday = aguaMl > 0 && aguaMl >= aguaMetaMl;
+  const dietaDoneToday = (dietaMealCount ?? 0) > 0 && dietaRefeicoesFeitasHoje >= (dietaMealCount ?? 0);
+  const treinoDoneToday = completedDates.has(todayStrForChips);
+
+  const CHIP_DEFS = [
+    { id: "agua" as const, icon: Droplet, doneToday: aguaDoneToday, todayText: aguaMl === 0 ? "—" : `${(aguaMl / 1000).toFixed(1)}L` },
+    { id: "dieta" as const, icon: Utensils, doneToday: dietaDoneToday, todayText: dietaMealCount ? `${dietaRefeicoesFeitasHoje}/${dietaMealCount}` : "—" },
+    { id: "treino" as const, icon: Dumbbell, doneToday: treinoDoneToday, todayText: "—" },
+    { id: "cardio" as const, icon: HeartPulse, doneToday: cardioDoneToday, todayText: "—" },
+  ];
+
+  const ringDisplayPct = cycleAdherence ? (selectedChip ? cycleAdherence[selectedChip].pct : cycleAdherence.overall) : 0;
 
   if (loading) {
     return (
@@ -479,7 +622,262 @@ const StudentDashboard = () => {
   return (
     <div className="pb-2">
 
-      <div className="px-4 pt-3 space-y-3">
+      {/* ══════════════════════════════════════════════════════════════
+          Bloco de cor cheio no topo — identidade + progresso agregado
+          do aluno. Nunca conteúdo específico de "treino de hoje" aqui
+          (fica na zona neutra abaixo, nivelado com os outros cards).
+         ══════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative px-4 pt-4 pb-8"
+        style={{
+          // Degradê vertical (não o --cp-gradient diagonal usado em botões):
+          // mais claro perto da costura com a zona neutra embaixo, ficando
+          // mais consistente/escuro subindo — mesmo efeito observado no azul
+          // da Prime perto da transição pro preto, evita um bloco de cor
+          // "chapado" uniforme.
+          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
+          color: "var(--cp-text)",
+        }}
+      >
+        {/* Ícones de notificação/mensagem nesta faixa são sempre brancos,
+            porque o fundo é sempre a cor primária cheia — independe de tema. */}
+        <div
+          style={{
+            "--notif-bell-color": "rgba(255,255,255,0.85)",
+            "--notif-bell-color-open": "rgba(255,255,255,1)",
+            "--notif-bell-hover-bg": "rgba(255,255,255,0.15)",
+          } as React.CSSProperties}
+        >
+          {/* Linha 1: avatar + saudação (esquerda) · notificações (direita) */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="relative flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => setAvatarMenuOpen((v) => !v)}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-opacity hover:opacity-90 overflow-hidden"
+                style={{ backgroundColor: "rgba(255,255,255,0.20)", color: "#fff" }}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : org?.icon_url ? (
+                  // Sem foto do aluno: cai pro ícone da org (mesmo padrão da
+                  // Prime) em vez de inicial. O filtro força branco sólido
+                  // (funciona com qualquer cor original do ícone) — sem
+                  // isso, um ícone da mesma cor primária do fundo (caso
+                  // comum quando a org ainda usa o ícone padrão da ORBI)
+                  // ficava quase invisível, sem contraste nenhum.
+                  <img
+                    src={org.icon_url}
+                    alt=""
+                    className="w-6 h-6 object-contain"
+                    style={{ filter: "brightness(0) invert(1)" }}
+                  />
+                ) : (
+                  avatarInitial
+                )}
+              </button>
+              <div className="min-w-0">
+                <p className="text-xs font-medium opacity-80 leading-none">Olá,</p>
+                <p className="text-lg font-bold truncate leading-tight">{firstName}!</p>
+              </div>
+
+              {/* ── Dropdown de conta — só lançador rápido (Perfil / Sair).
+                  Alterar senha e Notificações NÃO ficam aqui — já vivem
+                  dentro da própria página de Perfil (seção Conta), e tê-las
+                  nos dois lugares só duplicava a navegação sem necessidade. ── */}
+              {avatarMenuOpen && (
+                <>
+                  <div
+                    onClick={() => setAvatarMenuOpen(false)}
+                    style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                  />
+                  <div
+                    className="absolute left-0 top-full mt-2 w-56 rounded-2xl overflow-hidden z-50 bg-card border border-border"
+                    style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.35)" }}
+                  >
+                    {[
+                      { label: "Perfil", icon: User, path: `${base}/perfil` },
+                    ].map((item) => (
+                      <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => { setAvatarMenuOpen(false); navigate(item.path); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-card-foreground hover:bg-foreground/5 transition-colors text-left"
+                      >
+                        <item.icon className="w-4 h-4 opacity-60 shrink-0" />
+                        {item.label}
+                      </button>
+                    ))}
+                    <div className="h-px bg-border" />
+                    <button
+                      type="button"
+                      onClick={() => { setAvatarMenuOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-foreground/5 transition-colors text-left"
+                      style={{ color: "rgb(248,113,113)" }}
+                    >
+                      <LogOut className="w-4 h-4 shrink-0" />
+                      Sair da conta
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Sino de notificações — voltou a aparecer aqui (as vars
+                  --notif-bell-* logo acima já esperavam por ele, mas o
+                  componente tinha ficado de fora durante o redesign). */}
+              <NotificationBell role="student" badgeColor="rgba(255,255,255,0.28)" badgeTextColor="#fff" />
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/mensagens`)}
+                className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10"
+              >
+                <MessageSquare className="w-5 h-5" style={{ color: "rgba(255,255,255,0.9)" }} />
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-0.5 pointer-events-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.28)", color: "#fff" }}
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {/* XP — antes era um card na fileira de badges embaixo, junto
+                  com "Seq." (removido: o clique nele já leva pro Ranking,
+                  que mostra sequência atual/recorde + bônus, então o card
+                  de Seq. separado só duplicava a mesma informação). Subiu
+                  pra cá, perto da saudação — mesma posição de referência
+                  usada pela Prime. */}
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/ranking`)}
+                className="h-7 px-3 rounded-full flex items-center gap-1.5 transition-colors hover:bg-white/10"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <Zap className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-bold">{totalXp} XP</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Linha 2: grid de 3 colunas — os 4 chips vão num bloco ÚNICO
+              (col-span-2, self-start) com grid interno próprio, compactos e
+              juntinhos entre si. O anel (1ª coluna, row-span-2) tem o
+              tamanho medido de verdade via JS (ringSize, ref no bloco de
+              chips + ResizeObserver — CSS Grid sozinho não dava conta disso,
+              ver comentário perto de `chipsBlockRef`), então sempre bate
+              exatamente com a altura dos 4 chips.
+              ⚠️ A coluna do anel usa `1fr` fixo (igual as outras), não
+              `auto` — cheguei a testar `auto` pra fechar o vão horizontal
+              que sobra à direita do anel, mas isso criou um LOOP: a largura
+              da coluna passava a depender do tamanho do anel, que depende
+              da altura dos chips, que dependia da largura disponível pros
+              chips (que a coluna do anel tinha acabado de roubar) — cada
+              ciclo do ResizeObserver inflava tudo mais. Com `1fr` fixo a
+              largura da coluna nunca depende do anel, sem risco de loop —
+              o vão horizontal é fechado depois, com `colShift` (margem
+              negativa no bloco de chips+respiro, ver comentário do
+              useLayoutEffect lá em cima). */}
+          <div ref={gridRef} className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedChip(null)}
+              className="relative row-span-2 justify-self-start transition-opacity hover:opacity-90"
+              style={{ width: ringSize ?? undefined, height: ringSize ?? undefined }}
+              aria-label="Ver aderência geral do ciclo"
+            >
+              <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+                {/* Traço mais grosso que o original (7→8) — o anel ficou
+                    fisicamente menor (medido pela altura dos 4 chips agora),
+                    então engrossar o traço dá mais peso visual sem crescer
+                    nada em altura. Chegou a ir pra 9, mas ficou grosso
+                    demais — 8 é o meio-termo. */}
+                <circle cx="40" cy="40" r={RING_R} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={8} />
+                <circle
+                  cx="40" cy="40" r={RING_R} fill="none"
+                  stroke="#fff" strokeWidth={8} strokeLinecap="round"
+                  strokeDasharray={RING_CIRC}
+                  strokeDashoffset={RING_CIRC * (1 - ringDisplayPct / 100)}
+                  style={{ transition: "stroke-dashoffset 500ms ease" }}
+                />
+              </svg>
+              {/* Texto interno em tamanho proporcional ao anel (não mais
+                  text-3xl/text-[9px] fixos) — senão, com o anel agora
+                  menor (medido pela altura dos chips), o texto ficava
+                  grande demais e espremido dentro do círculo. */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-extrabold leading-none" style={{ fontSize: ringSize ? ringSize * 0.3 : 30 }}>
+                  {cycleAdherence ? `${ringDisplayPct}%` : "—"}
+                </span>
+                <span
+                  className="font-medium uppercase tracking-wider opacity-75 mt-1 text-center px-1 leading-tight"
+                  style={{ fontSize: ringSize ? Math.max(ringSize * 0.095, 8) : 9 }}
+                >
+                  {selectedChip ? CHIP_LABELS[selectedChip] : "Geral"}
+                </span>
+              </div>
+            </button>
+
+            {/* colShift (margem negativa) aplicada igual nos dois — chips e
+                respiro continuam em linhas separadas da grade (row-span-2
+                do anel cobre as duas), só que ambos deslocados juntos pra
+                fechar o vão horizontal, senão o texto "X de Y" desalinharia
+                dos chips quando aparecesse. */}
+            <div ref={chipsBlockRef} className="col-span-2 self-start grid grid-cols-2 gap-2" style={{ marginLeft: -colShift }}>
+              {CHIP_DEFS.map((chip) => {
+                const active = selectedChip === chip.id;
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setSelectedChip((c) => (c === chip.id ? null : chip.id))}
+                    className="flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors"
+                    style={{
+                      border: active ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.16)",
+                      backgroundColor: active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <chip.icon className="w-4 h-4 shrink-0 opacity-90" />
+                    <span className="text-[11px] font-medium flex-1 min-w-0 truncate">{CHIP_LABELS[chip.id]}</span>
+                    {chip.doneToday
+                      ? <Check className="w-3.5 h-3.5 shrink-0" />
+                      : <span className="text-[11px] font-bold shrink-0">{chip.todayText}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Respiro/detalhe — ocupa a 2ª linha das colunas 2-3 (o que
+                sobra da altura do anel). Sempre presente (mesmo vazio)
+                pra manter o espaço reservado e não pular quando o texto
+                aparece/some ao selecionar um chip. */}
+            <div className="col-span-2 flex items-center" style={{ marginLeft: -colShift }}>
+              {selectedChip && cycleAdherence && (
+                <p className="text-[11px] opacity-80">
+                  {cycleAdherence[selectedChip].completed} de {Math.round(cycleAdherence[selectedChip].expected)} {CHIP_UNIT[selectedChip]} no período
+                  {selectedChip === "dieta" && dietaMealCount
+                    ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
+                    : ""}
+                </p>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          Zona neutra (branca/preta conforme tema) — sobe por cima do
+          bloco colorido (margin-top negativo + cantos arredondados no
+          topo), dando a impressão de um card sobreposto — mesmo efeito
+          do branco "por cima" do azul no app do BB e do preto "por cima"
+          do azul na Prime, em vez de um corte reto na divisão.
+         ══════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative px-4 pt-6 pb-2 space-y-3 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
         {/* ── Card de anamnese pendente ── */}
         {anamnese_pendente && !anamneseDismissed && (
@@ -589,62 +987,36 @@ const StudentDashboard = () => {
           </button>
         )}
 
-        {/* ── Saudação + XP + tira de calendário ── */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0"
-                style={{ background: "var(--cp-gradient)" }}
-              >
-                {avatarInitial}
-              </div>
-              <p className="text-lg font-bold text-foreground truncate">
-                Olá, <span style={{ color: "var(--cp-400)" }}>{firstName}!</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate(`${base}/ranking`)}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 shrink-0 transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "rgba(var(--cp-rgb),0.15)" }}
-            >
-              <Zap className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
-              <span className="text-xs font-bold" style={{ color: "var(--cp-400)" }}>{totalXp} XP</span>
-            </button>
-          </div>
-
-          {/* ── Tira de calendário da semana ── */}
-          <div
-            className="rounded-2xl px-2.5 py-2"
-            style={{ border: "1.5px solid rgba(var(--cp-rgb),0.35)", backgroundColor: "hsl(var(--background))" }}
-          >
-            <div className="grid grid-cols-7 gap-1">
-              {weekStrip.map((d) =>
-                d.isToday ? (
-                  <div key={d.iso} className="flex flex-col items-center gap-1">
-                    <div
-                      className="w-full rounded-xl py-1 flex flex-col items-center gap-0.5"
-                      style={{ background: "var(--cp-gradient)" }}
-                    >
-                      <span className="text-[9px] font-semibold text-white uppercase">{d.label}</span>
-                      <span className="text-xs font-bold text-white">{d.day}</span>
-                    </div>
-                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "#fff" : "transparent" }} />
+        {/* ── Tira de calendário da semana ── */}
+        <div
+          className="rounded-2xl px-2.5 py-2"
+          style={{ border: "1.5px solid rgba(var(--cp-rgb),0.35)", backgroundColor: "hsl(var(--background))" }}
+        >
+          <div className="grid grid-cols-7 gap-1">
+            {weekStrip.map((d) =>
+              d.isToday ? (
+                <div key={d.iso} className="flex flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-xl py-1 flex flex-col items-center gap-0.5"
+                    style={{ background: "var(--cp-gradient)" }}
+                  >
+                    <span className="text-[9px] font-semibold text-white uppercase">{d.label}</span>
+                    <span className="text-xs font-bold text-white">{d.day}</span>
                   </div>
-                ) : (
-                  <div key={d.iso} className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] font-medium uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {d.label}
-                    </span>
-                    <span className="text-xs font-bold" style={{ color: "hsl(var(--muted-foreground))" }}>
-                      {d.day}
-                    </span>
-                    <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "var(--cp-500)" : "transparent" }} />
-                  </div>
-                ),
-              )}
-            </div>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "#fff" : "transparent" }} />
+                </div>
+              ) : (
+                <div key={d.iso} className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] font-medium uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {d.label}
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {d.day}
+                  </span>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: d.hasTreino ? "var(--cp-500)" : "transparent" }} />
+                </div>
+              ),
+            )}
           </div>
         </div>
 
@@ -682,7 +1054,15 @@ const StudentDashboard = () => {
               type="button"
               onClick={handleStartTraining}
               className="relative w-full h-11 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold text-white"
-              style={{ background: "var(--cp-gradient)" }}
+              style={{
+                background: "var(--cp-gradient)",
+                // Teste de "profundidade" no botão (brilho no topo + sombra
+                // por baixo), tipo o que a Prime usa nos botões dela — só
+                // nesse botão por enquanto, pra ver se vale estender pros
+                // outros. Alto relevo sem clarear o fundo (mesma regra do
+                // resto do app, ver CLAUDE.md/feedback_alto_relevo).
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 3px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.25)",
+              }}
             >
               Iniciar treino
               <ChevronRight className="w-4 h-4" />
@@ -704,9 +1084,8 @@ const StudentDashboard = () => {
           )}
         </section>
 
-        {/* ── Dieta do dia + Água — só orgs com plano que inclui dieta (Motion é só treino) ── */}
+        {/* ── Dieta do dia + macronutrientes — só orgs com plano que inclui dieta (Motion é só treino) ── */}
         {hasDiet && (
-        <>
         <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
           <div className="relative flex items-center gap-2.5 mb-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
@@ -731,6 +1110,37 @@ const StudentDashboard = () => {
               </span>
             )}
           </div>
+
+          {/* Donut de macronutrientes — mesma peça/cores do painel do treinador (DietManager.tsx) */}
+          {macroChartData.length > 0 && dietaMacros && (
+            <div className="relative flex items-center gap-4 mb-4 pb-4 border-b" style={{ borderColor: "var(--dash-card-border)" }}>
+              <div className="w-[74px] h-[74px] shrink-0">
+                <PieChart width={74} height={74}>
+                  <Pie data={macroChartData} cx="50%" cy="50%" innerRadius={21} outerRadius={35} paddingAngle={2} dataKey="value">
+                    {macroChartData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => [`${value} kcal`, name]}
+                    contentStyle={{ background: "var(--dash-card-bg)", border: "1px solid var(--dash-card-border)", borderRadius: 6, fontSize: 11 }}
+                  />
+                </PieChart>
+              </div>
+              <div className="space-y-1.5 flex-1 min-w-0">
+                {[
+                  { label: "Carboidratos", color: MACRO_COLORS.carb, pct: dietaMacros.kcal > 0 ? Math.round((dietaMacros.carb * 4 / dietaMacros.kcal) * 100) : 0 },
+                  { label: "Proteína", color: MACRO_COLORS.prot, pct: dietaMacros.kcal > 0 ? Math.round((dietaMacros.prot * 4 / dietaMacros.kcal) * 100) : 0 },
+                  { label: "Gorduras", color: MACRO_COLORS.gord, pct: dietaMacros.kcal > 0 ? Math.round((dietaMacros.gord * 9 / dietaMacros.kcal) * 100) : 0 },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-[11px] text-muted-foreground truncate">{item.label}</span>
+                    <span className="text-[11px] text-foreground ml-auto font-semibold shrink-0">{item.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {dieta ? (
             <button
               type="button"
@@ -747,8 +1157,11 @@ const StudentDashboard = () => {
             </EmptyState>
           )}
         </section>
+        )}
 
-        {/* ── Água ── */}
+        {/* ── Água — sempre visível, independe de ter dieta (é hábito geral,
+            não recurso da dieta; ficou preso ao hasDiet por engano e sumia
+            pra planos só-treino) ── */}
         <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
           <div className="relative flex items-center gap-2.5 mb-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
@@ -792,138 +1205,79 @@ const StudentDashboard = () => {
             <ChevronRight className="w-3 h-3" />
           </button>
         </section>
-        </>
-        )}
 
-        {/* ── Cardio ── */}
-        <section className="rounded-2xl border overflow-hidden relative p-4" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
-          <div className="relative flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
-              <HeartPulse className="w-[18px] h-[18px]" style={{ color: "var(--cp-400)" }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">Cardio</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {cardioLast
-                  ? `Última sessão: ${cardioLast.tipo} · ${cardioLast.duracao_minutos} min`
-                  : "Nenhuma sessão registrada ainda"}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate(`${base}/cardio`)}
-            className="relative w-full h-11 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-            style={{ border: "1.5px solid var(--cp-500)", color: "var(--cp-400)", backgroundColor: "rgba(var(--cp-rgb),0.06)" }}
-          >
-            <HeartPulse className="w-4 h-4" />
-            Registrar cardio
-          </button>
-        </section>
-
-        {/* ── Evolução ── */}
-        <section className="rounded-2xl border overflow-hidden" style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)", boxShadow: "var(--dash-card-shadow)" }}>
-          <button
-            type="button"
-            onClick={() => navigate(`${base}/evolucao`)}
-            className="w-full flex items-center justify-between px-4 py-3 border-b border-white/6 text-left hover:bg-white/3 transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.12)" }}>
-                <Activity className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-foreground">Evolução</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Últimos 30 dias</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {pesoStats?.atual != null && (
-                <div className="text-right">
-                  <p className="text-base font-bold" style={{ color: "var(--cp-400)" }}>{pesoStats.atual} kg</p>
-                  {pesoStats.variacao != null && (
-                    <p className="text-[11px] font-semibold" style={{ color: "var(--cp-400)" }}>
-                      {pesoStats.variacao > 0 ? "+" : ""}{pesoStats.variacao.toFixed(1)} kg
-                    </p>
-                  )}
-                </div>
-              )}
-              <ChevronRight className="w-4 h-4 text-muted-foreground opacity-50" />
-            </div>
-          </button>
-          <div className="p-4">
-            {pesoStats && pesoStats.registros > 0 ? (
-              <div className="space-y-3">
-                <div className="flex -mx-4 -mt-4">
-                  <div className="flex-1 text-center py-2 px-2 border-r" style={{ borderColor: "var(--dash-card-border)" }}>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Inicial</p>
-                    <p className="text-sm font-semibold text-foreground mt-1">
-                      {pesoStats.inicial != null ? `${pesoStats.inicial} kg` : "—"}
-                    </p>
-                  </div>
-                  <div className="flex-1 text-center py-2 px-2 border-r" style={{ borderColor: "var(--dash-card-border)" }}>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Variação</p>
-                    <p className="text-sm font-semibold mt-1" style={{ color: "var(--cp-400)" }}>
-                      {pesoStats.variacao != null ? `${pesoStats.variacao > 0 ? "+" : ""}${pesoStats.variacao.toFixed(1)} kg` : "—"}
-                    </p>
-                  </div>
-                  <div className="flex-1 text-center py-2 px-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Registros</p>
-                    <p className="text-sm font-semibold text-foreground mt-1">{pesoStats.registros}</p>
-                  </div>
-                </div>
-                {pesoStats.chart.length >= 2 && (
-                  <div style={{ height: 64 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={pesoStats.chart} margin={{ top: 14, right: 4, left: 4, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="pesoAreaFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--cp-500)" stopOpacity={0.35} />
-                            <stop offset="100%" stopColor="var(--cp-500)" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <Area
-                          type="monotone"
-                          dataKey="peso"
-                          stroke="var(--cp-500)"
-                          strokeWidth={2}
-                          fill="url(#pesoAreaFill)"
-                          dot={renderPesoDot}
-                          activeDot={renderPesoDot}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EmptyState>
-                Registre seu peso na aba Evolução para acompanhar seu progresso aqui.
-              </EmptyState>
-            )}
-          </div>
-        </section>
-
-        {/* ── Atualizações e check-in (banner compacto) ── */}
+        {/* ── Evolução — acesso compacto (1 linha), mesmo padrão do banner
+            de Atualização logo abaixo. Único jeito de chegar na tela de
+            peso/medidas desde que o anel do bloco colorido virou aderência
+            do ciclo (deixou de levar pra cá). Peso/variação em destaque
+            (grande, negrito, verde) — igual à referência do Lucas, não
+            texto discreto como na 1ª tentativa. */}
         <button
           type="button"
-          onClick={() => navigate(`${base}/atualizacao`)}
+          onClick={() => navigate(`${base}/evolucao`)}
           className="w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left transition-colors hover:opacity-90"
-          style={{ backgroundColor: "rgba(var(--cp-rgb),0.08)", borderColor: "rgba(var(--cp-rgb),0.22)" }}
+          style={{ backgroundColor: "var(--dash-card-bg)", borderColor: "var(--dash-card-border)" }}
         >
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
-            <FileText className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+            <Activity className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">Atualização e check-in</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {proximaAtualizacao
-                ? `Próxima: ${(() => { const [y, m, d] = proximaAtualizacao.split("-").map(Number); return format(new Date(y, m - 1, d), "dd/MM/yyyy"); })()}`
-                : "Envie medidas, fotos e observações"}
-            </p>
+            <p className="text-sm font-semibold text-foreground">Evolução</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Últimos 30 dias</p>
           </div>
+          {pesoStats?.atual != null && (
+            <div className="text-right shrink-0">
+              <p className="text-base font-bold" style={{ color: "var(--cp-400)" }}>{pesoStats.atual}kg</p>
+              {pesoStats.variacao != null && (
+                <p className="text-xs font-semibold" style={{ color: "var(--cp-400)" }}>
+                  {pesoStats.variacao > 0 ? "+" : ""}{pesoStats.variacao.toFixed(1)}kg
+                </p>
+              )}
+            </div>
+          )}
           <ChevronRight className="w-4 h-4 shrink-0" style={{ color: "var(--cp-400)" }} />
         </button>
+
+        {/* ── Atualizações e check-in — sempre aqui agora (voltou pra zona
+            neutra, saiu do bloco colorido). Sem data marcada: chamada pra
+            ação padrão. Com data marcada: mostra "Enviar até DD/MM" e muda
+            de cor quando atrasado — mesma lógica que era do badge verde. ── */}
+        {(() => {
+          let corBorda = "rgba(var(--cp-rgb),0.22)";
+          let corFundo = "rgba(var(--cp-rgb),0.08)";
+          let corIcone = "var(--cp-400)";
+          let subtitulo = "Envie medidas, fotos e observações";
+
+          if (proximaAtualizacao) {
+            const [y, m, d] = proximaAtualizacao.split("-").map(Number);
+            const alvo = new Date(y, m - 1, d);
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+            const atrasado = alvo.getTime() < hoje.getTime();
+            const dataFmt = format(alvo, "dd/MM");
+            corBorda = atrasado ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.35)";
+            corFundo = atrasado ? "rgba(239,68,68,0.10)" : "rgba(245,158,11,0.10)";
+            corIcone = atrasado ? "#f87171" : "#fbbf24";
+            subtitulo = `Enviar até ${dataFmt}`;
+          }
+
+          return (
+            <button
+              type="button"
+              onClick={() => navigate(`${base}/atualizacao`)}
+              className="w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left transition-colors hover:opacity-90"
+              style={{ backgroundColor: corFundo, borderColor: corBorda }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: corFundo }}>
+                <FileText className="w-4 h-4" style={{ color: corIcone }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Atualização e check-in</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{subtitulo}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 shrink-0" style={{ color: corIcone }} />
+            </button>
+          );
+        })()}
       </div>
     </div>
   );
