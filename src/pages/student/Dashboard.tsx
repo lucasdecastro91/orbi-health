@@ -147,38 +147,32 @@ const StudentDashboard = () => {
   const [cycleAdherence, setCycleAdherence] = useState<CycleAdherence | null>(null);
   const [selectedChip, setSelectedChip] = useState<"treino" | "dieta" | "cardio" | "agua" | null>(null);
   // Tamanho do anel medido de verdade a partir da altura renderizada dos 4
-  // chips — CSS Grid (aspect-ratio + stretch) não dava pra confiar aqui:
-  // testado com h-full/justify-self-start e o anel continuava sendo ditado
-  // pela largura da coluna, não pela altura dos chips. Medindo via ref não
-  // depende de nenhuma ambiguidade de spec, sempre bate certinho.
+  // chips (ResizeObserver) — testado duas vezes com CSS Grid puro (aspect-
+  // ratio+stretch, depois row-span-2 com altura explícita) e as duas vezes
+  // o anel voltou a ficar maior que os chips de um jeito inconsistente:
+  // grid faz o auto-sizing de LINHA considerando a altura que o próprio
+  // anel PEDE (via row-span-2), então definir a altura do anel a partir
+  // da altura medida dos chips e ainda deixar os dois na mesma grade cria
+  // margem pra grid "esticar" a linha de volta — sutil, difícil de prever
+  // pela spec, já rendeu 2 bugs de alinhamento diferentes.
   //
-  // colShift fecha o vão horizontal que sobra à direita do anel (que agora
-  // é menor que a coluna de 1fr onde vive) — SEM deixar a largura da coluna
-  // depender do tamanho do anel (isso já causou um loop: coluna "auto" >
-  // anel cresce > chips espremem > chips crescem > ResizeObserver dispara >
-  // anel cresce mais). Em vez disso a coluna continua fixa em 1fr, e o
-  // bloco de chips só recebe uma margem negativa (não muda o próprio
-  // tamanho dele, só a posição) igual à diferença entre a largura real da
-  // coluna e o tamanho do anel — sem risco nenhum de retroalimentação.
+  // Troquei a linha inteira (anel + chips) de CSS Grid pra Flexbox: o anel
+  // é um item `shrink-0` com largura/altura explícitas (não participa de
+  // nenhum cálculo de tamanho de linha/coluna), e o bloco de chips é
+  // `flex-1` (pega o espaço que sobra, do lado do anel, sem reservar 1/3
+  // fixo) — como cada item flex em `items-start` é dimensionado sozinho,
+  // não tem como o tamanho de um influenciar o do outro. Isso também fecha
+  // o vão horizontal de graça, sem precisar de margem negativa calculada
+  // à parte (o `colShift`/`gridRef` de antes não existem mais).
   const chipsBlockRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   const [ringSize, setRingSize] = useState<number | null>(null);
-  const [colShift, setColShift] = useState(0);
   useLayoutEffect(() => {
     const chipsEl = chipsBlockRef.current;
-    const gridEl = gridRef.current;
-    if (!chipsEl || !gridEl) return;
-    const GAP = 8; // gap-2
-    const measure = () => {
-      const h = chipsEl.offsetHeight;
-      setRingSize(h);
-      const col1Width = (gridEl.offsetWidth - GAP * 2) / 3;
-      setColShift(Math.max(col1Width - h, 0));
-    };
+    if (!chipsEl) return;
+    const measure = () => setRingSize(chipsEl.offsetHeight);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(chipsEl);
-    ro.observe(gridEl);
     return () => ro.disconnect();
   }, []);
   const navigate = useNavigate();
@@ -769,29 +763,17 @@ const StudentDashboard = () => {
             </div>
           </div>
 
-          {/* Linha 2: grid de 3 colunas — os 4 chips vão num bloco ÚNICO
-              (col-span-2, self-start) com grid interno próprio, compactos e
-              juntinhos entre si. O anel (1ª coluna, row-span-2) tem o
-              tamanho medido de verdade via JS (ringSize, ref no bloco de
-              chips + ResizeObserver — CSS Grid sozinho não dava conta disso,
-              ver comentário perto de `chipsBlockRef`), então sempre bate
-              exatamente com a altura dos 4 chips.
-              ⚠️ A coluna do anel usa `1fr` fixo (igual as outras), não
-              `auto` — cheguei a testar `auto` pra fechar o vão horizontal
-              que sobra à direita do anel, mas isso criou um LOOP: a largura
-              da coluna passava a depender do tamanho do anel, que depende
-              da altura dos chips, que dependia da largura disponível pros
-              chips (que a coluna do anel tinha acabado de roubar) — cada
-              ciclo do ResizeObserver inflava tudo mais. Com `1fr` fixo a
-              largura da coluna nunca depende do anel, sem risco de loop —
-              o vão horizontal é fechado depois, com `colShift` (margem
-              negativa no bloco de chips+respiro, ver comentário do
-              useLayoutEffect lá em cima). */}
-          <div ref={gridRef} className="grid grid-cols-3 gap-2">
+          {/* Linha 2: Flexbox (não mais CSS Grid — ver comentário grande
+              perto de `chipsBlockRef` lá em cima com o histórico completo
+              do porquê). O anel é item `shrink-0` com tamanho explícito
+              (medido dos chips via JS), os chips ficam num bloco `flex-1`
+              ao lado — cada um dimensionado independente, sem nenhuma
+              chance de um influenciar o tamanho do outro. */}
+          <div className="flex items-start gap-2">
             <button
               type="button"
               onClick={() => setSelectedChip(null)}
-              className="relative row-span-2 justify-self-start transition-opacity hover:opacity-90"
+              className="relative shrink-0 transition-opacity hover:opacity-90"
               style={{ width: ringSize ?? undefined, height: ringSize ?? undefined }}
               aria-label="Ver aderência geral do ciclo"
             >
@@ -827,48 +809,65 @@ const StudentDashboard = () => {
               </div>
             </button>
 
-            {/* colShift (margem negativa) aplicada igual nos dois — chips e
-                respiro continuam em linhas separadas da grade (row-span-2
-                do anel cobre as duas), só que ambos deslocados juntos pra
-                fechar o vão horizontal, senão o texto "X de Y" desalinharia
-                dos chips quando aparecesse. */}
-            <div ref={chipsBlockRef} className="col-span-2 self-start grid grid-cols-2 gap-2" style={{ marginLeft: -colShift }}>
-              {CHIP_DEFS.map((chip) => {
-                const active = selectedChip === chip.id;
-                return (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    onClick={() => setSelectedChip((c) => (c === chip.id ? null : chip.id))}
-                    className="flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors"
-                    style={{
-                      border: active ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.16)",
-                      backgroundColor: active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
-                    }}
-                  >
-                    <chip.icon className="w-4 h-4 shrink-0 opacity-90" />
-                    <span className="text-[11px] font-medium flex-1 min-w-0 truncate">{CHIP_LABELS[chip.id]}</span>
-                    {chip.doneToday
-                      ? <Check className="w-3.5 h-3.5 shrink-0" />
-                      : <span className="text-[11px] font-bold shrink-0">{chip.todayText}</span>}
-                  </button>
-                );
-              })}
-            </div>
+            {/* ref no wrapper inteiro (chips + respiro) — dessa vez de
+                propósito: o respiro agora SEMPRE mostra uma frase (nunca
+                fica vazio, ver abaixo), então faz sentido reservar altura
+                pra ele sempre e o anel cobrir esse espaço — decisão do
+                Lucas (2026-09-25): deixa o anel maior, que é o que ele
+                queria desde o começo, sem reintroduzir o vão vazio "à toa"
+                que motivou tirar a min-height antes (agora não é mais "à
+                toa", tem conteúdo sempre). */}
+            <div ref={chipsBlockRef} className="flex-1 min-w-0">
+              <div className="grid grid-cols-2 gap-2">
+                {CHIP_DEFS.map((chip) => {
+                  const active = selectedChip === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setSelectedChip((c) => (c === chip.id ? null : chip.id))}
+                      className="flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors"
+                      style={{
+                        border: active ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.16)",
+                        backgroundColor: active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <chip.icon className="w-4 h-4 shrink-0 opacity-90" />
+                      <span className="text-[11px] font-medium flex-1 min-w-0 truncate">{CHIP_LABELS[chip.id]}</span>
+                      {chip.doneToday
+                        ? <Check className="w-3.5 h-3.5 shrink-0" />
+                        : <span className="text-[11px] font-bold shrink-0">{chip.todayText}</span>}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Respiro/detalhe — ocupa a 2ª linha das colunas 2-3 (o que
-                sobra da altura do anel). Sempre presente (mesmo vazio)
-                pra manter o espaço reservado e não pular quando o texto
-                aparece/some ao selecionar um chip. */}
-            <div className="col-span-2 flex items-center" style={{ marginLeft: -colShift }}>
-              {selectedChip && cycleAdherence && (
-                <p className="text-[11px] opacity-80">
-                  {cycleAdherence[selectedChip].completed} de {Math.round(cycleAdherence[selectedChip].expected)} {CHIP_UNIT[selectedChip]} no período
-                  {selectedChip === "dieta" && dietaMealCount
-                    ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
-                    : ""}
-                </p>
-              )}
+              {/* Respiro/detalhe — SEMPRE mostra uma frase agora (chip
+                  selecionado: "X de Y no período"; "Geral": período do
+                  ciclo), nunca fica vazio — é o que justifica reservar
+                  altura pra ele (min-h) e o anel cobrir esse espaço. */}
+              <div className="flex items-center mt-2 min-h-[16px]">
+                {selectedChip && cycleAdherence ? (
+                  <p className="text-[11px] opacity-80">
+                    {cycleAdherence[selectedChip].completed} de {Math.round(cycleAdherence[selectedChip].expected)} {CHIP_UNIT[selectedChip]} no período
+                    {selectedChip === "dieta" && dietaMealCount
+                      ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
+                      : ""}
+                  </p>
+                ) : cycleAdherence ? (
+                  <p className="text-[11px] opacity-80">
+                    {(() => {
+                      const fmtCiclo = (iso: string) => {
+                        const [y, m, d] = iso.split("-").map(Number);
+                        return format(new Date(y, m - 1, d), "dd/MM");
+                      };
+                      return cycleAdherence.cycleEndIsProvisional
+                        ? `Ciclo desde ${fmtCiclo(cycleAdherence.cycleStart)} (em andamento)`
+                        : `Ciclo de ${fmtCiclo(cycleAdherence.cycleStart)} até ${fmtCiclo(cycleAdherence.cycleEnd)}`;
+                    })()}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
 
