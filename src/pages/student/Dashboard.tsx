@@ -637,6 +637,14 @@ const StudentDashboard = () => {
           // "chapado" uniforme.
           background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
           color: "var(--cp-text)",
+          // Sombra na mesma cor por baixo do bloco — mesma regra de "alto
+          // relevo, não clarear" já usada nos cards elevados (CARD_BG/
+          // CARD_SHADOW). Sem isso o bloco verde só "corta" reto pro preto
+          // da zona neutra, sem nenhuma pista de profundidade — parece
+          // colado, não flutuando por cima. A zona neutra (marginTop: -24)
+          // desenha por cima dessa sombra, então ela só aparece vazando
+          // logo acima da costura arredondada.
+          boxShadow: "0 24px 40px -12px rgba(var(--cp-rgb), 0.5)",
         }}
       >
         {/* Ícones de notificação/mensagem nesta faixa são sempre brancos,
