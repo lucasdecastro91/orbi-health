@@ -169,10 +169,18 @@ const StudentDashboard = () => {
   useLayoutEffect(() => {
     const chipsEl = chipsBlockRef.current;
     if (!chipsEl) return;
-    const measure = () => setRingSize(chipsEl.offsetHeight);
+    // Teto de 40% da largura da linha: rede de segurança contra o loop
+    // anel↔chips (anel maior → chips mais estreitos → mais altos → anel
+    // maior). A largura da linha não depende do anel, então o teto é estável.
+    const rowEl = chipsEl.parentElement;
+    const measure = () => {
+      const cap = rowEl ? rowEl.clientWidth * 0.4 : Infinity;
+      setRingSize(Math.min(chipsEl.offsetHeight, cap));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(chipsEl);
+    if (rowEl) ro.observe(rowEl);
     return () => ro.disconnect();
   }, []);
   const navigate = useNavigate();
@@ -846,24 +854,24 @@ const StudentDashboard = () => {
                   selecionado: "X de Y no período"; "Geral": período do
                   ciclo), nunca fica vazio — é o que justifica reservar
                   altura pra ele (min-h) e o anel cobrir esse espaço. */}
-              <div className="flex items-center mt-2 min-h-[16px]">
+              {/* Frase SEMPRE numa linha só (truncate): a altura deste bloco
+                  define o tamanho do anel, e o anel ocupa largura — se a
+                  frase quebrasse linha, o bloco crescia, o anel crescia,
+                  espremia os chips, a frase quebrava mais... (loop que
+                  estourou o layout em 2026-09-25). */}
+              <div className="flex items-center mt-2 min-h-[16px] min-w-0">
                 {selectedChip && cycleAdherence ? (
-                  <p className="text-[11px] opacity-80">
+                  <p className="text-[11px] opacity-80 truncate">
                     {cycleAdherence[selectedChip].completed} de {Math.round(cycleAdherence[selectedChip].expected)} {CHIP_UNIT[selectedChip]} no período
                     {selectedChip === "dieta" && dietaMealCount
                       ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
                       : ""}
                   </p>
                 ) : cycleAdherence ? (
-                  <p className="text-[11px] opacity-80">
+                  <p className="text-[11px] opacity-80 truncate">
                     {(() => {
-                      const fmtCiclo = (iso: string) => {
-                        const [y, m, d] = iso.split("-").map(Number);
-                        return format(new Date(y, m - 1, d), "dd/MM");
-                      };
-                      return cycleAdherence.cycleEndIsProvisional
-                        ? `Ciclo desde ${fmtCiclo(cycleAdherence.cycleStart)} (em andamento)`
-                        : `Ciclo de ${fmtCiclo(cycleAdherence.cycleStart)} até ${fmtCiclo(cycleAdherence.cycleEnd)}`;
+                      const [y, m, d] = cycleAdherence.cycleStart.split("-").map(Number);
+                      return `Ciclo desde ${format(new Date(y, m - 1, d), "dd/MM")}`;
                     })()}
                   </p>
                 ) : null}
