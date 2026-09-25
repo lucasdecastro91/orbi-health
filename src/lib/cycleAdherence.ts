@@ -1,9 +1,9 @@
 /**
- * Aderência do aluno no ciclo atual (desde a última atualização enviada até
- * a próxima data marcada pelo treinador, ou "hoje" como fim provisório
- * quando essa data ainda não foi marcada — o período medido cresce dia a
- * dia até o treinador definir uma data real, igual um app de rota mostrando
- * "12km percorridos" antes do destino final estar definido).
+ * Aderência do aluno no ciclo atual — desde a última atualização enviada
+ * (ou desde o dia seguinte à data marcada, se ela já venceu) até hoje. O
+ * período medido cresce dia a dia até o treinador definir a próxima data,
+ * igual um app de rota mostrando "12km percorridos" antes do destino final
+ * estar definido.
  *
  * Cada pilar (treino, dieta, cardio, água) vira um percentual PRÓPRIO do
  * período antes de qualquer peso ser aplicado — nunca soma unidades cruas
@@ -48,6 +48,12 @@ const daysBetweenInclusive = (startISO: string, endISO: string): number => {
   return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
 };
 
+const addDaysISO = (iso: string, n: number): string => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + n));
+  return dt.toISOString().slice(0, 10);
+};
+
 export interface ComputeAdherenceParams {
   /** auth.users.id do aluno */
   studentId: string;
@@ -78,9 +84,14 @@ export const computeCycleAdherence = async (
     .maybeSingle();
 
   if (!lastUpdate?.submitted_at) return null;
-  const cycleStart = String(lastUpdate.submitted_at).slice(0, 10);
+  const lastSubmission = String(lastUpdate.submitted_at).slice(0, 10);
 
-  // 2. Fim do ciclo — próxima data marcada pelo treinador, ou hoje (provisório)
+  // 2. Data marcada pelo treinador. Se ela JÁ PASSOU (e é posterior ao
+  //    último envio), aquele ciclo acabou: o novo começa no dia seguinte e
+  //    fica em andamento até o treinador marcar a próxima data. Antes, data
+  //    vencida travava o fim do ciclo nela — o período congelava (aluno que
+  //    enviou no próprio dia marcado ficava com ciclo de 1 dia; aluno que
+  //    não enviou ficava preso no ciclo antigo). Ver CLAUDE.md seção 15.
   const { data: aluno } = await supabase
     .from("alunos")
     .select("form_atualizacao_ultima_data")
@@ -89,8 +100,14 @@ export const computeCycleAdherence = async (
 
   const today = brazilToday();
   const definedEnd = (aluno as any)?.form_atualizacao_ultima_data as string | null;
-  const cycleEndIsProvisional = !definedEnd || definedEnd > today;
-  const cycleEnd = cycleEndIsProvisional ? today : definedEnd!;
+  const dueHasPassed = !!definedEnd && definedEnd < today && definedEnd >= lastSubmission;
+  const cycleStart = dueHasPassed ? addDaysISO(definedEnd!, 1) : lastSubmission;
+
+  // 3. Fim do ciclo — sempre hoje: o ciclo corrente é medido até agora e
+  //    cresce dia a dia (data futura ainda não chegou; data passada já
+  //    virou o início do próximo ciclo acima).
+  const cycleEndIsProvisional = true;
+  const cycleEnd = today;
 
   const days = daysBetweenInclusive(cycleStart, cycleEnd);
   const weeksInPeriod = days / 7;
