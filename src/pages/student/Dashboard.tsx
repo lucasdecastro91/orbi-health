@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -164,10 +164,16 @@ const StudentDashboard = () => {
   // não tem como o tamanho de um influenciar o do outro. Isso também fecha
   // o vão horizontal de graça, sem precisar de margem negativa calculada
   // à parte (o `colShift`/`gridRef` de antes não existem mais).
-  const chipsBlockRef = useRef<HTMLDivElement>(null);
+  //
+  // O elemento dos chips fica em STATE (callback ref), não em useRef: no
+  // primeiro render a página mostra o loading (`if (loading) return`) e os
+  // chips nem existem — com useRef + deps [] o efeito rodava uma vez só com
+  // ref null, desistia e nunca mais media; o anel ficava sem tamanho e
+  // tomava a largura toda. Só "funcionava" no dev via HMR, com a página já
+  // montada (2026-09-25). Com state, o efeito roda quando os chips montam.
+  const [chipsEl, chipsBlockRef] = useState<HTMLDivElement | null>(null);
   const [ringSize, setRingSize] = useState<number | null>(null);
   useLayoutEffect(() => {
-    const chipsEl = chipsBlockRef.current;
     if (!chipsEl) return;
     // Teto de 40% da largura da linha: rede de segurança contra o loop
     // anel↔chips (anel maior → chips mais estreitos → mais altos → anel
@@ -182,7 +188,7 @@ const StudentDashboard = () => {
     ro.observe(chipsEl);
     if (rowEl) ro.observe(rowEl);
     return () => ro.disconnect();
-  }, []);
+  }, [chipsEl]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { slug, orgId, org } = useTenantContext();
