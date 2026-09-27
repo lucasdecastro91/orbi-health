@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { ArrowLeft, Droplet, Loader2, Plus } from "lucide-react";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
+import { Droplet, Loader2, Plus } from "lucide-react";
 import { AGUA_META_ML } from "@/lib/agua";
 import { grantXP } from "@/lib/xp";
 import { evaluateAndUpdateStreak } from "@/lib/streaks";
@@ -140,27 +141,10 @@ const Agua = () => {
 
   return (
     <div className="min-h-screen pb-10">
-      {/* ══════════════════════════════════════════════════════════════
-          Cabeçalho colorido — só ícone+título (nada de conteúdo/ação aqui
-          dentro). Mesmo degradê vertical + divisão arredondada do bloco do
-          Dashboard, replicado como cabeçalho enxuto em cada tela individual
-          do aluno (padrão pedido pelo Lucas 2026-09-09, ref.: telas da
-          Prime). O resto da tela continua exatamente como estava antes. ── */}
-      <div
-        className="relative px-4 pt-3 pb-9"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-          color: "#fff",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => navigate(base)} className="w-8 h-8 flex items-center justify-center -ml-1">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <Droplet className="w-5 h-5 shrink-0" />
-          <h1 className="text-xl font-bold">Água</h1>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (2026-09-27): voltar à
+          esquerda, título centralizado. Sem ação à direita — a meta de
+          água vem da dieta (treinador), o aluno não edita. */}
+      <StudentPageHeader title="Água" backTo={base} />
 
       <div
         className="relative px-4 pt-6 pb-10 space-y-5 rounded-t-[28px]"

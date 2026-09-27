@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   Dumbbell, Calendar, ChevronDown, ChevronRight,
-  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X, History,
+  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -549,6 +550,10 @@ const AlongamentosSection = ({ stretchings }: { stretchings: Stretching[] }) => 
 
 const Treinos = () => {
   const { slug, orgId }  = useTenantContext();
+  const treinoTabs = [
+    { label: "Prescrição", to: `/${slug}/aluno/treinos`, active: true },
+    { label: "Histórico", to: `/${slug}/aluno/treinos/historico`, active: false },
+  ];
   const navigate         = useNavigate();
   const { toast }        = useToast();
   const [searchParams]   = useSearchParams();
@@ -753,19 +758,7 @@ const Treinos = () => {
   if (!plano) {
     return (
       <div className="pb-6">
-        {/* Cabeçalho colorido enxuto — só ícone+título (padrão replicado
-            em todas as telas individuais do aluno, 2026-09-09) */}
-        <div
-          className="relative px-4 pt-3 pb-9"
-          style={{
-            background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <Dumbbell className="w-5 h-5 text-white" />
-            <h1 className="text-xl font-bold text-white">Treinos</h1>
-          </div>
-        </div>
+        <StudentPageHeader title="Meus treinos" tabs={treinoTabs} />
 
         <div
           className="relative max-w-lg mx-auto px-4 pt-8 rounded-t-[28px]"
@@ -807,30 +800,9 @@ const Treinos = () => {
   return (
     <div className="pb-6">
 
-      {/* Cabeçalho colorido enxuto — ícone+título (+ atalho de histórico,
-          que já existia aqui, recolorido de branco) — padrão replicado em
-          todas as telas individuais do aluno, 2026-09-09 */}
-      <div
-        className="relative px-4 pt-3 pb-9"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Dumbbell className="w-5 h-5 shrink-0 text-white" />
-            <h1 className="text-xl font-bold text-white">Treinos</h1>
-          </div>
-          <button
-            onClick={() => navigate(`/${slug}/aluno/treinos/historico`)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
-            style={{ backgroundColor: "rgba(255,255,255,0.16)" }}
-            title="Ver histórico"
-          >
-            <History className="w-4 h-4 text-white" />
-          </button>
-        </div>
-      </div>
+      {/* Cabeçalho com abas Prescrição | Histórico (2026-09-27) — o atalho
+          de histórico que ficava no canto virou a aba. */}
+      <StudentPageHeader title="Meus treinos" tabs={treinoTabs} />
 
       <div
         className="relative max-w-lg mx-auto px-4 pt-6 space-y-5 rounded-t-[28px]"

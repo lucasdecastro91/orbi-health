@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { grantXP } from "@/lib/xp";
 import { evaluateAndUpdateStreak } from "@/lib/streaks";
 import {
@@ -1290,65 +1291,51 @@ const Dieta = () => {
 
       <div className="min-h-screen pb-24">
 
-        {/* ── Cabeçalho colorido enxuto — ícone+título + os ícones de ação
-            que já existiam aqui (chip de refeições, observações, histórico),
-            recoloridos de branco. "Day macros summary" abaixo desce pra
-            zona neutra — padrão replicado em todas as telas do aluno,
-            2026-09-09. ── */}
-        <div
-          className="relative px-4 pt-3 pb-9"
-          style={{
-            background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Utensils className="w-5 h-5 shrink-0 text-white" />
-              <h1 className="text-xl font-bold text-white tracking-tight">{diet.title}</h1>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {totalMeals > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
-                  style={{
-                    backgroundColor: allDone ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.3)",
-                  }}>
-                  {allDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Utensils className="w-3.5 h-3.5" />}
-                  {doneMealsCount}/{totalMeals}
-                </div>
-              )}
-              {hasObs && (
-                <button
-                  onClick={() => setObsOpen(true)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.3)" }}
-                  title="Ver observações"
-                >
-                  <FileText className="w-4 h-4 text-white" />
-                </button>
-              )}
-              <button
-                onClick={() => navigate(`/${slug}/aluno/dieta/historico`)}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
-                style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.3)" }}
-                title="Ver histórico"
-              >
-                <History className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* ── Cabeçalho com abas Dieta | Histórico (2026-09-27). Só
+            navegação: nome da dieta, observações (PDF) e contador de
+            refeições desceram pro card do topo do conteúdo. ── */}
+        <StudentPageHeader
+          title="Minha dieta"
+          tabs={[
+            { label: "Dieta", to: `/${slug}/aluno/dieta`, active: true },
+            { label: "Histórico", to: `/${slug}/aluno/dieta/historico`, active: false },
+          ]}
+        />
 
         <div
           className="relative rounded-t-[28px]"
           style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
         >
         <div className="px-4 pt-3 pb-4">
-          {/* Day macros summary */}
-          {hasAnyMacros && (
-            <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}>
-              <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Total do dia</p>
+          {/* Card do topo — nome da dieta + observações + contador de
+              refeições (vieram do cabeçalho) + total do dia. */}
+          <div className="mt-3 p-3 rounded-2xl" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", border: "1px solid rgba(var(--cp-rgb),0.2)" }}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-base font-bold text-foreground leading-snug min-w-0">{diet.title}</h2>
+              {hasObs && (
+                <button
+                  onClick={() => setObsOpen(true)}
+                  className="w-8 h-8 -mt-1 -mr-1 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                  style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}
+                  title="Ver observações"
+                  aria-label="Ver observações"
+                >
+                  <FileText className="w-4 h-4" style={{ color: "var(--cp-400)" }} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between mt-3 mb-2">
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Total do dia</p>
+              {totalMeals > 0 && (
+                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: allDone ? "var(--cp-400)" : "var(--text-dim)" }}>
+                  {allDone && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  {doneMealsCount}/{totalMeals} refeições
+                </span>
+              )}
+            </div>
+
+            {hasAnyMacros ? (
               <div className="flex items-center gap-1">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ backgroundColor: "var(--surface-1)", border: "1px solid var(--border-subtle)" }}>
                   <Flame className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
@@ -1367,15 +1354,13 @@ const Dieta = () => {
                   <span className="text-xs font-medium text-foreground/70">G {dayTotal.gord}g</span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {!hasAnyMacros && diet.calories && (
-            <div className="flex items-center gap-1.5 mt-2">
-              <Flame className="w-3.5 h-3.5 text-white/40" />
-              <span className="text-sm text-muted-foreground">{diet.calories} kcal / dia</span>
-            </div>
-          )}
+            ) : diet.calories ? (
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5" style={{ color: "var(--cp-400)" }} />
+                <span className="text-sm text-muted-foreground">{diet.calories} kcal / dia</span>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {/* ── Meal cards ── */}
