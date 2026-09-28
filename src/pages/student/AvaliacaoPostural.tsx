@@ -27,7 +27,10 @@ interface TesteSlide {
 // virando dado real em avaliacao_postural_config.testes.
 // TOTAL_PHOTOS agora é calculado dinamicamente no componente
 
-const BUCKET = "evolution-photos";
+// Bucket próprio (não evolution-photos) — isolado desde 2026-09-08 pra
+// avaliação postural nunca mais dividir espaço com outra funcionalidade
+// (ver migration 20260908000002_create_avaliacoes_posturais_bucket.sql).
+const BUCKET = "avaliacoes-posturais";
 
 // Fotos saíam no tamanho nativo da câmera (podendo passar de 3000px de lado,
 // vários MB cada) — só a qualidade JPEG (0.88) era comprimida, nunca a

@@ -672,7 +672,7 @@ export default function PlanSelection() {
           </h2>
           <p className="text-white/50">
             {method === "CREDIT_CARD"
-              ? "Sua conta está ativa. Bem-vindo ao ORBI Health!"
+              ? "Sua conta está ativa. Bem-vindo à ORBI Health!"
               : "Finalize o pagamento para ativar sua conta. A confirmação ocorre automaticamente."}
           </p>
         </div>

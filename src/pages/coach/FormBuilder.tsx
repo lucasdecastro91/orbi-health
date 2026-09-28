@@ -475,7 +475,7 @@ const FormBuilder = () => {
           onClick={handleSave}
           disabled={saving}
           className="flex items-center gap-2 px-4 h-9 rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
-          style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}
+          style={{ background: "var(--cp-gradient)", color: "#ffffff" }}
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
           Salvar
@@ -592,7 +592,7 @@ const FormBuilder = () => {
         onClick={handleSave}
         disabled={saving}
         className="w-full flex items-center justify-center gap-2 h-12 rounded-xl text-sm font-semibold transition-all disabled:opacity-60"
-        style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}
+        style={{ background: "var(--cp-gradient)", color: "#ffffff" }}
       >
         {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : <><Check className="w-4 h-4" /> Salvar formulário</>}
       </button>

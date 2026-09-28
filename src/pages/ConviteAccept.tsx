@@ -168,7 +168,7 @@ const ConviteAccept = () => {
           <Button
             onClick={() => navigate("/auth")}
             className="mt-2 rounded-xl text-black font-semibold"
-            style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))" }}>
+            style={{ background: "var(--cp-gradient)" }}>
             Fazer login
           </Button>
         </div>

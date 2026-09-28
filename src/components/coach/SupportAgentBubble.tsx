@@ -152,13 +152,16 @@ const SupportAgentBubble = () => {
         </div>
       )}
 
-      {/* Balão flutuante — escondível (bubbleHidden) fora do chat aberto.
-          Reaparece via evento "orbi:open-agent" (item "Assistente ORBI
-          Health" no menu "Mais" do CoachLayout mobile), nunca perde acesso. */}
+      {/* Balão flutuante — escondível (bubbleHidden) só no mobile, fora do
+          chat aberto. Reaparece via evento "orbi:open-agent" (item
+          "Assistente ORBI Health" no menu "Mais" do CoachLayout), que só
+          existe na nav mobile (lg:hidden) — por isso no desktop a bolinha
+          sempre ignora bubbleHidden e nunca mostra o botão de esconder: lá
+          não teria como reabrir, e a bolinha "sumia pra sempre" (bug real,
+          2026-09-06). Classe `hidden lg:flex` no container faz o mobile
+          respeitar bubbleHidden via CSS, sem tirar a bolinha do desktop. */}
       {(!bubbleHidden || open) && (
         <div
-          // Mesmo ajuste do balão-teaser acima — sobe o suficiente pra não
-          // cobrir a barra de navegação mobile do CoachLayout.
           className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+0.5rem)] right-4 z-50 lg:bottom-4"
         >
           <button
@@ -174,13 +177,26 @@ const SupportAgentBubble = () => {
             <button
               type="button"
               onClick={hideBubble}
-              className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+              className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full flex items-center justify-center lg:hidden"
               style={{ backgroundColor: "#3f3f46", boxShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
               title="Esconder — acesse depois pelo menu Mais"
             >
               <X className="w-3 h-3 text-white/70" />
             </button>
           )}
+        </div>
+      )}
+      {bubbleHidden && !open && (
+        <div className="fixed bottom-4 right-4 z-50 hidden lg:block">
+          <button
+            type="button"
+            onClick={openChat}
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+            style={{ background: "var(--cp-gradient)", boxShadow: "0 4px 20px rgba(var(--cp-rgb),0.4)" }}
+            title="Assistente ORBI Health"
+          >
+            <OrbiMark size={48} color="#fff" />
+          </button>
         </div>
       )}
 
@@ -212,7 +228,7 @@ const SupportAgentBubble = () => {
               <div className="flex flex-col items-center justify-center h-full text-center gap-2 px-4">
                 <div className="opacity-20"><OrbiMark size={32} color="#fff" /></div>
                 <p className="text-sm text-white/40">
-                  Pergunte qualquer coisa sobre como usar o ORBI Health — planos, funcionalidades, onde encontrar cada coisa.
+                  Pergunte qualquer coisa sobre como usar a ORBI Health — planos, funcionalidades, onde encontrar cada coisa.
                 </p>
               </div>
             ) : (

@@ -520,7 +520,7 @@ const CoachLayout = () => {
             {orgStatus === "trial" ? "Seu trial expirou" : "Assinatura pendente"}
           </p>
           <p className="text-sm text-foreground/50 max-w-xs">
-            Pra continuar usando o ORBI Health, acesse pelo navegador em{" "}
+            Pra continuar usando o aplicativo, acesse pelo navegador em{" "}
             <span className="text-foreground/70 font-medium">app.orbihealth.com.br</span> e finalize sua assinatura.
           </p>
         </div>

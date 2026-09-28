@@ -2508,7 +2508,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
             </button>
             <button onClick={save} disabled={saving}
               className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2 flex-1 justify-center"
-              style={{ background: 'linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))' }}>
+              style={{ background: 'var(--cp-gradient)' }}>
               {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Salvar
             </button>
@@ -2560,7 +2560,7 @@ const SuplementosManager = ({ alunoId, orgId }: { alunoId: string; orgId: string
                   </button>
                   <button onClick={update} disabled={saving}
                     className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2 flex-1 justify-center"
-                    style={{ background: 'linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))' }}>
+                    style={{ background: 'var(--cp-gradient)' }}>
                     {saving ? <Spinner className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Salvar
                   </button>
@@ -2620,7 +2620,10 @@ const POSTURAL_TESTES = [
   { key: "flexao_coluna",      label: "Flexão da Coluna",                   photoLabels: ["Flexão Coluna"] },
 ] as const;
 
-const POSTURAL_BUCKET = "evolution-photos";
+// Bucket próprio (não evolution-photos) — isolado desde 2026-09-08 pra
+// avaliação postural nunca mais dividir espaço com outra funcionalidade
+// (ver migration 20260908000002_create_avaliacoes_posturais_bucket.sql).
+const POSTURAL_BUCKET = "avaliacoes-posturais";
 
 const PosturalViewer = ({ studentUserId, alunoId }: { studentUserId: string; alunoId: string }) => {
   const { toast } = useToast();
@@ -4167,6 +4170,7 @@ const StudentDetails = () => {
     plano_inicio: string;
     data_expiracao_plano: string;
     plano_valor_pago: number | null;
+    plano_id: string | null;
   } | null>(null);
   const [planoEdit, setPlanoEdit] = useState(false);
   const [planoForm, setPlanoForm] = useState({
@@ -4224,7 +4228,7 @@ const StudentDetails = () => {
 
       let query = supabase
         .from("alunos")
-        .select("id, user_id, observacoes, profiles!alunos_user_id_fkey(nome), plano_nome, plano_inicio, data_expiracao_plano, plano_valor_pago")
+        .select("id, user_id, observacoes, profiles!alunos_user_id_fkey(nome), plano_nome, plano_inicio, data_expiracao_plano, plano_valor_pago, plano_id")
         .eq("id", id);
 
       if (!isCollab) {
@@ -4238,8 +4242,8 @@ const StudentDetails = () => {
       // Carrega plano se existir
       if ((data as any).plano_nome) {
         const p = data as any;
-        setPlano({ plano_nome: p.plano_nome, plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago ?? null });
-        setPlanoForm({ plano_nome: p.plano_nome ?? "", plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago != null ? String(p.plano_valor_pago) : "", selected_plan_id: "" });
+        setPlano({ plano_nome: p.plano_nome, plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago ?? null, plano_id: p.plano_id ?? null });
+        setPlanoForm({ plano_nome: p.plano_nome ?? "", plano_inicio: p.plano_inicio ?? "", data_expiracao_plano: p.data_expiracao_plano ?? "", plano_valor_pago: p.plano_valor_pago != null ? String(p.plano_valor_pago) : "", selected_plan_id: p.plano_id ?? "" });
       }
       // Busca peso do último check-in
       loadWeight((data as StudentData).user_id);
@@ -4440,17 +4444,38 @@ const StudentDetails = () => {
             }
             setPlanoSaving(true);
             try {
+              const planoIdSelecionado = planoForm.selected_plan_id || null;
               const payload: Record<string, unknown> = {
                 plano_nome:           planoForm.plano_nome.trim() || null,
                 plano_inicio:         planoForm.plano_inicio      || null,
                 data_expiracao_plano: planoForm.data_expiracao_plano || null,
                 plano_valor_pago:     planoForm.plano_valor_pago ? parseFloat(planoForm.plano_valor_pago.replace(",", ".")) : null,
+                plano_id:             planoIdSelecionado,
               };
               const { error } = await supabase.from("alunos").update(payload).eq("id", id!);
               if (error) throw error;
-              setPlano({ plano_nome: payload.plano_nome as string, plano_inicio: payload.plano_inicio as string, data_expiracao_plano: payload.data_expiracao_plano as string, plano_valor_pago: payload.plano_valor_pago as number | null });
+              setPlano({
+                plano_nome: payload.plano_nome as string,
+                plano_inicio: payload.plano_inicio as string,
+                data_expiracao_plano: payload.data_expiracao_plano as string,
+                plano_valor_pago: payload.plano_valor_pago as number | null,
+                plano_id: planoIdSelecionado,
+              });
               setPlanoEdit(false);
               toast({ title: "Plano atualizado!" });
+
+              // Plano do catálogo (não texto livre) + vencimento definido: já deixa
+              // a cobrança da renovação pronta, adiantando o aviso ao aluno (D-30/
+              // D-15/D-7/vencida já rodam sozinhos em cima dela). Best-effort — não
+              // desfaz o "Plano atualizado!" acima se isso falhar.
+              if (planoIdSelecionado && payload.data_expiracao_plano) {
+                supabase.functions.invoke("criar-cobranca-adiada", {
+                  body: {
+                    aluno_id: id, org_id: orgId, plano_id: planoIdSelecionado,
+                    descricao: payload.plano_nome, vencimento: payload.data_expiracao_plano,
+                  },
+                }).catch((e) => console.error("[StudentDetails] criar-cobranca-adiada falhou:", e));
+              }
             } catch (e: any) {
               toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
             } finally { setPlanoSaving(false); }

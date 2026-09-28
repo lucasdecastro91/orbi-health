@@ -1860,11 +1860,23 @@ const senhaPath = `/${slug}/treinador/alterar-senha`;
 
   const SecuritySection = () => (
     <Section title="Segurança" subtitle="Gerenciamento de acesso">
-      <Button variant="ghost" onClick={() => navigate(senhaPath)}
-        className="h-10 px-4 rounded-xl text-white/60 hover:text-white border border-white/10 hover:bg-white/5 hover:border-white/20 transition-premium gap-2">
-        <Lock className="w-4 h-4" />
-        Alterar senha
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" onClick={() => navigate(senhaPath)}
+          className="h-10 px-4 rounded-xl text-white/60 hover:text-white border border-white/10 hover:bg-white/5 hover:border-white/20 transition-premium gap-2">
+          <Lock className="w-4 h-4" />
+          Alterar senha
+        </Button>
+        <Button variant="ghost" onClick={() => navigate("/termos")}
+          className="h-10 px-4 rounded-xl text-white/60 hover:text-white border border-white/10 hover:bg-white/5 hover:border-white/20 transition-premium gap-2">
+          <ExternalLink className="w-4 h-4" />
+          Termos de Uso
+        </Button>
+        <Button variant="ghost" onClick={() => navigate("/privacidade")}
+          className="h-10 px-4 rounded-xl text-white/60 hover:text-white border border-white/10 hover:bg-white/5 hover:border-white/20 transition-premium gap-2">
+          <ExternalLink className="w-4 h-4" />
+          Política de Privacidade
+        </Button>
+      </div>
     </Section>
   );
 

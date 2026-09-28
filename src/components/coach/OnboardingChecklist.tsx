@@ -162,7 +162,7 @@ const OnboardingChecklist = () => {
           <div
             className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold"
             style={{
-              background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))",
+              background: "var(--cp-gradient)",
               color: "#000",
             }}
           >

@@ -440,6 +440,18 @@ const Signup = () => {
                     {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Criando...</> : "Criar conta"}
                   </button>
                 </div>
+
+                <p className="text-center text-white/30 text-[11px] leading-relaxed pt-1">
+                  Ao criar sua conta, você concorda com nossos{" "}
+                  <Link to="/termos" className="underline hover:text-white/50 transition-colors">
+                    Termos de Uso
+                  </Link>{" "}
+                  e nossa{" "}
+                  <Link to="/privacidade" className="underline hover:text-white/50 transition-colors">
+                    Política de Privacidade
+                  </Link>
+                  .
+                </p>
               </form>
             </>
           )}

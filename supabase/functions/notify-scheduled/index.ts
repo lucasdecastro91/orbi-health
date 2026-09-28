@@ -198,20 +198,37 @@ async function logNotification(params: {
   body: string;
   tag?: string;
 }) {
-  await supabase.from("notification_logs").insert({
+  const { error } = await supabase.from("notification_logs").insert({
     ...params,
     delivered: true,
   });
+  // 23505 = unique_violation na constraint notification_logs_recipient_tag_unique
+  // (migration 20260908000003) — esperado se duas execuções colidirem, não é bug.
+  if (error && error.code !== "23505") {
+    console.error("[notify-scheduled] logNotification error:", error.message);
+  }
 }
 
+// Bug real (2026-09-08): .maybeSingle() aqui voltava sempre null mesmo com o
+// registro já existindo, pro tipo meals_incomplete (único cron por minuto que
+// dependia só desta checagem) — causou notificação repetida a cada minuto,
+// indefinidamente, pra pelo menos 6 alunos desde 26/08 (um chegou a 202
+// cópias). Trocado por count-based check (mesmo padrão já usado nas checagens
+// de meal_completions acima) — mais simples e não depende do comportamento de
+// objeto único do maybeSingle. Em caso de erro na checagem, assume "já
+// mandei" (retorna true) — melhor perder uma notificação pontual do que
+// voltar a spammar.
 async function alreadyLoggedToday(recipientId: string, tag: string): Promise<boolean> {
-  const { data } = await supabase
+  const { count, error } = await supabase
     .from("notification_logs")
-    .select("id")
+    .select("id", { count: "exact", head: true })
     .eq("recipient_id", recipientId)
-    .eq("tag", tag)
-    .maybeSingle();
-  return !!data;
+    .eq("tag", tag);
+  if (error) {
+    console.error("[notify-scheduled] alreadyLoggedToday error:", error.message);
+    return true;
+  }
+  return (count ?? 0) > 0;
 }
 
 // ── Treino previsto hoje (mesma lógica de src/lib/trainingSchedule.ts, portada — ────

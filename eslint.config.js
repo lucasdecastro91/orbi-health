@@ -21,6 +21,16 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Esse gradiente âmbar hardcoded já foi corrigido e reapareceu por
+      // copy-paste em 2026-09 (8 arquivos, 12 ocorrências) — sempre usar
+      // var(--cp-gradient) (cor primária configurável da org, CLAUDE.md seção 14).
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/linear-gradient\\(135deg,\\s*hsl\\(42 95% 58%\\),\\s*hsl\\(35 92% 44%\\)\\)/]",
+          message: "Não hardcode o gradiente âmbar — use var(--cp-gradient) (cor primária configurável da org). Ver CLAUDE.md seção 14.",
+        },
+      ],
     },
   },
 );
