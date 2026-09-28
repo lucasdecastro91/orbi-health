@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { grantXP } from "@/lib/xp";
 import { compressImage } from "@/lib/imageCompression";
@@ -627,13 +628,19 @@ const Atualizacao = () => {
   const camposAtuais = currentCampos();
 
   return (
-    <div ref={topRef} className="px-4 py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg font-bold text-white">{form.titulo}</h1>
+    <div ref={topRef} className="pb-6">
+      {/* Cabeçalho padrão SEM voltar (2026-09-27): formulário longo, um
+          voltar solto faria perder o preenchimento. A barra de etapas fica
+          no conteúdo, logo abaixo. */}
+      <StudentPageHeader title={form.titulo} />
 
+      <div
+        className="relative px-4 pt-6 space-y-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <div>
         {/* Progress */}
-        <div className="mt-3 flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
               key={i}
@@ -712,6 +719,7 @@ const Atualizacao = () => {
             {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Check className="w-4 h-4" /> Enviar Atualização</>}
           </button>
         )}
+      </div>
       </div>
     </div>
   );
