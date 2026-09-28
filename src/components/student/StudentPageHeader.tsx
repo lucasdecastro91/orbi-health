@@ -25,12 +25,15 @@ interface StudentPageHeaderProps {
   title: string;
   /** Destino do botão voltar; sem ele, o botão não aparece */
   backTo?: string;
+  /** Alternativa ao backTo pra telas com fases internas (voltar de fase,
+   *  não de rota — ex: Avaliação Postural). Tem prioridade sobre backTo. */
+  onBack?: () => void;
   /** Botão/ação à direita (ícone branco, 32px) */
   right?: ReactNode;
   tabs?: StudentPageHeaderTab[];
 }
 
-const StudentPageHeader = ({ title, backTo, right, tabs }: StudentPageHeaderProps) => {
+const StudentPageHeader = ({ title, backTo, onBack, right, tabs }: StudentPageHeaderProps) => {
   const navigate = useNavigate();
 
   return (
@@ -42,10 +45,10 @@ const StudentPageHeader = ({ title, backTo, right, tabs }: StudentPageHeaderProp
       }}
     >
       <div className="relative flex items-center justify-center h-8">
-        {backTo && (
+        {(onBack || backTo) && (
           <button
             type="button"
-            onClick={() => navigate(backTo)}
+            onClick={() => (onBack ? onBack() : navigate(backTo!))}
             className="absolute left-0 w-8 h-8 -ml-1 flex items-center justify-center"
             aria-label="Voltar"
           >

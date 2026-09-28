@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import {
   AlertCircle, Camera, ChevronLeft, ChevronRight, X, RotateCcw, Check,
@@ -979,16 +980,18 @@ const AvaliacaoPostural = () => {
   if (testes.length === 0) {
     return (
       <div className="min-h-screen flex flex-col">
-        <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-          <BackBtn onClick={() => navigate(`/${slug}/aluno`)} />
-          <h1 className="text-lg font-bold text-white">Avaliação Postural e Funcional</h1>
-        </div>
+        <StudentPageHeader title="Avaliação postural" backTo={`/${slug}/aluno`} />
+        <div
+          className="relative pt-6 flex-1 flex flex-col rounded-t-[28px]"
+          style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+        >
         <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-3 pb-24">
           <div className="w-14 h-14 rounded-2xl bg-white/4 flex items-center justify-center border border-white/8">
             <AlertCircle className="w-6 h-6 text-white/35" />
           </div>
           <p className="text-white/60 text-sm">Avaliação postural ainda não configurada</p>
           <p className="text-white/35 text-xs max-w-xs">Seu treinador ainda não configurou os testes dessa avaliação. Fale com ele se tiver dúvidas.</p>
+        </div>
         </div>
       </div>
     );
@@ -1000,15 +1003,15 @@ const AvaliacaoPostural = () => {
       <>
         {PhotoViewer}
         <div className="min-h-screen pb-24">
-          <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-            <BackBtn onClick={() => navigate(`/${slug}/aluno/perfil`)} />
-            <div>
-              <h1 className="text-lg font-bold text-white">Avaliação Postural e Funcional</h1>
-              <p className="text-xs text-white/40">{testes.length} testes • {totalPhotos} fotos</p>
-            </div>
-          </div>
+          <StudentPageHeader title="Avaliação postural" backTo={`/${slug}/aluno/perfil`} />
+          <div
+            className="relative pt-6 rounded-t-[28px]"
+            style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+          >
 
           <div className="px-4 space-y-4">
+            <p className="text-sm text-muted-foreground">{testes.length} testes • {totalPhotos} fotos</p>
+
             {/* Pending banner */}
             {avaliacaoPendente && (
               <div className="rounded-2xl px-4 py-3 flex items-center gap-3"
@@ -1076,6 +1079,7 @@ const AvaliacaoPostural = () => {
               <Camera className="w-5 h-5" />
               Iniciar Avaliação
             </button>
+          </div>
           </div>
         </div>
       </>
@@ -1280,15 +1284,13 @@ const AvaliacaoPostural = () => {
       <>
         {PhotoViewer}
         <div className="min-h-screen pb-28">
-          <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-            <BackBtn onClick={() => setPhase("testing")} />
-            <div>
-              <h1 className="text-lg font-bold text-white">Revisão Final</h1>
-              <p className="text-xs text-white/40">{totalCaptured} fotos capturadas — revise antes de enviar</p>
-            </div>
-          </div>
-
+          <StudentPageHeader title="Revisão final" onBack={() => setPhase("testing")} />
+          <div
+            className="relative pt-6 rounded-t-[28px]"
+            style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+          >
           <div className="px-4 space-y-4">
+            <p className="text-sm text-muted-foreground">{totalCaptured} fotos capturadas — revise antes de enviar</p>
             {testes.map((teste, si) => {
               const hasFotos = teste.photoLabels.some((_, pi) => captures[captureKey(teste.key, pi)]);
               return (
@@ -1342,6 +1344,7 @@ const AvaliacaoPostural = () => {
               className="w-full h-10 rounded-2xl text-sm font-medium text-white/40 transition-colors bg-white/4">
               Voltar e editar fotos
             </button>
+          </div>
           </div>
         </div>
       </>
@@ -1400,13 +1403,11 @@ const AvaliacaoPostural = () => {
     <>
       {PhotoViewer}
       <div className="min-h-screen pb-24">
-        <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-          <BackBtn onClick={() => setPhase("intro")} />
-          <div>
-            <h1 className="text-lg font-bold text-white">Histórico</h1>
-            <p className="text-xs text-white/40">Avaliações posturais anteriores</p>
-          </div>
-        </div>
+        <StudentPageHeader title="Histórico de avaliações" onBack={() => setPhase("intro")} />
+        <div
+          className="relative pt-6 rounded-t-[28px]"
+          style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+        >
 
         {/* New evaluation CTA */}
         <div className="px-4 mb-4">
@@ -1475,6 +1476,7 @@ const AvaliacaoPostural = () => {
               );
             })
           )}
+        </div>
         </div>
       </div>
     </>
