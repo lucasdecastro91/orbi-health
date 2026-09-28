@@ -744,10 +744,22 @@ const StudentDashboard = () => {
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              {/* Sino de notificações — voltou a aparecer aqui (as vars
-                  --notif-bell-* logo acima já esperavam por ele, mas o
-                  componente tinha ficado de fora durante o redesign). */}
-              <NotificationBell role="student" badgeColor="rgba(255,255,255,0.28)" badgeTextColor="#fff" />
+              {/* XP — antes era um card na fileira de badges embaixo, junto
+                  com "Seq." (removido: o clique nele já leva pro Ranking,
+                  que mostra sequência atual/recorde + bônus, então o card
+                  de Seq. separado só duplicava a mesma informação). Subiu
+                  pra cá, perto da saudação — mesma posição de referência
+                  usada pela Prime. Primeiro da fileira: fica junto da
+                  identidade do aluno (status), ações (chat/sino) à direita. */}
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/ranking`)}
+                className="h-7 px-3 mr-1 rounded-full flex items-center gap-1.5 transition-colors hover:bg-white/10"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <Zap className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-bold">{totalXp} XP</span>
+              </button>
               <button
                 type="button"
                 onClick={() => navigate(`${base}/mensagens`)}
@@ -763,21 +775,11 @@ const StudentDashboard = () => {
                   </span>
                 )}
               </button>
-              {/* XP — antes era um card na fileira de badges embaixo, junto
-                  com "Seq." (removido: o clique nele já leva pro Ranking,
-                  que mostra sequência atual/recorde + bônus, então o card
-                  de Seq. separado só duplicava a mesma informação). Subiu
-                  pra cá, perto da saudação — mesma posição de referência
-                  usada pela Prime. */}
-              <button
-                type="button"
-                onClick={() => navigate(`${base}/ranking`)}
-                className="h-7 px-3 rounded-full flex items-center gap-1.5 transition-colors hover:bg-white/10"
-                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-              >
-                <Zap className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-bold">{totalXp} XP</span>
-              </button>
+              {/* Sino por último (decisão do Lucas, 2026-09-27): o painel de
+                  notificações abre a partir dele e ganha mais espaço colado
+                  na borda direita. As vars --notif-bell-* logo acima
+                  estilizam o sino nesta faixa colorida. */}
+              <NotificationBell role="student" badgeColor="rgba(255,255,255,0.28)" badgeTextColor="#fff" />
             </div>
           </div>
 
