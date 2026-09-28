@@ -1,25 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Bell, BellOff, Loader2, ChevronLeft } from "lucide-react";
 
 export default function NotificationSettings() {
-  const { orgId } = useTenantContext();
+  const { orgId, slug } = useTenantContext();
   const navigate = useNavigate();
   const push = usePushNotifications(orgId);
 
   return (
-    <div className="px-4 py-6 max-w-lg mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <button onClick={() => navigate(-1)} className="text-white/40 hover:text-white transition-colors">
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold text-white">Notificações</h1>
-          <p className="text-white/40 text-sm">Receba avisos de treino, dieta e água mesmo com o app fechado</p>
-        </div>
-      </div>
+    <div className="pb-6">
+      <StudentPageHeader title="Notificações" backTo={`/${slug}/aluno/perfil`} />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 space-y-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <p className="text-sm text-muted-foreground">Receba avisos de treino, dieta e água mesmo com o app fechado</p>
 
       {/* Push permission */}
       {push.supported && push.permission !== "denied" && (
@@ -70,6 +68,7 @@ export default function NotificationSettings() {
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }

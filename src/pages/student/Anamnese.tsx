@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   User, Target, Heart, Utensils, Moon, MessageSquare,
   ChevronRight, ChevronLeft, Check, Loader2, Upload, X as XIcon,
@@ -550,18 +551,14 @@ const Anamnese = () => {
 
   // ── Tela de introdução (se o treinador configurou) ──────────
   if (introducao && !introAceita && !isEditing) return (
-    <div className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-5">
-      {/* Cabeçalho */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ background: "rgba(var(--cp-rgb),0.15)" }}>
-          <ClipboardCheck className="w-5 h-5" style={{ color: "var(--cp-400)" }} />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-white leading-tight">Anamnese</h1>
-          <p className="text-xs text-white/40">Antes de começar, leia as orientações</p>
-        </div>
-      </div>
+    <div className="pb-6">
+      <StudentPageHeader title="Anamnese" />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 flex flex-col gap-5 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <p className="text-sm text-muted-foreground">Antes de começar, leia as orientações</p>
 
       {/* Estilos para o HTML do editor */}
       <style>{`
@@ -599,6 +596,7 @@ const Anamnese = () => {
         Suas respostas são salvas automaticamente a cada etapa.
       </p>
     </div>
+    </div>
   );
 
   if (done) return (
@@ -626,17 +624,18 @@ const Anamnese = () => {
   );
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="pb-6">
+      {/* Cabeçalho padrão SEM voltar (2026-09-27): formulário longo — a
+          navegação entre etapas fica nos botões Voltar/Próximo abaixo. */}
+      <StudentPageHeader title={isEditing ? "Editar anamnese" : "Anamnese"} />
 
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-white mb-0.5">
-          {isEditing ? "Editar Anamnese" : "Preencher Anamnese"}
-        </h1>
-        <p className="text-white/40 text-sm">
-          Suas respostas ajudam o profissional a criar um plano personalizado
-        </p>
-      </div>
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <p className="text-sm text-muted-foreground mb-5">
+        Suas respostas ajudam o profissional a criar um plano personalizado
+      </p>
 
       {/* Progress */}
       <div className="mb-6">
@@ -880,6 +879,7 @@ const Anamnese = () => {
           "Suas respostas são salvas automaticamente enquanto você digita."
         )}
       </p>
+      </div>
     </div>
   );
 };

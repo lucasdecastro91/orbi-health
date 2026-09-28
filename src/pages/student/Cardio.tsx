@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   Activity, AlertCircle, Clock, Calendar, Heart, HeartPulse, Flame,
   Footprints, Wind, Bike, RefreshCw, Waves, Zap, Dumbbell, Loader2, ChevronDown,
@@ -375,18 +376,13 @@ const StudentCardio = () => {
 
   return (
     <div className="pb-6">
-      {/* Page header */}
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center gap-3">
-          <HeartPulse className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Cardio</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Seu plano de cardio prescrito</p>
-          </div>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Cardio" />
 
-      <div className="px-4 space-y-3">
+      <div
+        className="relative px-4 space-y-3 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
         {!(idade && sexo) && (
           <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: "rgba(var(--cp-rgb),0.06)", borderColor: "rgba(var(--cp-rgb),0.2)" }}>
             <div>

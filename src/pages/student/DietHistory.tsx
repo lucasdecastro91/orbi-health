@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { ArrowLeft, Flame, TrendingUp, Zap, CalendarDays, ChevronDown, History } from "lucide-react";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
+import { Flame, TrendingUp, Zap, CalendarDays, ChevronDown, History } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
 // Types & helpers
@@ -219,22 +220,17 @@ const DietHistory = () => {
   return (
     <div className="min-h-screen pb-24">
 
-      {/* Sticky back bar */}
-      <div
-        className="sticky top-0 z-10 px-4 py-3 flex items-center gap-3"
-        style={{ backgroundColor: "rgba(9,9,11,0.85)", backdropFilter: "blur(12px)" }}
-      >
-        <button
-          onClick={() => navigate(`/${slug}/aluno/dieta`)}
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: "hsl(var(--foreground) / 0.07)" }}
-        >
-          <ArrowLeft className="w-4 h-4 text-white/70" />
-        </button>
-        <h1 className="text-base font-semibold text-white flex-1">Histórico de Dieta</h1>
-      </div>
+      {/* Cabeçalho com abas (2026-09-27) — substitui a barra "voltar"
+          fixa; volta pra prescrição pela aba. */}
+      <StudentPageHeader title="Minha dieta" tabs={[
+        { label: "Dieta", to: `/${slug}/aluno/dieta`, active: false },
+        { label: "Histórico", to: `/${slug}/aluno/dieta/historico`, active: true },
+      ]} />
 
-      <div className="px-4 md:px-6 pt-2 space-y-4">
+      <div
+        className="relative px-4 md:px-6 pt-6 space-y-4 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
         {loading ? (
           <div className="flex items-center justify-center py-16">

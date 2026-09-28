@@ -3,8 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
-import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock, Moon } from "lucide-react";
+import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock, MessageCircle, Shield } from "lucide-react";
+
+// Suporte ORBI Health via WhatsApp — link direto (wa.me), não depende da
+// integração Evolution API (desligada, ver CLAUDE.md seção 10). Mesmo
+// número usado pelo Lucas em outros contatos da plataforma.
+const SUPORTE_WHATSAPP_URL = "https://wa.me/5582998042717";
+// URL absoluta (não rota local) — a página de Política de Privacidade vive
+// em app.orbihealth.com.br fora do slug da org, mesmo padrão já usado no
+// rodapé da landing page.
+const PRIVACIDADE_URL = "https://app.orbihealth.com.br/privacidade";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -12,6 +22,7 @@ const Profile = () => {
   const navigate    = useNavigate();
   const { toast }   = useToast();
   const { slug } = useTenantContext();
+  const base = `/${slug}/aluno`;
   const { hasAvaliacaoPostural } = usePlanFeatures();
 
   const [nome,           setNome]           = useState("");
@@ -123,16 +134,15 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="pb-6">
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <User className="w-5 h-5 text-green-500" />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Meu Perfil</h1>
-          <p className="text-muted-foreground text-sm">Gerencie suas informações pessoais</p>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Meu perfil" backTo={base} />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
       {/* Avatar */}
       <div className="rounded-2xl border border-white/8 p-6 mb-4 flex flex-col items-center gap-4" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
@@ -364,26 +374,6 @@ const Profile = () => {
             <ChevronRight className="w-4 h-4 text-muted-foreground opacity-40 shrink-0" />
           </button>
         )}
-
-        {/* Calculadora de sono */}
-        <button
-          onClick={() => navigate(`/${slug}/aluno/sono`)}
-          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-left"
-          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)", border: "1px solid hsl(var(--foreground) / 0.07)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
-        >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)" }}>
-            <Moon className="w-4 h-4" style={{ color: "var(--cp-500)" }} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">ORBI Sleep</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Calculadora de ciclos de sono</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-40 shrink-0" />
-        </button>
-
       </div>
 
       {/* Actions */}
@@ -428,6 +418,39 @@ const Profile = () => {
         </button>
       </div>
 
+      {/* Sobre */}
+      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sobre</p>
+        <button
+          onClick={() => window.open(PRIVACIDADE_URL, "_blank")}
+          className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors text-foreground/70 hover:text-foreground"
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
+        >
+          <Shield className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+          Política de Privacidade
+        </button>
+      </div>
+
+      {/* Suporte ORBI */}
+      <div className="rounded-2xl border border-white/8 p-5 mb-4 space-y-2" style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Suporte ORBI</p>
+        <button
+          onClick={() => window.open(SUPORTE_WHATSAPP_URL, "_blank")}
+          className="w-full h-11 rounded-xl flex items-center gap-3 px-4 text-sm font-medium transition-colors text-foreground/70 hover:text-foreground"
+          style={{ backgroundColor: "hsl(var(--foreground) / 0.04)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.08)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(var(--foreground) / 0.04)"; }}
+        >
+          {/* Cor de marca fixa via inline style — classes text-green-* são
+              reescritas pra cor primária da org (ver CLAUDE.md seção 15),
+              o que apagaria a identidade visual do WhatsApp */}
+          <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} />
+          Falar pelo WhatsApp
+        </button>
+      </div>
+
       {/* Logout — zona de perigo */}
       <div className="rounded-2xl border p-5" style={{ backgroundColor: "rgba(239,68,68,0.04)", borderColor: "rgba(239,68,68,0.15)" }}>
         <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "rgba(239,68,68,0.6)" }}>Sessão</p>
@@ -444,6 +467,7 @@ const Profile = () => {
         </button>
       </div>
 
+      </div>
     </div>
   );
 };

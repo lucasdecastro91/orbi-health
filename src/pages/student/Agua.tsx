@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { ArrowLeft, Droplet, Loader2, Plus } from "lucide-react";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
+import { Droplet, Loader2, Plus } from "lucide-react";
 import { AGUA_META_ML } from "@/lib/agua";
 import { grantXP } from "@/lib/xp";
 import { evaluateAndUpdateStreak } from "@/lib/streaks";
@@ -140,15 +141,15 @@ const Agua = () => {
 
   return (
     <div className="min-h-screen pb-10">
-      <div className="px-4 pt-6 pb-4 flex items-center gap-3">
-        <button type="button" onClick={() => navigate(base)} className="w-8 h-8 flex items-center justify-center -ml-1">
-          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-        </button>
-        <Droplet className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-        <h1 className="text-xl font-bold text-foreground">Água</h1>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (2026-09-27): voltar à
+          esquerda, título centralizado. Sem ação à direita — a meta de
+          água vem da dieta (treinador), o aluno não edita. */}
+      <StudentPageHeader title="Água" backTo={base} />
 
-      <div className="px-4 space-y-5">
+      <div
+        className="relative px-4 pt-6 pb-10 space-y-5 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
         {/* ── Círculo de onda líquida ── */}
         <div className="flex flex-col items-center py-2">
           <WaterWaveCircle

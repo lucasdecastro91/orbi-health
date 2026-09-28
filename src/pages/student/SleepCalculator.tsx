@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { ArrowLeft, Moon, Clock } from "lucide-react";
 
 const CARD_BG     = "var(--section-card-bg)";
@@ -68,15 +69,14 @@ const SleepCalculator = () => {
 
   return (
     <div className="min-h-screen pb-10">
-      <div className="px-4 pt-6 pb-4 flex items-center gap-3">
-        <button type="button" onClick={() => navigate(`/${slug}/aluno/perfil`)} className="w-8 h-8 flex items-center justify-center -ml-1">
-          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-        </button>
-        <Moon className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-        <h1 className="text-xl font-bold text-foreground">ORBI Sleep</h1>
-      </div>
+      {/* Voltar leva pra tela "Mais", de onde a calculadora é aberta
+          (antes ia pro Perfil, que não tem mais link pra cá). */}
+      <StudentPageHeader title="Calculadora de sono" backTo={`/${slug}/aluno/mais`} />
 
-      <div className="px-4 space-y-5">
+      <div
+        className="relative px-4 pt-6 space-y-5 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
         {/* ── Modo: quero acordar às / vou dormir às ── */}
         <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ backgroundColor: "var(--toggle-bg)" }}>

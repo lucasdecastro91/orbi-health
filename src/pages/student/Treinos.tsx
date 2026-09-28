@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
-import { grantXP } from "@/lib/xp";
-import { evaluateAndUpdateStreak } from "@/lib/streaks";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   Dumbbell, Calendar, ChevronDown, ChevronRight,
-  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X, History,
+  Play, Clock, Loader2, MessageSquare, CheckCircle2, TrendingUp, Wind, X,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────
@@ -69,42 +68,6 @@ const formatDate = (date: string) =>
   new Date(date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
 const hasVideo = (url: string | null) => !!url;
-
-/** Brazil local date YYYY-MM-DD */
-const brazilToday = (): string => {
-  const brazil = new Date(Date.now() - 3 * 60 * 60 * 1000);
-  return brazil.toISOString().slice(0, 10);
-};
-
-/** Quantas séries um exercício espera (série detalhada, ou fallback pro campo `series`) */
-const getExpectedSerieCount = (ex: Exercise): number => {
-  const raw = ex.series_detalhadas;
-  if (raw) {
-    const arr = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw); } catch { return null; } })();
-    if (Array.isArray(arr) && arr.length > 0) {
-      // Cada bloco pode valer por várias séries físicas (campo `quantidade`) — soma, não conta blocos
-      return arr.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1), 0);
-    }
-  }
-  const count = parseInt(ex.series);
-  return !count || count <= 0 ? 0 : count;
-};
-
-/** Progresso de séries concluídas hoje num treino inteiro (soma de todos os exercícios) */
-const getTrainingSerieProgress = (
-  training: Training,
-  serieCompletionCounts: Record<string, number>,
-): { done: number; total: number } => {
-  let done = 0;
-  let total = 0;
-  for (const ex of training.exercicios) {
-    const expected = getExpectedSerieCount(ex);
-    if (expected <= 0) continue; // exercício sem séries rastreáveis não bloqueia o treino
-    total += expected;
-    done += Math.min(serieCompletionCounts[ex.id] ?? 0, expected);
-  }
-  return { done, total };
-};
 
 /** Normalize DB tipo variants to canonical key */
 const normalizeTipo = (tipo: string): string => {
@@ -223,22 +186,13 @@ const TrainingBlock = ({
   onToggle,
   onExerciseClick,
   completedToday,
-  onMarkComplete,
-  completing,
-  serieCompletionCounts,
 }: {
   training: Training;
   isOpen: boolean;
   onToggle: () => void;
-  onExerciseClick: (exId: string, weekId?: string, treinoId?: string) => void;
+  onExerciseClick: (exId: string, weekId?: string, treinoId?: string, seq?: boolean) => void;
   completedToday: boolean;
-  onMarkComplete: (treinoId: string) => void;
-  completing: boolean;
-  serieCompletionCounts: Record<string, number>;
 }) => {
-  const { done: seriesDone, total: seriesTotal } = getTrainingSerieProgress(training, serieCompletionCounts);
-  const seriesPending = seriesTotal > 0 && seriesDone < seriesTotal;
-
   return (
   <div
     className="rounded-2xl border overflow-hidden transition-colors"
@@ -297,6 +251,22 @@ const TrainingBlock = ({
           </div>
         )}
 
+        {/* ── Iniciar treino — fluxo sequencial guiado, um exercício por vez,
+            reaproveitando ExerciseDetail.tsx (modo ?seq=1). Não substitui as
+            linhas abaixo, que continuam navegação livre pra revisão. ── */}
+        {!completedToday && training.exercicios.length > 0 && (
+          <div className="px-4 pt-1 pb-2">
+            <button
+              onClick={() => onExerciseClick(training.exercicios[0].id, undefined, training.id, true)}
+              className="w-full h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-98"
+              style={{ background: "var(--cp-gradient)", color: "var(--cp-text, #fff)" }}
+            >
+              <Play className="w-3.5 h-3.5" />
+              Iniciar treino
+            </button>
+          </div>
+        )}
+
         {/* Exercise list — exercícios conjugados (bi-set/tri-set) ficam agrupados visualmente */}
         <div className="divide-y" style={{ borderColor: "hsl(var(--foreground) / 0.04)" }}>
           {groupExercises(training.exercicios).map((group) => {
@@ -340,30 +310,6 @@ const TrainingBlock = ({
             );
           })}
         </div>
-
-        {/* ── Mark complete button ── */}
-        <div className="px-4 pt-2 pb-3">
-          <button
-            onClick={() => onMarkComplete(training.id)}
-            disabled={completing || completedToday || seriesPending}
-            className="w-full h-10 rounded-xl text-sm font-semibold transition-all active:scale-98 disabled:opacity-60 flex items-center justify-center gap-2"
-            style={completedToday
-              ? { backgroundColor: "rgba(var(--cp-rgb),0.1)", color: "var(--cp-400)" }
-              : { background: "var(--cp-gradient)", color: "#fff" }
-            }
-          >
-            {completing
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <CheckCircle2 className="w-4 h-4" />
-            }
-            {completedToday ? "Treino concluído hoje ✓" : "Marcar treino como concluído"}
-          </button>
-          {!completedToday && seriesPending && (
-            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
-              Conclua todas as séries para liberar ({seriesDone}/{seriesTotal})
-            </p>
-          )}
-        </div>
       </div>
     </div>
   </div>
@@ -379,20 +325,14 @@ const WeekSection = ({
   onTreinoToggle,
   onExerciseClick,
   completedTodayIds,
-  onMarkComplete,
-  completingId,
-  serieCompletionCounts,
 }: {
   week: Week;
   isOpen: boolean;
   onToggle: () => void;
   openTreinos: string[];
   onTreinoToggle: (id: string) => void;
-  onExerciseClick: (exId: string) => void;
+  onExerciseClick: (exId: string, weekId?: string, treinoId?: string, seq?: boolean) => void;
   completedTodayIds: string[];
-  onMarkComplete: (treinoId: string) => void;
-  completingId: string | null;
-  serieCompletionCounts: Record<string, number>;
 }) => (
   <div className="rounded-2xl border border-border overflow-hidden bg-card">
     {/* Week header */}
@@ -451,9 +391,6 @@ const WeekSection = ({
               onToggle={() => onTreinoToggle(treino.id)}
               onExerciseClick={onExerciseClick}
               completedToday={completedTodayIds.includes(treino.id)}
-              onMarkComplete={onMarkComplete}
-              completing={completingId === treino.id}
-              serieCompletionCounts={serieCompletionCounts}
             />
           ))}
         </div>
@@ -613,6 +550,10 @@ const AlongamentosSection = ({ stretchings }: { stretchings: Stretching[] }) => 
 
 const Treinos = () => {
   const { slug, orgId }  = useTenantContext();
+  const treinoTabs = [
+    { label: "Prescrição", to: `/${slug}/aluno/treinos`, active: true },
+    { label: "Histórico", to: `/${slug}/aluno/treinos/historico`, active: false },
+  ];
   const navigate         = useNavigate();
   const { toast }        = useToast();
   const [searchParams]   = useSearchParams();
@@ -632,8 +573,6 @@ const Treinos = () => {
   const [planoId,        setPlanoId]        = useState<string | null>(null);
   const [completedToday, setCompletedToday] = useState<string[]>([]); // treino_ids logged today
   const [monthCount,     setMonthCount]     = useState(0);            // total logs this month
-  const [completingId,   setCompletingId]   = useState<string | null>(null);
-  const [serieCompletionCounts, setSerieCompletionCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadTrainingPlan();
@@ -645,18 +584,6 @@ const Treinos = () => {
     if (alunoId) loadCompletions(alunoId);
   }, [alunoId]);
 
-  // Recarrega as séries concluídas hoje sempre que entrar/voltar pra essa tela
-  // (ex: volta do detalhe de um exercício depois de marcar séries como feitas)
-  useEffect(() => {
-    if (studentUserId) loadSerieCompletionCounts(studentUserId);
-  }, [studentUserId, searchParams]);
-
-  useEffect(() => {
-    const onFocus = () => { if (studentUserId) loadSerieCompletionCounts(studentUserId); };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [studentUserId]);
-
   // Auto-open week/training from query params (e.g., from notifications)
   useEffect(() => {
     const weekId   = searchParams.get("weekId");
@@ -664,6 +591,20 @@ const Treinos = () => {
     if (weekId   && !openWeeks.includes(weekId))     setOpenWeeks(prev   => [...prev, weekId]);
     if (treinoId && !openTreinos.includes(treinoId)) setOpenTreinos(prev => [...prev, treinoId]);
   }, [searchParams, weeks]);
+
+  // Vindo do botão "Iniciar treino" do Dashboard (?autostart=1) — pula direto
+  // pro primeiro exercício do treino de hoje, em vez de parar nessa lista.
+  const autostartedRef = useRef(false);
+  useEffect(() => {
+    if (autostartedRef.current) return;
+    if (searchParams.get("autostart") !== "1" || weeks.length === 0) return;
+    const treinoId = searchParams.get("treinoId");
+    if (!treinoId) return;
+    const training = weeks.flatMap(w => w.treinos).find(t => t.id === treinoId);
+    if (!training || training.exercicios.length === 0) return;
+    autostartedRef.current = true;
+    navigate(`/${slug}/aluno/exercicio/${training.exercicios[0].id}?treinoId=${treinoId}&seq=1`, { replace: true });
+  }, [searchParams, weeks, slug, navigate]);
 
   // ── Data loading ──────────────────────────────────────────
 
@@ -768,65 +709,6 @@ const Treinos = () => {
     } catch { /* table may not exist yet — fail silently */ }
   };
 
-  const loadSerieCompletionCounts = async (uid: string) => {
-    try {
-      const { data } = await supabase
-        .from('serie_completions')
-        .select('exercicio_id')
-        .eq('student_id', uid)
-        .eq('date', brazilToday());
-      if (data) {
-        const counts: Record<string, number> = {};
-        for (const row of data as any[]) counts[row.exercicio_id] = (counts[row.exercicio_id] ?? 0) + 1;
-        setSerieCompletionCounts(counts);
-      }
-    } catch { /* table may not exist yet — fail silently */ }
-  };
-
-  const markComplete = async (treinoId: string) => {
-    if (!alunoId || completedToday.includes(treinoId)) return;
-    setCompletingId(treinoId);
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const { error } = await supabase.from('treino_sessoes_log').insert({
-        aluno_id: alunoId,
-        plano_id: planoId,
-        treino_id: treinoId,
-        data_conclusao: today,
-      });
-      if (error) throw error;
-      setCompletedToday(prev => [...prev, treinoId]);
-      setMonthCount(prev => prev + 1);
-      toast({ title: 'Treino registrado!', description: 'Continue assim' });
-      if (studentUserId && orgId) {
-        void grantXP(studentUserId, orgId, "workout_complete");
-        void evaluateAndUpdateStreak(studentUserId, orgId);
-      }
-      if (treinadorId && alunoId && orgId) {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        void (async () => {
-          try {
-            const { data: existing } = await supabase.from("notificacoes")
-              .select("id").eq("user_id", treinadorId).eq("aluno_id", alunoId)
-              .eq("tipo", "treino_completo").gte("created_at", todayStr).limit(1);
-            if (!existing || existing.length === 0) {
-              await supabase.from("notificacoes").insert({
-                user_id: treinadorId, org_id: orgId, aluno_id: alunoId, aluno_nome: alunoNome,
-                titulo: "Treino concluído",
-                mensagem: `${alunoNome ?? "Um aluno"} concluiu o treino de hoje.`,
-                tipo: "treino_completo",
-              });
-            }
-          } catch {}
-        })();
-      }
-    } catch (e: any) {
-      toast({ title: 'Erro ao registrar', description: e.message, variant: 'destructive' });
-    } finally {
-      setCompletingId(null);
-    }
-  };
-
   const markPlanAsViewed = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -852,9 +734,12 @@ const Treinos = () => {
   const toggleTreino = (id: string) =>
     setOpenTreinos(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
-  const goToExercise = (exId: string, _weekId?: string, treinoId?: string) => {
-    const params = treinoId ? `?treinoId=${treinoId}` : '';
-    navigate(`/${slug}/aluno/exercicio/${exId}${params}`);
+  const goToExercise = (exId: string, _weekId?: string, treinoId?: string, seq?: boolean) => {
+    const params = new URLSearchParams();
+    if (treinoId) params.set("treinoId", treinoId);
+    if (seq) params.set("seq", "1");
+    const qs = params.toString();
+    navigate(`/${slug}/aluno/exercicio/${exId}${qs ? `?${qs}` : ""}`);
   };
 
   // ── Loading ──────────────────────────────────────────────
@@ -872,41 +757,39 @@ const Treinos = () => {
 
   if (!plano) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <Dumbbell className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Treinos</h1>
-            <p className="text-sm text-muted-foreground">Seu plano de treino personalizado</p>
-          </div>
-        </div>
+      <div className="pb-6">
+        <StudentPageHeader title="Meus treinos" tabs={treinoTabs} />
 
-        {/* Empty card */}
         <div
-          className="rounded-2xl border border-border py-14 flex flex-col items-center gap-3 text-center px-6"
-          style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
+          className="relative max-w-lg mx-auto px-4 pt-8 rounded-t-[28px]"
+          style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
         >
+          {/* Empty card */}
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
+            className="rounded-2xl border border-border py-14 flex flex-col items-center gap-3 text-center px-6"
+            style={{ backgroundColor: "hsl(var(--foreground) / 0.02)" }}
           >
-            <Dumbbell className="w-6 h-6 text-muted-foreground opacity-50" />
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
+            >
+              <Dumbbell className="w-6 h-6 text-muted-foreground opacity-50" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground mb-1">Nenhum treino ativo</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Seu treinador ainda não liberou seu plano
+              </p>
+            </div>
+            <button
+              onClick={() => navigate(`/${slug}/aluno/mensagens`)}
+              className="mt-2 flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold text-primary-foreground"
+              style={{ background: "var(--cp-gradient)" }}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Falar com treinador
+            </button>
           </div>
-          <div>
-            <p className="text-base font-semibold text-foreground mb-1">Nenhum treino ativo</p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Seu treinador ainda não liberou seu plano
-            </p>
-          </div>
-          <button
-            onClick={() => navigate(`/${slug}/aluno/mensagens`)}
-            className="mt-2 flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--cp-gradient)" }}
-          >
-            <MessageSquare className="w-4 h-4" />
-            Falar com treinador
-          </button>
         </div>
       </div>
     );
@@ -915,26 +798,16 @@ const Treinos = () => {
   // ── Main content ─────────────────────────────────────────
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+    <div className="pb-6">
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Dumbbell className="w-5 h-5 shrink-0" style={{ color: "var(--cp-500)" }} />
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-foreground">Treinos</h1>
-            <p className="text-sm text-muted-foreground">Seu plano de treino personalizado</p>
-          </div>
-        </div>
-        <button
-          onClick={() => navigate(`/${slug}/aluno/treinos/historico`)}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0"
-          style={{ backgroundColor: "hsl(var(--foreground) / 0.06)" }}
-          title="Ver histórico"
-        >
-          <History className="w-4 h-4 text-white/40" />
-        </button>
-      </div>
+      {/* Cabeçalho com abas Prescrição | Histórico (2026-09-27) — o atalho
+          de histórico que ficava no canto virou a aba. */}
+      <StudentPageHeader title="Meus treinos" tabs={treinoTabs} />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 space-y-5 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
       {/* Monthly completion stats */}
       {monthCount > 0 && (() => {
@@ -1027,14 +900,12 @@ const Treinos = () => {
               onTreinoToggle={toggleTreino}
               onExerciseClick={goToExercise}
               completedTodayIds={completedToday}
-              onMarkComplete={markComplete}
-              completingId={completingId}
-              serieCompletionCounts={serieCompletionCounts}
             />
           ))}
         </div>
       )}
 
+      </div>
     </div>
   );
 };

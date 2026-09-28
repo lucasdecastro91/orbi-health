@@ -61,16 +61,14 @@ import Financeiro             from "./pages/coach/Financeiro";
 import StudentDashboard   from "./pages/student/Dashboard";
 import Treinos            from "./pages/student/Treinos";
 import TreinoHoje         from "./pages/student/TreinoHoje";
-import Semanas            from "./pages/student/Semanas";
-import SemanaDetail       from "./pages/student/SemanaDetail";
 import ExerciseDetail     from "./pages/student/ExerciseDetail";
 import Dieta              from "./pages/student/Dieta";
-import Historico          from "./pages/student/Historico";
 import TreinoHistory      from "./pages/student/TreinoHistory";
 import StudentAlterarSenha from "./pages/student/AlterarSenha";
 import CheckIn            from "./pages/student/CheckIn";
 import Atualizacao        from "./pages/student/Atualizacao";
 import Profile            from "./pages/student/Profile";
+import OrbiHub             from "./pages/student/OrbiHub";
 import Feedbacks          from "./pages/student/Feedbacks";
 import Evolucao           from "./pages/student/Evolucao";
 import AgendaAluno        from "./pages/student/AgendaAluno";
@@ -337,6 +335,7 @@ const App = () => {
                   <Route path="atualizacao"      element={<Atualizacao />} />
                   <Route path="feedbacks"        element={<Feedbacks />} />
                   <Route path="perfil"           element={<Profile />} />
+                  <Route path="mais"             element={<OrbiHub />} />
                   <Route path="alterar-senha"    element={<StudentAlterarSenha />} />
                   <Route path="evolucao"         element={<Evolucao />} />
                   <Route path="agenda"           element={<AgendaAluno />} />
@@ -350,10 +349,7 @@ const App = () => {
 
                 {/* Student routes — sem layout (fullscreen) */}
                 <Route path="aluno/treino-hoje"  element={<TreinoHoje />} />
-                <Route path="aluno/semanas"      element={<Semanas />} />
-                <Route path="aluno/semana/:id"   element={<SemanaDetail />} />
                 <Route path="aluno/exercicio/:id" element={<ExerciseDetail />} />
-                <Route path="aluno/historico"    element={<Historico />} />
 
               </Route>
 

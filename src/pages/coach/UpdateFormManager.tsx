@@ -34,6 +34,16 @@ const UpdateFormManager = ({ studentId }: UpdateFormManagerProps) => {
   };
 
   const handleSave = async () => {
+    // O input date aceita ano digitado errado (ex: "0206" em vez de "2026"),
+    // e uma data dessas quebra o ciclo de aderência e os lembretes.
+    if (nextDate) {
+      const year = Number(nextDate.slice(0, 4));
+      const currentYear = new Date().getFullYear();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate) || year < currentYear - 1 || year > currentYear + 2) {
+        toast({ title: "Data inválida", description: "Confira o ano digitado.", variant: "destructive" });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const { error } = await supabase

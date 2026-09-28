@@ -21,7 +21,7 @@ export type XpSource =
 export const XP_VALUES: Record<XpSource, number> = {
   workout_complete: 30,
   diet_day:         30,
-  agua_day:         15,
+  agua_day:         20,
   cardio_complete:  20,
   checkin_on_time:  60,
   checkin_late:     30,

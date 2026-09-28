@@ -669,6 +669,7 @@ Lucas achou os rótulos em maiúsculas do formulário de cardio (ex: "DURAÇÃO 
 14. Agente IA com branding do treinador para alunos
 15. Ranking de carga de treino (disputa de maior peso levantado, dividido por gênero) — ideia em avaliação; versão simples de Ranking já existe
 16. Cleanup de alertas antigos tipo "alerta" nas notificações
+17. Percentual do **ciclo anterior** no anel de aderência do painel do aluno (sem prioridade máxima, decidido em 2026-09-25). Motivo: logo depois da virada do ciclo, com 1-2 dias, o percentual oscila muito, e ver o resultado fechado do ciclo anterior dá contexto. Adiado porque as duas opções pensadas têm custo: uma linha extra ("Ciclo anterior: 82%") aumenta o espaço vertical, e alternar o anel com um toque confunde o que o círculo mostra. Pensar o formato com calma antes de implementar. Dado: calcular entre as duas últimas `atualizacao_respostas` concluídas, não pela `form_atualizacao_ultima_data`, que é sobrescrita quando o treinador marca a data nova.
 
 ## 🟢 Infraestrutura
 

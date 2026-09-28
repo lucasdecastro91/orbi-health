@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -44,7 +45,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const Evolucao = () => {
   const { toast }   = useToast();
-  const { orgId }   = useTenantContext();
+  const { orgId, slug } = useTenantContext();
+  const base = `/${slug}/aluno`;
 
   // Weight state
   const [registros,  setRegistros]  = useState<Registro[]>([]);
@@ -159,16 +161,15 @@ const Evolucao = () => {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="pb-6">
 
-      {/* ── Weight header ─────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <Activity className="w-5 h-5" style={{ color: "var(--cp-500)" }} />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Evolução</h1>
-          <p className="text-muted-foreground text-sm">Peso e medidas corporais</p>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Evolução" backTo={base} />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 space-y-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
 
       {/* Weight stats */}
       {withWeight.length >= 2 && (
@@ -320,6 +321,7 @@ const Evolucao = () => {
         )}
       </div>
 
+      </div>
     </div>
   );
 };
