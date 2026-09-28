@@ -44,9 +44,14 @@ export async function markTreinoComplete(p: MarkTreinoCompleteParams): Promise<v
           .eq("tipo", "treino_completo").gte("created_at", today).limit(1);
         if (!existing || existing.length === 0) {
           const nome = p.alunoNome ?? "Um aluno";
+          // Nota (1-5) em estrelas na própria mensagem — antes era gravada
+          // no banco mas não aparecia em lugar nenhum pro treinador.
+          const estrelas = p.avaliacao
+            ? ` ${"★".repeat(p.avaliacao)}${"☆".repeat(5 - p.avaliacao)}`
+            : "";
           const mensagem = p.comentario
-            ? `${nome} concluiu o treino de hoje e deixou um comentário: "${p.comentario}"`
-            : `${nome} concluiu o treino de hoje.`;
+            ? `${nome} concluiu o treino de hoje${estrelas} e comentou: "${p.comentario}"`
+            : `${nome} concluiu o treino de hoje${estrelas}.`;
           await supabase.from("notificacoes").insert({
             user_id: p.treinadorId, org_id: p.orgId, aluno_id: p.alunoId, aluno_nome: p.alunoNome,
             titulo: "Treino concluído",
