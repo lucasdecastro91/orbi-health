@@ -1,0 +1,2 @@
+[functions.solicitar-recuperacao-senha]
+verify_jwt = false

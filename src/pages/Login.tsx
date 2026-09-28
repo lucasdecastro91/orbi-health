@@ -22,7 +22,7 @@ import { getColorEntry } from "@/lib/colors";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type Step = "email" | "password" | "forgot";
+type Step = "email" | "password" | "forgot" | "newPassword";
 
 interface TenantBranding {
   name: string;
@@ -75,7 +75,16 @@ const Login = () => {
   const navigate    = useNavigate();
   const { toast }   = useToast();
 
-  const [step,    setStep]    = useState<Step>("email");
+  // Detecta link de recuperação via flag setada por um <script> inline no
+  // index.html, ANTES de qualquer módulo JS rodar. Checar window.location
+  // diretamente aqui não funciona — o próprio cliente do Supabase já limpa
+  // o hash (history.replaceState) assim que processa a sessão, então por
+  // dentro do React esse dado já pode ter sumido (testado ao vivo: o hash
+  // vinha vazio dentro do onAuthStateChange, causando redirect direto pro
+  // painel em vez de mostrar a tela de "Nova senha").
+  const isRecoveryLink = () => (window as any).__isRecoveryLink === true;
+
+  const [step,    setStep]    = useState<Step>(() => (isRecoveryLink() ? "newPassword" : "email"));
   const [visible, setVisible] = useState(true);
 
   const [email,      setEmail]      = useState("");
@@ -88,6 +97,11 @@ const Login = () => {
   const [resetSent,    setResetSent]    = useState(false);
   const [redirecting,  setRedirecting]  = useState(false);
   const [slugLoading,  setSlugLoading]  = useState(false);
+
+  const [newPassword,        setNewPassword]        = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [newPasswordLoading, setNewPasswordLoading] = useState(false);
+  const [newPasswordError,   setNewPasswordError]   = useState<string | null>(null);
 
   const [tenant, setTenant] = useState<TenantBranding | null>(null);
 
@@ -193,10 +207,23 @@ const Login = () => {
     }
   }, [email, tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Antes usava só getSession() e redirecionava sempre que havia sessão —
+  // isso incluía a sessão temporária criada ao clicar num link de
+  // recuperação de senha, mandando o usuário direto pro painel sem nunca
+  // pedir a senha nova. onAuthStateChange distingue esse caso via o evento
+  // PASSWORD_RECOVERY, que o Supabase dispara especificamente pra isso.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { setRedirecting(true); redirectUser(session.user.id, session.user.user_metadata); }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setStep("newPassword");
+        return;
+      }
+      if (event === "INITIAL_SESSION" && session && !isRecoveryLink()) {
+        setRedirecting(true);
+        redirectUser(session.user.id, session.user.user_metadata);
+      }
     });
+    return () => subscription.unsubscribe();
   }, []);
 
   const goToStep = (next: Step) => {
@@ -305,15 +332,54 @@ const Login = () => {
     e.preventDefault();
     setResetLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
-      });
-      if (error) throw error;
+      // Usa nossa própria Edge Function (Resend, com a marca da ORBI) em vez
+      // de supabase.auth.resetPasswordForEmail() — o e-mail padrão do Supabase
+      // não tem branding e o link dependia do Site URL do projeto.
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/solicitar-recuperacao-senha`,
+        {
+          method:  "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey":       import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ email }),
+        },
+      );
+      if (!res.ok) throw new Error("Não foi possível enviar o e-mail. Tente novamente.");
       setResetSent(true);
     } catch (err: any) {
       toast({ title: "Erro ao enviar e-mail", description: err.message, variant: "destructive" });
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewPasswordError(null);
+
+    if (newPassword.length < 8) {
+      setNewPasswordError("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setNewPasswordError("As senhas não coincidem.");
+      return;
+    }
+
+    setNewPasswordLoading(true);
+    try {
+      const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      if (data.user) {
+        setRedirecting(true);
+        await redirectUser(data.user.id, data.user.user_metadata);
+      }
+    } catch (err: any) {
+      setNewPasswordError(err.message || "Erro ao atualizar a senha.");
+    } finally {
+      setNewPasswordLoading(false);
     }
   };
 
@@ -411,14 +477,16 @@ const Login = () => {
             <div style={{ opacity: visible ? 1 : 0, transition: "opacity 200ms ease" }} className="flex-1 flex flex-col">
 
               <h2 className={`text-[1.75rem] font-bold tracking-tight mb-1 mt-3 ${isOrgLight ? "text-gray-900" : "text-white"}`}>
-                {step === "email"    && "Acesse sua conta"}
-                {step === "password" && "Sua senha"}
-                {step === "forgot"   && "Recuperar acesso"}
+                {step === "email"       && "Acesse sua conta"}
+                {step === "password"    && "Sua senha"}
+                {step === "forgot"      && "Recuperar acesso"}
+                {step === "newPassword" && "Nova senha"}
               </h2>
               <p className="text-sm mb-7" style={{ color: isOrgLight ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.38)" }}>
-                {step === "email"    && "Entre com seu e-mail para continuar"}
-                {step === "password" && email}
-                {step === "forgot"   && "Enviaremos um link de recuperacao"}
+                {step === "email"       && "Entre com seu e-mail para continuar"}
+                {step === "password"    && email}
+                {step === "forgot"      && "Enviaremos um link de recuperacao"}
+                {step === "newPassword" && "Escolha uma senha nova para sua conta"}
               </p>
 
               {/* Email */}
@@ -533,6 +601,38 @@ const Login = () => {
                 </>
               )}
 
+              {/* Nova senha (chegou aqui via link de recuperação) */}
+              {step === "newPassword" && (
+                <form onSubmit={handleSetNewPassword} className="flex flex-col gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: isOrgLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>Nova senha</label>
+                    <Input
+                      type="password" value={newPassword}
+                      onChange={(e) => { setNewPassword(e.target.value); setNewPasswordError(null); }}
+                      required autoFocus placeholder="Mínimo 8 caracteres" minLength={8}
+                      className={`h-13 rounded-xl text-sm border transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-primary/25 focus-visible:border-primary/40 ${isOrgLight ? "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300" : "text-white border-white/[0.1] bg-[#111111] placeholder:text-white/25"}`}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: isOrgLight ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)" }}>Confirmar nova senha</label>
+                    <Input
+                      type="password" value={confirmNewPassword}
+                      onChange={(e) => { setConfirmNewPassword(e.target.value); setNewPasswordError(null); }}
+                      required placeholder="Digite novamente" minLength={8}
+                      className={`h-13 rounded-xl text-sm border transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-primary/25 focus-visible:border-primary/40 ${isOrgLight ? "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300" : "text-white border-white/[0.1] bg-[#111111] placeholder:text-white/25"}`}
+                    />
+                    {newPasswordError && <p className="text-xs px-0.5" style={{ color: "rgba(248,113,113,0.9)" }}>{newPasswordError}</p>}
+                  </div>
+                  <div className="pt-2">
+                    <button type="submit" disabled={newPasswordLoading}
+                      className="w-full h-14 rounded-2xl font-semibold text-base transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      style={{ background: "var(--cp-gradient)", color: "var(--cp-text)", boxShadow: "0 0 24px rgba(var(--cp-rgb), 0.28), 0 4px 12px rgba(var(--cp-rgb), 0.15)" }}>
+                      {newPasswordLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : "Salvar nova senha"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               <div className="flex-1" />
 
               {/* Rodape mobile */}
@@ -617,14 +717,16 @@ const Login = () => {
             {/* Cabecalho */}
             <div className="mb-6">
               <h2 className={`text-xl font-bold tracking-tight ${useDarkTheme ? "text-white" : "text-gray-900"}`}>
-                {step === "email"    && "Acesse sua conta"}
-                {step === "password" && "Sua senha"}
-                {step === "forgot"   && "Recuperar acesso"}
+                {step === "email"       && "Acesse sua conta"}
+                {step === "password"    && "Sua senha"}
+                {step === "forgot"      && "Recuperar acesso"}
+                {step === "newPassword" && "Nova senha"}
               </h2>
               <p className={`text-sm mt-1 ${useDarkTheme ? "text-white/40" : "text-gray-400"}`}>
-                {step === "email"    && "Entre com seu e-mail para continuar"}
-                {step === "password" && email}
-                {step === "forgot"   && "Enviaremos um link de recuperacao"}
+                {step === "email"       && "Entre com seu e-mail para continuar"}
+                {step === "password"    && email}
+                {step === "forgot"      && "Enviaremos um link de recuperacao"}
+                {step === "newPassword" && "Escolha uma senha nova para sua conta"}
               </p>
             </div>
 
@@ -735,6 +837,38 @@ const Login = () => {
                   </div>
                 )}
               </>
+            )}
+
+            {/* Nova senha (chegou aqui via link de recuperação) */}
+            {step === "newPassword" && (
+              <form onSubmit={handleSetNewPassword} className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className={`block text-xs font-semibold uppercase tracking-wider ${useDarkTheme ? "text-white/50" : "text-gray-400"}`}>Nova senha</label>
+                  <Input
+                    type="password" value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setNewPasswordError(null); }}
+                    required autoFocus placeholder="Mínimo 8 caracteres" minLength={8}
+                    className={`h-12 rounded-xl text-sm border transition-all focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 focus-visible:border-primary/50 ${useDarkTheme ? "text-white bg-white/5 border-white/10 placeholder:text-white/25" : "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300"}`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={`block text-xs font-semibold uppercase tracking-wider ${useDarkTheme ? "text-white/50" : "text-gray-400"}`}>Confirmar nova senha</label>
+                  <Input
+                    type="password" value={confirmNewPassword}
+                    onChange={(e) => { setConfirmNewPassword(e.target.value); setNewPasswordError(null); }}
+                    required placeholder="Digite novamente" minLength={8}
+                    className={`h-12 rounded-xl text-sm border transition-all focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 focus-visible:border-primary/50 ${useDarkTheme ? "text-white bg-white/5 border-white/10 placeholder:text-white/25" : "text-gray-900 bg-white border-gray-200 placeholder:text-gray-300"}`}
+                  />
+                  {newPasswordError && <p className="text-xs text-red-500 px-0.5">{newPasswordError}</p>}
+                </div>
+                <div className="pt-1">
+                  <button type="submit" disabled={newPasswordLoading}
+                    className="w-full h-12 rounded-xl font-semibold text-sm text-white transition-all hover:brightness-95 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ background: "var(--cp-gradient)" }}>
+                    {newPasswordLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : "Salvar nova senha"}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
 

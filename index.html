@@ -30,6 +30,17 @@
     <link rel="shortcut icon" href="/logos/orbi-app-icon-hd.png">
     <link rel="manifest" href="/manifest.json">
 
+    <!-- Captura se a URL é um link de recuperação de senha ANTES de qualquer
+         módulo JS rodar — o próprio cliente do Supabase limpa location.hash
+         (history.replaceState) assim que processa a sessão, então checar
+         isso de dentro do React/Login.tsx já pode chegar tarde demais
+         (testado ao vivo: o hash já vinha vazio dentro do onAuthStateChange,
+         causando redirect direto pro painel em vez de mostrar "Nova senha"). -->
+    <script>
+      window.__isRecoveryLink = window.location.hash.indexOf('type=recovery') !== -1
+        || window.location.search.indexOf('type=recovery') !== -1;
+    </script>
+
     <!-- Favicon dinâmico: roda antes do React, sem flash -->
     <script>
       (function () {

@@ -233,6 +233,68 @@ Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
   };
 }
 
+function recuperarSenhaTemplate(nome: string, resetUrl: string) {
+  return {
+    subject: `Redefinir sua senha - ORBI Health`,
+    html: `<!DOCTYPE html>
+<html lang="pt-BR" bgcolor="#ffffff">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Redefinir senha</title>
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background-color:#ffffff;">
+<tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:40px 16px;">
+<table width="420" cellpadding="0" cellspacing="0" border="0" style="width:420px;max-width:420px;">
+<tr>
+<td bgcolor="#ffffff" style="background-color:#ffffff;padding:0 0 20px 0;">
+${LOGO_BLOCK}
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;border-radius:8px;overflow:hidden;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:28px 24px;">
+<p style="margin:0 0 6px 0;font-size:20px;font-weight:600;color:#111111;font-family:Arial,sans-serif;line-height:1.3;">Ola, ${nome}!</p>
+<p style="margin:0 0 24px 0;font-size:14px;color:#555555;font-family:Arial,sans-serif;line-height:1.6;">
+Recebemos uma solicitacao para redefinir a senha da sua conta. Clique no botao abaixo para criar uma nova senha.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+<tr><td align="center">
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td bgcolor="#16a34a" style="background-color:#16a34a;border-radius:6px;padding:13px 28px;">
+<a href="${resetUrl}" style="color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;display:block;white-space:nowrap;">Redefinir senha</a>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;line-height:1.6;">
+Este link expira em 1 hora. Se voce nao solicitou essa alteracao, pode ignorar este e-mail com seguranca — sua senha atual continua valendo.
+</p>
+</td>
+</tr>
+<tr>
+<td bgcolor="#f4f4f4" style="background-color:#f4f4f4;padding:16px 24px;border-top:1px solid #e0e0e0;">
+<p style="margin:0;font-size:12px;color:#999999;font-family:Arial,sans-serif;text-align:center;line-height:1.6;">
+Este e-mail foi enviado automaticamente. Nao responda a esta mensagem.
+</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`,
+  };
+}
+
 function cobrancaGeradaTemplate(nome: string, orgName: string, descricao: string, valorFmt: string, dateFmt: string, link: string) {
   return {
     subject: `Nova cobranca — ${descricao}`,
@@ -511,6 +573,14 @@ Deno.serve(async (req) => {
         return json({ error: "Missing fields: nome, orgName, appUrl" }, 400);
       }
       const tpl = boasVindasTreinadorTemplate(nome, orgName, appUrl);
+      subject = tpl.subject;
+      html    = tpl.html;
+    } else if (type === "recuperar_senha") {
+      const { nome, resetUrl } = data;
+      if (!nome || !resetUrl) {
+        return json({ error: "Missing fields: nome, resetUrl" }, 400);
+      }
+      const tpl = recuperarSenhaTemplate(nome, resetUrl);
       subject = tpl.subject;
       html    = tpl.html;
     } else if (type === "cobranca_gerada") {
