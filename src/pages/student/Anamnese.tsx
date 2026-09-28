@@ -625,9 +625,13 @@ const Anamnese = () => {
 
   return (
     <div className="pb-6">
-      {/* Cabeçalho padrão SEM voltar (2026-09-27): formulário longo — a
-          navegação entre etapas fica nos botões Voltar/Próximo abaixo. */}
-      <StudentPageHeader title={isEditing ? "Editar anamnese" : "Anamnese"} />
+      {/* Voltar só na edição (aberta pelo Perfil; respostas têm autosave).
+          No 1º preenchimento não — é obrigatório (StudentLayout redireciona
+          pra cá) e a navegação entre etapas fica nos botões abaixo. */}
+      <StudentPageHeader
+        title={isEditing ? "Editar anamnese" : "Anamnese"}
+        backTo={isEditing ? `/${slug}/aluno/perfil` : undefined}
+      />
 
       <div
         className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"
