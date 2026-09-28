@@ -17,6 +17,9 @@ import Login         from "./pages/Login";
 import Signup        from "./pages/Signup";
 import Planos        from "./pages/Planos";
 import PlanSelection from "./pages/PlanSelection";
+import Privacidade   from "./pages/Privacidade";
+import Suporte       from "./pages/Suporte";
+import Termos        from "./pages/Termos";
 import NotFound      from "./pages/NotFound";
 
 // Pages — org index (redirect inteligente)
@@ -277,6 +280,9 @@ const App = () => {
             <Route path="/cadastro" element={<Signup />} />
             <Route path="/planos"   element={<Planos />} />
             <Route path="/assinar"  element={<PlanSelection />} />
+            <Route path="/privacidade" element={<Privacidade />} />
+            <Route path="/suporte" element={<Suporte />} />
+            <Route path="/termos" element={<Termos />} />
             <Route path="/convite/:token" element={<ConviteAccept />} />
             <Route path="/pagar/:cobrancaId" element={<Pagamento />} />
 
