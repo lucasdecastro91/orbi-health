@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare } from "lucide-react";
+import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { format } from "date-fns";
 
 interface Feedback {
@@ -18,6 +20,7 @@ const Feedbacks = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { slug } = useTenantContext();
 
   useEffect(() => {
     loadFeedbacks();
@@ -99,18 +102,14 @@ const Feedbacks = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="h-10 w-10 rounded-full bg-yellow-500 flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">Feedbacks</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Orientações e mensagens do seu treinador
-        </p>
-      </div>
+    <div className="pb-6">
+      <StudentPageHeader title="Feedbacks" backTo={`/${slug}/aluno/mais`} />
+
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <p className="text-sm text-muted-foreground mb-4">Orientações e mensagens do seu treinador</p>
 
       {feedbacks.length === 0 ? (
         <Card>
@@ -144,6 +143,7 @@ const Feedbacks = () => {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 
 interface Agendamento {
   id: string;
@@ -29,6 +31,7 @@ const STATUS_CONFIG = {
 };
 
 const AgendaAluno = () => {
+  const { slug } = useTenantContext();
   const { toast } = useToast();
   const [apts,    setApts]    = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,15 +80,14 @@ const AgendaAluno = () => {
   );
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="pb-6">
+      <StudentPageHeader title="Minha agenda" backTo={`/${slug}/aluno/mais`} />
 
-      <div className="flex items-center gap-3 mb-5">
-        <Calendar className="w-5 h-5 text-green-500" />
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Minha Agenda</h1>
-          <p className="text-white/40 text-sm">Consultas e avaliações com o treinador</p>
-        </div>
-      </div>
+      <div
+        className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
+      <p className="text-sm text-muted-foreground mb-4">Consultas e avaliações com o treinador</p>
 
       <div className="flex gap-2 mb-5">
         <FilterBtn value="proximos" label="Próximos" />
@@ -159,6 +161,7 @@ const AgendaAluno = () => {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 };
