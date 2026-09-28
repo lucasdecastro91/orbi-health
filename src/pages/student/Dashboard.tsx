@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -146,6 +146,11 @@ const StudentDashboard = () => {
   const [dietaRefeicoesFeitasHoje, setDietaRefeicoesFeitasHoje] = useState(0);
   const [cycleAdherence, setCycleAdherence] = useState<CycleAdherence | null>(null);
   const [selectedChip, setSelectedChip] = useState<"treino" | "dieta" | "cardio" | "agua" | null>(null);
+  // Balão de detalhe do anel (2026-09-28): substitui a frase fixa que ficava
+  // embaixo dos chips. Abre SÓ tocando no anel — mesmo gesto pro Geral e pra
+  // qualquer chip; o conteúdo segue o que o anel está mostrando.
+  const [ringInfoOpen, setRingInfoOpen] = useState(false);
+  const ringInfoRef = useRef<HTMLDivElement>(null);
   // Tamanho do anel medido de verdade a partir da altura renderizada dos 4
   // chips (ResizeObserver) — testado duas vezes com CSS Grid puro (aspect-
   // ratio+stretch, depois row-span-2 com altura explícita) e as duas vezes
@@ -189,6 +194,33 @@ const StudentDashboard = () => {
     if (rowEl) ro.observe(rowEl);
     return () => ro.disconnect();
   }, [chipsEl]);
+  // Fecha o balão ao tocar fora dele (pointerdown no documento, não um
+  // backdrop — assim o toque num chip com o balão aberto fecha E seleciona o
+  // chip num gesto só, em vez de só fechar).
+  useEffect(() => {
+    if (!ringInfoOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (ringInfoRef.current?.contains(e.target as Node)) return;
+      setRingInfoOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [ringInfoOpen]);
+
+  // 1ª visita depois da mudança: o balão abre sozinho uma vez (e fecha em
+  // alguns segundos) pro aluno descobrir que o anel é tocável. Flag por
+  // aparelho em localStorage — conveniência, não precisa ser confiável.
+  useEffect(() => {
+    if (!cycleAdherence) return;
+    let seen = true;
+    try { seen = localStorage.getItem("orbi_ring_info_seen") === "1"; } catch { /* sem storage: não mostra */ }
+    if (seen) return;
+    try { localStorage.setItem("orbi_ring_info_seen", "1"); } catch { /* ignore */ }
+    setRingInfoOpen(true);
+    const t = window.setTimeout(() => setRingInfoOpen(false), 6000);
+    return () => window.clearTimeout(t);
+  }, [cycleAdherence]);
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { slug, orgId, org } = useTenantContext();
@@ -788,12 +820,14 @@ const StudentDashboard = () => {
               ao lado — cada um dimensionado independente, sem nenhuma
               chance de um influenciar o tamanho do outro. */}
           <div className="flex items-start gap-2">
+            <div ref={ringInfoRef} className="relative shrink-0">
             <button
               type="button"
-              onClick={() => setSelectedChip(null)}
-              className="relative shrink-0 transition-opacity hover:opacity-90"
+              onClick={() => setRingInfoOpen((o) => !o)}
+              className="relative block transition-opacity hover:opacity-90"
               style={{ width: ringSize ?? undefined, height: ringSize ?? undefined }}
-              aria-label="Ver aderência geral do ciclo"
+              aria-label="Ver detalhes da aderência"
+              aria-expanded={ringInfoOpen}
             >
               <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
                 {/* Traço mais grosso que o original (7→8) — o anel ficou
@@ -827,14 +861,50 @@ const StudentDashboard = () => {
               </div>
             </button>
 
-            {/* ref no wrapper inteiro (chips + respiro) — dessa vez de
-                propósito: o respiro agora SEMPRE mostra uma frase (nunca
-                fica vazio, ver abaixo), então faz sentido reservar altura
-                pra ele sempre e o anel cobrir esse espaço — decisão do
-                Lucas (2026-09-25): deixa o anel maior, que é o que ele
-                queria desde o começo, sem reintroduzir o vão vazio "à toa"
-                que motivou tirar a min-height antes (agora não é mais "à
-                toa", tem conteúdo sempre). */}
+            {/* Balão — mesmo visual do menu do avatar (bg-card + borda +
+                sombra), com setinha apontando pro anel. */}
+            {ringInfoOpen && cycleAdherence && (() => {
+              const [y, m, d] = cycleAdherence.cycleStart.split("-").map(Number);
+              const desde = format(new Date(y, m - 1, d), "dd/MM");
+              const item = selectedChip ? cycleAdherence[selectedChip] : null;
+              return (
+                <div
+                  className="absolute left-0 top-full mt-3 w-60 rounded-2xl z-50 bg-card border border-border px-4 py-3 text-card-foreground"
+                  style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.35)" }}
+                  role="dialog"
+                >
+                  <span
+                    className="absolute -top-1.5 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
+                    style={{ left: ringSize ? ringSize / 2 - 6 : 36 }}
+                  />
+                  <p className="text-sm font-semibold">
+                    {selectedChip ? CHIP_LABELS[selectedChip] : "Aderência geral"} · {ringDisplayPct}%
+                  </p>
+                  {item ? (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {item.completed} de {Math.round(item.expected)} {CHIP_UNIT[selectedChip!]} no período
+                      {selectedChip === "dieta" && dietaMealCount
+                        ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
+                        : ""}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Treino, dieta, cardio e água somados no período
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">Ciclo desde {desde}</p>
+                </div>
+              );
+            })()}
+            </div>
+
+            {/* A altura deste bloco define o tamanho do anel. Até
+                2026-09-28 tinha uma frase embaixo dos chips (ciclo /
+                "X de Y no período"); ela virou o balão do anel e os chips
+                cresceram (h-[43px], texto 11 para 13px, ícone 16 para 19px)
+                pra ocupar o mesmo espaço: bloco com a mesma altura (~94px),
+                anel do mesmo tamanho. Altura fixa nos chips também evita o
+                loop anel/chips (conteúdo não muda a altura). */}
             <div ref={chipsBlockRef} className="flex-1 min-w-0">
               <div className="grid grid-cols-2 gap-2">
                 {CHIP_DEFS.map((chip) => {
@@ -843,49 +913,23 @@ const StudentDashboard = () => {
                     <button
                       key={chip.id}
                       type="button"
-                      onClick={() => setSelectedChip((c) => (c === chip.id ? null : chip.id))}
-                      className="flex items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-left transition-colors"
+                      onClick={() => { setRingInfoOpen(false); setSelectedChip((c) => (c === chip.id ? null : chip.id)); }}
+                      className="flex items-center gap-1.5 rounded-2xl px-2.5 h-[43px] text-left transition-colors"
                       style={{
                         border: active ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.16)",
                         backgroundColor: active ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)",
                       }}
                     >
-                      <chip.icon className="w-4 h-4 shrink-0 opacity-90" />
-                      <span className="text-[11px] font-medium flex-1 min-w-0 truncate">{CHIP_LABELS[chip.id]}</span>
+                      <chip.icon className="w-[19px] h-[19px] shrink-0 opacity-90" />
+                      <span className="text-[13px] font-medium flex-1 min-w-0 truncate">{CHIP_LABELS[chip.id]}</span>
                       {chip.doneToday
-                        ? <Check className="w-3.5 h-3.5 shrink-0" />
-                        : <span className="text-[11px] font-bold shrink-0">{chip.todayText}</span>}
+                        ? <Check className="w-4 h-4 shrink-0" />
+                        : <span className="text-[13px] font-bold shrink-0">{chip.todayText}</span>}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Respiro/detalhe — SEMPRE mostra uma frase agora (chip
-                  selecionado: "X de Y no período"; "Geral": período do
-                  ciclo), nunca fica vazio — é o que justifica reservar
-                  altura pra ele (min-h) e o anel cobrir esse espaço. */}
-              {/* Frase SEMPRE numa linha só (truncate): a altura deste bloco
-                  define o tamanho do anel, e o anel ocupa largura — se a
-                  frase quebrasse linha, o bloco crescia, o anel crescia,
-                  espremia os chips, a frase quebrava mais... (loop que
-                  estourou o layout em 2026-09-25). */}
-              <div className="flex items-center mt-2 min-h-[16px] min-w-0">
-                {selectedChip && cycleAdherence ? (
-                  <p className="text-[11px] opacity-80 truncate">
-                    {cycleAdherence[selectedChip].completed} de {Math.round(cycleAdherence[selectedChip].expected)} {CHIP_UNIT[selectedChip]} no período
-                    {selectedChip === "dieta" && dietaMealCount
-                      ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
-                      : ""}
-                  </p>
-                ) : cycleAdherence ? (
-                  <p className="text-[11px] opacity-80 truncate">
-                    {(() => {
-                      const [y, m, d] = cycleAdherence.cycleStart.split("-").map(Number);
-                      return `Ciclo desde ${format(new Date(y, m - 1, d), "dd/MM")}`;
-                    })()}
-                  </p>
-                ) : null}
-              </div>
             </div>
           </div>
 
