@@ -42,6 +42,24 @@ const AlterarSenha = () => {
 
     setLoading(true);
     try {
+      // Confere a senha atual antes de trocar — updateUser sozinho aceita
+      // qualquer valor no campo "Senha atual" (quem pegasse o celular
+      // desbloqueado trocaria a senha sem saber a antiga).
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Sessão expirada. Entre de novo.");
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: senhaAtual,
+      });
+      if (verifyError) {
+        toast({
+          title: "Senha atual incorreta",
+          description: "Confira a senha atual e tente de novo.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: novaSenha,
       });
