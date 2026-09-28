@@ -38,8 +38,12 @@ const StudentPageHeader = ({ title, backTo, onBack, right, tabs }: StudentPageHe
 
   return (
     <div
-      className="relative px-4 pt-3 pb-9"
+      className="relative px-4 pb-9"
       style={{
+        // Sobe por baixo da faixa de status (hora/bateria) no app nativo —
+        // --safe-top vem do StudentLayout; 0 no desktop/Safari.
+        marginTop: "calc(-1 * var(--safe-top, 0px))",
+        paddingTop: "calc(0.75rem + var(--safe-top, 0px))",
         background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
         color: "#fff",
       }}

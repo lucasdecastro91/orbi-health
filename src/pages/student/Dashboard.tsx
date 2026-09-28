@@ -636,8 +636,12 @@ const StudentDashboard = () => {
           (fica na zona neutra abaixo, nivelado com os outros cards).
          ══════════════════════════════════════════════════════════════ */}
       <div
-        className="relative px-4 pt-4 pb-8"
+        className="relative px-4 pb-8"
         style={{
+          // Bloco sobe por baixo da faixa de status no app nativo (ver
+          // --safe-top em StudentLayout); 0 no desktop/Safari.
+          marginTop: "calc(-1 * var(--safe-top, 0px))",
+          paddingTop: "calc(1rem + var(--safe-top, 0px))",
           // Degradê vertical (não o --cp-gradient diagonal usado em botões):
           // mais claro perto da costura com a zona neutra embaixo, ficando
           // mais consistente/escuro subindo — mesmo efeito observado no azul

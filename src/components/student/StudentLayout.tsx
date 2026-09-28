@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { getActiveTimer, clearTimer, type ActiveTimer } from "@/lib/activeTimer";
-import PlanExpiredBanner from "@/components/student/PlanExpiredBanner";
+import PlanExpiredBanner, { isPlanExpiredBannerVisible } from "@/components/student/PlanExpiredBanner";
 
 const fmtMMSS = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -264,13 +264,19 @@ const StudentLayout = () => {
             seu bloco colorido por baixo dela; as demais só ganham o padding). */}
 
         {/* Main Content */}
+        {/* --safe-top: altura da faixa de status (hora/bateria) que o
+            bloco colorido do topo de cada tela pode "invadir" com margem
+            negativa, pra cor ir até o topo (igual Prime). Zero quando o
+            banner de plano vencido ocupa o topo — aí o verde não sobe por
+            cima dele. Fora do app nativo (desktop/Safari) o env() já é 0. */}
         <main
           style={{
+            "--safe-top": isPlanExpiredBannerVisible(dataExpiracaoPlano) ? "0px" : "env(safe-area-inset-top, 0px)",
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: showTimerBar
               ? `calc(${NAV_CLEARANCE} + 56px)`
               : NAV_CLEARANCE,
-          }}
+          } as React.CSSProperties}
         >
           <PlanExpiredBanner dataExpiracaoPlano={dataExpiracaoPlano} />
           <Outlet />
