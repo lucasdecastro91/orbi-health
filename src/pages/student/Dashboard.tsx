@@ -596,7 +596,14 @@ const StudentDashboard = () => {
     (!dieta.data.vista_pelo_aluno_em || new Date(dieta.data.atualizada_em) > new Date(dieta.data.vista_pelo_aluno_em));
   const hasFeedbackNovo = lastFeedback && !lastFeedback.visto_pelo_aluno;
   const firstName = userName.split(" ")[0] || "Aluno";
-  const avatarInitial = userName.trim().charAt(0).toUpperCase() || "?";
+  // Iniciais do aluno (primeiro + último nome), mesmo padrão da tela de Perfil.
+  const avatarInitials = (() => {
+    const parts = userName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    const first = parts[0][0];
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+    return (first + last).toUpperCase();
+  })();
 
   // Tira de calendário: segunda a domingo da semana atual
   const today = new Date();
@@ -711,21 +718,12 @@ const StudentDashboard = () => {
               >
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                ) : org?.icon_url ? (
-                  // Sem foto do aluno: cai pro ícone da org (mesmo padrão da
-                  // Prime) em vez de inicial. O filtro força branco sólido
-                  // (funciona com qualquer cor original do ícone) — sem
-                  // isso, um ícone da mesma cor primária do fundo (caso
-                  // comum quando a org ainda usa o ícone padrão da ORBI)
-                  // ficava quase invisível, sem contraste nenhum.
-                  <img
-                    src={org.icon_url}
-                    alt=""
-                    className="w-6 h-6 object-contain"
-                    style={{ filter: "brightness(0) invert(1)" }}
-                  />
                 ) : (
-                  avatarInitial
+                  // Sem foto: iniciais do aluno. Até 2026-09-28 caía pro ícone
+                  // da org pintado de branco — saiu porque o avatar representa
+                  // o ALUNO (abre o menu da conta dele), e ícone com fundo
+                  // opaco virava um quadrado branco com o filtro.
+                  avatarInitials
                 )}
               </button>
               <div className="min-w-0">
