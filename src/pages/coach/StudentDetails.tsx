@@ -11,6 +11,7 @@ import DietManager from "./DietManager";
 import BodyMeasurementsList, { EMPTY_BODY_MEASUREMENTS, buildBodyMeasurements, hasAnyMeasurement, type BodyMeasurements } from "@/components/BodyMeasurements";
 import UpdateFormManager from "./UpdateFormManager";
 import FeedbackManager from "@/components/coach/FeedbackManager";
+import TreinoFeedbacks from "@/components/coach/TreinoFeedbacks";
 import { useTenantContext } from "@/contexts/TenantContext";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { useCollaboratorPermissions } from "@/hooks/useCollaboratorPermissions";
@@ -4411,6 +4412,13 @@ const StudentDetails = () => {
 
             <div className="rounded-2xl border border-white/8 p-5" style={{ backgroundColor: "rgba(255,255,255,0.015)" }}>
               <CargaProgressao alunoId={id!} studentUserId={student.user_id} />
+            </div>
+
+            {/* Nota + comentário de cada treino concluído, por ciclo de
+                atualização — logo abaixo da carga: os dois são "como o aluno
+                está indo" (desempenho e percepção). Ver TreinoFeedbacks.tsx. */}
+            <div className="rounded-2xl border border-white/8 p-5" style={{ backgroundColor: "rgba(255,255,255,0.015)" }}>
+              <TreinoFeedbacks alunoId={id!} studentUserId={student.user_id} />
             </div>
           </div>
         )}
