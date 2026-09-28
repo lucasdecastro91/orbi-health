@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const { data: cobranca, error: cobErr } = await supabase
       .from("cobrancas")
-      .select("id, org_id, descricao, valor, status, forma_pagamento, data_vencimento, pix_key, installment_count")
+      .select("id, org_id, aluno_id, descricao, valor, status, forma_pagamento, data_vencimento, pix_key, installment_count, asaas_id, plano_id")
       .eq("id", cobranca_id)
       .maybeSingle();
 
@@ -47,6 +47,31 @@ serve(async (req) => {
       .eq("id", cobranca.org_id)
       .maybeSingle();
 
+    // Cobrança "adiada" — nasceu vinculada a um Plano, mas ainda sem asaas_id
+    // (ninguém pagou/escolheu nada ainda). Devolve as opções do Plano (Pix +
+    // parcelas) pro checkout renderizar o seletor, e se o aluno já tem
+    // cliente Asaas cadastrado (pra decidir se pede CPF ou não) — sem nunca
+    // expor aluno_id/asaas_id pro cliente.
+    let opcoes: { pix_value: number | null; installment_options: unknown[] } | null = null;
+    let cpf_on_file = false;
+    if (!cobranca.asaas_id && cobranca.plano_id) {
+      const { data: plano } = await supabase
+        .from("plans")
+        .select("pix_value, installment_options")
+        .eq("id", cobranca.plano_id)
+        .maybeSingle();
+      if (plano) {
+        opcoes = { pix_value: plano.pix_value, installment_options: plano.installment_options ?? [] };
+      }
+
+      const { data: existingCust } = await supabase
+        .from("asaas_customers_alunos")
+        .select("asaas_id")
+        .eq("aluno_id", cobranca.aluno_id)
+        .maybeSingle();
+      cpf_on_file = !!existingCust?.asaas_id;
+    }
+
     return new Response(JSON.stringify({
       descricao:       cobranca.descricao,
       valor:           cobranca.valor,
@@ -55,6 +80,9 @@ serve(async (req) => {
       data_vencimento: cobranca.data_vencimento,
       pix_key:         cobranca.pix_key,
       installment_count: cobranca.installment_count ?? 1,
+      aguardando_escolha: !cobranca.asaas_id,
+      opcoes,
+      cpf_on_file,
       org_nome:        org?.name ?? "ORBI Health",
       org_slug:        org?.slug ?? null,
       org_logo_url:    org?.logo_url ?? null,

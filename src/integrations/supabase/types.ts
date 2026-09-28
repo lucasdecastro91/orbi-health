@@ -361,6 +361,7 @@ export type Database = {
           plano_aluno_notif_7d: boolean
           plano_aluno_notif_vencido: boolean
           plano_cobranca_id: string | null
+          plano_id: string | null
           plano_inicio: string | null
           plano_nome: string | null
           plano_produto_id: string | null
@@ -399,6 +400,7 @@ export type Database = {
           plano_aluno_notif_7d?: boolean
           plano_aluno_notif_vencido?: boolean
           plano_cobranca_id?: string | null
+          plano_id?: string | null
           plano_inicio?: string | null
           plano_nome?: string | null
           plano_produto_id?: string | null
@@ -437,6 +439,7 @@ export type Database = {
           plano_aluno_notif_7d?: boolean
           plano_aluno_notif_vencido?: boolean
           plano_cobranca_id?: string | null
+          plano_id?: string | null
           plano_inicio?: string | null
           plano_nome?: string | null
           plano_produto_id?: string | null
@@ -464,6 +467,13 @@ export type Database = {
             columns: ["plano_cobranca_id"]
             isOneToOne: false
             referencedRelation: "cobrancas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alunos_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
           {
@@ -1522,12 +1532,14 @@ export type Database = {
           descricao: string
           forma_pagamento: string
           id: string
+          installment_count: number
           invoice_url: string | null
           notificado_15d: boolean
           notificado_30d: boolean
           notificado_7d: boolean
           org_id: string
           pix_key: string | null
+          plano_id: string | null
           status: string
           trainer_notificado_vencida: boolean
           treinador_id: string
@@ -1545,12 +1557,14 @@ export type Database = {
           descricao: string
           forma_pagamento?: string
           id?: string
+          installment_count?: number
           invoice_url?: string | null
           notificado_15d?: boolean
           notificado_30d?: boolean
           notificado_7d?: boolean
           org_id: string
           pix_key?: string | null
+          plano_id?: string | null
           status?: string
           trainer_notificado_vencida?: boolean
           treinador_id: string
@@ -1568,12 +1582,14 @@ export type Database = {
           descricao?: string
           forma_pagamento?: string
           id?: string
+          installment_count?: number
           invoice_url?: string | null
           notificado_15d?: boolean
           notificado_30d?: boolean
           notificado_7d?: boolean
           org_id?: string
           pix_key?: string | null
+          plano_id?: string | null
           status?: string
           trainer_notificado_vencida?: boolean
           treinador_id?: string
@@ -1593,6 +1609,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobrancas_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
@@ -1963,6 +1986,38 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercicio_skips: {
+        Row: {
+          created_at: string | null
+          date: string
+          exercicio_id: string
+          id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string
+          exercicio_id: string
+          id?: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          exercicio_id?: string
+          id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercicio_skips_exercicio_id_fkey"
+            columns: ["exercicio_id"]
+            isOneToOne: false
+            referencedRelation: "exercicios"
             referencedColumns: ["id"]
           },
         ]
@@ -4130,12 +4185,6 @@ export type Database = {
       is_org_owner: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_treinador: { Args: { _user_id: string }; Returns: boolean }
-      listar_storage_orfaos: {
-        Args: { p_bucket: string; p_table: string }
-        Returns: {
-          name: string
-        }[]
-      }
       match_alimento: {
         Args: { min_score?: number; termo: string }
         Returns: {
@@ -4196,12 +4245,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4225,11 +4274,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4250,11 +4299,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4275,11 +4324,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -4292,11 +4341,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

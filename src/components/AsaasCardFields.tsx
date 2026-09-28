@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 export interface CardFields {
   card_holder_name: string;
   card_holder_cpf: string;
+  card_holder_phone: string;
   card_number: string;
   card_exp_month: string;
   card_exp_year: string;
@@ -34,6 +35,12 @@ export const formatCPF = (v: string) =>
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 
+export const formatPhone = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d{4})(\d{0,4})/, (_m, a, b, c) => c ? `(${a}) ${b}-${c}` : b ? `(${a}) ${b}` : `(${a}`);
+  return d.replace(/(\d{2})(\d{5})(\d{0,4})/, (_m, a, b, c) => c ? `(${a}) ${b}-${c}` : `(${a}) ${b}`);
+};
+
 interface AsaasCardFieldsProps {
   /** Classes do <Input>, pra bater com o tema da tela (dark vs light) */
   inputClassName: string;
@@ -54,6 +61,7 @@ const AsaasCardFields = forwardRef<AsaasCardFieldsHandle, AsaasCardFieldsProps>(
     const [card, setCard] = useState<Omit<CardFields, "cardCep" | "cardAddressNumber" | "cardAddressComplement">>({
       card_holder_name: "",
       card_holder_cpf: "",
+      card_holder_phone: "",
       card_number: "",
       card_exp_month: "",
       card_exp_year: "",
@@ -112,7 +120,12 @@ const AsaasCardFields = forwardRef<AsaasCardFieldsHandle, AsaasCardFieldsProps>(
         <RequiredLabel className={labelClassName}>{label}</RequiredLabel>
         <Input
           value={card[key]}
-          onChange={(e) => setCard((c) => ({ ...c, [key]: key === "card_holder_cpf" ? formatCPF(e.target.value) : e.target.value }))}
+          onChange={(e) => setCard((c) => ({
+            ...c,
+            [key]: key === "card_holder_cpf" ? formatCPF(e.target.value)
+              : key === "card_holder_phone" ? formatPhone(e.target.value)
+              : e.target.value,
+          }))}
           placeholder={placeholder}
           maxLength={maxLength}
           className={inputClassName}
@@ -124,6 +137,10 @@ const AsaasCardFields = forwardRef<AsaasCardFieldsHandle, AsaasCardFieldsProps>(
       <div className="space-y-3">
         {field("card_holder_name", "Nome no cartão", "Como aparece no cartão")}
         {field("card_holder_cpf", "CPF do titular", "CPF de quem é o cartão (pode ser diferente)", 14)}
+        {/* Exigido pela Asaas em creditCardHolderInfo.phone — sem isso o pagamento
+            é recusado (achado ao vivo: aluno migrado sem alunos.telefone travava
+            aqui, porque pagar-cobranca-cartao usava só o telefone do cadastro). */}
+        {field("card_holder_phone", "Telefone do titular", "(00) 00000-0000", 15)}
         {field("card_number", "Número do cartão", "0000 0000 0000 0000", 19)}
         <div className="grid grid-cols-3 gap-3">
           {field("card_exp_month", "Mês", "MM", 2)}

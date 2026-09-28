@@ -3,9 +3,15 @@ import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { Loader2, CheckCircle2, XCircle, Copy, Check, Lock, QrCode, CreditCard, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import AsaasCardFields, { type AsaasCardFieldsHandle } from "@/components/AsaasCardFields";
+import AsaasCardFields, { type AsaasCardFieldsHandle, formatCPF } from "@/components/AsaasCardFields";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface InstallmentOption {
+  installments: number;
+  value: number;
+  client_value: number;
+}
 
 interface CobrancaPublica {
   descricao:       string;
@@ -15,6 +21,9 @@ interface CobrancaPublica {
   data_vencimento: string;
   pix_key:         string | null;
   installment_count: number;
+  aguardando_escolha: boolean;
+  opcoes:          { pix_value: number | null; installment_options: InstallmentOption[] } | null;
+  cpf_on_file:     boolean;
   org_nome:        string;
   org_slug:        string | null;
   org_logo_url:    string | null;
@@ -149,6 +158,13 @@ const Pagamento = () => {
   const [cardSubmitting, setCardSubmitting] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
 
+  // ── Escolha da forma de pagamento (cobrança "adiada" — ver escolher-
+  // pagamento-cobranca) — só usado enquanto data.aguardando_escolha === true.
+  const [escolhaParcelas, setEscolhaParcelas] = useState<number | null>(null);
+  const [escolhaCpf, setEscolhaCpf] = useState("");
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [escolhaError, setEscolhaError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!cobrancaId) { setPhase("not_found"); return; }
     load();
@@ -209,6 +225,47 @@ const Pagamento = () => {
     }
   };
 
+  // Confirma a escolha (Pix, ou cartão com X parcelas) — só aqui o pagamento
+  // nasce de verdade no Asaas. Depois disso data.aguardando_escolha vira
+  // false e a tela cai no fluxo normal (QR do Pix, ou o formulário de cartão
+  // pra completar o pagamento).
+  const handleEscolherPagamento = async (forma: "PIX" | "CREDIT_CARD") => {
+    if (!cobrancaId) return;
+    if (forma === "CREDIT_CARD" && !escolhaParcelas) {
+      setEscolhaError("Escolha o número de parcelas."); return;
+    }
+    if (!data?.cpf_on_file) {
+      const digits = escolhaCpf.replace(/\D/g, "");
+      if (digits.length !== 11 && digits.length !== 14) {
+        setEscolhaError("Informe um CPF válido."); return;
+      }
+    }
+    setEscolhaError(null);
+    setEscolhendo(true);
+    try {
+      const { data: res, error } = await supabase.functions.invoke("escolher-pagamento-cobranca", {
+        body: {
+          cobranca_id: cobrancaId,
+          forma_pagamento: forma,
+          installment_count: forma === "CREDIT_CARD" ? escolhaParcelas : undefined,
+          cpf: escolhaCpf.replace(/\D/g, ""),
+        },
+      });
+      if (error) {
+        const ctx = await (error as any)?.context?.json?.().catch(() => null);
+        throw new Error(ctx?.error ?? error.message ?? "Erro ao confirmar");
+      }
+      if (res?.error) throw new Error(res.error);
+
+      setMethod(forma === "PIX" ? "pix" : "card");
+      await load();
+    } catch (e: any) {
+      setEscolhaError(e.message ?? "Não foi possível confirmar. Tente novamente.");
+    } finally {
+      setEscolhendo(false);
+    }
+  };
+
   // Atualização automática enquanto aguarda pagamento — polling, não Realtime:
   // `cobrancas` só tem RLS pro treinador (funil de campos via edge function, mesmo
   // padrão do resto do projeto), então uma sessão anônima nunca receberia o evento
@@ -266,6 +323,93 @@ const Pagamento = () => {
           <XCircle className="w-10 h-10 text-amber-500" />
           <p className="text-zinc-900 font-medium">Cobrança cancelada</p>
           <p className="text-sm text-zinc-500">Esta cobrança não está mais disponível para pagamento.</p>
+        </div>
+      </Card>
+    );
+  }
+
+  // Cobrança "adiada" — ainda sem forma de pagamento definida. O aluno
+  // escolhe Pix ou parcela (e CPF, na 1ª vez) antes do pagamento nascer no
+  // Asaas de fato.
+  if (phase === "pending" && data?.aguardando_escolha) {
+    const opcoes = data.opcoes;
+    return (
+      <Card accentColor={data.org_cor} dark={data.org_tema === "dark"}
+        logoUrl={data.org_logo_url} orgNome={data.org_nome} orgSlug={data.org_slug}>
+        <div className="px-5 pt-4 pb-3">
+          <p className="text-xs text-zinc-400 mb-1">Renovação</p>
+          <p className="text-lg font-semibold text-zinc-900 leading-tight">{data.descricao}</p>
+          {data.data_vencimento && (
+            <p className="text-xs text-zinc-400 mt-1">Vence em {fmtDataBR(data.data_vencimento)}</p>
+          )}
+        </div>
+
+        <div className="border-t border-zinc-100" />
+
+        <div className="px-5 pt-3 pb-4 space-y-3">
+          <p className="text-[13px] font-medium text-zinc-900">Como você quer pagar?</p>
+
+          {opcoes?.pix_value != null && (
+            <button
+              type="button"
+              onClick={() => setEscolhaParcelas(null)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-[1.5px] transition-colors ${
+                escolhaParcelas === null ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"
+              }`}>
+              <span className="text-[13px] font-medium text-zinc-900">Pix</span>
+              <span className="text-[13px] font-semibold text-zinc-900">{fmtBRL(opcoes.pix_value)}</span>
+            </button>
+          )}
+
+          {opcoes?.installment_options?.map((o) => (
+            <button
+              key={o.installments}
+              type="button"
+              onClick={() => setEscolhaParcelas(o.installments)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-[1.5px] transition-colors ${
+                escolhaParcelas === o.installments ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"
+              }`}>
+              <span className="text-[13px] font-medium text-zinc-900">
+                {o.installments === 1 ? "Cartão à vista" : `Cartão ${o.installments}x`}
+              </span>
+              <span className="text-[13px] font-semibold text-zinc-900">
+                {o.installments}x de {fmtBRL(o.client_value / o.installments)}
+              </span>
+            </button>
+          ))}
+
+          {!data.cpf_on_file && (
+            <div className="space-y-1.5 pt-1">
+              <p className="text-xs text-zinc-400 uppercase tracking-wider">CPF</p>
+              <input
+                value={escolhaCpf}
+                onChange={(e) => setEscolhaCpf(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                className="w-full h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 focus:outline-none focus:border-zinc-400"
+              />
+            </div>
+          )}
+
+          {escolhaError && <p className="text-xs text-red-500">{escolhaError}</p>}
+
+          <button
+            type="button"
+            disabled={escolhendo || (escolhaParcelas === null && opcoes?.pix_value == null)}
+            onClick={() => handleEscolherPagamento(escolhaParcelas === null ? "PIX" : "CREDIT_CARD")}
+            className="flex items-center justify-center gap-1.5 w-full h-11 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-60"
+            style={{ backgroundColor: "#18181b" }}>
+            {escolhendo && <Loader2 className="w-4 h-4 animate-spin" />}
+            {escolhendo ? "Confirmando..." : "Continuar"}
+          </button>
+        </div>
+
+        <div className="border-t border-zinc-100 px-5 py-3 flex flex-col items-center justify-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-zinc-300" />
+            <p className="text-[11px] text-zinc-400">Pagamento processado com segurança</p>
+          </div>
+          <img src={ASAAS_SELO_URL} alt="Serviços financeiros prestados pelo Asaas" className="h-4 w-auto opacity-80" />
         </div>
       </Card>
     );

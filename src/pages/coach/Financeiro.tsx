@@ -214,10 +214,15 @@ const PaymentSuccessModal = ({
           <p className="text-[10px] text-white/35 uppercase tracking-wider">Link de pagamento</p>
           <p className="text-[11px] text-white/40 break-all">{checkoutLink(cobranca)}</p>
           <CopyBtn text={checkoutLink(cobranca)!} label="Copiar link" />
+          {!cobranca.asaas_id && (
+            <p className="text-[11px] text-white/30">
+              O aluno escolhe Pix ou parcela ao abrir esse link — o pagamento ainda não nasceu no Asaas.
+            </p>
+          )}
         </div>
       )}
 
-      {!cobranca.pix_key && !cobranca.invoice_url && (
+      {!cobranca.pix_key && !checkoutLink(cobranca) && !cobranca.invoice_url && (
         <p className="text-sm text-white/40 text-center py-2">
           Cobrança criada. Acesse o painel Asaas para obter o link de pagamento.
         </p>
@@ -371,21 +376,31 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
     const isCustom  = planId === CUSTOM_PLAN_ID;
     const descFinal = isCustom ? descricao.trim() : (selectedPlan?.name ?? "");
     if (!descFinal) { toast({ title: "Informe a descrição", variant: "destructive" }); return; }
+    if (!vencimento) { toast({ title: "Informe a data de vencimento", variant: "destructive" }); return; }
 
-    let valorNum: number;
-    if (isCustom) {
-      valorNum = parseBRL(manualValor);
-      if (isNaN(valorNum) || valorNum <= 0) {
-        toast({ title: "Informe um valor válido", variant: "destructive" }); return;
-      }
-    } else {
-      if (valorFinal == null) {
-        toast({ title: forma === "CREDIT_CARD" ? "Selecione o número de parcelas" : "Plano sem valor PIX", variant: "destructive" }); return;
-      }
-      valorNum = valorFinal;
+    // Plano real (não personalizado): cobrança nasce "adiada" — o aluno
+    // escolhe Pix/parcela e preenche o CPF dele sozinho no checkout, então
+    // não pedimos nada disso aqui (ver criar-cobranca-adiada).
+    if (!isCustom) {
+      setSaving(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("criar-cobranca-adiada", {
+          body: { aluno_id: alunoId, org_id: orgId, plano_id: planId, descricao: descFinal, vencimento },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        onCreated(data.cobranca as Cobranca);
+        onClose();
+      } catch (e: any) {
+        toast({ title: "Erro ao gerar cobrança", description: e.message, variant: "destructive" });
+      } finally { setSaving(false); }
+      return;
     }
 
-    if (!vencimento) { toast({ title: "Informe a data de vencimento", variant: "destructive" }); return; }
+    const valorNum = parseBRL(manualValor);
+    if (isNaN(valorNum) || valorNum <= 0) {
+      toast({ title: "Informe um valor válido", variant: "destructive" }); return;
+    }
     const cpfDigits = cpf.replace(/\D/g, "");
     if (cpfDigits.length !== 11 && cpfDigits.length !== 14) {
       toast({ title: "Informe o CPF (11 dígitos) ou CNPJ (14 dígitos) do cliente", variant: "destructive" }); return;
@@ -445,13 +460,17 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
           </div>
         </div>
 
-        {/* CPF / CNPJ */}
-        <div className="space-y-1.5">
-          <Label className="text-[11px] text-white/40 uppercase tracking-wider">CPF / CNPJ *</Label>
-          <Input value={cpf} onChange={(e) => handleCpfChange(e.target.value)}
-            placeholder="000.000.000-00 ou 00.000.000/0000-00" inputMode="numeric"
-            className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
-        </div>
+        {/* CPF / CNPJ — só pra cobrança personalizada. Cobrança de um Plano
+            real é "adiada" (ver criar-cobranca-adiada): o próprio aluno
+            preenche o CPF dele no checkout, na hora que escolher como pagar. */}
+        {isCustom && (
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-white/40 uppercase tracking-wider">CPF / CNPJ *</Label>
+            <Input value={cpf} onChange={(e) => handleCpfChange(e.target.value)}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00" inputMode="numeric"
+              className="bg-white/5 border-white/10 text-white rounded-xl h-11" />
+          </div>
+        )}
 
         {/* Plano */}
         <div className="space-y-1.5">
@@ -493,36 +512,50 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
           </>
         )}
 
-        {/* Forma de pagamento */}
-        {planId && (
+        {/* Forma de pagamento — só escolhível pra cobrança personalizada.
+            Pra um Plano real, o aluno escolhe Pix ou parcela sozinho no
+            checkout — aqui só mostra um preview do que ele vai ver. */}
+        {isCustom && planId && (
           <div className="space-y-1.5">
             <Label className="text-[11px] text-white/40 uppercase tracking-wider">Forma de pagamento</Label>
-            <div className={`grid gap-2 ${(isCustom || (hasPix && hasCard)) ? "grid-cols-2" : "grid-cols-1"}`}>
-              {(isCustom || hasPix) && (
-                <button onClick={() => handleFormaChange("PIX")}
-                  className="flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    backgroundColor: forma === "PIX" ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.05)",
-                    color:           forma === "PIX" ? "#fbbf24" : "rgba(255,255,255,0.45)",
-                    border: `1px solid ${forma === "PIX" ? "rgba(251,191,36,0.35)" : "transparent"}`,
-                  }}>
-                  <Smartphone className="w-4 h-4" />
-                  PIX {!isCustom && selectedPlan?.pix_value != null && (
-                    <span className="text-xs opacity-70">{fmtBRL(Number(selectedPlan.pix_value))}</span>
-                  )}
-                </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => handleFormaChange("PIX")}
+                className="flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: forma === "PIX" ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.05)",
+                  color:           forma === "PIX" ? "#fbbf24" : "rgba(255,255,255,0.45)",
+                  border: `1px solid ${forma === "PIX" ? "rgba(251,191,36,0.35)" : "transparent"}`,
+                }}>
+                <Smartphone className="w-4 h-4" />PIX
+              </button>
+              <button onClick={() => handleFormaChange("CREDIT_CARD")}
+                className="flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  backgroundColor: forma === "CREDIT_CARD" ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.05)",
+                  color:           forma === "CREDIT_CARD" ? "#fbbf24" : "rgba(255,255,255,0.45)",
+                  border: `1px solid ${forma === "CREDIT_CARD" ? "rgba(251,191,36,0.35)" : "transparent"}`,
+                }}>
+                <CreditCard className="w-4 h-4" />Cartão
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isCustom && planId && (hasPix || hasCard) && (
+          <div className="rounded-xl px-3 py-2.5 space-y-1.5"
+            style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <p className="text-[11px] text-white/40">O aluno escolhe no link de pagamento:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {hasPix && (
+                <span className="text-[11px] font-medium px-2 py-1 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }}>
+                  PIX {fmtBRL(Number(selectedPlan!.pix_value))}
+                </span>
               )}
-              {(isCustom || hasCard) && (
-                <button onClick={() => handleFormaChange("CREDIT_CARD")}
-                  className="flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-medium transition-all"
-                  style={{
-                    backgroundColor: forma === "CREDIT_CARD" ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.05)",
-                    color:           forma === "CREDIT_CARD" ? "#fbbf24" : "rgba(255,255,255,0.45)",
-                    border: `1px solid ${forma === "CREDIT_CARD" ? "rgba(251,191,36,0.35)" : "transparent"}`,
-                  }}>
-                  <CreditCard className="w-4 h-4" />Cartão
-                </button>
-              )}
+              {cardOpts.map((o) => (
+                <span key={o.installments} className="text-[11px] font-medium px-2 py-1 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }}>
+                  {o.installments}x de {fmtBRL(o.client_value / o.installments)}
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -593,29 +626,9 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
           </div>
         )}
 
-        {/* Parcelas */}
-        {planId && !isCustom && forma === "CREDIT_CARD" && cardOpts.length > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-[11px] text-white/40 uppercase tracking-wider">Parcelas *</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {cardOpts.map((o) => (
-                <button key={o.installments} onClick={() => setInstallments(o.installments)}
-                  className="flex flex-col items-center justify-center gap-0.5 h-16 rounded-xl text-sm font-medium transition-all px-2"
-                  style={{
-                    backgroundColor: installments === o.installments ? "rgba(251,191,36,0.12)" : "rgba(255,255,255,0.05)",
-                    color:           installments === o.installments ? "#fbbf24" : "rgba(255,255,255,0.45)",
-                    border: `1px solid ${installments === o.installments ? "rgba(251,191,36,0.35)" : "transparent"}`,
-                  }}>
-                  <span className="font-bold">{o.installments}x de {fmtBRL(o.client_value / o.installments)}/mês</span>
-                  <span className="text-[10px] opacity-60">cliente paga {fmtBRL(o.client_value)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Resumo do valor */}
-        {valorFinal != null && (
+        {/* Resumo do valor — só pra cobrança personalizada (valor de um
+            Plano real não é mais fixado aqui, o aluno escolhe no checkout). */}
+        {isCustom && valorFinal != null && (
           <div className="rounded-xl px-4 py-3 space-y-1"
             style={{ backgroundColor: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)" }}>
             <div className="flex items-center justify-between">
@@ -1158,8 +1171,8 @@ const Financeiro = () => {
       <div className="flex items-center justify-between px-4 pt-5 pb-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,rgba(251,191,36,0.2),rgba(245,158,11,0.1))", border: "1px solid rgba(251,191,36,0.2)" }}>
-            <Wallet className="w-4.5 h-4.5 text-amber-400" />
+            style={{ background: "rgba(var(--cp-rgb),0.15)", border: "1px solid rgba(var(--cp-rgb),0.25)" }}>
+            <Wallet className="w-4.5 h-4.5" style={{ color: "var(--cp-500)" }} />
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Financeiro</h1>
@@ -1305,7 +1318,7 @@ const Financeiro = () => {
                 <div className="flex items-start justify-between gap-2 mb-2.5">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg, hsl(42 95% 58%), hsl(35 92% 44%))", color: "#ffffff" }}>
+                      style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
                       {initials}
                     </div>
                     <div className="min-w-0">

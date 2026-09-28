@@ -43,12 +43,12 @@ serve(async (req) => {
     const body = await req.json();
     const {
       cobranca_id,
-      card_holder_name, card_holder_cpf, card_number,
+      card_holder_name, card_holder_cpf, card_holder_phone, card_number,
       card_exp_month, card_exp_year, card_ccv,
       cardCep, cardAddressNumber, cardAddressComplement,
     } = body;
 
-    if (!cobranca_id || !card_holder_name || !card_holder_cpf || !card_number ||
+    if (!cobranca_id || !card_holder_name || !card_holder_cpf || !card_holder_phone || !card_number ||
         !card_exp_month || !card_exp_year || !card_ccv || !cardCep || !cardAddressNumber) {
       return json({ error: "Campos obrigatórios ausentes" }, 400);
     }
@@ -111,7 +111,7 @@ serve(async (req) => {
           postalCode: String(cardCep).replace(/\D/g, ""),
           addressNumber: cardAddressNumber,
           ...(cardAddressComplement ? { addressComplement: cardAddressComplement } : {}),
-          phone: (aluno.telefone ?? "").replace(/\D/g, ""),
+          phone: String(card_holder_phone ?? aluno.telefone ?? "").replace(/\D/g, ""),
         },
         ...(remoteIp ? { remoteIp } : {}),
       }),
