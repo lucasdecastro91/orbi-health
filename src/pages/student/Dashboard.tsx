@@ -861,38 +861,44 @@ const StudentDashboard = () => {
               </div>
             </button>
 
-            {/* Balão — mesmo visual do menu do avatar (bg-card + borda +
-                sombra), com setinha apontando pro anel. */}
+            {/* Balão — mesma cor dos cards (bg-card), mas "descola" deles por
+                sombra forte + borda mais visível, nunca clareando o fundo
+                (regra "alto relevo, não clarear"). Conteúdo enxuto em 2
+                linhas (2026-09-28): o % já está no anel e os 4 chips já
+                mostram o que compõe o Geral, então não se repete aqui. */}
             {ringInfoOpen && cycleAdherence && (() => {
               const [y, m, d] = cycleAdherence.cycleStart.split("-").map(Number);
               const desde = format(new Date(y, m - 1, d), "dd/MM");
               const item = selectedChip ? cycleAdherence[selectedChip] : null;
               return (
                 <div
-                  className="absolute left-0 top-full mt-3 w-60 rounded-2xl z-50 bg-card border border-border px-4 py-3 text-card-foreground"
-                  style={{ boxShadow: "0 12px 32px rgba(0,0,0,0.35)" }}
+                  className="absolute left-0 top-full mt-3 rounded-2xl z-50 bg-card px-4 py-2.5 text-card-foreground whitespace-nowrap"
+                  style={{
+                    border: "1px solid hsl(var(--foreground) / 0.16)",
+                    boxShadow: "0 18px 44px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.35)",
+                  }}
                   role="dialog"
                 >
                   <span
-                    className="absolute -top-1.5 w-3 h-3 rotate-45 bg-card border-l border-t border-border"
-                    style={{ left: ringSize ? ringSize / 2 - 6 : 36 }}
+                    className="absolute -top-1.5 w-3 h-3 rotate-45 bg-card"
+                    style={{
+                      left: ringSize ? ringSize / 2 - 6 : 36,
+                      borderLeft: "1px solid hsl(var(--foreground) / 0.16)",
+                      borderTop: "1px solid hsl(var(--foreground) / 0.16)",
+                    }}
                   />
                   <p className="text-sm font-semibold">
-                    {selectedChip ? CHIP_LABELS[selectedChip] : "Aderência geral"} · {ringDisplayPct}%
+                    {selectedChip ? CHIP_LABELS[selectedChip] : "Aderência geral"}
                   </p>
-                  {item ? (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {item.completed} de {Math.round(item.expected)} {CHIP_UNIT[selectedChip!]} no período
-                      {selectedChip === "dieta" && dietaMealCount
-                        ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} refeições hoje`
-                        : ""}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Treino, dieta, cardio e água somados no período
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-0.5">Ciclo desde {desde}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {item
+                      ? `${item.completed} de ${Math.round(item.expected)} ${CHIP_UNIT[selectedChip!]}${
+                          selectedChip === "dieta" && dietaMealCount
+                            ? ` · ${dietaRefeicoesFeitasHoje}/${dietaMealCount} hoje`
+                            : ""
+                        } · desde ${desde}`
+                      : `Ciclo desde ${desde}`}
+                  </p>
                 </div>
               );
             })()}
