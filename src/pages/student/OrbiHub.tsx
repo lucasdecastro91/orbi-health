@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { MessageCircle, Calendar, Moon, ChevronRight } from "lucide-react";
 
 /**
@@ -51,24 +52,8 @@ const OrbiHub = () => {
 
   return (
     <div className="pb-6">
-      {/* Cabeçalho colorido enxuto — só ícone+título (padrão replicado em
-          todas as telas individuais do aluno, 2026-09-09). O ícone é o
-          símbolo ORBI (fixo), o título é o nome da org (muda por treinador). */}
-      <div
-        className="relative px-4 pt-3 pb-9"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <svg viewBox="0 0 64 64" fill="none" style={{ width: 20, height: 20 }} className="shrink-0">
-            <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="#fff" strokeWidth={5} strokeLinecap="round" />
-            <circle cx="46.1" cy="17.9" r="4.5" fill="#fff" />
-            <circle cx="32" cy="32" r="2" fill="#fff" />
-          </svg>
-          <h1 className="text-xl font-bold text-white">{org?.name || "ORBI Health"}</h1>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title={org?.name || "ORBI Health"} />
 
       <div
         className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"

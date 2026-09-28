@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { usePlanFeatures } from "@/hooks/usePlanFeatures";
 import { User, KeyRound, Save, LogOut, Loader2, Camera, Instagram, ClipboardList, ChevronRight, Bell, ScanLine, CreditCard, CalendarDays, CheckCircle2, AlertTriangle, Clock, MessageCircle, Shield } from "lucide-react";
 
@@ -21,6 +22,7 @@ const Profile = () => {
   const navigate    = useNavigate();
   const { toast }   = useToast();
   const { slug } = useTenantContext();
+  const base = `/${slug}/aluno`;
   const { hasAvaliacaoPostural } = usePlanFeatures();
 
   const [nome,           setNome]           = useState("");
@@ -134,19 +136,8 @@ const Profile = () => {
   return (
     <div className="pb-6">
 
-      {/* Cabeçalho colorido enxuto — só ícone+título (padrão replicado em
-          todas as telas individuais do aluno, 2026-09-09) */}
-      <div
-        className="relative px-4 pt-3 pb-9"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <User className="w-5 h-5 text-white" />
-          <h1 className="text-xl font-bold text-white">Meu Perfil</h1>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Meu perfil" backTo={base} />
 
       <div
         className="relative max-w-lg mx-auto px-4 pt-6 rounded-t-[28px]"

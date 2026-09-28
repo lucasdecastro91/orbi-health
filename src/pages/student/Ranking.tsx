@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   Trophy, Zap, Medal, Crown, Star, Flame, ChevronDown, Info,
   Dumbbell, Utensils, Droplet, CheckCircle2, ClipboardList,
@@ -95,7 +96,8 @@ const fmtEventDate = (iso: string): string => {
 
 const Ranking = () => {
   const { toast }   = useToast();
-  const { orgId }   = useTenantContext();
+  const { orgId, slug } = useTenantContext();
+  const base = `/${slug}/aluno`;
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [myXP,        setMyXP]        = useState<MyXP | null>(null);
@@ -243,19 +245,8 @@ const Ranking = () => {
   return (
     <div className="min-h-screen pb-24">
 
-      {/* Header — cabeçalho colorido enxuto, só ícone+título (padrão
-          replicado em todas as telas individuais do aluno, 2026-09-09). */}
-      <div
-        className="relative px-4 pt-3 pb-9 md:px-6"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <Trophy className="w-5 h-5 text-white" />
-          <h1 className="text-2xl font-bold text-white tracking-tight">Ranking</h1>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Ranking" backTo={base} />
 
       <div
         className="relative px-4 md:px-6 space-y-4 pt-6 rounded-t-[28px]"

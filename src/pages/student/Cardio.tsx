@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import {
   Activity, AlertCircle, Clock, Calendar, Heart, HeartPulse, Flame,
   Footprints, Wind, Bike, RefreshCw, Waves, Zap, Dumbbell, Loader2, ChevronDown,
@@ -375,19 +376,8 @@ const StudentCardio = () => {
 
   return (
     <div className="pb-6">
-      {/* Cabeçalho colorido enxuto — só ícone+título (padrão replicado em
-          todas as telas individuais do aluno, 2026-09-09) */}
-      <div
-        className="relative px-4 pt-3 pb-9"
-        style={{
-          background: "linear-gradient(to top, var(--cp-400) 0%, var(--cp-600) 45%, var(--cp-600) 100%)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <HeartPulse className="w-5 h-5 shrink-0 text-white" />
-          <h1 className="text-2xl font-bold text-white tracking-tight">Cardio</h1>
-        </div>
-      </div>
+      {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
+      <StudentPageHeader title="Cardio" />
 
       <div
         className="relative px-4 space-y-3 pt-6 rounded-t-[28px]"
