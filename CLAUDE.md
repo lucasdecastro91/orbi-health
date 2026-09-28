@@ -130,6 +130,7 @@ O bloco de criação da org usa `BEGIN...EXCEPTION` — falha silenciosa para n�
 | `20260415000004` | Fix no trigger: cast explícito `'aluno'::public.app_role`, isolamento de exceção na criação da org |
 | `20260729000001` | `semanas.data_inicio`/`data_fim` (datas por bloco do macrociclo) + índices `exercicios(treino_id, ordem)`, `treinos(semana_id)`, `planos_treino(aluno_id)` — ver seção 15, timeout ao carregar exercícios. Aplicada em 2026-07-29. |
 | `20260730000001` | RPC `reordenar_exercicios(jsonb)` — reordena/move exercícios num único UPDATE atômico, `SECURITY DEFINER` com `is_org_staff` validado no exercício e no treino de destino. Ver seção 15, timeout ao arrastar. Aplicada em 2026-07-30. |
+| `20260913000001` | `treino_sessoes_log.avaliacao` (1-5) + `comentario` — avaliação que o aluno deixa ao concluir o treino no fluxo sequencial (`trainingCompletion.ts`). Arquivo criado em 2026-09-13 mas só **aplicada em 2026-09-28**, antes do deploy do redesign — sem ela, concluir treino falhava. |
 
 > As migrations são cumulativas. Para um Supabase novo, rodar na ordem 1 → 4.  
 > Rodar via: Supabase Dashboard → SQL Editor → colar e executar cada arquivo.
