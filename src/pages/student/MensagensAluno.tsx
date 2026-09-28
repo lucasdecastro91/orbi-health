@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantContext } from "@/contexts/TenantContext";
+import StudentPageHeader from "@/components/student/StudentPageHeader";
 import { format, parseISO, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Send, MessageSquare, Loader2 } from "lucide-react";
@@ -26,7 +27,7 @@ const formatMsgTime = (iso: string) => {
 const MensagensAluno = () => {
   const navigate    = useNavigate();
   const { toast }   = useToast();
-  const { orgId }   = useTenantContext();
+  const { orgId, slug } = useTenantContext();
 
   const [myId,        setMyId]        = useState<string | null>(null);
   const [treinadorId, setTreinadorId] = useState<string | null>(null);
@@ -175,25 +176,19 @@ const MensagensAluno = () => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const initials = treinadorNome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 9rem)" }}>
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/6">
-        <div
-          className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0"
-          style={{ background: "var(--cp-gradient)" }}
-        >
-          {initials}
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground">{treinadorNome}</p>
-          <p className="text-xs text-muted-foreground">Seu treinador</p>
-        </div>
-      </div>
+      {/* Cabeçalho padrão com o nome do treinador (2026-09-27). Mensagens
+          + campo de envio sobem por cima do verde num bloco flex-1 próprio,
+          pra manter a rolagem só na lista. */}
+      <StudentPageHeader title={treinadorNome} backTo={`/${slug}/aluno`} />
 
+      <div
+        className="relative flex-1 min-h-0 flex flex-col rounded-t-[28px]"
+        style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
+      >
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {loading ? (
@@ -265,6 +260,7 @@ const MensagensAluno = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
