@@ -420,7 +420,10 @@ const StudentLayout = () => {
           willChange: "transform",
         }}
       >
-        <div ref={navRowRef} className="relative flex items-center h-full px-2">
+        {/* px 5px = mesma folga que o destaque tem em cima/embaixo
+            ((58 internos - 48 do destaque) / 2), pra ele ficar com margem
+            igual em todos os lados quando o 1º/último item está ativo. */}
+        <div ref={navRowRef} className="relative flex items-center h-full px-[5px]">
           {/* Pill de destaque única — desliza/cresce até o botão ativo em
               vez de cada botão ter seu próprio fundo independente. */}
           <div
@@ -440,13 +443,16 @@ const StudentLayout = () => {
             }}
           />
 
-          {/* Metade esquerda dos itens primários */}
-          <div className="relative flex-1 flex items-center justify-around">
-            {navLeftItems.map((item) => {
+          {/* Metade esquerda: 1º item encostado na borda (margem de 5px), os
+              demais centralizados no espaço que sobra até o símbolo ORBI.
+              Antes era justify-around, que deixava ~12px na borda contra 5px
+              em cima/embaixo — o destaque ficava com folga torta. */}
+          <div className="relative flex-1 flex items-center">
+            {navLeftItems.map((item, idx) => {
               const active = activeNavKey === item.path;
               return (
+                <div key={item.path} className={idx === 0 ? "flex" : "flex-1 flex justify-center"}>
                 <button
-                  key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
@@ -459,9 +465,9 @@ const StudentLayout = () => {
                     transition: NAV_TRANSITION,
                   }}
                 >
-                  <item.icon className={`w-5 h-5 shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
+                  <item.icon className={`w-[22px] h-[22px] shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
                   <span
-                    className="text-[11px] font-semibold whitespace-nowrap overflow-hidden inline-block"
+                    className="text-[12px] font-semibold whitespace-nowrap overflow-hidden inline-block"
                     style={{
                       maxWidth: active ? 120 : 0,
                       marginLeft: active ? 6 : 0,
@@ -473,6 +479,7 @@ const StudentLayout = () => {
                     {item.label}
                   </span>
                 </button>
+                </div>
               );
             })}
           </div>
@@ -504,14 +511,14 @@ const StudentLayout = () => {
               viewBox="0 0 64 64"
               fill="none"
               className={`shrink-0 ${activeNavKey === ORBI_NAV_KEY ? "nav-pop" : ""}`}
-              style={{ width: 26, height: 26, transition: `color ${NAV_MS}ms ${NAV_EASE}` }}
+              style={{ width: 28, height: 28, transition: `color ${NAV_MS}ms ${NAV_EASE}` }}
             >
               <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="currentColor" strokeWidth={5} strokeLinecap="round" />
               <circle cx="46.1" cy="17.9" r="4.5" fill="currentColor" />
               <circle cx="32" cy="32" r="2" fill="currentColor" />
             </svg>
             <span
-              className="text-[11px] font-semibold whitespace-nowrap overflow-hidden inline-block"
+              className="text-[12px] font-semibold whitespace-nowrap overflow-hidden inline-block"
               style={{
                 maxWidth: activeNavKey === ORBI_NAV_KEY ? 120 : 0,
                 marginLeft: activeNavKey === ORBI_NAV_KEY ? 6 : 0,
@@ -524,13 +531,14 @@ const StudentLayout = () => {
             </span>
           </button>
 
-          {/* Metade direita dos itens primários */}
-          <div className="relative flex-1 flex items-center justify-around">
-            {navRightItems.map((item) => {
+          {/* Metade direita: espelho da esquerda — último item encostado na
+              borda, os demais centralizados no espaço entre o ORBI e ele. */}
+          <div className="relative flex-1 flex items-center">
+            {navRightItems.map((item, idx) => {
               const active = activeNavKey === item.path;
               return (
+                <div key={item.path} className={idx === navRightItems.length - 1 ? "flex" : "flex-1 flex justify-center"}>
                 <button
-                  key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
@@ -543,9 +551,9 @@ const StudentLayout = () => {
                     transition: NAV_TRANSITION,
                   }}
                 >
-                  <item.icon className={`w-5 h-5 shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
+                  <item.icon className={`w-[22px] h-[22px] shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
                   <span
-                    className="text-[11px] font-semibold whitespace-nowrap overflow-hidden inline-block"
+                    className="text-[12px] font-semibold whitespace-nowrap overflow-hidden inline-block"
                     style={{
                       maxWidth: active ? 120 : 0,
                       marginLeft: active ? 6 : 0,
@@ -557,6 +565,7 @@ const StudentLayout = () => {
                     {item.label}
                   </span>
                 </button>
+                </div>
               );
             })}
           </div>
