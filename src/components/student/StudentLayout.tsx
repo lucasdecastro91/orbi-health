@@ -426,8 +426,13 @@ const StudentLayout = () => {
       >
         {/* px 5px = mesma folga que o destaque tem em cima/embaixo
             ((58 internos - 48 do destaque) / 2), pra ele ficar com margem
-            igual em todos os lados quando o 1º/último item está ativo. */}
-        <div ref={navRowRef} className="relative flex items-center h-full px-[5px]">
+            igual em todos os lados quando o 1º/último item está ativo.
+            justify-between na barra INTEIRA (2026-09-28): os 4 espaços entre
+            os 5 itens ficam sempre iguais — quando um item expande, a folga
+            é dividida entre todos (padrão do app do BB). Antes eram duas
+            metades fixas com o ORBI travado no centro: expandir um item de
+            um lado só apertava aquele lado, e o espaçamento ficava torto. */}
+        <div ref={navRowRef} className="relative flex items-center justify-between h-full px-[5px]">
           {/* Pill de destaque única — desliza/cresce até o botão ativo em
               vez de cada botão ter seu próprio fundo independente. */}
           <div
@@ -447,16 +452,12 @@ const StudentLayout = () => {
             }}
           />
 
-          {/* Metade esquerda: 1º item encostado na borda (margem de 5px), os
-              demais centralizados no espaço que sobra até o símbolo ORBI.
-              Antes era justify-around, que deixava ~12px na borda contra 5px
-              em cima/embaixo — o destaque ficava com folga torta. */}
-          <div className="relative flex-1 flex items-center">
-            {navLeftItems.map((item, idx) => {
+          {/* Itens da esquerda */}
+            {navLeftItems.map((item) => {
               const active = activeNavKey === item.path;
               return (
-                <div key={item.path} className={idx === 0 ? "flex" : "flex-1 flex justify-center"}>
                 <button
+                  key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
@@ -483,10 +484,8 @@ const StudentLayout = () => {
                     {item.label}
                   </span>
                 </button>
-                </div>
               );
             })}
-          </div>
 
           {/* Símbolo ORBI — centro da nav, navega pra página própria (/mais).
               Expande e mostra o nome da org quando ativo, igual aos demais
@@ -499,7 +498,6 @@ const StudentLayout = () => {
             style={{
               padding: activeNavKey === ORBI_NAV_KEY ? "9px 18px" : "9px",
               borderRadius: 9999,
-              margin: "0 4px",
               color: activeNavKey === ORBI_NAV_KEY
                 ? "var(--cp-600)"
                 : (isLightTheme ? "rgba(0,0,0,0.42)" : "rgba(255,255,255,0.50)"),
@@ -535,14 +533,12 @@ const StudentLayout = () => {
             </span>
           </button>
 
-          {/* Metade direita: espelho da esquerda — último item encostado na
-              borda, os demais centralizados no espaço entre o ORBI e ele. */}
-          <div className="relative flex-1 flex items-center">
-            {navRightItems.map((item, idx) => {
+          {/* Itens da direita */}
+            {navRightItems.map((item) => {
               const active = activeNavKey === item.path;
               return (
-                <div key={item.path} className={idx === navRightItems.length - 1 ? "flex" : "flex-1 flex justify-center"}>
                 <button
+                  key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
@@ -569,10 +565,8 @@ const StudentLayout = () => {
                     {item.label}
                   </span>
                 </button>
-                </div>
               );
             })}
-          </div>
         </div>
       </nav>
     </div>
