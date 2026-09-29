@@ -80,7 +80,7 @@ const AgendaAluno = () => {
   );
 
   return (
-    <div className="pb-6">
+    <div>
       <StudentPageHeader title="Minha agenda" backTo={`/${slug}/aluno/mais`} />
 
       <div

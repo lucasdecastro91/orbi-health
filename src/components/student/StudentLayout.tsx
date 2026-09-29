@@ -37,7 +37,11 @@ const NAV_SPRING = "cubic-bezier(0.34, 1.32, 0.64, 1)";
 const NAV_TRANSITION = `background-color ${NAV_MS}ms ${NAV_EASE}, color ${NAV_MS}ms ${NAV_EASE}`;
 // Label: só opacidade (fade) — a largura muda na hora, sem animar.
 const NAV_LABEL_TRANSITION = `opacity 300ms ${NAV_EASE} 90ms, transform 380ms ${NAV_SPRING} 90ms`;
-const NAV_CLEARANCE = `calc(${NAV_MARGIN + NAV_HEIGHT + 10}px + env(safe-area-inset-bottom, 0px))`;
+// Respiro entre o fim do conteúdo e a barra = 12px, o mesmo espaço entre os
+// cards (space-y-3). As telas NÃO adicionam folga própria no fim — a regra
+// mora só aqui (2026-09-28). Exceção: telas com botão fixo no rodapé
+// (Avaliação Postural nas fases de fotos/revisão) mantêm a folga delas.
+const NAV_CLEARANCE = `calc(${NAV_MARGIN + NAV_HEIGHT + 12}px + env(safe-area-inset-bottom, 0px))`;
 
 const StudentLayout = () => {
   const location = useLocation();

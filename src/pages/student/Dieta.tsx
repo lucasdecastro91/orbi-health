@@ -1289,7 +1289,7 @@ const Dieta = () => {
         />
       )}
 
-      <div className="min-h-screen pb-24">
+      <div className="min-h-screen">
 
         {/* ── Cabeçalho com abas Dieta | Histórico (2026-09-27). Só
             navegação: nome da dieta, observações (PDF) e contador de

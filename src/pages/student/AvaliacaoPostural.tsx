@@ -1005,7 +1005,7 @@ const AvaliacaoPostural = () => {
     return (
       <>
         {PhotoViewer}
-        <div className="min-h-screen pb-24">
+        <div className="min-h-screen">
           <StudentPageHeader title="Avaliação postural" backTo={`/${slug}/aluno/perfil`} />
           <div
             className="relative pt-6 rounded-t-[28px]"
@@ -1405,7 +1405,7 @@ const AvaliacaoPostural = () => {
   return (
     <>
       {PhotoViewer}
-      <div className="min-h-screen pb-24">
+      <div className="min-h-screen">
         <StudentPageHeader title="Histórico de avaliações" onBack={() => setPhase("intro")} />
         <div
           className="relative pt-6 rounded-t-[28px]"

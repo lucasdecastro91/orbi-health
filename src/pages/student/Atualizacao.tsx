@@ -628,7 +628,7 @@ const Atualizacao = () => {
   const camposAtuais = currentCampos();
 
   return (
-    <div ref={topRef} className="pb-6">
+    <div ref={topRef}>
       {/* Cabeçalho padrão SEM voltar (2026-09-27): formulário longo, um
           voltar solto faria perder o preenchimento. A barra de etapas fica
           no conteúdo, logo abaixo. */}
@@ -690,7 +690,7 @@ const Atualizacao = () => {
       )}
 
       {/* Navegação */}
-      <div className="flex gap-3 pt-2 pb-6">
+      <div className="flex gap-3 pt-2">
         {step > 0 && (
           <button
             onClick={prevStep}

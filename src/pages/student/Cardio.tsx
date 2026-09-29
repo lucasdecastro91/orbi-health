@@ -375,7 +375,7 @@ const StudentCardio = () => {
   }
 
   return (
-    <div className="pb-6">
+    <div>
       {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
       <StudentPageHeader title="Cardio" />
 

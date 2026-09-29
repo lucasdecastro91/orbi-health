@@ -194,7 +194,7 @@ const TreinoHistory = () => {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen">
 
       {/* Cabeçalho com abas (2026-09-27) — substitui a barra "voltar"
           fixa; volta pra prescrição pela aba. */}

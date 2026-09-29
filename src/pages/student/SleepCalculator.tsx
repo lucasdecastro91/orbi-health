@@ -68,7 +68,7 @@ const SleepCalculator = () => {
   };
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen">
       {/* Voltar leva pra tela "Mais", de onde a calculadora é aberta
           (antes ia pro Perfil, que não tem mais link pra cá). */}
       <StudentPageHeader title="Calculadora de sono" backTo={`/${slug}/aluno/mais`} />

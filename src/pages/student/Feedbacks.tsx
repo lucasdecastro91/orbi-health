@@ -102,7 +102,7 @@ const Feedbacks = () => {
   }
 
   return (
-    <div className="pb-6">
+    <div>
       <StudentPageHeader title="Feedbacks" backTo={`/${slug}/aluno/mais`} />
 
       <div

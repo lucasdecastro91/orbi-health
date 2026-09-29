@@ -243,7 +243,7 @@ const Ranking = () => {
   const initials = (myProfile?.nome ?? "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen">
 
       {/* Cabeçalho padrão das telas do aluno (StudentPageHeader, 2026-09-27) */}
       <StudentPageHeader title="Ranking" backTo={base} />

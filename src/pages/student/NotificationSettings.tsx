@@ -10,7 +10,7 @@ export default function NotificationSettings() {
   const push = usePushNotifications(orgId);
 
   return (
-    <div className="pb-6">
+    <div>
       <StudentPageHeader title="Notificações" backTo={`/${slug}/aluno/perfil`} />
 
       <div

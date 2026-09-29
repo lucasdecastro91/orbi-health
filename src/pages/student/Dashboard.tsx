@@ -948,10 +948,8 @@ const StudentDashboard = () => {
           do azul na Prime, em vez de um corte reto na divisão.
          ══════════════════════════════════════════════════════════════ */}
       <div
-        // pb-0.5 (2px) + os 10px que o StudentLayout já reserva acima da
-        // barra = 12px até a nav, o mesmo espaço entre os cards (space-y-3).
-        // Antes somava 26px (pb-2 aqui + pb-2 no wrapper + 10). 2026-09-28.
-        className="relative px-4 pt-6 pb-0.5 space-y-3 rounded-t-[28px]"
+        // Sem pb: o respiro até a nav (12px) vem do StudentLayout.
+        className="relative px-4 pt-6 space-y-3 rounded-t-[28px]"
         style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
       >
 

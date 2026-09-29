@@ -140,14 +140,14 @@ const Agua = () => {
   }
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen">
       {/* Cabeçalho padrão das telas do aluno (2026-09-27): voltar à
           esquerda, título centralizado. Sem ação à direita — a meta de
           água vem da dieta (treinador), o aluno não edita. */}
       <StudentPageHeader title="Água" backTo={base} />
 
       <div
-        className="relative px-4 pt-6 pb-10 space-y-5 rounded-t-[28px]"
+        className="relative px-4 pt-6 space-y-5 rounded-t-[28px]"
         style={{ marginTop: -24, backgroundColor: "hsl(var(--background))" }}
       >
         {/* ── Círculo de onda líquida ── */}

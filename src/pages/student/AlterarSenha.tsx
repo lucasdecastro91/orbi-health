@@ -89,7 +89,7 @@ const AlterarSenha = () => {
   };
 
   return (
-    <div className="pb-6">
+    <div>
       <StudentPageHeader title="Alterar senha" backTo={perfilPath} />
 
       <div

@@ -757,7 +757,7 @@ const Treinos = () => {
 
   if (!plano) {
     return (
-      <div className="pb-6">
+      <div>
         <StudentPageHeader title="Meus treinos" tabs={treinoTabs} />
 
         <div
@@ -798,7 +798,7 @@ const Treinos = () => {
   // ── Main content ─────────────────────────────────────────
 
   return (
-    <div className="pb-6">
+    <div>
 
       {/* Cabeçalho com abas Prescrição | Histórico (2026-09-27) — o atalho
           de histórico que ficava no canto virou a aba. */}

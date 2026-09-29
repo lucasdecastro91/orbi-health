@@ -551,7 +551,7 @@ const Anamnese = () => {
 
   // ── Tela de introdução (se o treinador configurou) ──────────
   if (introducao && !introAceita && !isEditing) return (
-    <div className="pb-6">
+    <div>
       <StudentPageHeader title="Anamnese" />
 
       <div
@@ -624,7 +624,7 @@ const Anamnese = () => {
   );
 
   return (
-    <div className="pb-6">
+    <div>
       {/* Voltar só na edição (aberta pelo Perfil; respostas têm autosave).
           No 1º preenchimento não — é obrigatório (StudentLayout redireciona
           pra cá) e a navegação entre etapas fica nos botões abaixo. */}
