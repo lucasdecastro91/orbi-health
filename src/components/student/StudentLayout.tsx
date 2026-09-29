@@ -27,7 +27,7 @@ const NAV_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 // sem "naturalidade"). Movimento mais lento + mola no destaque (passa um
 // pouco do ponto e volta, como no iOS). Ícones vizinhos usam a curva sem
 // mola — mola em todos os itens ao mesmo tempo fica "gelatinoso".
-const NAV_MS = 420;
+const NAV_MS = 500;
 const NAV_SPRING = "cubic-bezier(0.34, 1.32, 0.64, 1)";
 // 2026-09-28: SEM transição de padding/max-width/margin (propriedades de
 // layout). Animá-las fazia o navegador recalcular a posição de todos os itens
@@ -430,7 +430,7 @@ const StudentLayout = () => {
               top: "50%",
               left: 0,
               width: navHighlight.width,
-              height: 38,
+              height: 48, // quase a altura da barra (60), igual BB/Instagram/Prime (2026-09-28)
               transform: `translateY(-50%) translateX(${navHighlight.left}px)`,
               borderRadius: 9999,
               backgroundColor: "rgba(var(--cp-rgb), 0.20)",
@@ -451,7 +451,7 @@ const StudentLayout = () => {
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
                   style={{
-                    padding: active ? "8px 12px" : "9px",
+                    padding: active ? "8px 16px" : "9px",
                     borderRadius: 9999,
                     color: active
                       ? "var(--cp-600)"
@@ -486,7 +486,7 @@ const StudentLayout = () => {
             onClick={() => goNav(ORBI_NAV_KEY, `${base}/mais`)}
             className="relative shrink-0 flex items-center justify-center"
             style={{
-              padding: activeNavKey === ORBI_NAV_KEY ? "9px 14px" : "9px",
+              padding: activeNavKey === ORBI_NAV_KEY ? "9px 18px" : "9px",
               borderRadius: 9999,
               margin: "0 4px",
               color: activeNavKey === ORBI_NAV_KEY
@@ -535,7 +535,7 @@ const StudentLayout = () => {
                   onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
                   style={{
-                    padding: active ? "8px 12px" : "9px",
+                    padding: active ? "8px 16px" : "9px",
                     borderRadius: 9999,
                     color: active
                       ? "var(--cp-600)"
