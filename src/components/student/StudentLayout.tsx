@@ -23,7 +23,12 @@ const NAV_HEIGHT = 60;
 // botão, largura do label) — durações descombinadas entre esses elementos
 // era o que fazia a transição parecer travada (um "chegava" antes do outro).
 const NAV_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
-const NAV_MS = 260;
+// 2026-09-28: 260ms ficou rápido/seco demais depois do FLIP (sem travar, mas
+// sem "naturalidade"). Movimento mais lento + mola no destaque (passa um
+// pouco do ponto e volta, como no iOS). Ícones vizinhos usam a curva sem
+// mola — mola em todos os itens ao mesmo tempo fica "gelatinoso".
+const NAV_MS = 420;
+const NAV_SPRING = "cubic-bezier(0.34, 1.32, 0.64, 1)";
 // 2026-09-28: SEM transição de padding/max-width/margin (propriedades de
 // layout). Animá-las fazia o navegador recalcular a posição de todos os itens
 // a cada quadro — somado à tela nova renderizando ao mesmo tempo, travava no
@@ -31,7 +36,7 @@ const NAV_MS = 260;
 // (técnica FLIP, ver useLayoutEffect da nav), que roda na GPU.
 const NAV_TRANSITION = `background-color ${NAV_MS}ms ${NAV_EASE}, color ${NAV_MS}ms ${NAV_EASE}`;
 // Label: só opacidade (fade) — a largura muda na hora, sem animar.
-const NAV_LABEL_TRANSITION = `opacity ${Math.round(NAV_MS * 0.9)}ms ${NAV_EASE}`;
+const NAV_LABEL_TRANSITION = `opacity 300ms ${NAV_EASE} 90ms, transform 380ms ${NAV_SPRING} 90ms`;
 const NAV_CLEARANCE = `calc(${NAV_MARGIN + NAV_HEIGHT + 10}px + env(safe-area-inset-bottom, 0px))`;
 
 const StudentLayout = () => {
@@ -430,7 +435,7 @@ const StudentLayout = () => {
               borderRadius: 9999,
               backgroundColor: "rgba(var(--cp-rgb), 0.20)",
               opacity: navHighlight.visible ? 1 : 0,
-              transition: `transform ${NAV_MS}ms ${NAV_EASE}, width ${NAV_MS}ms ${NAV_EASE}, opacity ${Math.round(NAV_MS * 0.7)}ms ${NAV_EASE}`,
+              transition: `transform ${NAV_MS}ms ${NAV_SPRING}, width ${NAV_MS}ms ${NAV_SPRING}, opacity ${Math.round(NAV_MS * 0.7)}ms ${NAV_EASE}`,
               pointerEvents: "none",
             }}
           />
@@ -454,13 +459,14 @@ const StudentLayout = () => {
                     transition: NAV_TRANSITION,
                   }}
                 >
-                  <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
+                  <item.icon className={`w-5 h-5 shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
                   <span
                     className="text-[11px] font-semibold whitespace-nowrap overflow-hidden inline-block"
                     style={{
                       maxWidth: active ? 120 : 0,
                       marginLeft: active ? 6 : 0,
                       opacity: active ? 1 : 0,
+                      transform: active ? "translateX(0)" : "translateX(-6px)",
                       transition: NAV_LABEL_TRANSITION,
                     }}
                   >
@@ -497,7 +503,7 @@ const StudentLayout = () => {
             <svg
               viewBox="0 0 64 64"
               fill="none"
-              className="shrink-0"
+              className={`shrink-0 ${activeNavKey === ORBI_NAV_KEY ? "nav-pop" : ""}`}
               style={{ width: 26, height: 26, transition: `color ${NAV_MS}ms ${NAV_EASE}` }}
             >
               <path d="M 50.8 25.2 A 20 20 0 1 1 38.8 13.2" stroke="currentColor" strokeWidth={5} strokeLinecap="round" />
@@ -510,6 +516,7 @@ const StudentLayout = () => {
                 maxWidth: activeNavKey === ORBI_NAV_KEY ? 120 : 0,
                 marginLeft: activeNavKey === ORBI_NAV_KEY ? 6 : 0,
                 opacity: activeNavKey === ORBI_NAV_KEY ? 1 : 0,
+                transform: activeNavKey === ORBI_NAV_KEY ? "translateX(0)" : "translateX(-6px)",
                 transition: NAV_LABEL_TRANSITION,
               }}
             >
@@ -536,13 +543,14 @@ const StudentLayout = () => {
                     transition: NAV_TRANSITION,
                   }}
                 >
-                  <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
+                  <item.icon className={`w-5 h-5 shrink-0 ${active ? "nav-pop" : ""}`} strokeWidth={active ? 2.3 : 1.8} style={{ transition: `stroke-width ${NAV_MS}ms ${NAV_EASE}` }} />
                   <span
                     className="text-[11px] font-semibold whitespace-nowrap overflow-hidden inline-block"
                     style={{
                       maxWidth: active ? 120 : 0,
                       marginLeft: active ? 6 : 0,
                       opacity: active ? 1 : 0,
+                      transform: active ? "translateX(0)" : "translateX(-6px)",
                       transition: NAV_LABEL_TRANSITION,
                     }}
                   >

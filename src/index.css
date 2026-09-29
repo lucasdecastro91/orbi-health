@@ -691,6 +691,15 @@
   }
 
   /* ── Pop-in animation (student pages: meal/exercise check icons) ── */
+  /* Ícone da barra de navegação do aluno ao ficar ativo: cresce levemente e
+     volta (StudentLayout.tsx). Só transform — roda na GPU, sem travar. */
+  @keyframes nav-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .nav-pop { animation: nav-pop 420ms cubic-bezier(0.34, 1.32, 0.64, 1); }
+
   @keyframes pop-in {
     0%   { transform: scale(0.65); opacity: 0.5; }
     65%  { transform: scale(1.18);              }
