@@ -24,14 +24,14 @@ const NAV_HEIGHT = 60;
 // era o que fazia a transição parecer travada (um "chegava" antes do outro).
 const NAV_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const NAV_MS = 260;
-const NAV_TRANSITION = `padding ${NAV_MS}ms ${NAV_EASE}, background-color ${NAV_MS}ms ${NAV_EASE}, color ${NAV_MS}ms ${NAV_EASE}`;
-// Label anima largura+opacidade igual ao resto agora — antes ficava
-// instantâneo de propósito (medo da pill medir o tamanho errado no meio
-// da animação), mas isso criava um "pulo" no layout que lia como travado.
-// A pill não depende mais de uma medição única (ver ResizeObserver no
-// useLayoutEffect abaixo, que acompanha o botão em tempo real), então não
-// precisa mais desse workaround.
-const NAV_LABEL_TRANSITION = `max-width ${NAV_MS}ms ${NAV_EASE}, margin-left ${NAV_MS}ms ${NAV_EASE}, opacity ${Math.round(NAV_MS * 0.7)}ms ${NAV_EASE}`;
+// 2026-09-28: SEM transição de padding/max-width/margin (propriedades de
+// layout). Animá-las fazia o navegador recalcular a posição de todos os itens
+// a cada quadro — somado à tela nova renderizando ao mesmo tempo, travava no
+// iPhone. Agora o layout muda na hora e o MOVIMENTO é feito só com transform
+// (técnica FLIP, ver useLayoutEffect da nav), que roda na GPU.
+const NAV_TRANSITION = `background-color ${NAV_MS}ms ${NAV_EASE}, color ${NAV_MS}ms ${NAV_EASE}`;
+// Label: só opacidade (fade) — a largura muda na hora, sem animar.
+const NAV_LABEL_TRANSITION = `opacity ${Math.round(NAV_MS * 0.9)}ms ${NAV_EASE}`;
 const NAV_CLEARANCE = `calc(${NAV_MARGIN + NAV_HEIGHT + 10}px + env(safe-area-inset-bottom, 0px))`;
 
 const StudentLayout = () => {
@@ -153,7 +153,16 @@ const StudentLayout = () => {
       ? location.pathname === base
       : location.pathname.startsWith(path);
 
-  const go = (path: string) => navigate(path);
+  // Aba "pendente": o destaque vai pro botão tocado NA HORA, e a navegação
+  // (que monta a tela nova — trabalho pesado) só dispara depois que a
+  // animação já começou a ser desenhada. Assim a renderização da página não
+  // disputa os primeiros quadros com a animação.
+  const [pendingNavKey, setPendingNavKey] = useState<string | null>(null);
+  useEffect(() => { setPendingNavKey(null); }, [location.pathname]);
+  const goNav = (key: string, path: string) => {
+    setPendingNavKey(key);
+    requestAnimationFrame(() => requestAnimationFrame(() => navigate(path)));
+  };
 
   // ── Nav: pill de destaque única, que desliza de um botão pro outro ──
   // Só um item fica "selecionado" por vez. O símbolo ORBI navega pra uma
@@ -164,41 +173,79 @@ const StudentLayout = () => {
   const ORBI_NAV_KEY = "__orbi__";
   const orbiHubPaths = [`${base}/mais`, `${base}/feedbacks`, `${base}/agenda`, `${base}/sono`];
   const orbiHubActive = orbiHubPaths.some((p) => isActive(p));
-  const activeNavKey = orbiHubActive ? ORBI_NAV_KEY : (primaryItems.find((i) => isActive(i.path))?.path ?? null);
+  const routeNavKey = orbiHubActive ? ORBI_NAV_KEY : (primaryItems.find((i) => isActive(i.path))?.path ?? null);
+  const activeNavKey = pendingNavKey ?? routeNavKey;
 
   const navRowRef = useRef<HTMLDivElement | null>(null);
+  const activeNavKeyRef = useRef<string | null>(null);
+  activeNavKeyRef.current = activeNavKey;
   const navButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [navHighlight, setNavHighlight] = useState<{ left: number; width: number; visible: boolean }>({ left: 0, width: 0, visible: false });
 
-  // A pill acompanha o tamanho REAL do botão ativo em tempo real (via
-  // ResizeObserver), em vez de medir uma vez só com getBoundingClientRect.
-  // Motivo: medir uma vez só obriga o label a pular instantâneo (sem
-  // transition de largura) pra não capturar o tamanho errado no meio da
-  // animação do CSS (transições de max-width/padding não afetam o valor
-  // computado que getBoundingClientRect lê no mesmo tick — só o resultado
-  // pintado nos frames seguintes). Com ResizeObserver, a pill some
-  // literalmente a caixa real do botão a cada frame enquanto ele anima,
-  // então tanto o label quanto o padding podem animar suavemente de
-  // verdade, sem o "pulo"/travamento que tinha antes.
+  // FLIP (2026-09-28): quando a aba ativa muda, o layout novo é aplicado na
+  // hora (sem animar tamanho). Aqui, antes do navegador pintar, cada botão
+  // recebe um translateX que o "devolve" pra posição antiga e em seguida
+  // anima até a nova só com transform — o movimento roda na GPU e não trava
+  // mesmo com a tela nova renderizando. A pill anima transform + width, mas é
+  // absoluta: mudar a largura dela não empurra nenhum outro item.
+  const prevNavRectsRef = useRef<Record<string, { left: number; width: number }>>({});
   useLayoutEffect(() => {
     const row = navRowRef.current;
-    const btn = activeNavKey ? navButtonRefs.current[activeNavKey] : null;
-    if (!row || !btn) {
-      setNavHighlight((h) => ({ ...h, visible: false }));
-      return;
+    if (!row) return;
+    const entries = Object.entries(navButtonRefs.current).filter(
+      (e): e is [string, HTMLButtonElement] => !!e[1],
+    );
+
+    // Posições reais (sem nenhum transform de uma animação anterior)
+    for (const [, el] of entries) { el.style.transition = "none"; el.style.transform = ""; }
+    const rowLeft = row.getBoundingClientRect().left;
+    const next: Record<string, { left: number; width: number }> = {};
+    for (const [k, el] of entries) {
+      const r = el.getBoundingClientRect();
+      next[k] = { left: r.left - rowLeft, width: r.width };
     }
 
-    const measure = () => {
-      const rowRect = row.getBoundingClientRect();
-      const btnRect = btn.getBoundingClientRect();
-      setNavHighlight({ left: btnRect.left - rowRect.left, width: btnRect.width, visible: true });
-    };
+    // Inverte: cada botão começa visualmente onde estava
+    const prev = prevNavRectsRef.current;
+    let moved = false;
+    for (const [k, el] of entries) {
+      const dx = prev[k] ? prev[k].left - next[k].left : 0;
+      if (Math.abs(dx) > 0.5) { el.style.transform = `translateX(${dx}px)`; moved = true; }
+    }
+    if (moved) {
+      void row.offsetWidth; // força o navegador a registrar a posição invertida
+      for (const [, el] of entries) {
+        el.style.transition = `transform ${NAV_MS}ms ${NAV_EASE}`;
+        el.style.transform = "";
+      }
+    }
+    prevNavRectsRef.current = next;
 
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(btn);
-    return () => ro.disconnect();
+    const target = activeNavKey ? next[activeNavKey] : null;
+    setNavHighlight(target
+      ? { left: target.left, width: target.width, visible: true }
+      : (h) => ({ ...h, visible: false }));
   }, [activeNavKey, org?.name, primaryItems.length]);
+
+  // Tela girou/redimensionou: remede sem animar
+  useEffect(() => {
+    const row = navRowRef.current;
+    if (!row) return;
+    const ro = new ResizeObserver(() => {
+      const rowLeft = row.getBoundingClientRect().left;
+      const next: Record<string, { left: number; width: number }> = {};
+      for (const [k, el] of Object.entries(navButtonRefs.current)) {
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        next[k] = { left: r.left - rowLeft, width: r.width };
+      }
+      prevNavRectsRef.current = next;
+      const key = activeNavKeyRef.current;
+      if (key && next[key]) setNavHighlight({ left: next[key].left, width: next[key].width, visible: true });
+    });
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Timer ativo (descanso/cardio) ────────────────────────────
 
@@ -396,7 +443,7 @@ const StudentLayout = () => {
                 <button
                   key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
-                  onClick={() => go(item.path)}
+                  onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
                   style={{
                     padding: active ? "8px 12px" : "9px",
@@ -430,7 +477,7 @@ const StudentLayout = () => {
               fica expandido por vez, a pill acima que desliza até ele. */}
           <button
             ref={(el) => { navButtonRefs.current[ORBI_NAV_KEY] = el; }}
-            onClick={() => navigate(`${base}/mais`)}
+            onClick={() => goNav(ORBI_NAV_KEY, `${base}/mais`)}
             className="relative shrink-0 flex items-center justify-center"
             style={{
               padding: activeNavKey === ORBI_NAV_KEY ? "9px 14px" : "9px",
@@ -478,7 +525,7 @@ const StudentLayout = () => {
                 <button
                   key={item.path}
                   ref={(el) => { navButtonRefs.current[item.path] = el; }}
-                  onClick={() => go(item.path)}
+                  onClick={() => goNav(item.path, item.path)}
                   className="relative flex items-center"
                   style={{
                     padding: active ? "8px 12px" : "9px",
