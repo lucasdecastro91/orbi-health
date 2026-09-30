@@ -938,10 +938,18 @@ const Financeiro = () => {
     }
   };
 
+  // Cobrança só sai por subconta aprovada — a conta master é exclusiva da
+  // consultoria do Lucas (gs_brand). Mesma regra em asaas-create-charge.
+  const isGsBrand = org?.is_gs_brand ?? false;
+  const canCharge = isGsBrand || subStatus?.status === "aprovado";
+
   useEffect(() => {
-    if (activeTab === "carteira" && orgId) loadSubaccountStatus();
+    if (!orgId) return;
+    if (activeTab === "carteira" || (activeTab === "cobrancas" && !isGsBrand && !subStatus)) {
+      loadSubaccountStatus();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, orgId]);
+  }, [activeTab, orgId, isGsBrand]);
 
   const handleSubFormChange = (field: keyof SubaccountFormValues, value: string) => {
     setSubForm((prev) => ({ ...prev, [field]: value }));
@@ -1186,7 +1194,7 @@ const Financeiro = () => {
             <p className="text-xs text-white/35">Cobranças e pagamentos</p>
           </div>
         </div>
-        {activeTab === "cobrancas" && (
+        {activeTab === "cobrancas" && canCharge && (
           <Button onClick={() => setModalOpen(true)}
             className="h-9 px-4 rounded-xl font-semibold text-white text-sm"
             style={{ background: "var(--cp-gradient)" }}>
@@ -1194,6 +1202,27 @@ const Financeiro = () => {
           </Button>
         )}
       </div>
+
+      {activeTab === "cobrancas" && !canCharge && subStatus && (
+        <div className="mx-4 mb-4 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+          style={{ backgroundColor: "var(--section-card-bg)", border: "1px solid var(--section-card-border)", boxShadow: "var(--section-card-shadow)" }}>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-white">Ative sua Carteira pra gerar cobranças</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              {subStatus.exists
+                ? "Sua conta está em verificação. Assim que for aprovada, você já pode cobrar seus alunos."
+                : subStatus.eligible
+                  ? "Os pagamentos dos seus alunos caem direto na sua Carteira ORBI Pay."
+                  : (subStatus.reason ?? "Ainda não disponível.")}
+            </p>
+          </div>
+          <Button onClick={() => changeTab("carteira")}
+            className="h-9 px-4 rounded-xl font-semibold text-sm shrink-0"
+            style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
+            Ir pra Carteira
+          </Button>
+        </div>
+      )}
 
       {/* Abas: Financeiro / Carteira */}
       <div className="flex items-center gap-1 border-b px-4 mb-4 overflow-x-auto scrollbar-none"
@@ -1301,7 +1330,7 @@ const Financeiro = () => {
             <Wallet className="w-8 h-8 text-white/10 mx-auto" />
             <p className="text-sm text-white/25">
               {cobrancas.length === 0
-                ? 'Nenhuma cobrança ainda. Clique em "+ Nova cobrança" para começar.'
+                ? (canCharge ? 'Nenhuma cobrança ainda. Clique em "+ Nova cobrança" para começar.' : "Nenhuma cobrança ainda.")
                 : "Nenhuma cobrança encontrada."}
             </p>
           </div>

@@ -149,16 +149,19 @@ serve(async (req) => {
     // ── 1. Dados do aluno ────────────────────────────────────────────────────
     const { data: aluno, error: alunoErr } = await supabase
       .from("alunos")
-      .select("id, user_id, treinador_id, telefone")
+      .select("id, user_id, treinador_id, telefone, org_id")
       .eq("id", aluno_id)
       .eq("treinador_id", treinador_id)
       .single();
     if (alunoErr || !aluno) throw new Error("Aluno não encontrado ou sem permissão");
+    // org_id vem do client — sem isso, dava pra mandar o org_id de outra org
+    // (ex: a gs_brand) e cobrar pela conta/subconta errada.
+    if (aluno.org_id !== org_id) throw new Error("Aluno não encontrado ou sem permissão");
 
     // ── Org (nome + status do WhatsApp) ──────────────────────────────────────
     const { data: orgRow } = await supabase
       .from("organizations")
-      .select("name, whatsapp_status, whatsapp_instance_name")
+      .select("name, whatsapp_status, whatsapp_instance_name, is_gs_brand")
       .eq("id", org_id)
       .maybeSingle();
 
@@ -179,6 +182,12 @@ serve(async (req) => {
       .maybeSingle();
 
     const useSubaccount = subaccount?.status === "aprovado";
+    // A conta master (LCTEAM) só cobra pela consultoria do próprio Lucas.
+    // Qualquer outra org sem subconta aprovada é recusada — antes caía na
+    // master e o dinheiro do aluno do treinador entrava na conta do Lucas.
+    if (!useSubaccount && !orgRow?.is_gs_brand) {
+      throw new Error("Ative sua Carteira pra gerar cobranças.");
+    }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
     const subaccountId  = useSubaccount ? subaccount!.id : null;
     const masterWalletId = useSubaccount ? await getMasterWalletId() : "";

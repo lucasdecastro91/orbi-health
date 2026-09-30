@@ -104,6 +104,16 @@ serve(async (req) => {
       .eq("org_id", cobranca.org_id)
       .maybeSingle();
     const useSubaccount = subaccount?.status === "aprovado";
+    // Conta master só pra gs_brand (consultoria do Lucas) — mesma regra de
+    // asaas-create-charge. Sem isso, o pagamento do aluno de outro treinador
+    // cairia na conta da LCTEAM.
+    if (!useSubaccount) {
+      const { data: gateOrg } = await supabase
+        .from("organizations").select("is_gs_brand").eq("id", cobranca.org_id).maybeSingle();
+      if (!gateOrg?.is_gs_brand) {
+        return json({ error: "Esta cobrança ainda não pode ser paga. Fale com seu treinador." }, 400);
+      }
+    }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
     const subaccountId  = useSubaccount ? subaccount!.id : null;
     const masterWalletId = useSubaccount ? await getMasterWalletId() : "";

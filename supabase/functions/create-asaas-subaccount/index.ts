@@ -94,13 +94,18 @@ serve(async (req) => {
         return json({ error: "Disponível quando você tiver pelo menos 1 aluno ativo na ferramenta." }, 403);
       }
     } else {
+      // Libera assim que o treinador sai do teste e paga a 1ª cobrança
+      // (inclusive a de R$5): a subscription nasce "pending" e o webhook só
+      // vira "active" no primeiro pagamento confirmado. Decisão do Lucas
+      // (2026-09-30) — venda no cartão fica retida 30 dias, então até o 1º
+      // saque ele já pagou o valor cheio.
       const { data: sub } = await supabase
         .from("subscriptions")
-        .select("intro_step")
+        .select("status")
         .eq("organization_id", organization_id)
         .maybeSingle();
-      if (!sub || sub.intro_step !== false) {
-        return json({ error: "Disponível depois do primeiro mês de valor cheio da sua assinatura ORBI." }, 403);
+      if (!sub || sub.status !== "active") {
+        return json({ error: "Disponível depois do fim do seu período de teste, com a assinatura ORBI paga." }, 403);
       }
     }
   }

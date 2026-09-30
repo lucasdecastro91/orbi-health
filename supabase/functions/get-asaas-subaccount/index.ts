@@ -50,11 +50,12 @@ async function checkEligibility(org: { id: string; created_at: string; custom_tr
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("intro_step")
+    .select("status")
     .eq("organization_id", org.id)
     .maybeSingle();
-  if (!sub || sub.intro_step !== false) {
-    return { eligible: false as const, reason: "Disponível depois do primeiro mês de valor cheio da sua assinatura ORBI." };
+  // Mesma regra de create-asaas-subaccount: fim do teste + 1ª cobrança paga.
+  if (!sub || sub.status !== "active") {
+    return { eligible: false as const, reason: "Disponível depois do fim do seu período de teste, com a assinatura ORBI paga." };
   }
   return { eligible: true as const };
 }

@@ -58,11 +58,22 @@ serve(async (req) => {
 
     const { data: aluno, error: alunoErr } = await supabase
       .from("alunos")
-      .select("id, user_id, treinador_id")
+      .select("id, user_id, treinador_id, org_id")
       .eq("id", aluno_id)
       .eq("treinador_id", treinador_id)
       .single();
-    if (alunoErr || !aluno) throw new Error("Aluno não encontrado ou sem permissão");
+    if (alunoErr || !aluno || aluno.org_id !== org_id) throw new Error("Aluno não encontrado ou sem permissão");
+
+    // Mesma regra de asaas-create-charge: sem subconta aprovada, só a
+    // gs_brand pode cobrar (pela conta master). Evita mandar pro aluno um
+    // link que escolher-pagamento-cobranca vai recusar.
+    const [{ data: gateOrg }, { data: gateSub }] = await Promise.all([
+      supabase.from("organizations").select("is_gs_brand").eq("id", org_id).maybeSingle(),
+      supabase.from("asaas_subaccounts").select("status").eq("org_id", org_id).maybeSingle(),
+    ]);
+    if (!gateOrg?.is_gs_brand && gateSub?.status !== "aprovado") {
+      throw new Error("Ative sua Carteira pra gerar cobranças.");
+    }
 
     const { data: plano, error: planoErr } = await supabase
       .from("plans")
