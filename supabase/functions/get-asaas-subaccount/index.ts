@@ -59,6 +59,64 @@ async function checkEligibility(org: { id: string; created_at: string; custom_tr
   return { eligible: true as const };
 }
 
+// Retenção de venda no cartão — mesma regra de solicitar-saque-asaas (ver
+// comentário lá), duplicada de propósito. Aqui também soma o cartão que ainda
+// nem caiu no saldo (CONFIRMED), só pra exibição do "Em liberação".
+const CARD_HOLD_DAYS = 30;
+
+function todayBR(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function listCardPayments(apiKey: string, filters: Record<string, string>) {
+  const out: any[] = [];
+  for (let offset = 0, page = 0; page < 20; page++, offset += 100) {
+    const qs = new URLSearchParams({ billingType: "CREDIT_CARD", ...filters, limit: "100", offset: String(offset) });
+    const res = await fetch(`${ASAAS_BASE}/payments?${qs}`, { headers: { "access_token": apiKey } });
+    if (!res.ok) throw new Error(`payments ${res.status}: ${await res.text()}`);
+    const body = await res.json();
+    out.push(...(body?.data ?? []));
+    if (!body?.hasMore) return out;
+  }
+  throw new Error("payments: paginação excedeu o limite");
+}
+
+async function fetchCardHold(apiKey: string) {
+  const today = todayBR();
+  const [received, confirmed] = await Promise.all([
+    listCardPayments(apiKey, { status: "RECEIVED", "paymentDate[ge]": addDays(today, -CARD_HOLD_DAYS) }),
+    listCardPayments(apiKey, { status: "CONFIRMED" }),
+  ]);
+
+  let retainedCents = 0;
+  let pendingCents = 0;
+  let nextRelease: string | null = null;
+  const bump = (d: string | null) => { if (d && (!nextRelease || d < nextRelease)) nextRelease = d; };
+
+  for (const p of received) {
+    const purchase = String(p.confirmedDate ?? p.clientPaymentDate ?? p.paymentDate ?? "").slice(0, 10);
+    const release = purchase ? addDays(purchase, CARD_HOLD_DAYS) : null;
+    if (!release || release > today) {
+      retainedCents += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
+      bump(release);
+    }
+  }
+  for (const p of confirmed) {
+    pendingCents += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
+    const purchase = String(p.confirmedDate ?? "").slice(0, 10);
+    const credit = String(p.estimatedCreditDate ?? "").slice(0, 10);
+    const holdEnd = purchase ? addDays(purchase, CARD_HOLD_DAYS) : "";
+    bump([credit, holdEnd].filter(Boolean).sort().pop() ?? null);
+  }
+  return { retainedCents, pendingCents, nextRelease };
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -108,6 +166,11 @@ serve(async (req) => {
   if (!sub) return json({ exists: false, ...(await checkEligibility(org)) });
 
   let balance: number | null = null;
+  // available = o que o saque aceita de fato (saldo − cartão retido). Fica
+  // null se a retenção não puder ser calculada — a tela desabilita o saque.
+  let available: number | null = null;
+  let inRelease: number | null = null;
+  let nextRelease: string | null = null;
   if (sub.status === "aprovado") {
     try {
       const res = await fetch(`${ASAAS_BASE}/finance/balance`, {
@@ -119,6 +182,17 @@ serve(async (req) => {
       }
     } catch (e) {
       console.error("[get-asaas-subaccount] falha ao buscar saldo:", e instanceof Error ? e.message : e);
+    }
+    if (balance != null) {
+      try {
+        const hold = await fetchCardHold(sub.api_key);
+        const balanceCents = Math.round(Number(balance) * 100);
+        available = Math.max(0, balanceCents - hold.retainedCents) / 100;
+        inRelease = (Math.min(hold.retainedCents, balanceCents) + hold.pendingCents) / 100;
+        nextRelease = hold.nextRelease;
+      } catch (e) {
+        console.error("[get-asaas-subaccount] falha ao calcular retenção:", e instanceof Error ? e.message : e);
+      }
     }
   }
 
@@ -161,6 +235,9 @@ serve(async (req) => {
     status: sub.status,
     created_at: sub.created_at,
     balance,
+    available,
+    inRelease,
+    nextRelease,
     pixKeySet: !!sub.pix_key,
     pixKey: sub.pix_key,
     pixKeyType: sub.pix_key_type,

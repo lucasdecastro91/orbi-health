@@ -26,6 +26,52 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Retenção de venda no cartão (2026-09-30): o contrato de BaaS deixa o
+// chargeback na conta da LCTEAM quando a subconta não tem saldo (confirmado
+// pelo Asaas). Toda venda no cartão fica fora do saque por CARD_HOLD_DAYS
+// contados da data da compra, mesmo que já tenha caído no saldo (ex:
+// antecipação). Mesma lógica em get-asaas-subaccount — duplicada de propósito,
+// como o resto das regras dessas funções.
+const CARD_HOLD_DAYS = 30;
+
+function todayBR(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Soma (em centavos) as vendas no cartão que já estão no saldo e ainda estão
+// dentro da janela de retenção. Lança erro se a Asaas falhar — quem chama
+// deve bloquear o saque nesse caso, nunca liberar o saldo inteiro.
+async function fetchRetainedCents(apiKey: string): Promise<number> {
+  const today = todayBR();
+  // paymentDate (liquidação) é sempre >= data da compra, então esse filtro
+  // pega todo candidato; o corte fino é feito pelo confirmedDate abaixo.
+  const since = addDays(today, -CARD_HOLD_DAYS);
+  let retained = 0;
+  for (let offset = 0, page = 0; page < 20; page++, offset += 100) {
+    const qs = new URLSearchParams({
+      billingType: "CREDIT_CARD", status: "RECEIVED",
+      "paymentDate[ge]": since, limit: "100", offset: String(offset),
+    });
+    const res = await fetch(`${ASAAS_BASE}/payments?${qs}`, { headers: { "access_token": apiKey } });
+    if (!res.ok) throw new Error(`payments ${res.status}: ${await res.text()}`);
+    const body = await res.json();
+    for (const p of body?.data ?? []) {
+      const purchase = String(p.confirmedDate ?? p.clientPaymentDate ?? p.paymentDate ?? "").slice(0, 10);
+      if (!purchase || addDays(purchase, CARD_HOLD_DAYS) > today) {
+        retained += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
+      }
+    }
+    if (!body?.hasMore) return retained;
+  }
+  throw new Error("payments: paginação excedeu o limite");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -77,9 +123,23 @@ serve(async (req) => {
     }
     const balanceData = await balanceRes.json();
     const balanceCents = Math.round(Number(balanceData?.balance ?? 0) * 100);
+
+    let retainedCents: number;
+    try {
+      retainedCents = await fetchRetainedCents(sub.api_key);
+    } catch (e) {
+      console.error("[solicitar-saque-asaas] falha ao calcular retenção:", e instanceof Error ? e.message : e);
+      return json({ error: "Não foi possível confirmar seu saldo. Tente novamente." }, 502);
+    }
+
+    const availableCents = Math.max(0, balanceCents - retainedCents);
     const requestedCents = Math.round(numericValue * 100);
-    if (requestedCents > balanceCents) {
-      return json({ error: "Saldo insuficiente pra esse valor." }, 400);
+    if (requestedCents > availableCents) {
+      return json({
+        error: retainedCents > 0
+          ? "Saldo insuficiente pra esse valor. Vendas no cartão ficam em liberação por 30 dias."
+          : "Saldo insuficiente pra esse valor.",
+      }, 400);
     }
 
     const transferRes = await fetch(`${ASAAS_BASE}/transfers`, {

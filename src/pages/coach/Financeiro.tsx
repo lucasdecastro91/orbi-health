@@ -895,8 +895,15 @@ const Financeiro = () => {
   // ── Carteira / subconta ──────────────────────────────────────────────────
   const [subStatus, setSubStatus] = useState<{
     exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string;
+    available?: number | null; inRelease?: number | null; nextRelease?: string | null;
     pixKeySet?: boolean; pixKey?: string | null; pixKeyType?: string | null; withdrawals?: Withdrawal[];
   } | null>(null);
+  // Sacável = saldo − vendas no cartão ainda em retenção (30 dias). Sem o
+  // campo `available` (Edge Function antiga) cai no saldo — o saque é
+  // validado de novo no servidor de qualquer jeito.
+  const withdrawable = subStatus && "available" in subStatus
+    ? (subStatus.available ?? 0)
+    : (subStatus?.balance ?? 0);
   const [subLoading, setSubLoading] = useState(false);
   const [showSubForm, setShowSubForm] = useState(false);
   const [creatingSub, setCreatingSub] = useState(false);
@@ -1386,8 +1393,14 @@ const Financeiro = () => {
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-white/40 mb-2">Saldo disponível</p>
               <p className="text-3xl font-bold text-white leading-none">
-                {fmtBRL(subStatus?.balance ?? 0)}
+                {fmtBRL(withdrawable)}
               </p>
+              {(subStatus?.inRelease ?? 0) > 0 && (
+                <p className="text-xs text-white/40 mt-2">
+                  Em liberação: <span className="text-white/70 font-medium">{fmtBRL(subStatus!.inRelease!)}</span>
+                  {subStatus?.nextRelease && <> · próxima em {fmtDate(subStatus.nextRelease)}</>}
+                </p>
+              )}
               {subStatus?.exists ? (
                 <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full mt-2"
                   style={{ background: "rgba(var(--cp-rgb), 0.15)", color: "var(--cp-400)" }}>
@@ -1399,7 +1412,7 @@ const Financeiro = () => {
             </div>
             <button
               onClick={() => setShowSaqueModal(true)}
-              disabled={!(subStatus?.status === "aprovado" && subStatus?.pixKeySet && (subStatus?.balance ?? 0) > 0)}
+              disabled={!(subStatus?.status === "aprovado" && subStatus?.pixKeySet && withdrawable > 0)}
               className="h-10 px-5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               style={{ background: "var(--cp-gradient)", color: "var(--cp-text)" }}>
               <Landmark className="w-4 h-4" />
@@ -1536,7 +1549,7 @@ const Financeiro = () => {
 
       {showSaqueModal && (
         <SaqueModal
-          balance={subStatus?.balance ?? 0}
+          balance={withdrawable}
           onClose={() => setShowSaqueModal(false)}
           onConfirm={handleRequestSaque}
           submitting={submittingSaque}
