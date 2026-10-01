@@ -139,6 +139,10 @@ interface SerieDetalhe {
   quantidade: number; // quantas vezes repetir este bloco (default 1)
   descricao?: string; // descrição customizada da técnica (opcional, sobrescreve o padrão)
   descanso?: string; // descanso específico desse tipo de série, em segundos (opcional — sobrescreve o "Tempo de Descanso" único do exercício só pra essa série)
+  /** Unidade do campo `repeticoes` — "seg" pra contração isométrica (prancha,
+   *  etc.), onde o valor é tempo em segundos, não contagem. Ausente/"reps" =
+   *  comportamento de sempre, nenhuma série existente muda. */
+  unidade?: 'reps' | 'seg';
 }
 
 interface Exercise {
@@ -3480,13 +3484,25 @@ const TrainingExercises = ({
                             </div>
                           </div>
 
-                          {/* Reps */}
+                          {/* Reps / Seg — o próprio rótulo é o toggle (igual o rótulo de
+                              Valor já troca sozinho com o tipo_calculo logo abaixo); evita
+                              abrir mais uma coluna numa linha já apertada. Pra contração
+                              isométrica (prancha etc.), "Seg" guarda o tempo em segundos
+                              no mesmo campo `repeticoes` — não cria campo paralelo. */}
                           <div className="w-[4rem] shrink-0">
-                            <Label className="text-[10px] text-muted-foreground">Reps</Label>
+                            <button
+                              type="button"
+                              onClick={() => updateDetailedSerie(idx, 'unidade', serie.unidade === 'seg' ? 'reps' : 'seg')}
+                              title="Alternar entre repetições e segundos (isometria)"
+                              className="text-[10px] font-semibold text-muted-foreground transition-colors"
+                              style={serie.unidade === 'seg' ? { color: 'var(--cp-400)' } : undefined}
+                            >
+                              {serie.unidade === 'seg' ? 'Seg ⇄' : 'Reps ⇄'}
+                            </button>
                             <Input
                               value={serie.repeticoes}
                               onChange={(e) => updateDetailedSerie(idx, 'repeticoes', e.target.value)}
-                              placeholder="8-10"
+                              placeholder={serie.unidade === 'seg' ? '45' : '8-10'}
                               className={`h-8 text-xs mt-1 ${FIELD_CLS}`}
                             />
                           </div>

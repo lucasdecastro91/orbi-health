@@ -19,6 +19,9 @@ interface SerieDetalhe {
   tipo_calculo: TipoCalculo;
   valor_calculo: string;
   quantidade: number; // quantas séries físicas este bloco representa (default 1)
+  /** "seg" = repeticoes guarda tempo em segundos (contração isométrica), não
+   *  contagem. Ausente/"reps" = comportamento de sempre. */
+  unidade?: 'reps' | 'seg';
 }
 
 interface Exercicio {
@@ -858,7 +861,7 @@ const TreinoHoje = () => {
                         })
                       : null;
                     const repsLabel = detalhe?.repeticoes
-                      ? `${detalhe.repeticoes} reps`
+                      ? (detalhe.unidade === 'seg' ? `${detalhe.repeticoes}s` : `${detalhe.repeticoes} reps`)
                       : `${ex.repeticoes} reps`;
 
                     // X/N counter — show only when consecutive group has > 1 set

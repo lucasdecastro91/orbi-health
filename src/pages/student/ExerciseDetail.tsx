@@ -32,6 +32,9 @@ interface SerieDetalhe {
   quantidade: number; // quantas vezes repetir este bloco (default 1)
   observacoes?: string; // per-serie note set by trainer
   descanso?: string | null; // descanso específico desse tipo de série (sobrescreve o do exercício)
+  /** "seg" = repeticoes guarda tempo em segundos (contração isométrica), não
+   *  contagem. Ausente/"reps" = comportamento de sempre. */
+  unidade?: 'reps' | 'seg';
 }
 
 /** Carga + reps realizadas num slot físico de uma série (uma série com quantidade=2 tem 2 slots) */
@@ -1485,7 +1488,7 @@ const ExerciseDetail = () => {
                           className="text-sm font-medium shrink-0"
                           style={{ color: done ? 'var(--text-dim)' : 'hsl(var(--muted-foreground))' }}
                         >
-                          {serie.repeticoes ? `${serie.repeticoes} reps` : '—'}
+                          {serie.repeticoes ? (serie.unidade === 'seg' ? `${serie.repeticoes}s` : `${serie.repeticoes} reps`) : '—'}
                         </span>
 
                       {/* Espaçador */}
@@ -1554,7 +1557,11 @@ const ExerciseDetail = () => {
                                 <input
                                   type="text"
                                   inputMode="numeric"
-                                  placeholder={serie.repeticoes ? `Reps (${serie.repeticoes})` : 'Reps'}
+                                  placeholder={
+                                    serie.unidade === 'seg'
+                                      ? (serie.repeticoes ? `Segundos (${serie.repeticoes})` : 'Segundos')
+                                      : (serie.repeticoes ? `Reps (${serie.repeticoes})` : 'Reps')
+                                  }
                                   value={v.reps}
                                   onChange={(e) => updateSlotDraft(serieKey, i, 'reps', e.target.value)}
                                   className="flex-1 min-w-0 h-9 rounded-lg px-2 text-xs text-foreground outline-none"
