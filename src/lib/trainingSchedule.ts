@@ -30,6 +30,11 @@ export interface TreinoLite {
   id: string;
   titulo_treino: string;
   dia_semana: string;
+  /** false = sessão alternativa/opcional — não disputa o destaque de "hoje"
+   *  nem conta na meta semanal (ver conta_meta_semanal no banco). Ausente em
+   *  callers antigos que não selecionam a coluna; tratado como true (default
+   *  do banco) nesse caso. */
+  conta_meta_semanal?: boolean;
 }
 
 export interface WeekLite {
@@ -102,7 +107,12 @@ export function pickTodaysSession(
   if (!currentWeek) return null;
 
   const todayKey = getTodayWeekdayKey();
-  const match = currentWeek.treinos.find((t) => normalizeWeekday(t.dia_semana) === todayKey);
+  // Sessão alternativa (conta_meta_semanal === false) nunca disputa o
+  // destaque de "hoje" — ela é um substituto de backup, não a sessão
+  // esperada do dia; o aluno acessa ela manualmente pela lista de treinos.
+  const match = currentWeek.treinos.find(
+    (t) => t.conta_meta_semanal !== false && normalizeWeekday(t.dia_semana) === todayKey,
+  );
   if (!match) return null;
 
   return { weekId: currentWeek.id, treinoId: match.id, titulo: match.titulo_treino };

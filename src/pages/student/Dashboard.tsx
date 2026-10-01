@@ -339,7 +339,7 @@ const StudentDashboard = () => {
       if (planoData) {
         const { data: semanasLite } = await supabase
           .from("semanas")
-          .select("id, semana_inicio, semana_fim, treinos ( id, titulo_treino, dia_semana )")
+          .select("id, semana_inicio, semana_fim, treinos ( id, titulo_treino, dia_semana, conta_meta_semanal )")
           .eq("plano_id", planoData.id)
           .order("semana_inicio", { ascending: true });
 
@@ -499,7 +499,12 @@ const StudentDashboard = () => {
       // treino ativo (pra ter frequência semanal) ou dieta (pra ter total de
       // refeições); os dois entram como 0 se não existirem, o que já é
       // tratado dentro de computeCycleAdherence.
-      const treinoWeeklyFreq = getCurrentWeek(weeksForAdherence, planoData?.data_inicio ?? null)?.treinos.length ?? 0;
+      // Sessão alternativa (conta_meta_semanal === false) não entra na meta
+      // esperada — concluí-la ainda soma como dia treinado do lado "completed"
+      // (treino_sessoes_log conta por data, não por treino_id), então ela
+      // naturalmente "paga" um dia faltante sem precisar de nenhuma lógica extra.
+      const treinoWeeklyFreq = (getCurrentWeek(weeksForAdherence, planoData?.data_inicio ?? null)?.treinos ?? [])
+        .filter((t) => t.conta_meta_semanal !== false).length;
       const adherence = await computeCycleAdherence({
         studentId: session.user.id,
         alunoId: aluno.id,

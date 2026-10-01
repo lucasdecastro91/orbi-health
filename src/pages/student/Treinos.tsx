@@ -32,6 +32,8 @@ interface Training {
   dia_semana: string;
   descricao_geral: string | null;
   ordem: number;
+  /** false = sessão alternativa/opcional — não conta na meta de progresso mensal */
+  conta_meta_semanal?: boolean;
   exercicios: Exercise[];
 }
 
@@ -643,7 +645,7 @@ const Treinos = () => {
         .select(`
           id, semana_inicio, semana_fim, zona_reps, observacoes,
           treinos (
-            id, titulo_treino, dia_semana, descricao_geral, ordem,
+            id, titulo_treino, dia_semana, descricao_geral, ordem, conta_meta_semanal,
             exercicios (
               id, nome_exercicio, series, repeticoes,
               descanso, video_url, observacoes, ordem, series_detalhadas,
@@ -811,7 +813,11 @@ const Treinos = () => {
 
       {/* Monthly completion stats */}
       {monthCount > 0 && (() => {
-        const totalSessions = weeks.reduce((n, w) => n + w.treinos.length, 0);
+        // Sessão alternativa (conta_meta_semanal === false) não entra na meta
+        // esperada do mês — mesma regra do anel de aderência (ver Dashboard.tsx).
+        const totalSessions = weeks.reduce(
+          (n, w) => n + w.treinos.filter((t) => t.conta_meta_semanal !== false).length, 0,
+        );
         const expected = Math.max(1, totalSessions * 4);
         const pct = Math.min(100, Math.round((monthCount / expected) * 100));
         const monthName = new Date().toLocaleDateString('pt-BR', { month: 'long' });

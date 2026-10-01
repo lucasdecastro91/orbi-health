@@ -3680,6 +3680,8 @@ export type Database = {
       treino_sessoes_log: {
         Row: {
           aluno_id: string
+          avaliacao: number | null
+          comentario: string | null
           created_at: string
           data_conclusao: string
           id: string
@@ -3689,6 +3691,8 @@ export type Database = {
         }
         Insert: {
           aluno_id: string
+          avaliacao?: number | null
+          comentario?: string | null
           created_at?: string
           data_conclusao?: string
           id?: string
@@ -3698,6 +3702,8 @@ export type Database = {
         }
         Update: {
           aluno_id?: string
+          avaliacao?: number | null
+          comentario?: string | null
           created_at?: string
           data_conclusao?: string
           id?: string
@@ -3738,6 +3744,7 @@ export type Database = {
       }
       treinos: {
         Row: {
+          conta_meta_semanal: boolean
           created_at: string | null
           descricao_geral: string | null
           dia_semana: string
@@ -3748,6 +3755,7 @@ export type Database = {
           titulo_treino: string
         }
         Insert: {
+          conta_meta_semanal?: boolean
           created_at?: string | null
           descricao_geral?: string | null
           dia_semana: string
@@ -3758,6 +3766,7 @@ export type Database = {
           titulo_treino: string
         }
         Update: {
+          conta_meta_semanal?: boolean
           created_at?: string | null
           descricao_geral?: string | null
           dia_semana?: string

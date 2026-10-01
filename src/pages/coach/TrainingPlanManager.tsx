@@ -77,6 +77,9 @@ interface Training {
   dia_semana: string;
   descricao_geral: string | null;
   ordem: number;
+  /** false = sessão alternativa/opcional (ex: substituta de backup) — não
+   *  conta na meta semanal de treino nem disputa o destaque de "hoje". */
+  conta_meta_semanal: boolean;
 }
 
 // TipoSerie is open — presets below plus any custom string the trainer creates
@@ -1045,6 +1048,7 @@ const PlanDetails = ({ planId, plan, studentUserId, onEditPlan, onDeletePlan }: 
             dia_semana: training.dia_semana,
             descricao_geral: training.descricao_geral,
             ordem: training.ordem,
+            conta_meta_semanal: training.conta_meta_semanal,
           })
           .select()
           .single();
@@ -1469,6 +1473,9 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  // Checkbox do form de sessão — controlado à parte porque Checkbox (Radix)
+  // não participa de FormData como um <input type="checkbox"> nativo.
+  const [contaMetaSemanal, setContaMetaSemanal] = useState(true);
   const [deletingTrainingId, setDeletingTrainingId] = useState<string | null>(null);
   // Incrementado a cada recarga: entra na `key` das colunas pra que elas
   // remontem com os exercícios novos vindos por prop (substitui o antigo
@@ -1689,6 +1696,7 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
         titulo_treino: formData.get("titulo_treino") as string,
         dia_semana: formData.get("dia_semana") as string,
         descricao_geral: formData.get("descricao_geral") as string,
+        conta_meta_semanal: contaMetaSemanal,
       };
 
       if (editingTraining) {
@@ -1748,6 +1756,7 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
 
   const openDialog = (training?: Training) => {
     setEditingTraining(training || null);
+    setContaMetaSemanal(training ? training.conta_meta_semanal !== false : true);
     setDialogOpen(true);
   };
 
@@ -1769,6 +1778,7 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
           dia_semana: training.dia_semana,
           descricao_geral: training.descricao_geral,
           ordem: newOrdem,
+          conta_meta_semanal: training.conta_meta_semanal,
         })
         .select()
         .single();
@@ -1977,6 +1987,23 @@ const WeekDetails = ({ weekId, studentUserId }: { weekId: string; studentUserId?
                 defaultValue={editingTraining?.dia_semana}
                 required
               />
+            </div>
+            <div className="flex items-start gap-2.5 rounded-lg border p-3">
+              <Checkbox
+                id="conta_meta_semanal"
+                checked={!contaMetaSemanal}
+                onCheckedChange={(checked) => setContaMetaSemanal(!checked)}
+                className="mt-0.5 shrink-0"
+              />
+              <Label htmlFor="conta_meta_semanal" className="font-normal leading-snug cursor-pointer">
+                Sessão alternativa — não conta na meta semanal
+                <span className="block text-xs text-muted-foreground mt-0.5 font-normal">
+                  Use pra um treino substituto (ex: fullbody de backup pra quando o aluno faltar
+                  a academia). O dia acima fica só como referência — não disputa o destaque de
+                  "treino de hoje" nem soma na meta semanal, mas concluí-la ainda conta como dia
+                  treinado na aderência.
+                </span>
+              </Label>
             </div>
             <div>
               <Label htmlFor="descricao_geral">Descrição</Label>
@@ -2229,7 +2256,14 @@ const TrainingColumn = ({
         </button>
         <div className="min-w-0 flex-1">
           <p className="font-medium text-[13px] leading-tight truncate">{training.titulo_treino}</p>
-          <p className="text-[11px] text-muted-foreground truncate">{training.dia_semana}</p>
+          <p className="text-[11px] text-muted-foreground truncate">
+            {training.dia_semana}
+            {training.conta_meta_semanal === false && (
+              <span className="ml-1.5 rounded px-1 py-0.5" style={{ backgroundColor: "rgba(var(--cp-rgb),0.12)", color: "var(--cp-400)" }}>
+                Alternativa
+              </span>
+            )}
+          </p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
