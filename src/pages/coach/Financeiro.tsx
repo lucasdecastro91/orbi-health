@@ -244,13 +244,15 @@ interface NovaCobrancaProps {
   orgId: string;
   isGsBrand: boolean;
   alunos: AlunoOption[];
+  // Teto de cartão de conta nova (reais). null/undefined = sem teto.
+  cardUsage?: { volume: number; cap: number } | null;
   onClose: () => void;
   onCreated: (c: Cobranca) => void;
 }
 
 const CUSTOM_PLAN_ID = "__custom__";
 
-const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: NovaCobrancaProps) => {
+const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, cardUsage, onClose, onCreated }: NovaCobrancaProps) => {
   const { toast }  = useToast();
   const navigate   = useNavigate();
 
@@ -350,6 +352,12 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
   };
 
   const valorFinal = computedValor();
+
+  // Só cobrança personalizada no cartão passa pelo teto aqui; plano real vira
+  // cobrança adiada e o teto é checado quando o aluno escolhe cartão.
+  const cardValorNum = parseBRL(manualValor || "0") || 0;
+  const cardOverCap = !!cardUsage && planId === CUSTOM_PLAN_ID && forma === "CREDIT_CARD"
+    && cardUsage.volume + cardValorNum > cardUsage.cap;
 
   const handleCpfChange = (v: string) => {
     const d = v.replace(/\D/g, "").slice(0, 14);
@@ -538,6 +546,12 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
                 <CreditCard className="w-4 h-4" />Cartão
               </button>
             </div>
+            {forma === "CREDIT_CARD" && cardUsage && (
+              <p className="text-[11px] mt-1" style={{ color: cardOverCap ? "#f87171" : "rgba(255,255,255,0.4)" }}>
+                {fmtBRL(cardUsage.volume)} de {fmtBRL(cardUsage.cap)} usados no cartão nos últimos 30 dias
+                {cardOverCap && " — esse valor passa do limite. Use Pix ou aguarde."}
+              </p>
+            )}
           </div>
         )}
 
@@ -655,7 +669,7 @@ const NovaCobrancaModal = ({ orgId, isGsBrand, alunos, onClose, onCreated }: Nov
             style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border-subtle)" }} />
         </div>
 
-        <Button onClick={handleCreate} disabled={saving || alunos.length === 0}
+        <Button onClick={handleCreate} disabled={saving || alunos.length === 0 || cardOverCap}
           className="w-full h-11 rounded-xl font-semibold text-white"
           style={{ background: "var(--cp-gradient)" }}>
           {saving
@@ -896,6 +910,7 @@ const Financeiro = () => {
   const [subStatus, setSubStatus] = useState<{
     exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string;
     available?: number | null; inRelease?: number | null; nextRelease?: string | null;
+    cardVolume30d?: number | null; cardCap?: number | null;
     pixKeySet?: boolean; pixKey?: string | null; pixKeyType?: string | null; withdrawals?: Withdrawal[];
   } | null>(null);
   // Sacável = saldo − vendas no cartão ainda em retenção (30 dias). Sem o
@@ -1169,6 +1184,9 @@ const Financeiro = () => {
           orgId={orgId}
           isGsBrand={org?.is_gs_brand ?? false}
           alunos={alunos}
+          cardUsage={subStatus?.cardCap != null && subStatus?.cardVolume30d != null
+            ? { volume: subStatus.cardVolume30d, cap: subStatus.cardCap }
+            : null}
           onClose={() => setModalOpen(false)}
           onCreated={handleCreated}
         />
