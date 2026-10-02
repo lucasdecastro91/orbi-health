@@ -229,8 +229,8 @@ serve(async (req) => {
   if (sub.status === "aprovado") {
     const capCents = cardCapCents(sub.aprovado_em, sub.limite_cartao_30d, todayBR());
     cardCap = capCents == null ? null : capCents / 100;
-    const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: organization_id, p_paid: false });
-    if (volErr) console.error("[get-asaas-subaccount] card_volume_30d:", volErr.message);
+    const { data: vol, error: volErr } = await supabase.rpc("card_claims_30d", { p_org_id: organization_id });
+    if (volErr) console.error("[get-asaas-subaccount] card_claims_30d:", volErr.message);
     else cardVolume30d = Number(vol);
   }
 

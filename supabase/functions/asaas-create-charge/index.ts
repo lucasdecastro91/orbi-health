@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { todayBR, cardCapCents, exceedsCap } from "../_shared/cardRisk.ts";
+import { todayBR, cardCapCents } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -129,6 +129,10 @@ serve(async (req) => {
     });
   }
 
+  // Claim do teto de cartão — liberado no catch se a cobrança não nascer no Asaas.
+  let cardClaimId: string | null = null;
+  let paymentCreated = false;
+
   try {
     const body = await req.json();
     const {
@@ -190,20 +194,23 @@ serve(async (req) => {
       throw new Error("Ative sua Carteira pra gerar cobranças.");
     }
 
-    // Teto de cartão de conta nova (spec 2026-10-01). Antes de qualquer chamada
-    // ao Asaas. Falha ao medir o volume bloqueia (fail-closed).
+    // Teto de cartão de conta nova (spec 2026-10-01). Reserva o valor de forma
+    // atômica antes de qualquer chamada ao Asaas (claim_card_volume trava por
+    // org); se a cobrança não nascer no Asaas, o claim é liberado no catch.
+    // Falha ao reservar bloqueia (fail-closed).
     if (useSubaccount && forma_pagamento === "CREDIT_CARD") {
       const capCents = cardCapCents(subaccount!.aprovado_em, subaccount!.limite_cartao_30d, todayBR());
-      if (capCents != null) {
-        const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: org_id, p_paid: false });
-        if (volErr) throw new Error("Não foi possível validar o limite do cartão. Tente novamente.");
-        const volCents = Math.round(Number(vol) * 100);
-        if (exceedsCap(volCents, Math.round(Number(valor) * 100), capCents)) {
-          throw new Error(
-            `Limite de vendas no cartão atingido (${fmtBRL(volCents / 100)} de ${fmtBRL(capCents / 100)} nos últimos 30 dias). Use Pix ou aguarde.`,
-          );
-        }
+      const { data: claimId, error: claimErr } = await supabase.rpc("claim_card_volume", {
+        p_org_id: org_id, p_valor: Number(valor), p_cap: capCents == null ? null : capCents / 100,
+      });
+      if (claimErr) throw new Error("Não foi possível validar o limite do cartão. Tente novamente.");
+      if (!claimId) {
+        const { data: used } = await supabase.rpc("card_claims_30d", { p_org_id: org_id });
+        throw new Error(
+          `Limite de vendas no cartão atingido (${fmtBRL(Number(used ?? 0))} de ${fmtBRL((capCents ?? 0) / 100)} nos últimos 30 dias). Use Pix ou aguarde.`,
+        );
       }
+      cardClaimId = claimId as string;
     }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
     const subaccountId  = useSubaccount ? subaccount!.id : null;
@@ -285,6 +292,7 @@ serve(async (req) => {
     }, chargeApiKey);
     const payment = await payRes.json();
     if (!payment.id) throw new Error(`Asaas payment error: ${JSON.stringify(payment)}`);
+    paymentCreated = true;
 
     // ── 5. PIX: busca payload (copia e cola) ─────────────────────────────────
     let pixKey: string | null = null;
@@ -397,6 +405,10 @@ serve(async (req) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[asaas-create-charge]", msg);
+    if (cardClaimId && !paymentCreated) {
+      const { error: relErr } = await supabase.from("card_charge_claims").delete().eq("id", cardClaimId);
+      if (relErr) console.error("[asaas-create-charge] falha ao liberar claim:", relErr.message);
+    }
     return new Response(JSON.stringify({ success: false, error: msg }), {
       status: 200, headers: { ...cors, "Content-Type": "application/json" },
     });

@@ -237,15 +237,17 @@ async function maybeAlertCardVolume(orgId: string) {
       .eq("org_id", orgId).eq("status", "aprovado").maybeSingle();
     if (!sub) return;
 
-    const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: orgId, p_paid: true });
-    if (volErr) { console.error("[webhook] card_volume_30d:", volErr.message); return; }
+    const { data: vol, error: volErr } = await supabase.rpc("card_paid_volume_30d", { p_org_id: orgId });
+    if (volErr) { console.error("[webhook] card_paid_volume_30d:", volErr.message); return; }
     if (Math.round(Number(vol) * 100) < ALERT_THRESHOLD_CENTS) return;
 
     const since = new Date(Date.now() - 30 * 86400000).toISOString();
-    const { data: recent } = await supabase
+    const { data: recent, error: recentErr } = await supabase
       .from("notification_logs").select("id")
       .eq("org_id", orgId).eq("notification_type", "alerta_volume_cartao")
       .eq("delivered", true).gte("created_at", since).limit(1);
+    // Sem conseguir checar o dedup, não manda (evita e-mail em loop).
+    if (recentErr) { console.error("[webhook] dedup alerta:", recentErr.message); return; }
     if (recent?.length) return;
 
     const { data: org } = await supabase
@@ -278,10 +280,11 @@ async function maybeAlertCardVolume(orgId: string) {
       body: { type: "alerta_admin", titulo, linhas },
     });
     if (mailErr) console.error("[webhook] alerta volume e-mail:", mailErr.message);
-    await supabase.from("notification_logs").insert({
+    const { error: logErr } = await supabase.from("notification_logs").insert({
       recipient_id: org.owner_id, org_id: orgId, notification_type: "alerta_volume_cartao",
       title: titulo, body: linhas.join("\n"), delivered: !mailErr,
     });
+    if (logErr) console.error("[webhook] notification_logs alerta:", logErr.message);
   } catch (e) {
     console.error("[webhook] maybeAlertCardVolume:", e instanceof Error ? e.message : e);
   }

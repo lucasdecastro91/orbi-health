@@ -39,12 +39,15 @@ da getshape em jul–set/2026).
 | Exceção manual | `asaas_subaccounts.limite_cartao_30d` substitui o teto de R$ 5.000 daquela org | se preenchido (null = regra padrão) |
 
 Definições:
-- **"Gerada"** = linha em `cobrancas` com `forma_pagamento = 'CREDIT_CARD'`,
-  `asaas_id IS NOT NULL`, `created_at` nos últimos 30 dias, status fora de
-  `CANCELLED`/`REFUNDED`/`DELETED`. Conta o gerado (não só o pago) para impedir que o
-  golpista gere várias cobranças de uma vez antes de qualquer uma ser paga. Cobranças
-  adiadas ainda sem escolha (`asaas_id IS NULL`) não contam — passam a contar quando o
-  aluno escolhe cartão.
+- **"Gerada"** = registro em `card_charge_claims` (tabela só do sistema, RLS sem
+  policies), gravado no momento em que a cobrança de cartão vai nascer no Asaas — pelo
+  treinador (`asaas-create-charge`) ou quando o aluno escolhe cartão numa cobrança adiada
+  (`escolher-pagamento-cobranca`). Conta o gerado (não só o pago). **Não** usa
+  `cobrancas`: o treinador edita/apaga as próprias linhas via RLS, o "Cancelar" do ORBI
+  não cancela no Asaas, e a cobrança adiada tem `created_at` de quando foi criada, não de
+  quando virou cartão (achados da revisão final, 2026-10-01). A reserva é atômica
+  (`claim_card_volume`, `pg_advisory_xact_lock` por org), então pedidos em paralelo não
+  passam juntos; se a cobrança não nascer no Asaas, o claim é apagado.
 - **Teto inclui a cobrança nova:** recusa se `volume_30d + valor_nova > teto`.
 - **Exceção manual** vale também fora do período de conta nova (se o Lucas quiser
   limitar alguém depois dos 90 dias, basta preencher).

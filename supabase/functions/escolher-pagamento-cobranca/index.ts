@@ -11,7 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { todayBR, cardCapCents, exceedsCap } from "../_shared/cardRisk.ts";
+import { todayBR, cardCapCents } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -58,6 +58,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SVC_KEY);
+
+  // Claim do teto de cartão — liberado se o pagamento não nascer no Asaas.
+  let cardClaimId: string | null = null;
+  let paymentCreated = false;
+  const releaseClaim = async () => {
+    if (!cardClaimId || paymentCreated) return;
+    const { error } = await supabase.from("card_charge_claims").delete().eq("id", cardClaimId);
+    if (error) console.error("[escolher-pagamento-cobranca] falha ao liberar claim:", error.message);
+  };
 
   try {
     const body = await req.json();
@@ -115,17 +124,6 @@ serve(async (req) => {
         return json({ error: "Esta cobrança ainda não pode ser paga. Fale com seu treinador." }, 400);
       }
     }
-
-    // Teto de cartão de conta nova — mesma regra de asaas-create-charge.
-    if (useSubaccount && forma_pagamento === "CREDIT_CARD") {
-      const capCents = cardCapCents(subaccount!.aprovado_em, subaccount!.limite_cartao_30d, todayBR());
-      if (capCents != null) {
-        const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: cobranca.org_id, p_paid: false });
-        if (volErr || exceedsCap(Math.round(Number(vol) * 100), Math.round(valor * 100), capCents)) {
-          return json({ error: "Cartão indisponível no momento. Pague por Pix." }, 400);
-        }
-      }
-    }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
     const subaccountId  = useSubaccount ? subaccount!.id : null;
     const masterWalletId = useSubaccount ? await getMasterWalletId() : "";
@@ -170,6 +168,17 @@ serve(async (req) => {
       asaasCustomerId = custData.id;
     }
 
+    // ── Teto de cartão de conta nova — mesma regra de asaas-create-charge.
+    // Reserva atômica logo antes de criar no Asaas; liberada se não nascer.
+    if (useSubaccount && forma_pagamento === "CREDIT_CARD") {
+      const capCents = cardCapCents(subaccount!.aprovado_em, subaccount!.limite_cartao_30d, todayBR());
+      const { data: claimId, error: claimErr } = await supabase.rpc("claim_card_volume", {
+        p_org_id: cobranca.org_id, p_valor: valor, p_cap: capCents == null ? null : capCents / 100,
+      });
+      if (claimErr || !claimId) return json({ error: "Cartão indisponível no momento. Pague por Pix." }, 400);
+      cardClaimId = claimId as string;
+    }
+
     // ── 5. Cria o pagamento no Asaas, com a escolha do aluno ─────────────────
     const payRes = await asaasPost("/payments", {
       customer:    asaasCustomerId,
@@ -183,7 +192,11 @@ serve(async (req) => {
       ...(useSubaccount ? { split: [{ walletId: masterWalletId, percentualValue: ORBI_SPLIT_PERCENT }] } : {}),
     }, chargeApiKey);
     const payment = await payRes.json();
-    if (!payment.id) return json({ error: `Erro ao gerar pagamento: ${payment?.errors?.[0]?.description ?? "erro desconhecido"}` }, 400);
+    if (!payment.id) {
+      await releaseClaim();
+      return json({ error: `Erro ao gerar pagamento: ${payment?.errors?.[0]?.description ?? "erro desconhecido"}` }, 400);
+    }
+    paymentCreated = true;
 
     let pixKey: string | null = null;
     if (forma_pagamento === "PIX") {
@@ -211,6 +224,7 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[escolher-pagamento-cobranca]", msg);
+    await releaseClaim();
     return json({ error: "Erro ao processar sua escolha." }, 500);
   }
 });
