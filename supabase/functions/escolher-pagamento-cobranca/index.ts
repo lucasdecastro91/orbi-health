@@ -11,6 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { todayBR, cardCapCents, exceedsCap } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -100,7 +101,7 @@ serve(async (req) => {
     // ── 3. Subconta da org (mesmo padrão de asaas-create-charge) ────────────
     const { data: subaccount } = await supabase
       .from("asaas_subaccounts")
-      .select("id, api_key, status")
+      .select("id, api_key, status, aprovado_em, limite_cartao_30d")
       .eq("org_id", cobranca.org_id)
       .maybeSingle();
     const useSubaccount = subaccount?.status === "aprovado";
@@ -112,6 +113,17 @@ serve(async (req) => {
         .from("organizations").select("is_gs_brand").eq("id", cobranca.org_id).maybeSingle();
       if (!gateOrg?.is_gs_brand) {
         return json({ error: "Esta cobrança ainda não pode ser paga. Fale com seu treinador." }, 400);
+      }
+    }
+
+    // Teto de cartão de conta nova — mesma regra de asaas-create-charge.
+    if (useSubaccount && forma_pagamento === "CREDIT_CARD") {
+      const capCents = cardCapCents(subaccount!.aprovado_em, subaccount!.limite_cartao_30d, todayBR());
+      if (capCents != null) {
+        const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: cobranca.org_id, p_paid: false });
+        if (volErr || exceedsCap(Math.round(Number(vol) * 100), Math.round(valor * 100), capCents)) {
+          return json({ error: "Cartão indisponível no momento. Pague por Pix." }, 400);
+        }
       }
     }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;

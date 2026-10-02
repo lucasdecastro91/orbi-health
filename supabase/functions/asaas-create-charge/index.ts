@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { todayBR, cardCapCents, exceedsCap } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -177,7 +178,7 @@ serve(async (req) => {
     // compatíveis entre si — por isso o lookup abaixo também é escopado.
     const { data: subaccount } = await supabase
       .from("asaas_subaccounts")
-      .select("id, api_key, status")
+      .select("id, api_key, status, aprovado_em, limite_cartao_30d")
       .eq("org_id", org_id)
       .maybeSingle();
 
@@ -187,6 +188,22 @@ serve(async (req) => {
     // master e o dinheiro do aluno do treinador entrava na conta do Lucas.
     if (!useSubaccount && !orgRow?.is_gs_brand) {
       throw new Error("Ative sua Carteira pra gerar cobranças.");
+    }
+
+    // Teto de cartão de conta nova (spec 2026-10-01). Antes de qualquer chamada
+    // ao Asaas. Falha ao medir o volume bloqueia (fail-closed).
+    if (useSubaccount && forma_pagamento === "CREDIT_CARD") {
+      const capCents = cardCapCents(subaccount!.aprovado_em, subaccount!.limite_cartao_30d, todayBR());
+      if (capCents != null) {
+        const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: org_id, p_paid: false });
+        if (volErr) throw new Error("Não foi possível validar o limite do cartão. Tente novamente.");
+        const volCents = Math.round(Number(vol) * 100);
+        if (exceedsCap(volCents, Math.round(Number(valor) * 100), capCents)) {
+          throw new Error(
+            `Limite de vendas no cartão atingido (${fmtBRL(volCents / 100)} de ${fmtBRL(capCents / 100)} nos últimos 30 dias). Use Pix ou aguarde.`,
+          );
+        }
+      }
     }
     const chargeApiKey  = useSubaccount ? subaccount!.api_key : ASAAS_API_KEY;
     const subaccountId  = useSubaccount ? subaccount!.id : null;
