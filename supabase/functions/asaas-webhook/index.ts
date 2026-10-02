@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { todayBR, addDays, ALERT_THRESHOLD_CENTS } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -223,6 +224,99 @@ async function logEvent(payload: Record<string, unknown>, orgId: string | null, 
       : null,
     raw_payload: payload,
   });
+}
+
+// ── Alertas de risco de cartão pro Lucas (spec 2026-10-01) ───────────────────
+
+// Alerta quando uma subconta passa de R$ 3.000 pagos no cartão em 30 dias.
+// Máx. 1 entregue por org a cada 30 dias. Best-effort.
+async function maybeAlertCardVolume(orgId: string) {
+  try {
+    const { data: sub } = await supabase
+      .from("asaas_subaccounts").select("aprovado_em")
+      .eq("org_id", orgId).eq("status", "aprovado").maybeSingle();
+    if (!sub) return;
+
+    const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: orgId, p_paid: true });
+    if (volErr) { console.error("[webhook] card_volume_30d:", volErr.message); return; }
+    if (Math.round(Number(vol) * 100) < ALERT_THRESHOLD_CENTS) return;
+
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { data: recent } = await supabase
+      .from("notification_logs").select("id")
+      .eq("org_id", orgId).eq("notification_type", "alerta_volume_cartao")
+      .eq("delivered", true).gte("created_at", since).limit(1);
+    if (recent?.length) return;
+
+    const { data: org } = await supabase
+      .from("organizations").select("name, slug, owner_id").eq("id", orgId).maybeSingle();
+    if (!org) return;
+
+    const { data: pagas } = await supabase
+      .from("cobrancas").select("aluno_id")
+      .eq("org_id", orgId).eq("forma_pagamento", "CREDIT_CARD").not("asaas_id", "is", null)
+      .in("status", ["RECEIVED", "CONFIRMED"]).gte("data_pagamento", addDays(todayBR(), -30));
+    const alunoIds = [...new Set((pagas ?? []).map((p) => p.aluno_id as string))];
+    let semTreino = 0;
+    if (alunoIds.length) {
+      const { data: logs } = await supabase.from("treino_sessoes_log").select("aluno_id").in("aluno_id", alunoIds);
+      const comTreino = new Set((logs ?? []).map((l) => l.aluno_id as string));
+      semTreino = alunoIds.filter((id) => !comTreino.has(id)).length;
+    }
+    const dias = sub.aprovado_em
+      ? Math.floor((Date.now() - new Date(sub.aprovado_em).getTime()) / 86400000)
+      : null;
+
+    const titulo = `Volume de cartão alto: ${org.name}`;
+    const linhas = [
+      `Treinador: ${org.name} (/${org.slug})`,
+      `Vendas pagas no cartão nos últimos 30 dias: ${fmtBRL(Number(vol))} (${(pagas ?? []).length} cobranças)`,
+      `Carteira aprovada há: ${dias == null ? "data desconhecida" : `${dias} dias`}`,
+      `Alunos pagantes no cartão sem nenhum treino concluído: ${semTreino} de ${alunoIds.length}`,
+    ];
+    const { error: mailErr } = await supabase.functions.invoke("enviar-email", {
+      body: { type: "alerta_admin", titulo, linhas },
+    });
+    if (mailErr) console.error("[webhook] alerta volume e-mail:", mailErr.message);
+    await supabase.from("notification_logs").insert({
+      recipient_id: org.owner_id, org_id: orgId, notification_type: "alerta_volume_cartao",
+      title: titulo, body: linhas.join("\n"), delivered: !mailErr,
+    });
+  } catch (e) {
+    console.error("[webhook] maybeAlertCardVolume:", e instanceof Error ? e.message : e);
+  }
+}
+
+// Chargeback em qualquer cobrança (subconta ou master): e-mail imediato.
+async function alertChargeback(event: string, payment: Record<string, unknown> | undefined) {
+  try {
+    const paymentId = payment?.id as string | undefined;
+    let orgNome = "org desconhecida";
+    let descricao = "";
+    if (paymentId) {
+      const { data: cob } = await supabase
+        .from("cobrancas").select("org_id, descricao").eq("asaas_id", paymentId).maybeSingle();
+      if (cob) {
+        descricao = cob.descricao ?? "";
+        const { data: org } = await supabase.from("organizations").select("name, slug").eq("id", cob.org_id).maybeSingle();
+        if (org) orgNome = `${org.name} (/${org.slug})`;
+      }
+    }
+    const chargeback = payment?.chargeback as Record<string, unknown> | undefined;
+    const titulo = `Chargeback: ${orgNome}`;
+    const linhas = [
+      `Evento: ${event}`,
+      `Treinador: ${orgNome}`,
+      `Cobrança: ${descricao || "(não encontrada no ORBI — pode ser parcela 2+ de um parcelamento)"}`,
+      `Valor: ${fmtBRL(Number(payment?.value ?? 0))}`,
+      `Motivo: ${String(chargeback?.reason ?? "não informado")}`,
+      `ID do pagamento no Asaas: ${paymentId ?? "?"}`,
+    ];
+    const { error } = await supabase.functions.invoke("enviar-email", { body: { type: "alerta_admin", titulo, linhas } });
+    if (error) console.error("[webhook] alerta chargeback e-mail:", error.message);
+  } catch (e) {
+    console.error("[webhook] alertChargeback:", e instanceof Error ? e.message : e);
+  }
 }
 
 // ── Main handler ────────────────────────────────────────────────────────────
@@ -469,7 +563,22 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("asaas_account_id", asaasAccountId);
+        // Início dos 90 dias de conta nova (teto/reserva de cartão).
+        if (event === "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED") {
+          await supabase
+            .from("asaas_subaccounts")
+            .update({ aprovado_em: new Date().toISOString() })
+            .eq("asaas_account_id", asaasAccountId)
+            .is("aprovado_em", null);
+        }
       }
+      break;
+    }
+
+    case "PAYMENT_CHARGEBACK_REQUESTED":
+    case "PAYMENT_CHARGEBACK_DISPUTE":
+    case "PAYMENT_AWAITING_CHARGEBACK_REVERSAL": {
+      await alertChargeback(event, payment);
       break;
     }
 
@@ -506,7 +615,7 @@ serve(async (req) => {
       if (newStatus === "RECEIVED" || newStatus === "CONFIRMED") {
         const { data: cob } = await supabase
           .from("cobrancas")
-          .select("id, treinador_id, org_id, aluno_id, valor, descricao, data_vencimento")
+          .select("id, treinador_id, org_id, aluno_id, valor, descricao, data_vencimento, forma_pagamento")
           .eq("asaas_id", asaasPaymentId)
           .maybeSingle();
 
@@ -562,6 +671,8 @@ serve(async (req) => {
               plano_cobranca_id:    cob.id,
             })
             .eq("id", cob.aluno_id);
+
+          if (cob.forma_pagamento === "CREDIT_CARD") await maybeAlertCardVolume(cob.org_id);
         }
       }
     }

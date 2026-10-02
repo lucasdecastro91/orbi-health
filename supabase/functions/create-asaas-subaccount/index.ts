@@ -165,6 +165,9 @@ serve(async (req) => {
             sendType: "SEQUENTIALLY",
             events: [
               "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_DELETED",
+              // Sem isso a gente nunca fica sabendo de contestação numa subconta
+              // (spec 2026-10-01).
+              "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_CHARGEBACK_DISPUTE", "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
               // Sem isso, a Asaas aprova a conta e a gente nunca fica sabendo —
               // o status em asaas_subaccounts ficaria travado em "pending" pra
               // sempre (achado ao vivo: a Orbi Demo foi aprovada em minutos e
