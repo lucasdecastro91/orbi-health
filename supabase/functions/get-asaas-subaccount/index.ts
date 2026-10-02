@@ -5,6 +5,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  todayBR, addDays, cardHold, purchaseDate, netCents, cardCapCents,
+  CARD_HOLD_DAYS, RESERVE_DAYS, type AsaasCardPayment,
+} from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -60,21 +64,10 @@ async function checkEligibility(org: { id: string; created_at: string; custom_tr
   return { eligible: true as const };
 }
 
-// Retenção de venda no cartão — mesma regra de solicitar-saque-asaas (ver
-// comentário lá), duplicada de propósito. Aqui também soma o cartão que ainda
-// nem caiu no saldo (CONFIRMED), só pra exibição do "Em liberação".
-const CARD_HOLD_DAYS = 30;
-
-function todayBR(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
+// Retenção de venda no cartão (30 dias + reserva de conta nova) — regras em
+// _shared/cardRisk.ts, as mesmas usadas pelo solicitar-saque-asaas. Aqui
+// também soma o cartão que ainda nem caiu no saldo (CONFIRMED), só pra
+// exibição do "Em liberação".
 async function listCardPayments(apiKey: string, filters: Record<string, string>) {
   const out: any[] = [];
   for (let offset = 0, page = 0; page < 20; page++, offset += 100) {
@@ -88,10 +81,11 @@ async function listCardPayments(apiKey: string, filters: Record<string, string>)
   throw new Error("payments: paginação excedeu o limite");
 }
 
-async function fetchCardHold(apiKey: string) {
+async function fetchCardHold(apiKey: string, aprovadoEm: string | null) {
   const today = todayBR();
   const [received, confirmed] = await Promise.all([
-    listCardPayments(apiKey, { status: "RECEIVED", "paymentDate[ge]": addDays(today, -CARD_HOLD_DAYS) }),
+    // reserva pode durar até RESERVE_DAYS, então busca liquidações desse período
+    listCardPayments(apiKey, { status: "RECEIVED", "paymentDate[ge]": addDays(today, -RESERVE_DAYS) }),
     listCardPayments(apiKey, { status: "CONFIRMED" }),
   ]);
 
@@ -100,17 +94,14 @@ async function fetchCardHold(apiKey: string) {
   let nextRelease: string | null = null;
   const bump = (d: string | null) => { if (d && (!nextRelease || d < nextRelease)) nextRelease = d; };
 
-  for (const p of received) {
-    const purchase = String(p.confirmedDate ?? p.clientPaymentDate ?? p.paymentDate ?? "").slice(0, 10);
-    const release = purchase ? addDays(purchase, CARD_HOLD_DAYS) : null;
-    if (!release || release > today) {
-      retainedCents += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
-      bump(release);
-    }
+  for (const p of received as AsaasCardPayment[]) {
+    const h = cardHold(p, aprovadoEm, today);
+    retainedCents += h.cents;
+    if (h.cents > 0) bump(h.releaseDate);
   }
-  for (const p of confirmed) {
-    pendingCents += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
-    const purchase = String(p.confirmedDate ?? "").slice(0, 10);
+  for (const p of confirmed as AsaasCardPayment[]) {
+    pendingCents += netCents(p);
+    const purchase = purchaseDate(p);
     const credit = String(p.estimatedCreditDate ?? "").slice(0, 10);
     const holdEnd = purchase ? addDays(purchase, CARD_HOLD_DAYS) : "";
     bump([credit, holdEnd].filter(Boolean).sort().pop() ?? null);
@@ -160,7 +151,7 @@ serve(async (req) => {
 
   const { data: sub } = await supabase
     .from("asaas_subaccounts")
-    .select("status, created_at, api_key, pix_key, pix_key_type")
+    .select("status, created_at, api_key, pix_key, pix_key_type, aprovado_em, limite_cartao_30d")
     .eq("org_id", organization_id)
     .maybeSingle();
 
@@ -186,7 +177,7 @@ serve(async (req) => {
     }
     if (balance != null) {
       try {
-        const hold = await fetchCardHold(sub.api_key);
+        const hold = await fetchCardHold(sub.api_key, sub.aprovado_em);
         const balanceCents = Math.round(Number(balance) * 100);
         available = Math.max(0, balanceCents - hold.retainedCents) / 100;
         inRelease = (Math.min(hold.retainedCents, balanceCents) + hold.pendingCents) / 100;
@@ -231,6 +222,18 @@ serve(async (req) => {
     }
   }
 
+  // Uso do teto de cartão (geradas nos últimos 30 dias) — só pra exibir no
+  // modal "Nova cobrança"; quem bloqueia de verdade é asaas-create-charge.
+  let cardVolume30d: number | null = null;
+  let cardCap: number | null = null;
+  if (sub.status === "aprovado") {
+    const capCents = cardCapCents(sub.aprovado_em, sub.limite_cartao_30d, todayBR());
+    cardCap = capCents == null ? null : capCents / 100;
+    const { data: vol, error: volErr } = await supabase.rpc("card_volume_30d", { p_org_id: organization_id, p_paid: false });
+    if (volErr) console.error("[get-asaas-subaccount] card_volume_30d:", volErr.message);
+    else cardVolume30d = Number(vol);
+  }
+
   return json({
     exists: true,
     status: sub.status,
@@ -239,6 +242,8 @@ serve(async (req) => {
     available,
     inRelease,
     nextRelease,
+    cardVolume30d,
+    cardCap,
     pixKeySet: !!sub.pix_key,
     pixKey: sub.pix_key,
     pixKeyType: sub.pix_key_type,

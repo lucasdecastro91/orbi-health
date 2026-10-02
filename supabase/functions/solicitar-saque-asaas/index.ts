@@ -5,6 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { todayBR, addDays, cardHold, RESERVE_DAYS, type AsaasCardPayment } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -26,32 +27,19 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// Retenção de venda no cartão (2026-09-30): o contrato de BaaS deixa o
-// chargeback na conta da LCTEAM quando a subconta não tem saldo (confirmado
-// pelo Asaas). Toda venda no cartão fica fora do saque por CARD_HOLD_DAYS
-// contados da data da compra, mesmo que já tenha caído no saldo (ex:
-// antecipação). Mesma lógica em get-asaas-subaccount — duplicada de propósito,
-// como o resto das regras dessas funções.
-const CARD_HOLD_DAYS = 30;
-
-function todayBR(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-// Soma (em centavos) as vendas no cartão que já estão no saldo e ainda estão
-// dentro da janela de retenção. Lança erro se a Asaas falhar — quem chama
-// deve bloquear o saque nesse caso, nunca liberar o saldo inteiro.
-async function fetchRetainedCents(apiKey: string): Promise<number> {
+// Retenção de venda no cartão: o contrato de BaaS deixa o chargeback na conta
+// da LCTEAM quando a subconta não tem saldo (confirmado pelo Asaas). Toda
+// venda no cartão fica fora do saque por 30 dias da compra, e venda de conta
+// nova deixa 20% até 120 dias — regras em _shared/cardRisk.ts.
+//
+// Soma (em centavos) o que ainda está retido das vendas no cartão que já estão
+// no saldo. Lança erro se a Asaas falhar — quem chama deve bloquear o saque,
+// nunca liberar o saldo inteiro.
+async function fetchRetainedCents(apiKey: string, aprovadoEm: string | null): Promise<number> {
   const today = todayBR();
   // paymentDate (liquidação) é sempre >= data da compra, então esse filtro
-  // pega todo candidato; o corte fino é feito pelo confirmedDate abaixo.
-  const since = addDays(today, -CARD_HOLD_DAYS);
+  // pega todo candidato; o corte fino é feito por cardHold.
+  const since = addDays(today, -RESERVE_DAYS);
   let retained = 0;
   for (let offset = 0, page = 0; page < 20; page++, offset += 100) {
     const qs = new URLSearchParams({
@@ -61,12 +49,7 @@ async function fetchRetainedCents(apiKey: string): Promise<number> {
     const res = await fetch(`${ASAAS_BASE}/payments?${qs}`, { headers: { "access_token": apiKey } });
     if (!res.ok) throw new Error(`payments ${res.status}: ${await res.text()}`);
     const body = await res.json();
-    for (const p of body?.data ?? []) {
-      const purchase = String(p.confirmedDate ?? p.clientPaymentDate ?? p.paymentDate ?? "").slice(0, 10);
-      if (!purchase || addDays(purchase, CARD_HOLD_DAYS) > today) {
-        retained += Math.round(Number(p.netValue ?? p.value ?? 0) * 100);
-      }
-    }
+    for (const p of (body?.data ?? []) as AsaasCardPayment[]) retained += cardHold(p, aprovadoEm, today).cents;
     if (!body?.hasMore) return retained;
   }
   throw new Error("payments: paginação excedeu o limite");
@@ -98,7 +81,7 @@ serve(async (req) => {
 
   const { data: sub, error: subErr } = await supabase
     .from("asaas_subaccounts")
-    .select("status, api_key, pix_key, pix_key_type")
+    .select("status, api_key, pix_key, pix_key_type, aprovado_em")
     .eq("org_id", organization_id)
     .maybeSingle();
   if (subErr || !sub) return json({ error: "Você ainda não tem uma conta criada." }, 400);
@@ -126,7 +109,7 @@ serve(async (req) => {
 
     let retainedCents: number;
     try {
-      retainedCents = await fetchRetainedCents(sub.api_key);
+      retainedCents = await fetchRetainedCents(sub.api_key, sub.aprovado_em);
     } catch (e) {
       console.error("[solicitar-saque-asaas] falha ao calcular retenção:", e instanceof Error ? e.message : e);
       return json({ error: "Não foi possível confirmar seu saldo. Tente novamente." }, 502);
@@ -137,7 +120,7 @@ serve(async (req) => {
     if (requestedCents > availableCents) {
       return json({
         error: retainedCents > 0
-          ? "Saldo insuficiente pra esse valor. Vendas no cartão ficam em liberação por 30 dias."
+          ? "Saldo insuficiente pra esse valor. Parte das vendas no cartão ainda está em liberação."
           : "Saldo insuficiente pra esse valor.",
       }, 400);
     }
