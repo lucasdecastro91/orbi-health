@@ -102,9 +102,11 @@ executa TypeScript nativamente; o repo não tem test runner e não vamos adicion
 - **Orbi Demo**: atualizar o webhook já registrado (`PUT /v3/webhooks/{id}` com a chave
   da subconta) para incluir os eventos de chargeback. Operação única.
 
-- **`enviar-email`**: tipo novo `alerta_admin` (`{ titulo, linhas: string[] }`). O
-  destinatário é **fixo** em `contato@orbihealth.com.br` e o `to` do payload é ignorado —
-  a função é pública (sem JWT), então aceitar destinatário/HTML livre viraria relay de spam.
+- **E-mail de alerta**: enviado pelo próprio `asaas-webhook` direto no Resend
+  (`RESEND_API_KEY` é secret do projeto), destinatário **fixo** `contato@orbihealth.com.br`.
+  *Mudança na implementação (2026-10-02):* a primeira versão criava um tipo `alerta_admin`
+  no `enviar-email`; foi revertido antes do deploy pra não republicar a função de todos os
+  e-mails do app (auth, cobrança) nem abrir um tipo novo num endpoint público.
   Conteúdo do alerta de volume: nome da org, volume pago 30d, nº de vendas, dias desde
   `aprovado_em`, quantos alunos pagantes nunca concluíram treino (`treino_sessoes_log`).
   Chargeback: org, aluno, valor, motivo/evento, id do pagamento.

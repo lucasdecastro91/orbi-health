@@ -228,6 +228,40 @@ async function logEvent(payload: Record<string, unknown>, orgId: string | null, 
 
 // ── Alertas de risco de cartão pro Lucas (spec 2026-10-01) ───────────────────
 
+// Manda direto pelo Resend (RESEND_API_KEY é secret do projeto), com
+// destinatário fixo — não passa pelo enviar-email, que é público e serve
+// todos os outros e-mails do app. Retorna true se o Resend aceitou.
+const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") ?? "";
+const ADMIN_ALERT_EMAIL = "contato@orbihealth.com.br";
+const escHtml = (s: unknown) =>
+  String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+async function sendAdminAlert(titulo: string, linhas: string[]): Promise<boolean> {
+  if (!RESEND_API_KEY) { console.error("[webhook] RESEND_API_KEY ausente — alerta não enviado"); return false; }
+  try {
+    const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111">`
+      + `<h2 style="font-size:16px;margin:0 0 12px">${escHtml(titulo)}</h2>`
+      + linhas.map((l) => `<p style="margin:4px 0">${escHtml(l)}</p>`).join("")
+      + `</div>`;
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "ORBI Health <noreply@orbihealth.com.br>",
+        to: [ADMIN_ALERT_EMAIL],
+        subject: `[ORBI alerta] ${titulo.slice(0, 120)}`,
+        html,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) { console.error("[webhook] alerta Resend:", res.status, await res.text()); return false; }
+    return true;
+  } catch (e) {
+    console.error("[webhook] alerta Resend:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
 // Alerta quando uma subconta passa de R$ 3.000 pagos no cartão em 30 dias.
 // Máx. 1 entregue por org a cada 30 dias. Best-effort.
 async function maybeAlertCardVolume(orgId: string) {
@@ -276,13 +310,10 @@ async function maybeAlertCardVolume(orgId: string) {
       `Carteira aprovada há: ${dias == null ? "data desconhecida" : `${dias} dias`}`,
       `Alunos pagantes no cartão sem nenhum treino concluído: ${semTreino} de ${alunoIds.length}`,
     ];
-    const { error: mailErr } = await supabase.functions.invoke("enviar-email", {
-      body: { type: "alerta_admin", titulo, linhas },
-    });
-    if (mailErr) console.error("[webhook] alerta volume e-mail:", mailErr.message);
+    const sent = await sendAdminAlert(titulo, linhas);
     const { error: logErr } = await supabase.from("notification_logs").insert({
       recipient_id: org.owner_id, org_id: orgId, notification_type: "alerta_volume_cartao",
-      title: titulo, body: linhas.join("\n"), delivered: !mailErr,
+      title: titulo, body: linhas.join("\n"), delivered: sent,
     });
     if (logErr) console.error("[webhook] notification_logs alerta:", logErr.message);
   } catch (e) {
@@ -315,8 +346,7 @@ async function alertChargeback(event: string, payment: Record<string, unknown> |
       `Motivo: ${String(chargeback?.reason ?? "não informado")}`,
       `ID do pagamento no Asaas: ${paymentId ?? "?"}`,
     ];
-    const { error } = await supabase.functions.invoke("enviar-email", { body: { type: "alerta_admin", titulo, linhas } });
-    if (error) console.error("[webhook] alerta chargeback e-mail:", error.message);
+    await sendAdminAlert(titulo, linhas);
   } catch (e) {
     console.error("[webhook] alertChargeback:", e instanceof Error ? e.message : e);
   }
