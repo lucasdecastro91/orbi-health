@@ -1,6 +1,13 @@
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const FROM_EMAIL     = "ORBI Health <noreply@orbihealth.com.br>";
 
+// alerta_admin: destinatário FIXO. A função é pública (sem JWT) — aceitar
+// destinatário/HTML do payload viraria relay de spam.
+const ADMIN_ALERT_EMAIL = "contato@orbihealth.com.br";
+const SERVICE_ROLE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const escHtml = (s: unknown) =>
+  String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
 const cors = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -550,6 +557,7 @@ Deno.serve(async (req) => {
 
     let subject = "";
     let html    = "";
+    let recipient = to;
 
     if (type === "boas_vindas") {
       const { nome, email, senha, orgName, appUrl } = data;
@@ -615,6 +623,18 @@ Deno.serve(async (req) => {
       const tpl = planoBloqueadoTemplate(nome, orgName, dateFmt);
       subject = tpl.subject;
       html    = tpl.html;
+    } else if (type === "alerta_admin") {
+      if (!SERVICE_ROLE_KEY || req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const { titulo, linhas } = data;
+      if (!titulo || !Array.isArray(linhas)) return json({ error: "Missing fields for alerta_admin" }, 400);
+      recipient = ADMIN_ALERT_EMAIL;
+      subject = `[ORBI alerta] ${String(titulo).slice(0, 120)}`;
+      html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111">`
+        + `<h2 style="font-size:16px;margin:0 0 12px">${escHtml(titulo)}</h2>`
+        + linhas.slice(0, 30).map((l: unknown) => `<p style="margin:4px 0">${escHtml(l)}</p>`).join("")
+        + `</div>`;
     } else {
       return json({ error: `Unknown email type: ${type}` }, 400);
     }
@@ -625,7 +645,7 @@ Deno.serve(async (req) => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
         "Content-Type":  "application/json",
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to: [recipient], subject, html }),
     });
 
     const resData = await res.json();
