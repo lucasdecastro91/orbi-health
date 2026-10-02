@@ -395,6 +395,7 @@ const TreinoHoje = () => {
           tipo_calculo:  s.tipo_calculo ?? (s.tipo_carga === 'percentual' ? 'percentual' : 'manual'),
           valor_calculo: s.valor_calculo ?? s.valor_carga ?? '',
           quantidade:    typeof s.quantidade === 'number' && s.quantidade >= 1 ? s.quantidade : 1,
+          unidade:       s.unidade === 'seg' ? 'seg' : undefined,
         });
 
         const sortedExs = [...(treinoData.exercicios as any[])].sort(

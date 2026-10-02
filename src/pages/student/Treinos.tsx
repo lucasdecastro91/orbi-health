@@ -100,7 +100,9 @@ const getWorkSetSummary = (exercise: Exercise): string => {
   const parts = order.map((tipo) => {
     const group = groups[tipo];
     const totalQty = group.reduce((sum: number, s: any) => sum + (typeof s.quantidade === 'number' ? s.quantidade : 1), 0);
-    const reps = group.map((s: any) => s.repeticoes).filter(Boolean);
+    const reps = group
+      .map((s: any) => (s.repeticoes && s.unidade === 'seg' ? `${s.repeticoes}s` : s.repeticoes))
+      .filter(Boolean);
     const uniqueReps = [...new Set(reps)];
     const repStr = uniqueReps.length === 1 ? uniqueReps[0] : uniqueReps.join('/');
     return `${totalQty}× ${repStr}`;

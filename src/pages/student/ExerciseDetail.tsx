@@ -823,6 +823,7 @@ const ExerciseDetail = () => {
         // Coach salva o texto em `descricao`; mantém retrocompatibilidade com `observacoes`
         observacoes:   s.observacoes ?? s.descricao ?? '',
         descanso:      s.descanso ?? null,
+        unidade:       s.unidade === 'seg' ? 'seg' : undefined,
       });
 
       const rawSd = (q as any).series_detalhadas;

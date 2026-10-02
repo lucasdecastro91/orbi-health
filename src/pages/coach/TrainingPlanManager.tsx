@@ -1073,7 +1073,9 @@ const PlanDetails = ({ planId, plan, studentUserId, onEditPlan, onDeletePlan }: 
           const newExercises = exercises.map((ex) => {
             const seriesDetalhadas = ex.series_detalhadas
               ? ex.series_detalhadas.map((s: any) =>
-                  s.tipo === "trabalho" ? { ...s, repeticoes: customZonaReps } : s
+                  // Série por tempo (isometria) guarda segundos em `repeticoes` —
+                  // a "zona de reps" do bloco novo não se aplica, senão 45s virava "8-10".
+                  s.tipo === "trabalho" && s.unidade !== "seg" ? { ...s, repeticoes: customZonaReps } : s
                 )
               : null;
             return {
@@ -2359,7 +2361,10 @@ const ExerciseRow = ({
   const repsResumo = (() => {
     if (!hasSd) return exercise.repeticoes?.trim() || null;
     const distintos = (arr: SerieDetalhe[]) =>
-      Array.from(new Set(arr.map((s) => (s.repeticoes ?? '').trim()).filter(Boolean)));
+      Array.from(new Set(arr.map((s) => {
+        const r = (s.repeticoes ?? '').trim();
+        return r && s.unidade === 'seg' ? `${r}s` : r;
+      }).filter(Boolean)));
     let vals = distintos(sd.filter((s) => normalizeTipo(s.tipo) === 'trabalho'));
     if (vals.length === 0) vals = distintos(sd);
     if (vals.length === 0) return null;
@@ -2368,7 +2373,8 @@ const ExerciseRow = ({
     const nums = vals.flatMap((v) => (v.match(/\d+/g) ?? []).map(Number));
     if (nums.length === 0) return vals[0];
     const min = Math.min(...nums), max = Math.max(...nums);
-    return min === max ? String(min) : `${min}-${max}`;
+    const un = vals.every((v) => v.endsWith('s')) ? 's' : '';
+    return min === max ? `${min}${un}` : `${min}-${max}${un}`;
   })();
 
   return (
@@ -2418,7 +2424,7 @@ const ExerciseRow = ({
                   <span className="font-semibold whitespace-nowrap">
                     {count} {count === 1 ? 'série' : 'séries'}
                   </span>
-                  {repsResumo && <span className="whitespace-nowrap">· {repsResumo} reps</span>}
+                  {repsResumo && <span className="whitespace-nowrap">· {repsResumo}{repsResumo.endsWith('s') ? '' : ' reps'}</span>}
                   {exercise.carga_base && (
                     <span className="opacity-70 whitespace-nowrap">· base {exercise.carga_base}</span>
                   )}
@@ -2689,6 +2695,10 @@ const TrainingExercises = ({
       // Descrição por exercício tem prioridade; fallback na config global da org
       descricao: s.descricao?.trim() ? s.descricao : (globalConfig[tipo] || undefined),
       descanso: s.descanso ?? undefined,
+      // Sem repassar aqui, "Seg" voltava pra "Reps" ao reabrir o exercício e o
+      // próximo save apagava a unidade do banco (normalizeSerie reconstrói a
+      // série campo a campo — campo opcional não aparece como erro no tsc).
+      unidade: s.unidade === 'seg' ? 'seg' : undefined,
     };
   };
 
