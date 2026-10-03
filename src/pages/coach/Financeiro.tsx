@@ -910,6 +910,7 @@ const Financeiro = () => {
   const [subStatus, setSubStatus] = useState<{
     exists: boolean; status?: string; balance?: number | null; eligible?: boolean; reason?: string;
     available?: number | null; inRelease?: number | null; nextRelease?: string | null;
+    releases?: { date: string; amount: number }[];
     cardVolume30d?: number | null; cardCap?: number | null;
     pixKeySet?: boolean; pixKey?: string | null; pixKeyType?: string | null; withdrawals?: Withdrawal[];
   } | null>(null);
@@ -1149,6 +1150,8 @@ const Financeiro = () => {
     const enriched = { ...c, aluno_nome: nome };
     setCobrancas((prev) => [enriched, ...prev]);
     setSuccessData({ cobranca: enriched, nome });
+    // Atualiza o "R$ X de R$ 5.000 usados" do teto de cartão (só subconta).
+    if (!isGsBrand) loadSubaccountStatus();
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -1443,10 +1446,21 @@ const Financeiro = () => {
                 {fmtBRL(withdrawable)}
               </p>
               {(subStatus?.inRelease ?? 0) > 0 && (
-                <p className="text-xs text-white/40 mt-2">
-                  Em liberação: <span className="text-white/70 font-medium">{fmtBRL(subStatus!.inRelease!)}</span>
-                  {subStatus?.nextRelease && <> · próxima em {fmtDate(subStatus.nextRelease)}</>}
-                </p>
+                <div className="mt-2 space-y-0.5">
+                  <p className="text-xs text-white/40">
+                    Em liberação: <span className="text-white/70 font-medium">{fmtBRL(subStatus!.inRelease!)}</span>
+                    {!subStatus?.releases?.length && subStatus?.nextRelease && <> · próxima em {fmtDate(subStatus.nextRelease)}</>}
+                  </p>
+                  {/* Calendário: quanto libera em cada data (venda de conta nova
+                      solta 80% em 30 dias e 20% em 120 — sem isso parecia que
+                      tudo saía na primeira data). */}
+                  {!!subStatus?.releases?.length && (
+                    <p className="text-[11px] text-white/35">
+                      {subStatus.releases.slice(0, 3).map((r) => `${fmtBRL(r.amount)} em ${fmtDate(r.date)}`).join(" · ")}
+                      {subStatus.releases.length > 3 && ` · +${subStatus.releases.length - 3} datas`}
+                    </p>
+                  )}
+                </div>
               )}
               {subStatus?.exists ? (
                 <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full mt-2"

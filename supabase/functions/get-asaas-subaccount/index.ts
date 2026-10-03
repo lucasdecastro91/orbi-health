@@ -6,8 +6,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  todayBR, addDays, cardHold, purchaseDate, netCents, cardCapCents,
-  CARD_HOLD_DAYS, RESERVE_DAYS, type AsaasCardPayment,
+  todayBR, addDays, cardHold, netCents, cardCapCents, releaseSchedule, mergeSchedules,
+  RESERVE_DAYS, type AsaasCardPayment, type ReleasePart,
 } from "../_shared/cardRisk.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -91,22 +91,20 @@ async function fetchCardHold(apiKey: string, aprovadoEm: string | null) {
 
   let retainedCents = 0;
   let pendingCents = 0;
-  let nextRelease: string | null = null;
-  const bump = (d: string | null) => { if (d && (!nextRelease || d < nextRelease)) nextRelease = d; };
+  const schedules: ReleasePart[][] = [];
 
   for (const p of received as AsaasCardPayment[]) {
-    const h = cardHold(p, aprovadoEm, today);
-    retainedCents += h.cents;
-    if (h.cents > 0) bump(h.releaseDate);
+    retainedCents += cardHold(p, aprovadoEm, today).cents;
+    schedules.push(releaseSchedule(p, aprovadoEm, today, true));
   }
   for (const p of confirmed as AsaasCardPayment[]) {
     pendingCents += netCents(p);
-    const purchase = purchaseDate(p);
-    const credit = String(p.estimatedCreditDate ?? "").slice(0, 10);
-    const holdEnd = purchase ? addDays(purchase, CARD_HOLD_DAYS) : "";
-    bump([credit, holdEnd].filter(Boolean).sort().pop() ?? null);
+    schedules.push(releaseSchedule(p, aprovadoEm, today, false));
   }
-  return { retainedCents, pendingCents, nextRelease };
+  // Calendário "R$ X em dd/mm" da Carteira — mostra quanto libera em cada
+  // data, não só a primeira (senão parece que tudo sai na primeira data).
+  const releases = mergeSchedules(schedules);
+  return { retainedCents, pendingCents, nextRelease: releases[0]?.date ?? null, releases };
 }
 
 const corsHeaders = {
@@ -163,6 +161,7 @@ serve(async (req) => {
   let available: number | null = null;
   let inRelease: number | null = null;
   let nextRelease: string | null = null;
+  let releases: { date: string; amount: number }[] = [];
   if (sub.status === "aprovado") {
     try {
       const res = await fetch(`${ASAAS_BASE}/finance/balance`, {
@@ -182,6 +181,7 @@ serve(async (req) => {
         available = Math.max(0, balanceCents - hold.retainedCents) / 100;
         inRelease = (Math.min(hold.retainedCents, balanceCents) + hold.pendingCents) / 100;
         nextRelease = hold.nextRelease;
+        releases = hold.releases.map((r) => ({ date: r.date, amount: r.cents / 100 }));
       } catch (e) {
         console.error("[get-asaas-subaccount] falha ao calcular retenção:", e instanceof Error ? e.message : e);
       }
@@ -242,6 +242,7 @@ serve(async (req) => {
     available,
     inRelease,
     nextRelease,
+    releases,
     cardVolume30d,
     cardCap,
     pixKeySet: !!sub.pix_key,

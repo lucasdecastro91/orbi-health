@@ -84,3 +84,41 @@ export function cardHold(p: AsaasCardPayment, aprovadoEm: string | null, today: 
   }
   return { cents: 0, releaseDate: null };
 }
+
+export interface ReleasePart { date: string; cents: number }
+
+// Calendário do que ainda vai liberar de uma venda no cartão: a parte
+// principal em compra+30 e a reserva (conta nova) em compra+120. Se a venda
+// ainda não caiu no saldo (credited=false), nenhuma parte libera antes da
+// data de crédito prevista pelo Asaas. Sem data de compra → [] (não dá pra
+// datar; o valor continua retido por cardHold).
+export function releaseSchedule(
+  p: AsaasCardPayment, aprovadoEm: string | null, today: string, credited: boolean,
+): ReleasePart[] {
+  const net = netCents(p);
+  const purchase = purchaseDate(p);
+  if (!purchase || net <= 0) return [];
+  const credit = credited ? null : (String(p.estimatedCreditDate ?? "").slice(0, 10) || null);
+  const notBefore = (d: string) => (credit && credit > d ? credit : d);
+
+  const accountEnd = newAccountEnd(aprovadoEm);
+  const boughtWhileNew = accountEnd === null || purchase < accountEnd;
+  const reserve = boughtWhileNew ? Math.round((net * RESERVE_PERCENT) / 100) : 0;
+  const mainEnd = notBefore(addDays(purchase, CARD_HOLD_DAYS));
+  const reserveEnd = notBefore(addDays(purchase, RESERVE_DAYS));
+
+  const parts: ReleasePart[] = [];
+  if (today < mainEnd) parts.push({ date: mainEnd, cents: net - reserve });
+  if (reserve > 0 && today < reserveEnd) parts.push({ date: reserveEnd, cents: reserve });
+  return mergeSchedules([parts]);
+}
+
+// Junta calendários somando valores da mesma data, em ordem cronológica.
+export function mergeSchedules(schedules: ReleasePart[][]): ReleasePart[] {
+  const byDate = new Map<string, number>();
+  for (const s of schedules) for (const r of s) byDate.set(r.date, (byDate.get(r.date) ?? 0) + r.cents);
+  return [...byDate.entries()]
+    .filter(([, cents]) => cents > 0)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([date, cents]) => ({ date, cents }));
+}

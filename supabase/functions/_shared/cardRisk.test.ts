@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   addDays, todayBR, isNewAccount, cardCapCents, exceedsCap, cardHold,
-  DEFAULT_CAP_CENTS,
+  releaseSchedule, mergeSchedules, DEFAULT_CAP_CENTS,
 } from "./cardRisk.ts";
 
 // Orbi Demo real: created_at 2026-08-27T00:34Z = 26/08 em São Paulo.
@@ -74,4 +74,56 @@ test("cardHold: sem data de compra fica 100% retido", () => {
 test("cardHold: cai pro clientPaymentDate/paymentDate quando falta confirmedDate", () => {
   const h = cardHold({ paymentDate: "2026-09-25", netValue: 50 }, APROVADO, "2026-10-01");
   assert.deepEqual(h, { cents: 5000, releaseDate: "2026-10-25" });
+});
+
+// ── Calendário de liberação ("Em liberação" da Carteira) ──────────────────────
+
+test("releaseSchedule: venda de conta nova já no saldo libera 80% em +30 e 20% em +120", () => {
+  const s = releaseSchedule({ confirmedDate: "2026-09-20", netValue: 100 }, APROVADO, "2026-10-01", true);
+  assert.deepEqual(s, [
+    { date: "2026-10-20", cents: 8000 },
+    { date: "2027-01-18", cents: 2000 },
+  ]);
+});
+
+test("releaseSchedule: depois dos 30 dias só sobra a reserva", () => {
+  const s = releaseSchedule({ confirmedDate: "2026-09-01", netValue: 100 }, APROVADO, "2026-10-01", true);
+  assert.deepEqual(s, [{ date: "2026-12-30", cents: 2000 }]);
+});
+
+test("releaseSchedule: conta antiga libera tudo em +30, sem reserva", () => {
+  const s = releaseSchedule({ confirmedDate: "2026-12-01", netValue: 100 }, APROVADO, "2026-12-10", true);
+  assert.deepEqual(s, [{ date: "2026-12-31", cents: 10000 }]);
+});
+
+test("releaseSchedule: venda ainda não creditada respeita a data de crédito do Asaas", () => {
+  // compra 20/09, Asaas credita só em 25/10 (> 20/10): os 80% saem em 25/10
+  const s = releaseSchedule(
+    { confirmedDate: "2026-09-20", estimatedCreditDate: "2026-10-25", netValue: 100 },
+    APROVADO, "2026-10-01", false,
+  );
+  assert.deepEqual(s, [
+    { date: "2026-10-25", cents: 8000 },
+    { date: "2027-01-18", cents: 2000 },
+  ]);
+});
+
+test("releaseSchedule: soma das partes é sempre o valor líquido (arredondamento)", () => {
+  const s = releaseSchedule({ confirmedDate: "2026-09-20", netValue: 33.33 }, APROVADO, "2026-10-01", true);
+  assert.equal(s.reduce((a, r) => a + r.cents, 0), 3333);
+});
+
+test("releaseSchedule: tudo liberado retorna vazio", () => {
+  assert.deepEqual(releaseSchedule({ confirmedDate: "2026-01-01", netValue: 100 }, APROVADO, "2026-10-01", true), []);
+});
+
+test("mergeSchedules: soma por data e ordena", () => {
+  const m = mergeSchedules([
+    [{ date: "2026-12-30", cents: 2000 }],
+    [{ date: "2026-10-20", cents: 8000 }, { date: "2026-12-30", cents: 500 }],
+  ]);
+  assert.deepEqual(m, [
+    { date: "2026-10-20", cents: 8000 },
+    { date: "2026-12-30", cents: 2500 },
+  ]);
 });
