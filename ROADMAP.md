@@ -112,7 +112,8 @@
   - **Bug:** "Cancelar" cobrança no ORBI (`Financeiro.tsx` `handleCancel`) só muda o status no nosso banco — a cobrança continua pagável no Asaas.
   - **Bug:** e-mail "assinatura anual pronta pra pagamento" (`asaas-webhook` → `promoteFromIntro`) e o aviso de atraso pro dono da org mandam `{to, subject, html}` sem `type` — o `enviar-email` recusa, nunca foram entregues.
   - Webhook da subconta Orbi Demo no Asaas não escuta chargeback (foi criado antes); o `pg_net` não faz PUT. Subcontas novas já nascem com os eventos.
-  - Minors da revisão final (2026-10-01): modal não recarrega o uso do teto depois de gerar cobrança; "próxima liberação" de cobrança ainda não creditada ignora a reserva de 20%; janelas de 30 dias do teto (rolling) e do alerta (dia BR) com convenções diferentes.
+  - Minor da revisão final (2026-10-01): janelas de 30 dias do teto (rolling, hora a hora) e do alerta (dia de calendário BR) com convenções diferentes — diferença de no máx. 1 dia. (Os outros dois — contador do modal e data de liberação — foram resolvidos em 2026-10-03.)
+  - Alertas de cartão testáveis sob demanda: `testar-alerta` dispara os dois e-mails em modo [TESTE] — ver comentário no topo de `supabase/functions/testar-alerta/index.ts` pro comando SQL.
 
 ✅ **Storage do Supabase (free tier, 1GB) quase estourando — compressão de imagem + redesenho da aba Evolução (2026-08-27).** Achado ao investigar `843MB/1GB` no painel do Supabase.
 - **Causa raiz**: fotos de câmera saíam sem nenhuma compressão (1,5-8MB cada) nos 4 pontos de upload (Evolução, Anamnese, Avaliação Física, Atualização) + a aba Evolução acumulava **toda foto de toda Atualização enviada, sem limite**, com um bug de quebra: apagar a Atualização não limpava a cópia espelhada em `evolution_photos`/bucket `evolution-photos` (ficava órfã, seguia contando storage).
